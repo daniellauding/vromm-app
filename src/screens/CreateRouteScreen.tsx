@@ -379,8 +379,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     category: 'parking' as Category,
   });
 
-  // Validation helper
+  // Validation helpers
   const isBasicInfoComplete = formData.name.trim().length > 0;
+  
+  const isLocationComplete = 
+    (drawingMode === 'pin' && waypoints.length > 0) ||
+    (drawingMode === 'waypoint' && waypoints.length >= 2) ||
+    (drawingMode === 'pen' && (penPath.length > 0 || waypoints.length > 0)) ||
+    (drawingMode === 'record' && waypoints.length > 0);
 
   // ==================== UNSAVED CHANGES DETECTION ====================
 
@@ -455,6 +461,28 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       return () => backHandler.remove();
     }, [hasUnsavedChanges]),
   );
+
+  // Handle cancel button press
+  const handleCancelPress = () => {
+    console.log('🎯 [CreateRouteScreen] Cancel button pressed!', {
+      hasUnsavedChanges,
+      showExitConfirmation,
+    });
+
+    if (hasUnsavedChanges) {
+      // Show confirmation dialog if there are unsaved changes
+      console.log('🎯 [CreateRouteScreen] ✅ Showing exit confirmation due to unsaved changes');
+      setShowExitConfirmation(true);
+    } else {
+      // No changes, close directly
+      console.log('🎯 [CreateRouteScreen] ❌ No unsaved changes - closing directly');
+      if (onCloseModal) {
+        onCloseModal();
+      } else if (navigation) {
+        navigation.goBack();
+      }
+    }
+  };
 
   // ==================== CONTEXT STATE INTEGRATION ====================
 
@@ -1734,30 +1762,33 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       // Set loading to false before navigation
       setLoading(false);
 
-      // Show toast notification and navigate to home
+      // Show toast notification BEFORE navigation (so component is still mounted)
       if (route?.id && route?.name) {
+        console.log('🍞 [CreateRouteScreen] Showing toast for route:', route.id, route.name);
         showRouteCreatedToast(route.id, route.name, isEditing);
+        console.log('🍞 [CreateRouteScreen] Toast call completed');
       }
 
-      // Different navigation behavior based on whether we're in modal mode
-      if (isModal && onCloseModal) {
-        // If in modal mode, call the onClose callback
-        onCloseModal();
+      // Navigate/close AFTER showing toast (small delay for animation)
+      setTimeout(() => {
+        // Different navigation behavior based on whether we're in modal mode
+        if (isModal && onCloseModal) {
+          // If in modal mode, call the onClose callback
+          onCloseModal();
 
-        // Call onRouteCreated callback if provided
-        if (onRouteCreated && route?.id) {
-          onRouteCreated(route.id);
+          // Call onRouteCreated callback if provided
+          if (onRouteCreated && route?.id) {
+            onRouteCreated(route.id);
+          }
+        } else if (navigation) {
+          // Navigate back to Home root inside tabs
+          // @ts-ignore
+          navigation.navigate('MainTabs', {
+            screen: 'HomeTab',
+            params: { screen: 'HomeScreen', params: { resetKey: Date.now() } },
+          });
         }
-      } else if (navigation) {
-        // Navigate back to Home root inside tabs
-        // @ts-ignore
-        navigation.navigate('MainTabs', {
-          screen: 'HomeTab',
-          params: { screen: 'HomeScreen', params: { resetKey: Date.now() } },
-        });
-      } else {
-        console.warn('No navigation available');
-      }
+      }, 100); // Small delay to ensure toast is rendered before navigation/close
     } catch (err) {
       console.error('Route operation error:', err);
 
@@ -4058,7 +4089,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
           </XStack>
         </Button> */}
 
-        {/* Validation message */}
+        {/* Validation messages */}
         {!isBasicInfoComplete && (
           <XStack gap="$2" alignItems="center" justifyContent="center" paddingHorizontal="$2">
             <Feather name="alert-circle" size={16} color="#EF4444" />
@@ -4067,11 +4098,23 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             </Text>
           </XStack>
         )}
+        
+        {!isLocationComplete && (
+          <XStack gap="$2" alignItems="center" justifyContent="center" paddingHorizontal="$2">
+            <Feather name="alert-circle" size={16} color="#EF4444" />
+            <Text size="sm" color="#EF4444" fontWeight="500">
+              {drawingMode === 'pin' && getTranslation(t, 'createRoute.locationRequired', 'Please drop a pin on the map')}
+              {drawingMode === 'waypoint' && getTranslation(t, 'createRoute.waypointsRequired', 'At least 2 waypoints required')}
+              {drawingMode === 'pen' && getTranslation(t, 'createRoute.drawingRequired', 'Please draw a route on the map')}
+              {drawingMode === 'record' && getTranslation(t, 'createRoute.recordingRequired', 'Please record a route first')}
+            </Text>
+          </XStack>
+        )}
 
         {/* Create Route Button */}
         <Button
           onPress={handleCreate}
-          disabled={loading || !formData.name.trim()}
+          disabled={loading || !formData.name.trim() || !isLocationComplete}
           variant="primary"
           size="md"
           width="100%"
@@ -4081,6 +4124,17 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
             : isEditing
               ? getTranslation(t, 'createRoute.save', 'Save')
               : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
+        </Button>
+
+        {/* Cancel Button */}
+        <Button
+          onPress={handleCancelPress}
+          disabled={loading}
+          variant="outline"
+          size="md"
+          width="100%"
+        >
+          {getTranslation(t, 'common.cancel', 'Cancel')}
         </Button>
       </YStack>
 
@@ -4117,12 +4171,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         transparent
         animationType="none"
         onRequestClose={() => setShowExitConfirmation(false)}
+        statusBarTranslucent
       >
         <View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'rgba(0,0,0,0.7)',
             justifyContent: 'flex-end',
+            zIndex: 99999,
           }}
         >
           <Animated.View

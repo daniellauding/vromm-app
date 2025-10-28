@@ -542,8 +542,14 @@ export function CreateRouteSheet({
     category: 'parking' as Category,
   });
 
-  // Validation helper
+  // Validation helpers
   const isBasicInfoComplete = formData.name.trim().length > 0;
+  
+  const isLocationComplete = 
+    (drawingMode === 'pin' && waypoints.length > 0) ||
+    (drawingMode === 'waypoint' && waypoints.length >= 2) ||
+    (drawingMode === 'pen' && (penPath.length > 0 || waypoints.length > 0)) ||
+    (drawingMode === 'record' && waypoints.length > 0);
 
   // ==================== UNSAVED CHANGES DETECTION ====================
 
@@ -586,6 +592,24 @@ export function CreateRouteSheet({
       }
     }
   }, [hasUnsavedChanges, currentSnapPoint, snapPoints, snapToSize, backdropOpacity, visible]);
+
+  // Handle cancel button press
+  const handleCancelPress = useCallback(() => {
+    console.log('🎯 [CreateRouteSheet] Cancel button pressed!', {
+      hasUnsavedChanges,
+      showExitConfirmation,
+    });
+
+    if (hasUnsavedChanges) {
+      // Show confirmation dialog if there are unsaved changes
+      console.log('🎯 [CreateRouteSheet] ✅ Showing exit confirmation due to unsaved changes');
+      setShowExitConfirmation(true);
+    } else {
+      // No changes, close directly
+      console.log('🎯 [CreateRouteSheet] ❌ No unsaved changes - closing directly');
+      onClose();
+    }
+  }, [hasUnsavedChanges, onClose, showExitConfirmation]);
 
   // Create initial snapshot for comparison (after all state is initialized)
   useEffect(() => {
@@ -1952,18 +1976,22 @@ export function CreateRouteSheet({
       // Set loading to false before closing
       setLoading(false);
 
-      // Show toast notification without auto-navigation (user stays on HomeScreen)
+      // Show toast notification BEFORE closing (so component is still mounted)
       // Pass empty custom action to prevent navigating to RouteDetailScreen
       if (route?.id && route?.name) {
+        console.log('🍞 [CreateRouteSheet] Showing toast for route:', route.id, route.name);
         showRouteCreatedToast(route.id, route.name, isEditing, false, () => {
           // No-op: prevents auto-navigation to RouteDetailScreen
           // User can view route from their routes list or via parent callback
-          console.log('Toast clicked for route:', route.id);
+          console.log('🍞 [CreateRouteSheet] Toast clicked for route:', route.id);
         });
+        console.log('🍞 [CreateRouteSheet] Toast call completed');
       }
 
-      // Close the create sheet
-      onClose();
+      // Close the create sheet AFTER showing toast (small delay for animation)
+      setTimeout(() => {
+        onClose();
+      }, 100); // Small delay to ensure toast is rendered before sheet closes
 
       // Don't call onRouteCreated to prevent navigation away from HomeScreen
       // User stays on HomeScreen with toast notification showing route was created
@@ -4396,7 +4424,7 @@ export function CreateRouteSheet({
                   </XStack>
                 </Button> */}
 
-                {/* Validation message */}
+                {/* Validation messages */}
                 {!isBasicInfoComplete && (
                   <XStack gap="$2" alignItems="center" justifyContent="center" paddingHorizontal="$2">
                     <Feather name="alert-circle" size={16} color="#EF4444" />
@@ -4405,11 +4433,23 @@ export function CreateRouteSheet({
                     </Text>
                   </XStack>
                 )}
+                
+                {!isLocationComplete && (
+                  <XStack gap="$2" alignItems="center" justifyContent="center" paddingHorizontal="$2">
+                    <Feather name="alert-circle" size={16} color="#EF4444" />
+                    <Text size="sm" color="#EF4444" fontWeight="500">
+                      {drawingMode === 'pin' && getTranslation(t, 'createRoute.locationRequired', 'Please drop a pin on the map')}
+                      {drawingMode === 'waypoint' && getTranslation(t, 'createRoute.waypointsRequired', 'At least 2 waypoints required')}
+                      {drawingMode === 'pen' && getTranslation(t, 'createRoute.drawingRequired', 'Please draw a route on the map')}
+                      {drawingMode === 'record' && getTranslation(t, 'createRoute.recordingRequired', 'Please record a route first')}
+                    </Text>
+                  </XStack>
+                )}
 
                 {/* Create Route Button */}
                 <Button
                   onPress={handleCreate}
-                  disabled={loading || !formData.name.trim()}
+                  disabled={loading || !formData.name.trim() || !isLocationComplete}
                   variant="primary"
                   size="md"
                   width="100%"
@@ -4423,7 +4463,7 @@ export function CreateRouteSheet({
 
                 {/* Cancel Button */}
                 <Button
-                  onPress={onClose}
+                  onPress={handleCancelPress}
                   disabled={loading}
                   variant="outline"
                   size="md"
@@ -4466,12 +4506,14 @@ export function CreateRouteSheet({
                 transparent
                 animationType="none"
                 onRequestClose={() => setShowExitConfirmation(false)}
+                statusBarTranslucent
               >
                 <View
                   style={{
                     flex: 1,
-                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
                     justifyContent: 'flex-end',
+                    zIndex: 99999,
                   }}
                 >
                   <Animated.View
