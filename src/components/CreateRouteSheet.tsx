@@ -336,6 +336,7 @@ export function CreateRouteSheet({
     [onNavigateToMap],
   );
   const [loading, setLoading] = useState(false);
+  const [loadingMedia, setLoadingMedia] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
     console.log('🏗️ Initializing waypoints state:', {
@@ -366,6 +367,7 @@ export function CreateRouteSheet({
   const [youtubeLink, setYoutubeLink] = useState('');
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Drawing modes system - set to 'record' if coming from recorded route
@@ -1414,6 +1416,7 @@ export function CreateRouteSheet({
 
   const pickMedia = async (useCamera = false) => {
     try {
+      setLoadingMedia(true);
       let newMediaItems: mediaUtils.MediaItem[] | null = null;
 
       if (useCamera) {
@@ -1433,11 +1436,14 @@ export function CreateRouteSheet({
     } catch (err) {
       console.error('Error picking media:', err);
       Alert.alert('Error', 'Failed to select media. Please try again.');
+    } finally {
+      setLoadingMedia(false);
     }
   };
 
   const takePhoto = async () => {
     try {
+      setLoadingMedia(true);
       const newMedia = await mediaUtils.takePhoto();
       if (newMedia) {
         setMedia([...media, newMedia]);
@@ -1445,6 +1451,8 @@ export function CreateRouteSheet({
     } catch (err) {
       console.error('Error taking photo:', err);
       Alert.alert(t('common.error'), 'Error taking photo');
+    } finally {
+      setLoadingMedia(false);
     }
   };
 
@@ -1462,6 +1470,7 @@ export function CreateRouteSheet({
 
   const recordVideo = async () => {
     try {
+      setLoadingMedia(true);
       const newMedia = await mediaUtils.recordVideo();
       if (newMedia) {
         setMedia([...media, newMedia]);
@@ -1469,6 +1478,8 @@ export function CreateRouteSheet({
     } catch (err) {
       console.error('Error recording video:', err);
       Alert.alert('Error', 'Failed to record video. Please try again.');
+    } finally {
+      setLoadingMedia(false);
     }
   };
 
@@ -3549,51 +3560,60 @@ export function CreateRouteSheet({
                             </Text> */}
 
                             <YStack gap="$3">
-                              <Button
+                              <TouchableOpacity
                                 onPress={() => pickMedia(false)}
-                                variant="secondary"
-                                size="lg"
-                                backgroundColor="transparent"
-                                borderColor="$borderColor"
-                                borderWidth={1}
+                                style={{
+                                  paddingVertical: 16,
+                                  paddingHorizontal: 16,
+                                  borderRadius: 8,
+                                  borderWidth: 1,
+                                  borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                  backgroundColor: 'transparent',
+                                }}
                               >
-                                <XStack gap="$2" alignItems="center">
+                                <XStack gap="$2" alignItems="center" justifyContent="center">
                                   <Feather name="image" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
                                   <Text color="$color">
                                     {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
                                   </Text>
                                 </XStack>
-                              </Button>
-                              <Button
+                              </TouchableOpacity>
+                              <TouchableOpacity
                                 onPress={takePhoto}
-                                variant="secondary"
-                                size="lg"
-                                backgroundColor="transparent"
-                                borderColor="$borderColor"
-                                borderWidth={1}
+                                style={{
+                                  paddingVertical: 16,
+                                  paddingHorizontal: 16,
+                                  borderRadius: 8,
+                                  borderWidth: 1,
+                                  borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                  backgroundColor: 'transparent',
+                                }}
                               >
-                                <XStack gap="$2" alignItems="center">
+                                <XStack gap="$2" alignItems="center" justifyContent="center">
                                   <Feather name="camera" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
                                   <Text color="$color">
                                     {getTranslation(t, 'createRoute.takePicture', 'Take Picture')}
                                   </Text>
                                 </XStack>
-                              </Button>
-                              <Button
+                              </TouchableOpacity>
+                              <TouchableOpacity
                                 onPress={recordVideo}
-                                variant="secondary"
-                                size="lg"
-                                backgroundColor="transparent"
-                                borderColor="$borderColor"
-                                borderWidth={1}
+                                style={{
+                                  paddingVertical: 16,
+                                  paddingHorizontal: 16,
+                                  borderRadius: 8,
+                                  borderWidth: 1,
+                                  borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                  backgroundColor: 'transparent',
+                                }}
                               >
-                                <XStack gap="$2" alignItems="center">
+                                <XStack gap="$2" alignItems="center" justifyContent="center">
                                   <Feather name="video" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
                                   <Text color="$color">
                                     {getTranslation(t, 'createRoute.takeVideo', 'Take Video')}
                                   </Text>
                                 </XStack>
-                              </Button>
+                              </TouchableOpacity>
                             </YStack>
 
                             {/* YouTube Link */}
@@ -3630,79 +3650,100 @@ export function CreateRouteSheet({
                               </XStack>
                             </YStack> */}
 
-                            {/* Media Preview List */}
-                            {media.length > 0 ? (
-                              <YStack gap="$4">
+                            {/* Media Preview Grid */}
+                            {(media.length > 0 || loadingMedia) && (
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                                {loadingMedia && (
+                                  <View
+                                    style={{
+                                      width: 100,
+                                      height: 100,
+                                      borderRadius: 8,
+                                      backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#F5F5F5',
+                                      justifyContent: 'center',
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <Text size="sm" color="$gray11">Loading...</Text>
+                                  </View>
+                                )}
                                 {media.map((item, index) => (
-                                  <Card key={item.id} bordered padding="$3">
-                                    <XStack gap="$3">
-                                      {item.type === 'image' && (
-                                        <Image
-                                          source={{ uri: item.uri }}
-                                          style={{ width: 80, height: 80, borderRadius: 8 }}
-                                        />
-                                      )}
-                                      {item.type === 'video' && (
-                                        <View
-                                          style={{
-                                            width: 80,
-                                            height: 80,
-                                            borderRadius: 8,
-                                            backgroundColor: '#000',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                          }}
-                                        >
-                                          <Feather name="video" size={24} color="white" />
-                                        </View>
-                                      )}
-                                      {item.type === 'youtube' && (
-                                        <View
-                                          style={{
-                                            width: 80,
-                                            height: 80,
-                                            borderRadius: 8,
-                                            backgroundColor: '#FF0000',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                          }}
-                                        >
-                                          <Feather name="youtube" size={24} color="white" />
-                                        </View>
-                                      )}
-                                      <YStack flex={1} justifyContent="space-between">
-                                        <Text weight="medium">
-                                          {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                                        </Text>
-                                        <Text size="sm" color="$gray11" numberOfLines={2}>
-                                          {item.uri.split('/').pop()}
-                                        </Text>
-                                        <Button
-                                          variant="secondary"
-                                          size="sm"
-                                          onPress={() => handleRemoveMedia(index)}
-                                          backgroundColor="$red5"
-                                        >
-                                          <XStack gap="$1" alignItems="center">
-                                            <Feather name="trash-2" size={14} color="$red10" />
-                                            <Text size="sm" color="$red10">
-                                              {getTranslation(
-                                                t,
-                                                'createRoute.deleteMedia',
-                                                'Delete Media',
-                                              )}
-                                            </Text>
-                                          </XStack>
-                                        </Button>
-                                      </YStack>
-                                    </XStack>
-                                  </Card>
+                                  <TouchableOpacity
+                                    key={item.id}
+                                    onPress={() => setSelectedMediaIndex(index)}
+                                    style={{
+                                      width: 100,
+                                      height: 100,
+                                      position: 'relative',
+                                    }}
+                                  >
+                                    {item.type === 'image' && (
+                                      <Image
+                                        source={{ uri: item.uri }}
+                                        style={{
+                                          width: '100%',
+                                          height: '100%',
+                                          borderRadius: 8,
+                                        }}
+                                      />
+                                    )}
+                                    {item.type === 'video' && (
+                                      <View
+                                        style={{
+                                          width: '100%',
+                                          height: '100%',
+                                          borderRadius: 8,
+                                          backgroundColor: '#000',
+                                          justifyContent: 'center',
+                                          alignItems: 'center',
+                                        }}
+                                      >
+                                        <Feather name="video" size={32} color="white" />
+                                      </View>
+                                    )}
+                                    {item.type === 'youtube' && (
+                                      <View
+                                        style={{
+                                          width: '100%',
+                                          height: '100%',
+                                          borderRadius: 8,
+                                          backgroundColor: '#FF0000',
+                                          justifyContent: 'center',
+                                          alignItems: 'center',
+                                        }}
+                                      >
+                                        <Feather name="youtube" size={32} color="white" />
+                                      </View>
+                                    )}
+                                    {/* Delete button - small X in top right corner */}
+                                    <TouchableOpacity
+                                      onPress={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveMedia(index);
+                                      }}
+                                      style={{
+                                        position: 'absolute',
+                                        top: 4,
+                                        right: 4,
+                                        width: 28,
+                                        height: 28,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderWidth: 1,
+                                        borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                        borderRadius: 14,
+                                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                      }}
+                                    >
+                                      <Feather
+                                        name="x"
+                                        size={16}
+                                        color="#FFFFFF"
+                                      />
+                                    </TouchableOpacity>
+                                  </TouchableOpacity>
                                 ))}
-                              </YStack>
-                            ) : (
-                              <Text color="$gray11" textAlign="center" display="none">
-                                {getTranslation(t, 'createRoute.noMedia', 'No media added yet')}
-                              </Text>
+                              </View>
                             )}
                           </YStack>
                         )}
@@ -4348,6 +4389,98 @@ export function CreateRouteSheet({
                 }}
                 onClose={() => setShowCollectionSelector(false)}
               />
+
+              {/* Media Preview Modal */}
+              <Modal
+                visible={selectedMediaIndex !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSelectedMediaIndex(null)}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  {selectedMediaIndex !== null && media[selectedMediaIndex] && (
+                    <>
+                      {media[selectedMediaIndex].type === 'image' && (
+                        <Image
+                          source={{ uri: media[selectedMediaIndex].uri }}
+                          style={{
+                            width: windowWidth * 0.9,
+                            height: windowHeight * 0.7,
+                            borderRadius: 8,
+                          }}
+                          resizeMode="contain"
+                        />
+                      )}
+                      {media[selectedMediaIndex].type === 'video' && (
+                        <View
+                          style={{
+                            width: windowWidth * 0.9,
+                            height: windowHeight * 0.7,
+                            borderRadius: 8,
+                            backgroundColor: '#000',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Feather name="video" size={64} color="white" />
+                          <Text color="white" marginTop="$4">Video Preview</Text>
+                        </View>
+                      )}
+                      
+                      {/* Close button - top right */}
+                      <TouchableOpacity
+                        onPress={() => setSelectedMediaIndex(null)}
+                        style={{
+                          position: 'absolute',
+                          top: insets.top + 20,
+                          right: 20,
+                          width: 44,
+                          height: 44,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderWidth: 1,
+                          borderColor: '#FFFFFF',
+                          borderRadius: 22,
+                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        }}
+                      >
+                        <Feather name="x" size={24} color="#FFFFFF" />
+                      </TouchableOpacity>
+
+                      {/* Delete button - bottom center */}
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (selectedMediaIndex !== null) {
+                            handleRemoveMedia(selectedMediaIndex);
+                            setSelectedMediaIndex(null);
+                          }
+                        }}
+                        style={{
+                          position: 'absolute',
+                          bottom: insets.bottom + 40,
+                          paddingVertical: 12,
+                          paddingHorizontal: 24,
+                          borderRadius: 24,
+                          backgroundColor: '#EF4444',
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <Feather name="trash-2" size={20} color="#FFFFFF" />
+                        <Text color="white" fontWeight="600">Delete</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              </Modal>
             </Screen>
           </ReanimatedAnimated.View>
         </GestureDetector>
