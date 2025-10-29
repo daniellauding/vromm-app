@@ -7,6 +7,9 @@ import React, {
   useCallback,
   useEffect,
 } from 'react';
+import { NativeModules, NativeEventEmitter } from 'react-native';
+const { CustomEventEmitter } = NativeModules;
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
@@ -133,6 +136,14 @@ const calculateWaypointSpeed = (from: RecordedWaypoint, to: RecordedWaypoint) =>
   return 0;
 };
 
+// Location tracking task
+const LOCATION_TRACKING = 'location-tracking';
+const eventEmitter = new NativeEventEmitter(CustomEventEmitter);
+TaskManager.defineTask(LOCATION_TRACKING, async (event) => {
+  console.log('location task', event);
+  eventEmitter.emit('location', event);
+});
+
 export function RecordingProvider({ children }: { children: ReactNode }) {
   const [recordingState, setRecordingState] = useState<RecordingState>(defaultRecordingState);
   const [isRecordingActive, setIsRecordingActive] = useState(false);
@@ -182,9 +193,6 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     }
   }, [recordingState]);
 
-  // Location tracking task
-  const LOCATION_TRACKING = 'location-tracking';
-
   // Update recording state
   const updateRecordingState = useCallback((updates: Partial<RecordingState>) => {
     setRecordingState((prev) => ({ ...prev, ...updates }));
@@ -198,112 +206,132 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync().catch(
-        () => ({ status: 'error' }),
+      let status = await Location.getForegroundPermissionsAsync();
+
+      if (!status.granted) {
+        const { status } = await Location.requestForegroundPermissionsAsync().catch(() => ({
+          status: 'error',
+        }));
+
+        if (status !== 'granted') {
+          updateRecordingState({ debugMessage: 'Location permission denied' });
+          return;
+        }
+      }
+
+      status = await Location.getBackgroundPermissionsAsync();
+
+      if (!status.granted) {
+        const { status } = await Location.requestBackgroundPermissionsAsync().catch(() => ({
+          status: 'error',
+        }));
+
+        if (status !== 'granted') {
+          updateRecordingState({ debugMessage: 'Location permission denied' });
+          return;
+        }
+      }
+
+      const locationListener = eventEmitter.addListener(
+        'location',
+        ({ data: { locations }, error }) => {
+          console.log('locations', locations);
+          if (error) return;
+          if (locations.length === 0) return;
+
+          const location = locations[0];
+          if (!location || !location.coords) return;
+
+          try {
+            const now = Date.now();
+            const newWaypoint: RecordedWaypoint = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              timestamp: location.timestamp,
+              speed: location.coords.speed,
+              accuracy: location.coords.accuracy,
+            };
+
+            if (wayPointsRef.current.length > 0) {
+              newWaypoint.distance = calculateDistance(
+                wayPointsRef.current[wayPointsRef.current.length - 1].latitude,
+                wayPointsRef.current[wayPointsRef.current.length - 1].longitude,
+                newWaypoint.latitude,
+                newWaypoint.longitude,
+              );
+
+              newWaypoint.speed = calculateWaypointSpeed(
+                wayPointsRef.current[wayPointsRef.current.length - 1],
+                newWaypoint,
+              );
+            }
+
+            const shouldAddWaypoint =
+              wayPointsRef.current.length > 0
+                ? (newWaypoint?.distance ?? 0 > MIN_DISTANCE_FILTER)
+                : true;
+
+            updateRecordingState({
+              currentSpeed: Math.max(0, newWaypoint.speed ?? 0),
+              maxSpeed: calculateMaxSpeed(wayPointsRef.current),
+            });
+
+            if (
+              now - waypointThrottleRef.current < MIN_TIME_FILTER &&
+              waypointThrottleRef.current !== 0
+            ) {
+              return;
+            }
+
+            waypointThrottleRef.current = now;
+
+            if (!isPausedRef.current && shouldAddWaypoint) {
+              wayPointsRef.current = [...wayPointsRef.current, newWaypoint];
+
+              const shouldUpdateState =
+                wayPointsRef.current.length % 5 === 0 || now - lastStateUpdateRef.current > 2000;
+
+              if (shouldUpdateState) {
+                updateRecordingState({ waypoints: [...wayPointsRef.current] });
+                lastStateUpdateRef.current = now;
+              }
+
+              if (wayPointsRef.current.length > 1) {
+                const distance = wayPointsRef.current.reduce((acc, waypoint) => {
+                  return acc + (waypoint.distance ?? 0);
+                }, 0);
+
+                updateRecordingState({ distance: distance });
+              }
+            }
+          } catch (error) {
+            console.error('Error processing location update:', error);
+            lastErrorRef.current = 'Location update error';
+          }
+        },
       );
 
-      if (foregroundStatus !== 'granted') {
-        updateRecordingState({ debugMessage: 'Location permission denied' });
-        return;
-      }
-
-      const { status } = await Location.requestBackgroundPermissionsAsync().catch(() => ({
-        status: 'error',
-      }));
-
-      if (status !== 'granted') {
-        updateRecordingState({ debugMessage: 'Location permission denied' });
-        return;
-      }
-
-      TaskManager.defineTask(LOCATION_TRACKING, ({ data: { locations }, error }) => {
-        if (error) return;
-        if (locations.length === 0) return;
-
-        const location = locations[0];
-        if (!location || !location.coords) return;
-
-        try {
-          const now = Date.now();
-          const newWaypoint: RecordedWaypoint = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            timestamp: location.timestamp,
-            speed: location.coords.speed,
-            accuracy: location.coords.accuracy,
-          };
-
-          if (wayPointsRef.current.length > 0) {
-            newWaypoint.distance = calculateDistance(
-              wayPointsRef.current[wayPointsRef.current.length - 1].latitude,
-              wayPointsRef.current[wayPointsRef.current.length - 1].longitude,
-              newWaypoint.latitude,
-              newWaypoint.longitude,
-            );
-
-            newWaypoint.speed = calculateWaypointSpeed(
-              wayPointsRef.current[wayPointsRef.current.length - 1],
-              newWaypoint,
-            );
-          }
-
-          const shouldAddWaypoint =
-            wayPointsRef.current.length > 0
-              ? (newWaypoint?.distance ?? 0 > MIN_DISTANCE_FILTER)
-              : true;
-
-          updateRecordingState({
-            currentSpeed: Math.max(0, newWaypoint.speed ?? 0),
-            maxSpeed: calculateMaxSpeed(wayPointsRef.current),
-          });
-
-          if (
-            now - waypointThrottleRef.current < MIN_TIME_FILTER &&
-            waypointThrottleRef.current !== 0
-          ) {
-            return;
-          }
-
-          waypointThrottleRef.current = now;
-
-          if (!isPausedRef.current && shouldAddWaypoint) {
-            wayPointsRef.current = [...wayPointsRef.current, newWaypoint];
-
-            const shouldUpdateState =
-              wayPointsRef.current.length % 5 === 0 || now - lastStateUpdateRef.current > 2000;
-
-            if (shouldUpdateState) {
-              updateRecordingState({ waypoints: [...wayPointsRef.current] });
-              lastStateUpdateRef.current = now;
-            }
-
-            if (wayPointsRef.current.length > 1) {
-              const distance = wayPointsRef.current.reduce((acc, waypoint) => {
-                return acc + (waypoint.distance ?? 0);
-              }, 0);
-
-              updateRecordingState({ distance: distance });
-            }
-          }
-        } catch (error) {
-          console.error('Error processing location update:', error);
-          lastErrorRef.current = 'Location update error';
-        }
-      });
-
       await Location.startLocationUpdatesAsync(LOCATION_TRACKING, {
-        accuracy: Location.Accuracy.Balanced,
+        accuracy: Location.Accuracy.BestForNavigation,
         timeInterval: 1000,
-        deferredUpdatesInterval: 5,
+        deferredUpdatesInterval: 1000,
+        foregroundService: {
+          notificationTitle: 'Vromm',
+          notificationBody: 'Recording your drive',
+          notificationColor: '#1C1C1C',
+        },
       });
 
       const subscription: Location.LocationSubscription = {
         remove: async () => {
           await Location.stopLocationUpdatesAsync(LOCATION_TRACKING);
+          await locationListener.remove();
         },
       };
 
-      updateRecordingState({ locationSubscription: subscription });
+      updateRecordingState({
+        locationSubscription: subscription,
+      });
     } catch (error) {
       console.error('Error starting location tracking:', error);
       updateRecordingState({ debugMessage: 'Failed to start tracking' });
@@ -378,7 +406,7 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   }, [recordingState.pausedTime, updateRecordingState]);
 
   // Stop recording
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback(async () => {
     try {
       if (recordingState.locationSubscription) {
         recordingState.locationSubscription.remove();
