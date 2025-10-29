@@ -182,7 +182,7 @@ export function ExerciseListSheet({
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
   // Theme colors - matching OnboardingInteractive exactly
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
+  const backgroundColor = useThemeColor({ light: '#fff', dark: '#151515' }, 'background');
 
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -1522,38 +1522,103 @@ export function ExerciseListSheet({
                   {/* Show content only if not in mini mode */}
                   {currentSnapPoint !== snapPoints.mini && (
                     <View style={{ flex: 1 }}>
-                      {/* Header */}
-                      <XStack justifyContent="space-between" alignItems="center">
-                        {onBackToAllPaths ? (
-                          <TouchableOpacity onPress={onBackToAllPaths}>
+                      {/* Header with Progress Circle */}
+                      <YStack gap={16} marginBottom={16}>
+                        <XStack justifyContent="space-between" alignItems="center">
+                          {onBackToAllPaths ? (
+                            <TouchableOpacity onPress={onBackToAllPaths}>
+                              <Feather
+                                name="arrow-left"
+                                size={24}
+                                color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                              />
+                            </TouchableOpacity>
+                          ) : (
+                            <View style={{ width: 24 }} />
+                          )}
+
+                          <Text
+                            fontSize="$6"
+                            fontWeight="bold"
+                            color="$color"
+                            textAlign="center"
+                            flex={1}
+                          >
+                            {title}
+                          </Text>
+
+                          <TouchableOpacity onPress={onClose}>
                             <Feather
-                              name="arrow-left"
+                              name="x"
                               size={24}
                               color={colorScheme === 'dark' ? '#FFF' : '#000'}
                             />
                           </TouchableOpacity>
-                        ) : (
-                          <View style={{ width: 24 }} />
+                        </XStack>
+
+                        {/* Learning Path Progress Circle */}
+                        {exercises.length > 0 && (
+                          <XStack justifyContent="center" alignItems="center" marginTop={8}>
+                            <View style={{ position: 'relative' }}>
+                              <ProgressCircle
+                                percent={
+                                  completedIds.filter((id) => exercises.some((ex) => ex.id === id))
+                                    .length / exercises.length
+                                }
+                                size={90}
+                                color="#27febe"
+                                bg="#333"
+                              />
+                              <Text
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: 90,
+                                  height: 90,
+                                  textAlign: 'center',
+                                  textAlignVertical: 'center',
+                                  lineHeight: 90,
+                                }}
+                                fontSize="$4"
+                                color={
+                                  completedIds.filter((id) => exercises.some((ex) => ex.id === id))
+                                    .length === exercises.length
+                                    ? '#27febe'
+                                    : '$gray10'
+                                }
+                                fontWeight="bold"
+                              >
+                                {Math.round(
+                                  (completedIds.filter((id) => exercises.some((ex) => ex.id === id))
+                                    .length /
+                                    exercises.length) *
+                                    100,
+                                )}
+                                %
+                              </Text>
+                              {completedIds.filter((id) => exercises.some((ex) => ex.id === id))
+                                .length === exercises.length && (
+                                <View
+                                  style={{
+                                    position: 'absolute',
+                                    top: -5,
+                                    right: -5,
+                                    width: 30,
+                                    height: 30,
+                                    borderRadius: 15,
+                                    backgroundColor: '#27febe',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
+                                  <Feather name="check" size={18} color="#000" />
+                                </View>
+                              )}
+                            </View>
+                          </XStack>
                         )}
-
-                        <Text
-                          fontSize="$6"
-                          fontWeight="bold"
-                          color="$color"
-                          textAlign="center"
-                          flex={1}
-                        >
-                          {title}
-                        </Text>
-
-                        <TouchableOpacity onPress={onClose}>
-                          <Feather
-                            name="x"
-                            size={24}
-                            color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                          />
-                        </TouchableOpacity>
-                      </XStack>
+                      </YStack>
 
                       {/* Featured Exercises Quick Access */}
                       <Button
@@ -1704,7 +1769,8 @@ export function ExerciseListSheet({
                                               <XStack alignItems="center" gap={8} flex={1}>
                                                 <Text
                                                   fontSize={18}
-                                                  fontWeight="bold"
+                                                  fontWeight="900"
+                                                  fontStyle="italic"
                                                   color="$color"
                                                   numberOfLines={1}
                                                 >

@@ -1231,7 +1231,7 @@ export function TabNavigator() {
     paddingLeft: 20,
     paddingRight: 20,
     backgroundColor: theme.background?.val || '#FFFFFF',
-    borderTopWidth: 1,
+    borderTopWidth: 0,
     borderTopColor: theme.borderColor?.val || '#E5E5E5',
     borderTopRightRadius: 16,
     borderTopLeftRadius: 16,

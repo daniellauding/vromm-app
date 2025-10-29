@@ -4279,6 +4279,68 @@ export function ProgressScreen() {
             ) : null}
           </XStack>
 
+          {/* Learning Path Progress Circle */}
+          {exercises.length > 0 && (
+            <XStack justifyContent="center" alignItems="center" marginTop={8} marginBottom={16}>
+              <View style={{ position: 'relative' }}>
+                <ProgressCircle
+                  percent={
+                    completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length /
+                    exercises.length
+                  }
+                  size={90}
+                  color="#27febe"
+                  bg="#333"
+                />
+                <Text
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: 90,
+                    height: 90,
+                    textAlign: 'center',
+                    textAlignVertical: 'center',
+                    lineHeight: 90,
+                  }}
+                  fontSize="$4"
+                  color={
+                    completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length ===
+                    exercises.length
+                      ? '#27febe'
+                      : '$gray10'
+                  }
+                  fontWeight="bold"
+                >
+                  {Math.round(
+                    (completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length /
+                      exercises.length) *
+                      100,
+                  )}
+                  %
+                </Text>
+                {completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length ===
+                  exercises.length && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -5,
+                      right: -5,
+                      width: 30,
+                      height: 30,
+                      borderRadius: 15,
+                      backgroundColor: '#27febe',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Feather name="check" size={18} color="#000" />
+                  </View>
+                )}
+              </View>
+            </XStack>
+          )}
+
           <Text color="$gray11" marginBottom={16}>
             {detailPath.description[lang]}
           </Text>
@@ -4369,7 +4431,7 @@ export function ProgressScreen() {
                     // ref={exerciseIndex === 0 ? exerciseItemRef : undefined} // DISABLED
                     onPress={() => handleExerciseSelect(main)}
                   >
-                    <XStack alignItems="center" gap={12}>
+                    <XStack alignItems="flex-start" gap={12}>
                       <TouchableOpacity
                         onPress={(e) => {
                           e.stopPropagation();
@@ -4400,65 +4462,23 @@ export function ProgressScreen() {
                       >
                         <XStack justifyContent="space-between" alignItems="center">
                           <XStack alignItems="center" gap={8} flex={1}>
-                            <Text fontSize={18} fontWeight="bold" color="$color" numberOfLines={1}>
+                            <Text
+                              fontSize={18}
+                              fontWeight="900"
+                              fontStyle="italic"
+                              color="$color"
+                              numberOfLines={1}
+                            >
                               {displayIndex}. {main.title?.[lang] || main.title?.en || 'Untitled'}
                             </Text>
-                            {!!commentCounts[main.id] && commentCounts[main.id] > 0 && (
-                              <XStack
-                                alignItems="center"
-                                gap={4}
-                                backgroundColor="#1f2937"
-                                paddingHorizontal={6}
-                                paddingVertical={2}
-                                borderRadius={10}
-                              >
-                                <Feather name="message-circle" size={12} color="#00E6C3" />
-                                <Text fontSize={10} color="#00E6C3">
-                                  {commentCounts[main.id]}
-                                </Text>
-                              </XStack>
-                            )}
-
-                            {/* Show repeat count if it has repeats */}
-                            {main.repeat_count && main.repeat_count > 1 && (
-                              <XStack
-                                backgroundColor="#4B6BFF"
-                                paddingHorizontal={8}
-                                paddingVertical={4}
-                                borderRadius={12}
-                                alignItems="center"
-                                gap={4}
-                              >
-                                <Feather name="repeat" size={14} color="white" />
-                                <Text fontSize={12} color="white" fontWeight="bold">
-                                  {main.repeat_count}x
-                                </Text>
-                              </XStack>
-                            )}
-
-                            {/* Show quiz indicator if exercise has quiz */}
-                            {hasQuizQuestions[main.id] && (
-                              <XStack
-                                backgroundColor="#00E6C3"
-                                paddingHorizontal={8}
-                                paddingVertical={4}
-                                borderRadius={12}
-                                alignItems="center"
-                                gap={4}
-                              >
-                                <MaterialIcons name="quiz" size={14} color="#000" />
-                                <Text fontSize={12} color="#000" fontWeight="bold">
-                                  Quiz
-                                </Text>
-                              </XStack>
-                            )}
                           </XStack>
 
                           {/* Show appropriate icon based on state - LOCK gets priority */}
                           {mainIsPasswordLocked ? (
                             <MaterialIcons name="lock" size={20} color="#FF9500" />
                           ) : mainIsDone ? (
-                            <Feather name="check-circle" size={20} color="#00E6C3" />
+                            // <Feather name="check-circle" size={20} color="#00E6C3" />
+                            <></>
                           ) : null}
                         </XStack>
 
@@ -4475,6 +4495,57 @@ export function ProgressScreen() {
                             Report Exercise
                           </Text>
                         </TouchableOpacity>
+
+                        {/* Show repeat count if it has repeats */}
+                        {main.repeat_count && main.repeat_count > 1 && (
+                          <XStack
+                            backgroundColor="#4B6BFF"
+                            paddingHorizontal={8}
+                            paddingVertical={4}
+                            borderRadius={12}
+                            alignItems="center"
+                            gap={4}
+                          >
+                            <Feather name="repeat" size={14} color="white" />
+                            <Text fontSize={12} color="white" fontWeight="bold">
+                              {main.repeat_count}x
+                            </Text>
+                          </XStack>
+                        )}
+
+                        {/* Show quiz indicator if exercise has quiz */}
+                        {hasQuizQuestions[main.id] && (
+                          <XStack
+                            backgroundColor="#00E6C3"
+                            paddingHorizontal={8}
+                            paddingVertical={4}
+                            borderRadius={12}
+                            alignItems="center"
+                            gap={4}
+                          >
+                            <MaterialIcons name="quiz" size={14} color="#000" />
+                            <Text fontSize={12} color="#000" fontWeight="bold">
+                              Quiz
+                            </Text>
+                          </XStack>
+                        )}
+
+                        {!!commentCounts[main.id] && commentCounts[main.id] > 0 && (
+                          <XStack
+                            alignItems="center"
+                            gap={4}
+                            backgroundColor="#1f2937"
+                            paddingHorizontal={6}
+                            paddingVertical={2}
+                            borderRadius={10}
+                          >
+                            <Feather name="message-circle" size={12} color="#00E6C3" />
+                            <Text fontSize={10} color="#00E6C3">
+                              {commentCounts[main.id]}
+                            </Text>
+                          </XStack>
+                        )}
+
                         <RepeatProgressBar exercise={main} />
                         {lastAuditByExercise[main.id] && (
                           <Text color="$gray11" marginTop={4} fontSize={12}>
@@ -4905,6 +4976,10 @@ export function ProgressScreen() {
                 const isPaywallEnabled = path.paywall_enabled || false; // 🔒 Check if paywall is enabled
                 const isEnabled = !isPasswordLocked; // Much more permissive
 
+                // Alternate card alignment: 1=center, 2=right, 3=left, repeat
+                const alignment =
+                  idx % 3 === 0 ? 'center' : idx % 3 === 1 ? 'flex-end' : 'flex-start';
+
                 return (
                   <TouchableOpacity
                     key={`filtered-path-${path.id}-${idx}`}
@@ -4912,6 +4987,7 @@ export function ProgressScreen() {
                     onPress={() => handlePathPress(path, idx)}
                     activeOpacity={0.8}
                     style={{
+                      alignSelf: alignment,
                       marginBottom: 20,
                       opacity: isEnabled ? 1 : 0.5,
                       borderWidth: isPasswordLocked || isPaywallEnabled ? 2 : 0,
@@ -4926,75 +5002,107 @@ export function ProgressScreen() {
                         : isPaywallEnabled
                           ? '#00E6C3'
                           : 'transparent',
-                      shadowOpacity: isPasswordLocked || isPaywallEnabled ? 0.3 : 0,
-                      shadowRadius: isPasswordLocked || isPaywallEnabled ? 8 : 0,
+                      shadowOpacity: isPasswordLocked || isPaywallEnabled ? 0 : 0,
+                      shadowRadius: isPasswordLocked || isPaywallEnabled ? 0 : 0,
                       shadowOffset: { width: 0, height: 0 },
                     }}
                   >
                     <Card
                       backgroundColor={
-                        isActive ? '$blue5' : isPasswordLocked ? '#331800' : '$backgroundStrong'
+                        // isActive ? '$blue5' : isPasswordLocked ? '#331800' : '$backgroundStrong'
+                        '#1a1a1a'
                       }
-                      padding={20}
+                      borderColor="#232323"
+                      borderWidth={3}
+                      width="70%"
+                      padding={24}
                       borderRadius={20}
                       elevate
+                      shadowOpacity={isPasswordLocked || isPaywallEnabled ? 0 : 0}
                     >
-                      <XStack alignItems="center" gap={16}>
+                      <YStack alignItems="center" gap={16}>
+                        {/* Large Progress Circle at Top */}
                         <View
                           style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: 16,
-                            backgroundColor: isActive
-                              ? '#00E6C3'
-                              : isPasswordLocked
-                                ? '#FF9500'
-                                : '#222',
+                            position: 'relative',
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
                         >
                           {isPasswordLocked ? (
-                            <MaterialIcons name="lock" size={30} color="#fff" />
+                            <View
+                              style={{
+                                width: 90,
+                                height: 90,
+                                borderRadius: 45,
+                                backgroundColor: '#FF9500',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <MaterialIcons name="lock" size={40} color="#fff" />
+                            </View>
                           ) : (
                             <>
-                              {/* Progress circle with percent */}
+                              {/* Large Progress Circle */}
                               <ProgressCircle
                                 percent={percent}
-                                size={40}
-                                color="#fff"
-                                bg={isActive ? '#00E6C3' : '#222'}
+                                size={90}
+                                color="#27febe"
+                                bg="#333"
                               />
+
+                              {/* Percentage Text Inside Circle */}
                               <Text
                                 style={{
                                   position: 'absolute',
                                   top: 0,
                                   left: 0,
-                                  width: 40,
-                                  height: 40,
+                                  width: 90,
+                                  height: 90,
                                   textAlign: 'center',
                                   textAlignVertical: 'center',
-                                  lineHeight: 40,
+                                  lineHeight: 90,
                                 }}
-                                color={isActive ? '$color' : '$gray11'}
+                                fontSize="$4"
+                                color={percent === 1 ? '#27febe' : '$gray10'}
                                 fontWeight="bold"
                               >
                                 {Math.round(percent * 100)}%
                               </Text>
+
+                              {/* Checkmark if completed */}
+                              {percent === 1 && (
+                                <View
+                                  style={{
+                                    position: 'absolute',
+                                    top: -5,
+                                    right: -5,
+                                    width: 30,
+                                    height: 30,
+                                    borderRadius: 15,
+                                    backgroundColor: '#27febe',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
+                                  <Feather name="check" size={18} color="#000" />
+                                </View>
+                              )}
                             </>
                           )}
                         </View>
-                        <YStack flex={1}>
-                          <XStack alignItems="center" gap={8}>
-                            <Text
-                              fontSize={20}
-                              fontWeight={isActive ? 'bold' : '600'}
-                              color={isActive ? '$color' : isPasswordLocked ? '#FF9500' : '$color'}
-                            >
-                              {idx + 1}. {path.title[lang]}
-                            </Text>
 
-                            {/* Show password indicator if needed */}
+                        {/* Title and Badges - Centered */}
+                        <YStack alignItems="center" gap={8} width="100%">
+                          {/* Badges Row */}
+                          <XStack
+                            alignItems="center"
+                            gap={8}
+                            flexWrap="wrap"
+                            justifyContent="center"
+                          >
+                            {/* Password Badge */}
                             {isPasswordLocked && hasPassword && (
                               <XStack
                                 backgroundColor="#FF7300"
@@ -5004,14 +5112,14 @@ export function ProgressScreen() {
                                 alignItems="center"
                                 gap={4}
                               >
-                                <MaterialIcons name="vpn-key" size={16} color="white" />
-                                <Text fontSize={12} color="white" fontWeight="bold">
+                                <MaterialIcons name="vpn-key" size={14} color="white" />
+                                <Text fontSize={11} color="white" fontWeight="bold">
                                   Password
                                 </Text>
                               </XStack>
                             )}
 
-                            {/* 🔒 Show paywall indicator if needed */}
+                            {/* Paywall Badge */}
                             {isPaywallEnabled && (
                               <XStack
                                 backgroundColor="#00E6C3"
@@ -5021,63 +5129,38 @@ export function ProgressScreen() {
                                 alignItems="center"
                                 gap={4}
                               >
-                                <Feather name="credit-card" size={14} color="black" />
-                                <Text fontSize={12} color="black" fontWeight="bold">
+                                <Feather name="credit-card" size={12} color="black" />
+                                <Text fontSize={11} color="black" fontWeight="bold">
                                   ${path.price_usd || 1.0}
                                 </Text>
                               </XStack>
                             )}
                           </XStack>
 
-                          <Text color="$gray11" fontSize={14} marginTop={2}>
-                            {path.description[lang]}
+                          {/* Title - Centered */}
+                          <Text
+                            fontSize={20}
+                            fontWeight="900"
+                            fontStyle="italic"
+                            color={isActive ? '$color' : isPasswordLocked ? '#FF9500' : '$color'}
+                            textAlign="center"
+                            numberOfLines={2}
+                          >
+                            {idx + 1}. {path.title[lang]}
                           </Text>
 
-                          {/* Category displays */}
-                          <XStack flexWrap="wrap" marginTop={4} gap={4}>
-                            {path.vehicle_type && (
-                              <Text fontSize={12} color="$blue10">
-                                {path.vehicle_type}
-                                {path.transmission_type ? ' • ' : ''}
-                              </Text>
-                            )}
-
-                            {path.transmission_type && (
-                              <Text fontSize={12} color="$blue10">
-                                {path.transmission_type}
-                                {path.license_type ? ' • ' : ''}
-                              </Text>
-                            )}
-
-                            {path.license_type && (
-                              <Text fontSize={12} color="$blue10">
-                                {path.license_type}
-                                {path.experience_level ? ' • ' : ''}
-                              </Text>
-                            )}
-
-                            {path.experience_level && (
-                              <Text fontSize={12} color="$blue10">
-                                {path.experience_level}
-                                {path.purpose ? ' • ' : ''}
-                              </Text>
-                            )}
-
-                            {path.purpose && (
-                              <Text fontSize={12} color="$blue10">
-                                {path.purpose}
-                                {path.user_profile ? ' • ' : ''}
-                              </Text>
-                            )}
-
-                            {path.user_profile && (
-                              <Text fontSize={12} color="$blue10">
-                                {path.user_profile}
-                              </Text>
-                            )}
-                          </XStack>
+                          {/* Description - Centered */}
+                          <Text
+                            color="$gray11"
+                            fontSize={14}
+                            textAlign="center"
+                            numberOfLines={2}
+                            paddingHorizontal={8}
+                          >
+                            {path.description[lang]}
+                          </Text>
                         </YStack>
-                      </XStack>
+                      </YStack>
                     </Card>
                   </TouchableOpacity>
                 );

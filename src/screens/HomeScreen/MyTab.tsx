@@ -82,33 +82,34 @@ export default React.memo(function MyTab({
       />
 
       {/* Jump Back In Section */}
-      <JumpBackInSection activeUserId={effectiveUserId || undefined} />
 
       <GettingStarted />
 
+      <ProgressSection activeUserId={effectiveUserId} />
+
       {/* Featured Content */}
-      <FeaturedContent />
+      {/* <FeaturedContent /> */}
 
       {/* Featured Content 2 - Card Layout */}
       <FeaturedContent2 />
+      <JumpBackInSection activeUserId={effectiveUserId || undefined} />
 
-      <ProgressSection activeUserId={effectiveUserId} />
       <DraftRoutes onRoutePress={handleRoutePress} />
       <SavedRoutes onRoutePress={handleRoutePress} />
-      <CommunityFeed
+      {/* <CommunityFeed
         onOpenFeedSheet={() => setShowCommunityFeedSheet(true)}
         onUserPress={onShowUser}
         onRoutePress={handleRoutePress}
-      />
+      /> */}
       {/* <QuickFilters handleFilterPress={handleFilterPress} /> */}
-      <Button onPress={() => navigation.navigate('CreateRoute', {})} variant="primary" size="lg">
+      {/* <Button onPress={() => navigation.navigate('CreateRoute', {})} variant="primary" size="lg">
         {t('home.createNewRoute')}
-      </Button>
+      </Button> */}
       <YStack gap="$4">
         <CityRoutes onRoutePress={handleRoutePress} />
         <CreatedRoutes onRoutePress={handleRoutePress} />
-        <NearByRoutes onRoutePress={handleRoutePress} />
         <DrivenRoutes onRoutePress={handleRoutePress} />
+        <NearByRoutes onRoutePress={handleRoutePress} />
       </YStack>
       <YStack gap="$4" marginTop="$6" marginBottom="$6">
         <SectionHeader
