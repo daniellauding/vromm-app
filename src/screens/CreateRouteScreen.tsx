@@ -7,20 +7,22 @@ import {
   useColorScheme,
   Dimensions,
   TouchableOpacity,
+  Pressable,
   Platform,
   PanResponder,
   BackHandler,
   Modal,
   Animated,
+  Easing,
 } from 'react-native';
-import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group, Heading } from 'tamagui';
+import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group, Heading, useTheme } from 'tamagui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
-import { Map, Waypoint, Screen, Button, Text, Header, FormField, Chip } from '../components';
+import { Map, Waypoint, Screen, Button, Text, Header, FormField, Chip, IconButton } from '../components';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -167,6 +169,11 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const searchInputRef = useRef<any>(null);
+  
+  // Use proper theming for search results
+  const theme = useTheme();
+  const textColor = theme.color?.val || '#11181C';
+  const borderColor = theme.borderColor?.val || '#E5E5E5';
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Location.LocationGeocodedAddress[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -175,6 +182,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   // Always call useNavigation hook (required by React)
   const navigation = useNavigation<NavigationProp>();
   const [loading, setLoading] = useState(false);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const spinValue = useRef(new Animated.Value(0)).current;
   const [error, setError] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
     console.log('🏗️ Initializing waypoints state:', {
@@ -204,6 +214,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
   const [youtubeLink, setYoutubeLink] = useState('');
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
 
   // Drawing modes system - set to 'record' if coming from recorded route
   const [drawingMode, setDrawingMode] = useState<'pin' | 'waypoint' | 'pen' | 'record'>(
@@ -368,6 +379,15 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     category: 'parking' as Category,
   });
 
+  // Validation helpers
+  const isBasicInfoComplete = formData.name.trim().length > 0;
+  
+  const isLocationComplete = 
+    (drawingMode === 'pin' && waypoints.length > 0) ||
+    (drawingMode === 'waypoint' && waypoints.length >= 2) ||
+    (drawingMode === 'pen' && (penPath.length > 0 || waypoints.length > 0)) ||
+    (drawingMode === 'record' && waypoints.length > 0);
+
   // ==================== UNSAVED CHANGES DETECTION ====================
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -405,6 +425,27 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     setHasUnsavedChanges(hasChanges);
   }, [formData, waypoints, exercises, media, youtubeLink, initialStateSnapshot]);
 
+  // Location loading animation effect (similar to MapScreen)
+  useEffect(() => {
+    if (locationLoading) {
+      const spin = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      );
+      spin.start();
+
+      return () => {
+        spin.stop();
+      };
+    } else {
+      spinValue.setValue(0);
+    }
+  }, [locationLoading, spinValue]);
+
   // Handle back button press
   useFocusEffect(
     React.useCallback(() => {
@@ -420,6 +461,28 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       return () => backHandler.remove();
     }, [hasUnsavedChanges]),
   );
+
+  // Handle cancel button press
+  const handleCancelPress = () => {
+    console.log('🎯 [CreateRouteScreen] Cancel button pressed!', {
+      hasUnsavedChanges,
+      showExitConfirmation,
+    });
+
+    if (hasUnsavedChanges) {
+      // Show confirmation dialog if there are unsaved changes
+      console.log('🎯 [CreateRouteScreen] ✅ Showing exit confirmation due to unsaved changes');
+      setShowExitConfirmation(true);
+    } else {
+      // No changes, close directly
+      console.log('🎯 [CreateRouteScreen] ❌ No unsaved changes - closing directly');
+      if (onCloseModal) {
+        onCloseModal();
+      } else if (navigation) {
+        navigation.goBack();
+      }
+    }
+  };
 
   // ==================== CONTEXT STATE INTEGRATION ====================
 
@@ -929,7 +992,21 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const handleLocateMe = async () => {
     try {
-      const location = await Location.getCurrentPositionAsync({});
+      setLocationLoading(true);
+      let location;
+      try {
+        location = await Location.getCurrentPositionAsync({});
+      } catch (locationError) {
+        console.log('📍 Location failed, using Lund, Sweden fallback');
+        // Fallback location for simulator - Lund, Sweden (same as ProfileScreen)
+        location = {
+          coords: {
+            latitude: 55.7047,
+            longitude: 13.191,
+          },
+        };
+      }
+
       const { latitude, longitude } = location.coords;
 
       // Update region
@@ -968,6 +1045,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     } catch (err) {
       console.error('Error getting location:', err);
       Alert.alert(t('common.error'), t('createRoute.locationPermissionMsg'));
+    } finally {
+      setLocationLoading(false);
     }
   };
 
@@ -1203,6 +1282,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const pickMedia = async (useCamera = false) => {
     try {
+      setLoadingMedia(true);
       let newMediaItems: mediaUtils.MediaItem[] | null = null;
 
       if (useCamera) {
@@ -1222,11 +1302,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     } catch (err) {
       console.error('Error picking media:', err);
       Alert.alert('Error', 'Failed to select media. Please try again.');
+    } finally {
+      setLoadingMedia(false);
     }
   };
 
   const takePhoto = async () => {
     try {
+      setLoadingMedia(true);
       const newMedia = await mediaUtils.takePhoto();
       if (newMedia) {
         setMedia([...media, newMedia]);
@@ -1234,6 +1317,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     } catch (err) {
       console.error('Error taking photo:', err);
       Alert.alert(t('common.error'), 'Error taking photo');
+    } finally {
+      setLoadingMedia(false);
     }
   };
 
@@ -1251,6 +1336,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
   const recordVideo = async () => {
     try {
+      setLoadingMedia(true);
       const newMedia = await mediaUtils.recordVideo();
       if (newMedia) {
         setMedia([...media, newMedia]);
@@ -1258,6 +1344,8 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
     } catch (err) {
       console.error('Error recording video:', err);
       Alert.alert('Error', 'Failed to record video. Please try again.');
+    } finally {
+      setLoadingMedia(false);
     }
   };
 
@@ -1674,30 +1762,33 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
       // Set loading to false before navigation
       setLoading(false);
 
-      // Show toast notification and navigate to home
+      // Show toast notification BEFORE navigation (so component is still mounted)
       if (route?.id && route?.name) {
+        console.log('🍞 [CreateRouteScreen] Showing toast for route:', route.id, route.name);
         showRouteCreatedToast(route.id, route.name, isEditing);
+        console.log('🍞 [CreateRouteScreen] Toast call completed');
       }
 
-      // Different navigation behavior based on whether we're in modal mode
-      if (isModal && onCloseModal) {
-        // If in modal mode, call the onClose callback
-        onCloseModal();
+      // Navigate/close AFTER showing toast (small delay for animation)
+      setTimeout(() => {
+        // Different navigation behavior based on whether we're in modal mode
+        if (isModal && onCloseModal) {
+          // If in modal mode, call the onClose callback
+          onCloseModal();
 
-        // Call onRouteCreated callback if provided
-        if (onRouteCreated && route?.id) {
-          onRouteCreated(route.id);
+          // Call onRouteCreated callback if provided
+          if (onRouteCreated && route?.id) {
+            onRouteCreated(route.id);
+          }
+        } else if (navigation) {
+          // Navigate back to Home root inside tabs
+          // @ts-ignore
+          navigation.navigate('MainTabs', {
+            screen: 'HomeTab',
+            params: { screen: 'HomeScreen', params: { resetKey: Date.now() } },
+          });
         }
-      } else if (navigation) {
-        // Navigate back to Home root inside tabs
-        // @ts-ignore
-        navigation.navigate('MainTabs', {
-          screen: 'HomeTab',
-          params: { screen: 'HomeScreen', params: { resetKey: Date.now() } },
-        });
-      } else {
-        console.warn('No navigation available');
-      }
+      }, 100); // Small delay to ensure toast is rendered before navigation/close
     } catch (err) {
       console.error('Route operation error:', err);
 
@@ -2061,33 +2152,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         scrollEnabled={drawingMode !== 'pen'}
         showsVerticalScrollIndicator={drawingMode !== 'pen'}
       >
-        {/* Hero Section with MediaCarousel */}
-        <MediaCarousel
-          media={[
-            ...(waypoints.length > 0 || penPath.length > 0
-              ? [
-                  {
-                    type: 'map' as const,
-                    waypoints: waypoints,
-                    region: region,
-                    penDrawingCoordinates: penPath, // Include pen drawing coordinates
-                  },
-                ]
-              : []),
-            ...media.map((m) => ({
-              type: m.type,
-              uri: m.uri,
-              id: m.id,
-            })),
-          ]}
-          onAddMedia={handleAddMedia}
-          onRemoveMedia={handleRemoveMedia}
-          height={HERO_HEIGHT}
-        />
-
         {/* Existing Content */}
         <YStack f={1} gap={2}>
-          {!hideHeader && (
+          {/* {!hideHeader && (
             <Header
               title={
                 isEditing
@@ -2097,36 +2164,64 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
               showBack={!isModal}
               onBackPress={isModal && onCloseModal ? onCloseModal : undefined}
             />
-          )}
+          )} */}
           <XStack padding="$4" gap="$2" flexWrap="wrap">
-            <Chip
-              active={activeSection === 'basic'}
-              onPress={() => setActiveSection('basic')}
-              icon="info"
-            >
-              {getTranslation(t, 'createRoute.routeName', 'Route Name')}
-            </Chip>
-            <Chip
-              active={activeSection === 'exercises'}
-              onPress={() => setActiveSection('exercises')}
+            <View style={{ flex: 1, position: 'relative' }}>
+              <IconButton
+                icon="info"
+                label={getTranslation(t, 'createRoute.routeName', 'Route Name')}
+                onPress={() => setActiveSection('basic')}
+                selected={activeSection === 'basic'}
+                backgroundColor="transparent"
+                borderColor="transparent"
+                flex={1}
+              />
+              {!isBasicInfoComplete && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor: '#EF4444',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>!</Text>
+                </View>
+              )}
+            </View>
+            {/* Exercises tab temporarily disabled - will be re-enabled later */}
+            {/* <IconButton
               icon="activity"
-            >
-              {getTranslation(t, 'createRoute.exercises', 'Exercises')}
-            </Chip>
-            <Chip
-              active={activeSection === 'media'}
-              onPress={() => setActiveSection('media')}
+              label={getTranslation(t, 'createRoute.exercises', 'Exercises')}
+              onPress={() => setActiveSection('exercises')}
+              selected={activeSection === 'exercises'}
+              backgroundColor="transparent"
+              borderColor="transparent"
+              flex={1}
+            /> */}
+            <IconButton
               icon="image"
-            >
-              {getTranslation(t, 'createRoute.media', 'Media')}
-            </Chip>
-            <Chip
-              active={activeSection === 'details'}
-              onPress={() => setActiveSection('details')}
+              label={getTranslation(t, 'createRoute.media', 'Media')}
+              onPress={() => setActiveSection('media')}
+              selected={activeSection === 'media'}
+              backgroundColor="transparent"
+              borderColor="transparent"
+              flex={1}
+            />
+            <IconButton
               icon="settings"
-            >
-              {getTranslation(t, 'common.details', 'Details')}
-            </Chip>
+              label={getTranslation(t, 'common.details', 'Details')}
+              onPress={() => setActiveSection('details')}
+              selected={activeSection === 'details'}
+              backgroundColor="transparent"
+              borderColor="transparent"
+              flex={1}
+            />
           </XStack>
 
           {/* Section Content */}
@@ -2142,9 +2237,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                   <YStack gap="$4">
                     {/* Basic Information */}
                     <YStack>
-                      <Text size="lg" weight="medium" mb="$2" color="$color">
+                      {/* <Text size="lg" weight="medium" mb="$2" color="$color">
                         {getTranslation(t, 'createRoute.routeName', 'Route Name')}
-                      </Text>
+                      </Text> */}
                       <FormField
                         value={formData.name}
                         onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
@@ -2160,6 +2255,71 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                         )}
                         autoCapitalize="none"
                       />
+                      
+                      {/* Quick name suggestions */}
+                      {waypoints.length > 0 && waypoints[0]?.title && (
+                        <XStack gap="$2" marginTop="$2" flexWrap="wrap">
+                          <Pressable
+                            onPress={() => {
+                              const locationName = waypoints[0]?.title?.split(',')[0].trim() || '';
+                              setFormData((prev) => ({ ...prev, name: locationName }));
+                            }}
+                            style={({ pressed }) => {
+                              const chipText = waypoints[0].title.split(',')[0].trim();
+                              const isSelected = formData.name === chipText;
+                              return {
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                backgroundColor: (pressed || isSelected) ? '#00E6C3' : 'transparent',
+                              };
+                            }}
+                          >
+                            {({ pressed }) => {
+                              const chipText = waypoints[0].title.split(',')[0].trim();
+                              const isSelected = formData.name === chipText;
+                              return (
+                                <Text fontSize={14} color={(pressed || isSelected) ? '#000000' : '$color'}>
+                                  {chipText}
+                                </Text>
+                              );
+                            }}
+                          </Pressable>
+                          
+                          {waypoints[0]?.title?.includes(',') && waypoints[0]?.title?.split(',')[1] && (
+                            <Pressable
+                              onPress={() => {
+                                const cityName = waypoints[0]?.title?.split(',').slice(0, 2).join(',').trim() || '';
+                                setFormData((prev) => ({ ...prev, name: cityName }));
+                              }}
+                              style={({ pressed }) => {
+                                const chipText = waypoints[0].title.split(',').slice(0, 2).join(',').trim();
+                                const isSelected = formData.name === chipText;
+                                return {
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 8,
+                                  borderRadius: 20,
+                                  borderWidth: 1,
+                                  borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                  backgroundColor: (pressed || isSelected) ? '#00E6C3' : 'transparent',
+                                };
+                              }}
+                            >
+                              {({ pressed }) => {
+                                const chipText = waypoints[0].title.split(',').slice(0, 2).join(',').trim();
+                                const isSelected = formData.name === chipText;
+                                return (
+                                  <Text fontSize={14} color={(pressed || isSelected) ? '#000000' : '$color'}>
+                                    {chipText}
+                                  </Text>
+                                );
+                              }}
+                            </Pressable>
+                          )}
+                        </XStack>
+                      )}
                       <TextArea
                         value={formData.description}
                         onChangeText={(text) =>
@@ -2175,100 +2335,184 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           'createRoute.description',
                           'Description',
                         )}
-                        numberOfLines={4}
+                        minHeight={80}
                         mt="$2"
-                        size="md"
-                        backgroundColor="$backgroundHover"
+                        backgroundColor="$background"
                         borderColor="$borderColor"
+                        borderWidth={1}
+                        borderRadius={4}
+                        paddingHorizontal={16}
+                        paddingVertical={12}
+                        fontSize={14}
+                        color="$color"
+                        placeholderTextColor="#9ca3af"
+                        focusStyle={{
+                          borderColor: '#34d399',
+                          borderWidth: 2,
+                          backgroundColor: '$backgroundFocus',
+                        }}
                       />
                     </YStack>
 
                     {/* Drawing Mode Controls */}
                     <YStack gap="$4">
-                      <Heading>Drawing Mode</Heading>
-                      <Text size="sm" color="$gray11">
-                        Choose how to create your route
-                      </Text>
-
                       <XStack gap="$2" flexWrap="wrap">
-                        <Button
-                          variant={drawingMode === 'pin' ? 'secondary' : 'tertiary'}
+                        <TouchableOpacity
                           onPress={() => setDrawingMode('pin')}
-                          size="md"
-                          flex={1}
-                          backgroundColor={drawingMode === 'pin' ? '$blue10' : '$backgroundHover'}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 12,
+                            borderRadius: 8,
+                            backgroundColor:
+                              drawingMode === 'pin' ? 'rgba(0, 230, 195, 0.15)' : 'transparent',
+                            borderWidth: 1,
+                            borderColor:
+                              drawingMode === 'pin'
+                                ? 'rgba(0, 230, 195, 0.5)'
+                                : colorScheme === 'dark'
+                                  ? 'rgba(255, 255, 255, 0.1)'
+                                  : 'rgba(0, 0, 0, 0.1)',
+                          }}
                         >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather
+                          <XStack gap="$2" alignItems="center" justifyContent="center">
+                            {/* <Feather
                               name="map-pin"
                               size={16}
-                              color={drawingMode === 'pin' ? 'white' : iconColor}
-                            />
-                            <Text color={drawingMode === 'pin' ? 'white' : '$color'}>Pin</Text>
+                              color={
+                                drawingMode === 'pin'
+                                  ? '#00E6C3'
+                                  : colorScheme === 'dark'
+                                    ? '#999'
+                                    : '#666'
+                              }
+                            /> */}
+                            <Text
+                              fontWeight={drawingMode === 'pin' ? '700' : '500'}
+                              color={drawingMode === 'pin' ? '$primary' : '$gray11'}
+                            >
+                              Pin
+                            </Text>
                           </XStack>
-                        </Button>
+                        </TouchableOpacity>
 
-                        <Button
-                          variant={drawingMode === 'waypoint' ? 'secondary' : 'tertiary'}
+                        <TouchableOpacity
                           onPress={() => setDrawingMode('waypoint')}
-                          size="md"
-                          flex={1}
-                          backgroundColor={
-                            drawingMode === 'waypoint' ? '$blue10' : '$backgroundHover'
-                          }
+                          style={{
+                            flex: 1,
+                            paddingVertical: 12,
+                            borderRadius: 8,
+                            backgroundColor:
+                              drawingMode === 'waypoint'
+                                ? 'rgba(0, 230, 195, 0.15)'
+                                : 'transparent',
+                            borderWidth: 1,
+                            borderColor:
+                              drawingMode === 'waypoint'
+                                ? 'rgba(0, 230, 195, 0.5)'
+                                : colorScheme === 'dark'
+                                  ? 'rgba(255, 255, 255, 0.1)'
+                                  : 'rgba(0, 0, 0, 0.1)',
+                          }}
                         >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather
+                          <XStack gap="$2" alignItems="center" justifyContent="center">
+                            {/* <Feather
                               name="navigation"
                               size={16}
-                              color={drawingMode === 'waypoint' ? 'white' : iconColor}
-                            />
-                            <Text color={drawingMode === 'waypoint' ? 'white' : '$color'}>
+                              color={
+                                drawingMode === 'waypoint'
+                                  ? '#00E6C3'
+                                  : colorScheme === 'dark'
+                                    ? '#999'
+                                    : '#666'
+                              }
+                            /> */}
+                            <Text
+                              fontWeight={drawingMode === 'waypoint' ? '700' : '500'}
+                              color={drawingMode === 'waypoint' ? '$primary' : '$gray11'}
+                            >
                               Waypoints
                             </Text>
                           </XStack>
-                        </Button>
+                        </TouchableOpacity>
 
-                        <Button
-                          variant={drawingMode === 'pen' ? 'secondary' : 'tertiary'}
+                        <TouchableOpacity
                           onPress={() => setDrawingMode('pen')}
-                          size="md"
-                          flex={1}
-                          backgroundColor={drawingMode === 'pen' ? '$blue10' : '$backgroundHover'}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 12,
+                            borderRadius: 8,
+                            backgroundColor:
+                              drawingMode === 'pen' ? 'rgba(0, 230, 195, 0.15)' : 'transparent',
+                            borderWidth: 1,
+                            borderColor:
+                              drawingMode === 'pen'
+                                ? 'rgba(0, 230, 195, 0.5)'
+                                : colorScheme === 'dark'
+                                  ? 'rgba(255, 255, 255, 0.1)'
+                                  : 'rgba(0, 0, 0, 0.1)',
+                          }}
                         >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather
+                          <XStack gap="$2" alignItems="center" justifyContent="center">
+                            {/* <Feather
                               name="edit-3"
                               size={16}
-                              color={drawingMode === 'pen' ? 'white' : iconColor}
-                            />
-                            <Text color={drawingMode === 'pen' ? 'white' : '$color'}>Draw</Text>
+                              color={
+                                drawingMode === 'pen'
+                                  ? '#00E6C3'
+                                  : colorScheme === 'dark'
+                                    ? '#999'
+                                    : '#666'
+                              }
+                            /> */}
+                            <Text
+                              fontWeight={drawingMode === 'pen' ? '700' : '500'}
+                              color={drawingMode === 'pen' ? '$primary' : '$gray11'}
+                            >
+                              Draw
+                            </Text>
                           </XStack>
-                        </Button>
+                        </TouchableOpacity>
 
-                        <Button
-                          variant={drawingMode === 'record' ? 'secondary' : 'tertiary'}
+                        <TouchableOpacity
                           onPress={() => {
                             setDrawingMode('record');
                             handleRecordRoute();
                           }}
-                          size="md"
-                          flex={1}
-                          backgroundColor={
-                            drawingMode === 'record' ? '$blue10' : '$backgroundHover'
-                          }
+                          style={{
+                            flex: 1,
+                            paddingVertical: 12,
+                            borderRadius: 8,
+                            backgroundColor:
+                              drawingMode === 'record' ? 'rgba(0, 230, 195, 0.15)' : 'transparent',
+                            borderWidth: 1,
+                            borderColor:
+                              drawingMode === 'record'
+                                ? 'rgba(0, 230, 195, 0.5)'
+                                : colorScheme === 'dark'
+                                  ? 'rgba(255, 255, 255, 0.1)'
+                                  : 'rgba(0, 0, 0, 0.1)',
+                          }}
                         >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather
+                          <XStack gap="$2" alignItems="center" justifyContent="center">
+                            {/* <Feather
                               name="circle"
                               size={16}
-                              color={drawingMode === 'record' ? 'white' : iconColor}
-                            />
-                            <Text color={drawingMode === 'record' ? 'white' : '$color'}>
+                              color={
+                                drawingMode === 'record'
+                                  ? '#00E6C3'
+                                  : colorScheme === 'dark'
+                                    ? '#999'
+                                    : '#666'
+                              }
+                            /> */}
+                            <Text
+                              fontWeight={drawingMode === 'record' ? '700' : '500'}
+                              color={drawingMode === 'record' ? '$primary' : '$gray11'}
+                            >
                               Record
                             </Text>
                           </XStack>
-                        </Button>
+                        </TouchableOpacity>
                       </XStack>
 
                       {/* Mode descriptions */}
@@ -2316,61 +2560,107 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       </Text>
 
                       <YStack gap="$2">
-                        <XStack gap="$2">
+                        <XStack gap="$2" alignItems="center">
+                          <View style={{ flex: 1 }}>
                           <FormField
                             ref={searchInputRef}
-                            flex={1}
+                              variant="search"
+                              rounded="full"
+                              size="md"
                             value={searchQuery}
                             onChangeText={handleSearch}
                             placeholder={t('createRoute.searchLocation')}
                             autoComplete="street-address"
                             autoCapitalize="none"
                             accessibilityLabel={t('createRoute.searchLocation')}
-                            rightElement={
-                              <Button
-                                onPress={handleManualCoordinates}
-                                variant="secondary"
-                                padding="$2"
-                                backgroundColor="transparent"
-                                borderWidth={0}
+                            />
+                          </View>
+                          <TouchableOpacity
+                            onPress={handleLocateMe}
+                            disabled={locationLoading}
+                            style={{
+                              width: 48,
+                              height: 48,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderWidth: 1,
+                              borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                              borderRadius: 24,
+                              backgroundColor: 'transparent',
+                            }}
+                          >
+                            {locationLoading ? (
+                              <Animated.View
+                                style={{
+                                  transform: [
+                                    {
+                                      rotate: spinValue.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: ['0deg', '360deg'],
+                                      }),
+                                    },
+                                  ],
+                                }}
                               >
                                 <Feather
-                                  name="map-pin"
-                                  size={18}
-                                  color={colorScheme === 'dark' ? 'white' : 'black'}
+                                  name="loader"
+                                  size={20}
+                                  color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
                                 />
-                              </Button>
-                            }
-                          />
-                          <Button
-                            onPress={handleLocateMe}
-                            variant="primary"
-                            backgroundColor="$blue10"
-                          >
-                            <Feather name="navigation" size={18} color="white" />
-                          </Button>
+                              </Animated.View>
+                            ) : (
+                              <Feather
+                                name="navigation"
+                                size={20}
+                                color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                              />
+                            )}
+                          </TouchableOpacity>
                         </XStack>
 
                         {showSearchResults && searchResults.length > 0 && (
-                          <Card elevate>
-                            <YStack padding="$2" gap="$1">
-                              {searchResults.map((result, index) => (
-                                <Button
-                                  key={index}
-                                  onPress={() => handleLocationSelect(result)}
-                                  variant="secondary"
-                                  size="md"
-                                  justifyContent="flex-start"
-                                >
-                                  <Text numberOfLines={1} color="$color">
-                                    {[result.street, result.city, result.country]
-                                      .filter(Boolean)
-                                      .join(', ')}
-                                  </Text>
-                                </Button>
-                              ))}
-                            </YStack>
-                          </Card>
+                          <YStack
+                            overflow="hidden"
+                            marginBottom="$4"
+                            borderTopWidth={1}
+                            borderBottomWidth={1}
+                            borderLeftWidth={1}
+                            borderRightWidth={1}
+                            borderColor={borderColor}
+                            borderRadius="$2"
+                          >
+                            <ScrollView>
+                              {searchResults.map((result, index, array) => {
+                                const isLastItem = index === array.length - 1;
+                                return (
+                                  <TouchableOpacity
+                                    key={index}
+                                    onPress={() => handleLocationSelect(result)}
+                                    style={{
+                                      paddingVertical: 12,
+                                      paddingHorizontal: 12,
+                                      borderBottomWidth: isLastItem ? 0 : 1,
+                                      borderBottomColor: borderColor,
+                                    }}
+                                  >
+                                    <XStack alignItems="center" gap="$2">
+                                      <YStack flex={1}>
+                                        <Text numberOfLines={1} fontWeight="600" color={textColor}>
+                                          {[result.street, result.city].filter(Boolean).join(', ') ||
+                                            'Unknown location'}
+                                        </Text>
+                                        {result.country && (
+                                          <Text numberOfLines={1} fontSize="$3" color="$gray10">
+                                            {result.country}
+                                          </Text>
+                                        )}
+                                      </YStack>
+                                    </XStack>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </ScrollView>
+                          </YStack>
                         )}
                       </YStack>
 
@@ -2405,10 +2695,6 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           {/* Render waypoints as individual markers (not in pen drawing mode) */}
                           {drawingMode !== 'pen' &&
                             waypoints.map((waypoint, index) => {
-                              const isFirst = index === 0;
-                              const isLast = index === waypoints.length - 1 && waypoints.length > 1;
-                              const markerColor = isFirst ? 'green' : isLast ? 'red' : 'blue';
-
                               return (
                                 <Marker
                                   key={`waypoint-${index}`}
@@ -2416,10 +2702,44 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                     latitude: waypoint.latitude,
                                     longitude: waypoint.longitude,
                                   }}
-                                  title={waypoint.title}
-                                  description={waypoint.description}
-                                  pinColor={markerColor}
-                                />
+                                  anchor={{ x: 0.5, y: 0.5 }}
+                                  tracksViewChanges={false}
+                                >
+                                  {/* Circular marker like MapScreen */}
+                                  <View
+                                    style={{
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}
+                                  >
+                                    {/* Circular marker */}
+                                    <View
+                                      style={{
+                                        width: 32,
+                                        height: 32,
+                                        backgroundColor: '#38fdbf',
+                                        borderRadius: 16,
+                                        shadowColor: '#000',
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.3,
+                                        shadowRadius: 4,
+                                        elevation: 5,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                    >
+                                      {/* Inner dot */}
+                                      <View
+                                        style={{
+                                          width: 8,
+                                          height: 8,
+                                          backgroundColor: '#333333',
+                                          borderRadius: 4,
+                                        }}
+                                      />
+                                    </View>
+                                  </View>
+                                </Marker>
                               );
                             })}
 
@@ -2441,7 +2761,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                 <Polyline
                                   coordinates={penPath}
                                   strokeWidth={8}
-                                  strokeColor="#FF6B35"
+                                  strokeColor="#38fdbf"
                                   lineJoin="round"
                                   lineCap="round"
                                   geodesic={false}
@@ -2452,29 +2772,29 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
                           {/* Orange dots removed - only showing continuous orange lines */}
 
-                          {/* Render connecting lines for waypoints (not in pen mode) */}
-                          {drawingMode === 'waypoint' && waypoints.length > 1 && (
-                            <Polyline
-                              coordinates={waypoints.map((wp) => ({
-                                latitude: wp.latitude,
-                                longitude: wp.longitude,
-                              }))}
-                              strokeWidth={3}
-                              strokeColor="#1A73E8"
-                              lineJoin="round"
-                            />
-                          )}
+                        {/* Render connecting lines for waypoints (not in pen mode) */}
+                        {drawingMode === 'waypoint' && waypoints.length > 1 && (
+                          <Polyline
+                            coordinates={waypoints.map((wp) => ({
+                              latitude: wp.latitude,
+                              longitude: wp.longitude,
+                            }))}
+                            strokeWidth={3}
+                            strokeColor="#38fdbf"
+                            lineJoin="round"
+                          />
+                        )}
 
-                          {/* Render route path if provided */}
-                          {routePath && routePath.length > 1 && (
-                            <Polyline
-                              coordinates={routePath}
-                              strokeWidth={drawingMode === 'record' ? 5 : 3}
-                              strokeColor={drawingMode === 'record' ? '#22C55E' : '#1A73E8'}
-                              lineJoin="round"
-                              lineCap="round"
-                            />
-                          )}
+                        {/* Render route path if provided */}
+                        {routePath && routePath.length > 1 && (
+                          <Polyline
+                            coordinates={routePath}
+                            strokeWidth={drawingMode === 'record' ? 5 : 3}
+                            strokeColor="#38fdbf"
+                            lineJoin="round"
+                            lineCap="round"
+                          />
+                        )}
                         </MapView>
 
                         {/* Map Controls - Top Right */}
@@ -2533,22 +2853,51 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           </Button>
                         </YStack>
 
-                        <Button
-                          position="absolute"
-                          bottom={16}
-                          left={16}
+                        <TouchableOpacity
                           onPress={handleLocateMe}
-                          variant="primary"
-                          backgroundColor="$blue10"
-                          size="md"
-                          opacity={0.9}
-                          pressStyle={{ opacity: 0.7 }}
+                          disabled={locationLoading}
+                          style={{
+                            position: 'absolute',
+                            bottom: 16,
+                            left: 16,
+                            width: 48,
+                            height: 48,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderWidth: 1,
+                            borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                            borderRadius: 24,
+                            backgroundColor:
+                              colorScheme === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
+                          }}
                         >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather name="crosshair" size={20} color="white" />
-                            <Text color="white">Locate Me</Text>
-                          </XStack>
-                        </Button>
+                          {locationLoading ? (
+                            <Animated.View
+                              style={{
+                                transform: [
+                                  {
+                                    rotate: spinValue.interpolate({
+                                      inputRange: [0, 1],
+                                      outputRange: ['0deg', '360deg'],
+                                    }),
+                                  },
+                                ],
+                              }}
+                            >
+                              <Feather
+                                name="loader"
+                                size={20}
+                                color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                              />
+                            </Animated.View>
+                          ) : (
+                            <Feather
+                              name="navigation"
+                              size={20}
+                              color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                            />
+                          )}
+                        </TouchableOpacity>
 
                         {/* Drawing Mode Indicator */}
                         <View
@@ -2618,33 +2967,61 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
                       {/* Waypoint Management Controls */}
                       <XStack gap="$2" flexWrap="wrap">
-                        <Button
+                        <TouchableOpacity
                           onPress={handleUndo}
                           disabled={waypoints.length === 0}
-                          variant="secondary"
-                          backgroundColor="$orange10"
-                          size="lg"
-                          flex={1}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 12,
+                            borderRadius: 8,
+                            backgroundColor: 'transparent',
+                            borderWidth: 1,
+                            borderColor:
+                              colorScheme === 'dark'
+                                ? 'rgba(255, 255, 255, 0.1)'
+                                : 'rgba(0, 0, 0, 0.1)',
+                            opacity: waypoints.length === 0 ? 0.5 : 1,
+                          }}
                         >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather name="corner-up-left" size={18} color="white" />
-                            <Text color="white">Undo</Text>
+                          <XStack gap="$2" alignItems="center" justifyContent="center">
+                            <Feather
+                              name="corner-up-left"
+                              size={18}
+                              color={colorScheme === 'dark' ? '#999' : '#666'}
+                            />
+                            <Text color="$gray11" fontWeight="500">
+                              Undo
+                            </Text>
                           </XStack>
-                        </Button>
+                        </TouchableOpacity>
 
-                        <Button
+                        <TouchableOpacity
                           onPress={clearAllWaypoints}
                           disabled={waypoints.length === 0 && penPath.length === 0}
-                          variant="secondary"
-                          backgroundColor="$red10"
-                          size="lg"
-                          flex={1}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 12,
+                            borderRadius: 8,
+                            backgroundColor: 'transparent',
+                            borderWidth: 1,
+                            borderColor:
+                              colorScheme === 'dark'
+                                ? 'rgba(255, 255, 255, 0.1)'
+                                : 'rgba(0, 0, 0, 0.1)',
+                            opacity: waypoints.length === 0 && penPath.length === 0 ? 0.5 : 1,
+                          }}
                         >
-                          <XStack gap="$2" alignItems="center">
-                            <Feather name="trash-2" size={18} color="white" />
-                            <Text color="white">Clear All</Text>
+                          <XStack gap="$2" alignItems="center" justifyContent="center">
+                            <Feather
+                              name="trash-2"
+                              size={18}
+                              color={colorScheme === 'dark' ? '#999' : '#666'}
+                            />
+                            <Text color="$gray11" fontWeight="500">
+                              Clear All
+                            </Text>
                           </XStack>
-                        </Button>
+                        </TouchableOpacity>
                       </XStack>
 
                       {/* Current waypoint count and mode info */}
@@ -2708,12 +3085,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                                         width: 24,
                                         height: 24,
                                         borderRadius: 12,
-                                        backgroundColor:
-                                          index === 0
-                                            ? '#22C55E'
-                                            : index === waypoints.length - 1 && waypoints.length > 1
-                                              ? '#EF4444'
-                                              : '#3B82F6',
+                                        backgroundColor: '#38fdbf',
                                         justifyContent: 'center',
                                         alignItems: 'center',
                                       }}
@@ -2824,6 +3196,49 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           </Card>
                         </YStack>
                       )}
+                    </YStack>
+
+                    {/* Basic Information */}
+                    <YStack>
+                      <Text size="lg" weight="medium" mb="$2" color="$color">
+                        {getTranslation(t, 'createRoute.routeName', 'Route Name')}
+                      </Text>
+                      <FormField
+                        value={formData.name}
+                        onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
+                        placeholder={getTranslation(
+                          t,
+                          'createRoute.routeNamePlaceholder',
+                          'Enter route name',
+                        )}
+                        accessibilityLabel={getTranslation(
+                          t,
+                          'createRoute.routeName',
+                          'Route Name',
+                        )}
+                        autoCapitalize="none"
+                      />
+                      <TextArea
+                        value={formData.description}
+                        onChangeText={(text) =>
+                          setFormData((prev) => ({ ...prev, description: text }))
+                        }
+                        placeholder={getTranslation(
+                          t,
+                          'createRoute.descriptionPlaceholder',
+                          'Enter description',
+                        )}
+                        accessibilityLabel={getTranslation(
+                          t,
+                          'createRoute.description',
+                          'Description',
+                        )}
+                        numberOfLines={4}
+                        mt="$2"
+                        size="md"
+                        backgroundColor="$backgroundHover"
+                        borderColor="$borderColor"
+                      />
                     </YStack>
                   </YStack>
                 )}
@@ -3060,81 +3475,65 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
                     </Text>
 
-                    <XStack gap="$3" flexWrap="wrap">
-                      <Button
-                        flex={1}
+                    <YStack gap="$3">
+                      <TouchableOpacity
                         onPress={() => pickMedia(false)}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
+                        style={{
+                          paddingVertical: 16,
+                          paddingHorizontal: 16,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                          backgroundColor: 'transparent',
+                        }}
                       >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="$blue10" />
-                          <Text color="$blue10">
+                        <XStack gap="$2" alignItems="center" justifyContent="center">
+                          <Feather name="image" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                          <Text color="$color">
                             {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
                           </Text>
                         </XStack>
-                      </Button>
-                      <Button
-                        flex={1}
+                      </TouchableOpacity>
+                      <TouchableOpacity
                         onPress={takePhoto}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
+                        style={{
+                          paddingVertical: 16,
+                          paddingHorizontal: 16,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                          backgroundColor: 'transparent',
+                        }}
                       >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="$blue10" />
-                          <Text color="$blue10">
+                        <XStack gap="$2" alignItems="center" justifyContent="center">
+                          <Feather name="camera" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                          <Text color="$color">
                             {getTranslation(t, 'createRoute.takePicture', 'Take Picture')}
                           </Text>
                         </XStack>
-                      </Button>
-                      <Button
-                        flex={1}
-                        onPress={uploadPhoto}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="upload" size={18} color="$blue10" />
-                          <Text color="$blue10">
-                            {getTranslation(t, 'createRoute.uploadPhoto', 'Upload Photo')}
-                          </Text>
-                        </XStack>
-                      </Button>
-                      <Button
-                        flex={1}
+                      </TouchableOpacity>
+                      <TouchableOpacity
                         onPress={recordVideo}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
+                        style={{
+                          paddingVertical: 16,
+                          paddingHorizontal: 16,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                          backgroundColor: 'transparent',
+                        }}
                       >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="plus" size={18} color="$blue10" />
-                          <Text color="$blue10">
+                        <XStack gap="$2" alignItems="center" justifyContent="center">
+                          <Feather name="video" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+                          <Text color="$color">
                             {getTranslation(t, 'createRoute.takeVideo', 'Take Video')}
                           </Text>
                         </XStack>
-                      </Button>
-                      <Button
-                        flex={1}
-                        onPress={uploadVideo}
-                        variant="secondary"
-                        size="md"
-                        marginTop="$2"
-                      >
-                        <XStack gap="$2" alignItems="center">
-                          <Feather name="upload" size={18} color="$blue10" />
-                          <Text color="$blue10">
-                            {getTranslation(t, 'createRoute.uploadVideo', 'Upload Video')}
-                          </Text>
-                        </XStack>
-                      </Button>
-                    </XStack>
+                      </TouchableOpacity>
+                    </YStack>
 
                     {/* YouTube Link */}
-                    <YStack gap="$2">
+                    {/* <YStack gap="$2">
                       <Heading marginTop="$4">
                         {getTranslation(t, 'createRoute.youtubeLink', 'YouTube Link')}
                       </Heading>
@@ -3161,77 +3560,102 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                           </XStack>
                         </Button>
                       </XStack>
-                    </YStack>
+                    </YStack> */}
 
-                    {/* Media Preview List */}
-                    {media.length > 0 ? (
-                      <YStack gap="$4">
+                    {/* Media Preview Grid */}
+                    {(media.length > 0 || loadingMedia) && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                        {loadingMedia && (
+                          <View
+                            style={{
+                              width: 100,
+                              height: 100,
+                              borderRadius: 8,
+                              backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#F5F5F5',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Text size="sm" color="$gray11">Loading...</Text>
+                          </View>
+                        )}
                         {media.map((item, index) => (
-                          <Card key={item.id} bordered padding="$3">
-                            <XStack gap="$3">
-                              {item.type === 'image' && (
-                                <Image
-                                  source={{ uri: item.uri }}
-                                  style={{ width: 80, height: 80, borderRadius: 8 }}
-                                />
-                              )}
-                              {item.type === 'video' && (
-                                <View
-                                  style={{
-                                    width: 80,
-                                    height: 80,
-                                    borderRadius: 8,
-                                    backgroundColor: '#000',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                  }}
-                                >
-                                  <Feather name="video" size={24} color="white" />
-                                </View>
-                              )}
-                              {item.type === 'youtube' && (
-                                <View
-                                  style={{
-                                    width: 80,
-                                    height: 80,
-                                    borderRadius: 8,
-                                    backgroundColor: '#FF0000',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                  }}
-                                >
-                                  <Feather name="youtube" size={24} color="white" />
-                                </View>
-                              )}
-                              <YStack flex={1} justifyContent="space-between">
-                                <Text weight="medium">
-                                  {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                                </Text>
-                                <Text size="sm" color="$gray11" numberOfLines={2}>
-                                  {item.uri.split('/').pop()}
-                                </Text>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onPress={() => handleRemoveMedia(index)}
-                                  backgroundColor="$red5"
-                                >
-                                  <XStack gap="$1" alignItems="center">
-                                    <Feather name="trash-2" size={14} color="$red10" />
-                                    <Text size="sm" color="$red10">
-                                      {getTranslation(t, 'createRoute.deleteMedia', 'Delete Media')}
-                                    </Text>
-                                  </XStack>
-                                </Button>
-                              </YStack>
-                            </XStack>
-                          </Card>
+                          <TouchableOpacity
+                            key={item.id}
+                            onPress={() => setSelectedMediaIndex(index)}
+                            style={{
+                              width: 100,
+                              height: 100,
+                              position: 'relative',
+                            }}
+                          >
+                            {item.type === 'image' && (
+                              <Image
+                                source={{ uri: item.uri }}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  borderRadius: 8,
+                                }}
+                              />
+                            )}
+                            {item.type === 'video' && (
+                              <View
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  borderRadius: 8,
+                                  backgroundColor: '#000',
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Feather name="video" size={32} color="white" />
+                              </View>
+                            )}
+                            {item.type === 'youtube' && (
+                              <View
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  borderRadius: 8,
+                                  backgroundColor: '#FF0000',
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Feather name="youtube" size={32} color="white" />
+                              </View>
+                            )}
+                            {/* Delete button - small X in top right corner */}
+                            <TouchableOpacity
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleRemoveMedia(index);
+                              }}
+                              style={{
+                                position: 'absolute',
+                                top: 4,
+                                right: 4,
+                                width: 28,
+                                height: 28,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderWidth: 1,
+                                borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                borderRadius: 14,
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                              }}
+                            >
+                              <Feather
+                                name="x"
+                                size={16}
+                                color="#FFFFFF"
+                              />
+                            </TouchableOpacity>
+                          </TouchableOpacity>
                         ))}
-                      </YStack>
-                    ) : (
-                      <Text color="$gray11" textAlign="center">
-                        {getTranslation(t, 'createRoute.noMedia', 'No media added yet')}
-                      </Text>
+                      </View>
                     )}
                   </YStack>
                 )}
@@ -3247,26 +3671,51 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       <Text weight="medium" color="$color">
                         {getTranslation(t, 'createRoute.difficulty', 'Difficulty')}
                       </Text>
-                      <XStack gap="$2" flexWrap="wrap">
-                        {['beginner', 'intermediate', 'advanced'].map((level) => (
-                          <Chip
+                      <View
+                        style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                      >
+                        {['beginner', 'intermediate', 'advanced'].map((level) => {
+                          const isSelected = formData.difficulty === (level as DifficultyLevel);
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                          return (
+                            <TouchableOpacity
                             key={level}
-                            active={formData.difficulty === (level as DifficultyLevel)}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
                             onPress={() =>
                               setFormData((prev) => ({
                                 ...prev,
                                 difficulty: level as DifficultyLevel,
                               }))
                             }
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
                           >
                             {level === 'beginner'
                               ? t('profile.experienceLevels.beginner')
                               : level === 'intermediate'
                                 ? t('profile.experienceLevels.intermediate')
                                 : t('profile.experienceLevels.advanced')}
-                          </Chip>
-                        ))}
-                      </XStack>
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     </YStack>
 
                     {/* Spot Type */}
@@ -3274,24 +3723,48 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       <Text weight="medium" color="$color">
                         {t('createRoute.spotType')}
                       </Text>
-                      <XStack gap="$2" flexWrap="wrap">
-                        {['city', 'highway', 'rural', 'track', 'parking'].map((type) => (
-                          <Chip
+                      <View
+                        style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                      >
+                        {['city', 'highway', 'rural', 'track', 'parking'].map((type) => {
+                          const isSelected = formData.spot_type === (type as SpotType);
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                          return (
+                            <TouchableOpacity
                             key={type}
-                            active={formData.spot_type === (type as SpotType)}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
                             onPress={() =>
                               setFormData((prev) => ({ ...prev, spot_type: type as SpotType }))
                             }
                           >
-                            {/* Try to use the spot type translation with fallback */}
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
+                              >
                             {getTranslation(
                               t,
                               `createRoute.spotTypes.${type}`,
                               type.charAt(0).toUpperCase() + type.slice(1),
                             )}
-                          </Chip>
-                        ))}
-                      </XStack>
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     </YStack>
 
                     {/* Visibility */}
@@ -3299,24 +3772,291 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                       <Text weight="medium" color="$color">
                         {t('createRoute.visibility')}
                       </Text>
-                      <XStack gap="$2" flexWrap="wrap">
-                        {['public', 'private'].map((vis) => (
-                          <Chip
+                      <View
+                        style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                      >
+                        {['public', 'private'].map((vis) => {
+                          const isSelected = formData.visibility === (vis as SpotVisibility);
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                          return (
+                            <TouchableOpacity
                             key={vis}
-                            active={formData.visibility === (vis as SpotVisibility)}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
                             onPress={() =>
                               setFormData((prev) => ({
                                 ...prev,
                                 visibility: vis as SpotVisibility,
                               }))
                             }
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
                           >
                             {vis === 'public'
                               ? getTranslation(t, 'createRoute.public', 'Public')
                               : getTranslation(t, 'createRoute.private', 'Private')}
-                          </Chip>
-                        ))}
-                      </XStack>
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </YStack>
+
+                    {/* Category */}
+                    <YStack gap="$2">
+                      <Text weight="medium" color="$color">
+                        {t('filters.category')}
+                      </Text>
+                      <View
+                        style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                      >
+                        {['parking', 'incline_start'].map((cat) => {
+                          const isSelected = formData.category === (cat as Category);
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                          return (
+                            <TouchableOpacity
+                              key={cat}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
+                              onPress={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  category: cat as Category,
+                                }))
+                              }
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
+                              >
+                                {t(`filters.category.${cat}`)}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </YStack>
+
+                    {/* Transmission Type */}
+                    <YStack gap="$2">
+                      <Text weight="medium" color="$color">
+                        {t('filters.transmissionType')}
+                      </Text>
+                      <View
+                        style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                      >
+                        {['automatic', 'manual', 'both'].map((trans) => {
+                          const isSelected = formData.transmission_type === trans;
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                          return (
+                            <TouchableOpacity
+                              key={trans}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
+                              onPress={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  transmission_type: trans,
+                                }))
+                              }
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
+                              >
+                                {t(`filters.transmissionType.${trans}`)}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </YStack>
+
+                    {/* Activity Level */}
+                    <YStack gap="$2">
+                      <Text weight="medium" color="$color">
+                        {t('filters.activityLevel')}
+                      </Text>
+                      <View
+                        style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                      >
+                        {['moderate', 'high'].map((level) => {
+                          const isSelected = formData.activity_level === level;
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                          return (
+                            <TouchableOpacity
+                              key={level}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
+                              onPress={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  activity_level: level,
+                                }))
+                              }
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
+                              >
+                                {t(`filters.activityLevel.${level}`)}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </YStack>
+
+                    {/* Best Season */}
+                    <YStack gap="$2">
+                      <Text weight="medium" color="$color">
+                        {t('filters.bestSeason')}
+                      </Text>
+                      <View
+                        style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                      >
+                        {['all', 'year-round', 'avoid-winter'].map((season) => {
+                          const isSelected = formData.best_season === season;
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                          return (
+                            <TouchableOpacity
+                              key={season}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
+                              onPress={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  best_season: season,
+                                }))
+                              }
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
+                              >
+                                {t(`filters.bestSeason.${season}`)}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </YStack>
+
+                    {/* Vehicle Types */}
+                    <YStack gap="$2">
+                      <Text weight="medium" color="$color">
+                        {t('filters.vehicleTypes')}
+                      </Text>
+                      <View
+                        style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
+                      >
+                        {['passenger_car', 'rv'].map((vehicle) => {
+                          const isSelected = formData.vehicle_types.includes(vehicle);
+                          const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                          const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                          return (
+                            <TouchableOpacity
+                              key={vehicle}
+                              style={{
+                                marginRight: 8,
+                                marginBottom: 8,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 20,
+                                borderWidth: 1,
+                                borderColor,
+                                backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                              }}
+                              onPress={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  vehicle_types: prev.vehicle_types.includes(vehicle)
+                                    ? prev.vehicle_types.filter((v) => v !== vehicle)
+                                    : [...prev.vehicle_types, vehicle],
+                                }))
+                              }
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isSelected ? '600' : '500',
+                                  color: isSelected ? '#000000' : textColor,
+                                }}
+                              >
+                                {t(`filters.vehicleTypes.${vehicle}`)}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     </YStack>
 
                     {/* Delete Button (only when editing) */}
@@ -3356,7 +4096,7 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         gap="$3"
       >
         {/* Collection Selector Button */}
-        <Button
+        {/* <Button
           onPress={handleSelectCollection}
           backgroundColor="transparent"
           borderColor="$borderColor"
@@ -3372,26 +4112,54 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                 : getTranslation(t, 'createRoute.selectCollection', 'Select Collection (Optional)')}
             </Text>
           </XStack>
-        </Button>
+        </Button> */}
+
+        {/* Validation messages */}
+        {!isBasicInfoComplete && (
+          <XStack gap="$2" alignItems="center" justifyContent="center" paddingHorizontal="$2">
+            <Feather name="alert-circle" size={16} color="#EF4444" />
+            <Text size="sm" color="#EF4444" fontWeight="500">
+              {getTranslation(t, 'createRoute.nameRequired', 'Route name is required')}
+            </Text>
+          </XStack>
+        )}
+        
+        {!isLocationComplete && (
+          <XStack gap="$2" alignItems="center" justifyContent="center" paddingHorizontal="$2">
+            <Feather name="alert-circle" size={16} color="#EF4444" />
+            <Text size="sm" color="#EF4444" fontWeight="500">
+              {drawingMode === 'pin' && getTranslation(t, 'createRoute.locationRequired', 'Please drop a pin on the map')}
+              {drawingMode === 'waypoint' && getTranslation(t, 'createRoute.waypointsRequired', 'At least 2 waypoints required')}
+              {drawingMode === 'pen' && getTranslation(t, 'createRoute.drawingRequired', 'Please draw a route on the map')}
+              {drawingMode === 'record' && getTranslation(t, 'createRoute.recordingRequired', 'Please record a route first')}
+            </Text>
+          </XStack>
+        )}
 
         {/* Create Route Button */}
         <Button
           onPress={handleCreate}
-          disabled={loading || !formData.name.trim()}
+          disabled={loading || !formData.name.trim() || !isLocationComplete}
           variant="primary"
-          size="lg"
+          size="md"
           width="100%"
         >
-          <XStack gap="$2" alignItems="center">
-            {!loading && <Feather name="check" size={20} color="white" />}
-            <Text color="white">
-              {loading
-                ? getTranslation(t, 'createRoute.saving', 'Saving...')
-                : isEditing
-                  ? getTranslation(t, 'createRoute.save', 'Save')
-                  : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
-            </Text>
-          </XStack>
+          {loading
+            ? getTranslation(t, 'createRoute.saving', 'Saving...')
+            : isEditing
+              ? getTranslation(t, 'createRoute.save', 'Save')
+              : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
+        </Button>
+
+        {/* Cancel Button */}
+        <Button
+          onPress={handleCancelPress}
+          disabled={loading}
+          variant="outline"
+          size="md"
+          width="100%"
+        >
+          {getTranslation(t, 'common.cancel', 'Cancel')}
         </Button>
       </YStack>
 
@@ -3428,12 +4196,14 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         transparent
         animationType="none"
         onRequestClose={() => setShowExitConfirmation(false)}
+        statusBarTranslucent
       >
         <View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'rgba(0,0,0,0.7)',
             justifyContent: 'flex-end',
+            zIndex: 99999,
           }}
         >
           <Animated.View
@@ -3472,43 +4242,27 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
 
               <YStack gap="$3">
                 {/* Save as Draft Button */}
-                <Button
+                {/* <Button
                   onPress={saveAsDraft}
                   variant="secondary"
                   size="lg"
                   backgroundColor="$blue5"
                 >
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="save" size={20} color="$blue11" />
-                    <Text color="$blue11" fontSize="$4" fontWeight="500">
-                      {t('createRoute.saveAsDraft') || 'Save as Draft'}
-                    </Text>
-                  </XStack>
-                </Button>
+                  {t('createRoute.saveAsDraft') || 'Save as Draft'}
+                </Button> */}
 
                 {/* Continue Editing Button */}
-                <Button onPress={handleContinueEditing} variant="primary" size="lg">
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="edit-3" size={20} color="white" />
-                    <Text color="white" fontSize="$4" fontWeight="500">
-                      {t('createRoute.continueEditing') || 'Continue Editing'}
-                    </Text>
-                  </XStack>
+                <Button onPress={handleContinueEditing} variant="primary" size="md">
+                  {t('createRoute.continueEditing') || 'Continue Editing'}
                 </Button>
 
                 {/* Exit Without Saving Button */}
                 <Button
                   onPress={handleExitWithoutSaving}
-                  variant="secondary"
-                  size="lg"
-                  backgroundColor="$red5"
+                  variant="outline"
+                  size="md"
                 >
-                  <XStack gap="$2" alignItems="center">
-                    <Feather name="x" size={20} color="#EF4444" />
-                    <Text color="#EF4444" fontSize="$4" fontWeight="500">
-                      {t('createRoute.exitWithoutSaving') || 'Exit Without Saving'}
-                    </Text>
-                  </XStack>
+                  {t('createRoute.exitWithoutSaving') || 'Exit Without Saving'}
                 </Button>
               </YStack>
             </YStack>
@@ -3550,6 +4304,98 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
         }}
         onClose={() => setShowCollectionSelector(false)}
       />
+
+      {/* Media Preview Modal */}
+      <Modal
+        visible={selectedMediaIndex !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedMediaIndex(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {selectedMediaIndex !== null && media[selectedMediaIndex] && (
+            <>
+              {media[selectedMediaIndex].type === 'image' && (
+                <Image
+                  source={{ uri: media[selectedMediaIndex].uri }}
+                  style={{
+                    width: windowWidth * 0.9,
+                    height: windowHeight * 0.7,
+                    borderRadius: 8,
+                  }}
+                  resizeMode="contain"
+                />
+              )}
+              {media[selectedMediaIndex].type === 'video' && (
+                <View
+                  style={{
+                    width: windowWidth * 0.9,
+                    height: windowHeight * 0.7,
+                    borderRadius: 8,
+                    backgroundColor: '#000',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Feather name="video" size={64} color="white" />
+                  <Text color="white" marginTop="$4">Video Preview</Text>
+                </View>
+              )}
+              
+              {/* Close button - top right */}
+              <TouchableOpacity
+                onPress={() => setSelectedMediaIndex(null)}
+                style={{
+                  position: 'absolute',
+                  top: 60,
+                  right: 20,
+                  width: 44,
+                  height: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: '#FFFFFF',
+                  borderRadius: 22,
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                }}
+              >
+                <Feather name="x" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              {/* Delete button - bottom center */}
+              <TouchableOpacity
+                onPress={() => {
+                  if (selectedMediaIndex !== null) {
+                    handleRemoveMedia(selectedMediaIndex);
+                    setSelectedMediaIndex(null);
+                  }
+                }}
+                style={{
+                  position: 'absolute',
+                  bottom: 80,
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  borderRadius: 24,
+                  backgroundColor: '#EF4444',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <Feather name="trash-2" size={20} color="#FFFFFF" />
+                <Text color="white" fontWeight="600">Delete</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </Modal>
     </Screen>
   );
 }

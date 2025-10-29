@@ -5,6 +5,7 @@ export * from './Header';
 export * from './FormField';
 export * from './Map';
 export * from './Chip';
+export * from './IconButton';
 
 // Event components
 export { EventCard } from './EventCard';
