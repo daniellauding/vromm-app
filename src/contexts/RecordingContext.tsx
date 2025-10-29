@@ -234,13 +234,12 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
           };
 
           if (wayPointsRef.current.length > 0) {
-            newWaypoint.distance =
-              calculateDistance(
-                wayPointsRef.current[wayPointsRef.current.length - 1].latitude,
-                wayPointsRef.current[wayPointsRef.current.length - 1].longitude,
-                newWaypoint.latitude,
-                newWaypoint.longitude,
-              ) * 1000;
+            newWaypoint.distance = calculateDistance(
+              wayPointsRef.current[wayPointsRef.current.length - 1].latitude,
+              wayPointsRef.current[wayPointsRef.current.length - 1].longitude,
+              newWaypoint.latitude,
+              newWaypoint.longitude,
+            );
 
             newWaypoint.speed = calculateWaypointSpeed(
               wayPointsRef.current[wayPointsRef.current.length - 1],
