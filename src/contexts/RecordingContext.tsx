@@ -7,8 +7,7 @@ import React, {
   useCallback,
   useEffect,
 } from 'react';
-import { NativeModules, NativeEventEmitter } from 'react-native';
-const { CustomEventEmitter } = NativeModules;
+import { EventEmitter } from 'events';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
@@ -138,7 +137,7 @@ const calculateWaypointSpeed = (from: RecordedWaypoint, to: RecordedWaypoint) =>
 
 // Location tracking task
 const LOCATION_TRACKING = 'location-tracking';
-const eventEmitter = new NativeEventEmitter(CustomEventEmitter);
+const eventEmitter = new EventEmitter();
 TaskManager.defineTask(LOCATION_TRACKING, async (event) => {
   console.log('location task', event);
   eventEmitter.emit('location', event);
