@@ -30,17 +30,23 @@ export function ForgotPasswordScreen() {
       setIsError(false);
       setMessage('');
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'com.vromm.app://reset-password',
-      });
+      console.log('🔐 Starting password reset for:', email);
+
+      // Don't pass redirectTo to avoid 504 timeout - use Supabase default
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+
+      console.log('📬 Reset password response:', { data, error });
 
       if (error) {
+        console.error('❌ Reset password error:', error);
         throw error;
       }
 
+      console.log('✅ Password reset email sent successfully');
       setMessage(t('auth.resetPassword.success'));
     } catch (err) {
       const error = err as Error;
+      console.error('❌ Password reset failed:', error.message);
       setMessage(error.message);
       setIsError(true);
     } finally {

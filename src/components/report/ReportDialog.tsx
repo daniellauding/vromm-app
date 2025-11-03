@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
-import { Modal, Alert } from 'react-native';
-import { YStack, XStack, Card, Button, TextArea, Text } from 'tamagui';
+import {
+  Modal,
+  Alert,
+  Pressable,
+  useColorScheme,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
+import { YStack, XStack, TextArea, Text } from 'tamagui';
+import { BlurView } from 'expo-blur';
+import { Button } from '../Button';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import type { Database } from '../../lib/database.types';
@@ -24,6 +33,21 @@ interface ReportDialogProps {
     | 'user';
   onClose: () => void;
 }
+
+const styles = StyleSheet.create({
+  filterChip: {
+    marginRight: 8,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  chipText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+});
 
 const REPORT_TYPES: { value: ReportType; label: string; description: string }[] = [
   {
@@ -50,9 +74,14 @@ const REPORT_TYPES: { value: ReportType; label: string; description: string }[] 
 
 export function ReportDialog({ reportableId, reportableType, onClose }: ReportDialogProps) {
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
   const [loading, setLoading] = useState(false);
   const [reportType, setReportType] = useState<ReportType>('spam');
   const [content, setContent] = useState('');
+
+  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
+  const textColor = colorScheme === 'dark' ? 'white' : 'black';
+  const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
 
   const handleSubmit = async () => {
     if (!user) {
@@ -182,77 +211,142 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
 
   return (
     <Modal
-      visible
-      transparent
-      animationType="slide"
+      animationType="fade"
+      transparent={true}
+      visible={true}
       onRequestClose={onClose}
       presentationStyle="overFullScreen"
       statusBarTranslucent
     >
-      <YStack flex={1} backgroundColor="rgba(0,0,0,0.5)" justifyContent="center" padding="$4">
-        <Card elevate bordered backgroundColor="$background" padding="$4">
-          <YStack gap="$4">
-            <Text fontSize="$6" fontWeight="bold">
-              Report Content
-            </Text>
-
-            <YStack gap="$2">
-              <Text fontSize="$5" fontWeight="600">
-                What's wrong with this content?
-              </Text>
-              <XStack flexWrap="wrap" gap="$2">
-                {REPORT_TYPES.map((type) => (
-                  <Button
-                    key={type.value}
-                    size="sm"
-                    variant="outlined"
-                    backgroundColor={reportType === type.value ? '$blue10' : undefined}
-                    onPress={() => setReportType(type.value)}
-                  >
-                    {type.label}
-                  </Button>
-                ))}
-              </XStack>
-              {selectedType && (
-                <Text fontSize="$3" color="$gray11">
-                  {selectedType.description}
+      <BlurView
+        style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+        intensity={10}
+        tint={colorScheme === 'dark' ? 'dark' : 'light'}
+        pointerEvents="none"
+      />
+      <Pressable
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: 'rgba(0,0,0,0.3)',
+        }}
+        onPress={onClose}
+      >
+        <Pressable onPress={(e) => e.stopPropagation()}>
+          <YStack
+            width="90%"
+            maxWidth={400}
+            backgroundColor="transparent"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <YStack
+              backgroundColor={backgroundColor}
+              paddingVertical="$4"
+              paddingHorizontal="$4"
+              overflow="hidden"
+              borderRadius="$4"
+              width="100%"
+              gap="$4"
+              borderColor={borderColor}
+              borderWidth={1}
+            >
+              {/* Header */}
+              <YStack gap="$3">
+                <Text
+                  fontSize={24}
+                  fontWeight="900"
+                  fontStyle="italic"
+                  color={textColor}
+                  textAlign="center"
+                >
+                  Report Content
                 </Text>
-              )}
-            </YStack>
 
-            {(reportType === 'other' || content) && (
-              <YStack gap="$2">
-                <Text fontSize="$5" fontWeight="600">
-                  Additional Details
-                </Text>
-                <TextArea
-                  size="$4"
-                  placeholder="Please provide more information about your report..."
-                  value={content}
-                  onChangeText={setContent}
-                  autoCapitalize="none"
-                  numberOfLines={4}
-                />
+                <YStack gap="$3">
+                  <Text fontSize={18} fontWeight="600" color={textColor}>
+                    What's wrong with this content?
+                  </Text>
+                  <XStack flexWrap="wrap" gap="$2">
+                    {REPORT_TYPES.map((type) => (
+                      <TouchableOpacity
+                        key={type.value}
+                        onPress={() => setReportType(type.value)}
+                        disabled={loading}
+                        style={[
+                          styles.filterChip,
+                          {
+                            borderColor,
+                            backgroundColor: reportType === type.value ? '#27febe' : 'transparent',
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            {
+                              color: reportType === type.value ? '#000000' : textColor,
+                              fontWeight: reportType === type.value ? '600' : '500',
+                            },
+                          ]}
+                        >
+                          {type.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </XStack>
+                  {selectedType && (
+                    <Text fontSize={12} color={textColor} opacity={0.7} fontStyle="italic">
+                      {selectedType.description}
+                    </Text>
+                  )}
+                </YStack>
+
+                {(reportType === 'other' || content) && (
+                  <YStack gap="$2">
+                    <Text fontSize={16} fontWeight="600" color={textColor}>
+                      Additional Details
+                    </Text>
+                    <TextArea
+                      placeholder="Please provide more information about your report..."
+                      value={content}
+                      onChangeText={setContent}
+                      autoCapitalize="sentences"
+                      numberOfLines={4}
+                      disabled={loading}
+                      style={{
+                        color: textColor,
+                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                        borderColor: borderColor,
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        padding: 12,
+                      }}
+                    />
+                  </YStack>
+                )}
               </YStack>
-            )}
 
-            <XStack gap="$2">
-              <Button flex={1} variant="outlined" onPress={onClose} disabled={loading}>
-                Cancel
-              </Button>
-              <Button
-                flex={1}
-                variant="outlined"
-                backgroundColor="$blue10"
-                onPress={handleSubmit}
-                disabled={loading || (reportType === 'other' && !content.trim())}
-              >
-                Submit Report
-              </Button>
-            </XStack>
+              {/* Action Buttons */}
+              <YStack gap="$2">
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onPress={handleSubmit}
+                  disabled={loading || (reportType === 'other' && !content.trim())}
+                >
+                  {loading ? 'Submitting...' : 'Submit Report'}
+                </Button>
+
+                <Button size="sm" variant="link" onPress={onClose} disabled={loading}>
+                  {'Cancel'}
+                </Button>
+              </YStack>
+            </YStack>
           </YStack>
-        </Card>
-      </YStack>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

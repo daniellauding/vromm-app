@@ -3704,7 +3704,7 @@ export function ProgressScreen() {
               <Feather name="arrow-left" size={28} color={iconColor} />
             </TouchableOpacity>
 
-            {totalRepeats > 1 && (
+            {/* {totalRepeats > 1 && (
               <XStack gap={8} alignItems="center">
                 {Array.from({ length: totalRepeats }).map((_, i) => (
                   <View
@@ -3718,7 +3718,16 @@ export function ProgressScreen() {
                   />
                 ))}
               </XStack>
-            )}
+            )} */}
+
+            <TouchableOpacity
+              onPress={() => {
+                console.log('🧾 [ProgressScreen] open report exercise', selectedExercise.id);
+                setReportExerciseId(selectedExercise.id);
+              }}
+            >
+              <Feather name="flag" size={20} color={iconColor} />
+            </TouchableOpacity>
           </XStack>
 
           {/* Exercise header with icon if available */}
@@ -3733,13 +3742,19 @@ export function ProgressScreen() {
               </View>
             )}
             <YStack flex={1}>
-              <XStack alignItems="center" gap={8}>
-                <Text fontSize={28} fontWeight="bold" color="$color" numberOfLines={1}>
+              <XStack alignItems="center" gap={8} justifyContent="center">
+                <Text
+                  fontSize={28}
+                  fontWeight="900"
+                  fontStyle="italic"
+                  color="$color"
+                  textAlign="center"
+                >
                   {selectedExercise.title?.[lang] || selectedExercise.title?.en || 'Untitled'}
                 </Text>
 
                 {/* Show repeat indicator if it's a repeat */}
-                {selectedExercise.isRepeat && (
+                {/* {selectedExercise.isRepeat && (
                   <XStack
                     backgroundColor="#4B6BFF"
                     paddingHorizontal={8}
@@ -3753,11 +3768,11 @@ export function ProgressScreen() {
                       {selectedExercise.repeatNumber}/{selectedExercise.repeat_count}
                     </Text>
                   </XStack>
-                )}
+                )} */}
               </XStack>
 
               {/* If not a repeat but has repeat_count > 1, show this information */}
-              {!selectedExercise.isRepeat &&
+              {/* {!selectedExercise.isRepeat &&
                 selectedExercise.repeat_count &&
                 selectedExercise.repeat_count > 1 && (
                   <XStack alignItems="center" gap={4} marginTop={4}>
@@ -3766,7 +3781,7 @@ export function ProgressScreen() {
                       This exercise needs to be repeated {selectedExercise.repeat_count} times
                     </Text>
                   </XStack>
-                )}
+                )} */}
             </YStack>
 
             {/* Show appropriate icon for exercise state */}
@@ -3775,17 +3790,18 @@ export function ProgressScreen() {
             ) : !prevExercisesComplete ? (
               <MaterialIcons name="hourglass-empty" size={24} color="#FF9500" />
             ) : isDone ? (
-              <Feather name="check-circle" size={24} color="#00E6C3" />
+              // <Feather name="check-circle" size={24} color="#00E6C3" />
+              <></>
             ) : null}
           </XStack>
 
           {selectedExercise.description?.[lang] && (
-            <Text color="$gray11" marginBottom={16}>
+            <Text color="$gray11" marginBottom={16} textAlign="center" fontSize={16}>
               {selectedExercise.description[lang]}
             </Text>
           )}
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             onPress={() => {
               console.log('🧾 [ProgressScreen] open report exercise', selectedExercise.id);
               setReportExerciseId(selectedExercise.id);
@@ -3793,7 +3809,7 @@ export function ProgressScreen() {
             style={{ alignSelf: 'flex-end', marginBottom: 8 }}
           >
             <Text color="#EF4444">Report Exercise</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           {/* NEW: Quiz Section */}
           {hasQuizQuestions[selectedExercise.id] && (
@@ -3825,7 +3841,7 @@ export function ProgressScreen() {
           {renderExerciseMedia(selectedExercise)}
 
           {/* Repetition Progress (if this is a repeated exercise) */}
-          {(selectedExercise.isRepeat ||
+          {/* {(selectedExercise.isRepeat ||
             (selectedExercise.repeat_count && selectedExercise.repeat_count > 1)) && (
             <YStack
               marginTop={16}
@@ -3849,19 +3865,19 @@ export function ProgressScreen() {
                 </Text>
               )}
             </YStack>
-          )}
+          )} */}
 
           {/* List of all repeats if viewing the base exercise */}
           {!selectedExercise.isRepeat &&
             selectedExercise.repeat_count &&
             selectedExercise.repeat_count > 1 && (
               <YStack /* ref={repeatSectionRef} */ marginTop={16} marginBottom={16} gap={12}>
-                <XStack alignItems="center" gap={8} marginBottom={8}>
+                {/* <XStack alignItems="center" gap={8} marginBottom={8}>
                   <Feather name="list" size={20} color="#4B6BFF" />
                   <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
                     All Repetitions
                   </Text>
-                </XStack>
+                </XStack> */}
 
                 {/* Progress bar for all repetitions */}
                 <RepeatProgressBar exercise={selectedExercise} />
@@ -4220,7 +4236,7 @@ export function ProgressScreen() {
             <TouchableOpacity onPress={() => setShowDetailView(false)}>
               <Feather name="arrow-left" size={28} color={iconColor} />
             </TouchableOpacity>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={() => {
                 setHistoryModalVisible(true);
                 loadAudit();
@@ -4228,6 +4244,15 @@ export function ProgressScreen() {
               style={{ backgroundColor: '#333', padding: 8, borderRadius: 16 }}
             >
               <Feather name="clock" size={20} color="#fff" />
+            </TouchableOpacity> */}
+
+            <TouchableOpacity
+              onPress={() => {
+                console.log('🧾 [ProgressScreen] open report path', detailPath.id);
+                setReportPath(true);
+              }}
+            >
+              <Feather name="flag" size={20} color={iconColor} />
             </TouchableOpacity>
           </XStack>
 
@@ -4240,8 +4265,8 @@ export function ProgressScreen() {
           )}
 
           {/* Path header with icon if available */}
-          <XStack alignItems="center" gap={12} marginBottom={16}>
-            {detailPath.icon && (
+          <YStack alignItems="center" gap={12} marginBottom={16}>
+            {/* {detailPath.icon && (
               <View style={{ marginRight: 8 }}>
                 <Feather
                   name={detailPath.icon as keyof typeof Feather.glyphMap}
@@ -4249,12 +4274,80 @@ export function ProgressScreen() {
                   color={isPasswordLocked ? '#FF9500' : '#00E6C3'}
                 />
               </View>
+            )} */}
+            {/* Learning Path Progress Circle */}
+            {exercises.length > 0 && (
+              <XStack justifyContent="center" alignItems="center" marginTop={8} marginBottom={16}>
+                <View style={{ position: 'relative' }}>
+                  <ProgressCircle
+                    percent={
+                      completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length /
+                      exercises.length
+                    }
+                    size={90}
+                    color="#27febe"
+                    bg="#333"
+                  />
+                  <Text
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: 90,
+                      height: 90,
+                      textAlign: 'center',
+                      textAlignVertical: 'center',
+                      lineHeight: 90,
+                    }}
+                    fontSize="$4"
+                    color={
+                      completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length ===
+                      exercises.length
+                        ? '#27febe'
+                        : '$gray10'
+                    }
+                    fontWeight="bold"
+                  >
+                    {Math.round(
+                      (completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length /
+                        exercises.length) *
+                        100,
+                    )}
+                    %
+                  </Text>
+                  {completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length ===
+                    exercises.length && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: -5,
+                        right: -5,
+                        width: 30,
+                        height: 30,
+                        borderRadius: 15,
+                        backgroundColor: '#27febe',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Feather name="check" size={18} color="#000" />
+                    </View>
+                  )}
+                </View>
+              </XStack>
             )}
+
             <XStack alignItems="center" gap={8}>
-              <Text fontSize={28} fontWeight="bold" color="$color">
+              <Text
+                fontSize={28}
+                fontWeight="900"
+                fontStyle="italic"
+                color="$color"
+                textAlign="center"
+              >
                 {detailPath.title[lang]}
               </Text>
-              {pathCommentCount > 0 && (
+              {/* {pathCommentCount > 0 && (
                 <XStack
                   alignItems="center"
                   gap={4}
@@ -4268,7 +4361,7 @@ export function ProgressScreen() {
                     {pathCommentCount}
                   </Text>
                 </XStack>
-              )}
+              )} */}
             </XStack>
 
             {/* Show appropriate icon for path state */}
@@ -4277,75 +4370,13 @@ export function ProgressScreen() {
             ) : !isAvailable ? (
               <MaterialIcons name="hourglass-empty" size={24} color="#FF9500" />
             ) : null}
-          </XStack>
+          </YStack>
 
-          {/* Learning Path Progress Circle */}
-          {exercises.length > 0 && (
-            <XStack justifyContent="center" alignItems="center" marginTop={8} marginBottom={16}>
-              <View style={{ position: 'relative' }}>
-                <ProgressCircle
-                  percent={
-                    completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length /
-                    exercises.length
-                  }
-                  size={90}
-                  color="#27febe"
-                  bg="#333"
-                />
-                <Text
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: 90,
-                    height: 90,
-                    textAlign: 'center',
-                    textAlignVertical: 'center',
-                    lineHeight: 90,
-                  }}
-                  fontSize="$4"
-                  color={
-                    completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length ===
-                    exercises.length
-                      ? '#27febe'
-                      : '$gray10'
-                  }
-                  fontWeight="bold"
-                >
-                  {Math.round(
-                    (completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length /
-                      exercises.length) *
-                      100,
-                  )}
-                  %
-                </Text>
-                {completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length ===
-                  exercises.length && (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: -5,
-                      right: -5,
-                      width: 30,
-                      height: 30,
-                      borderRadius: 15,
-                      backgroundColor: '#27febe',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Feather name="check" size={18} color="#000" />
-                  </View>
-                )}
-              </View>
-            </XStack>
-          )}
-
-          <Text color="$gray11" marginBottom={16}>
+          <Text color="$gray11" marginBottom={16} textAlign="center" fontSize={16}>
             {detailPath.description[lang]}
           </Text>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             onPress={() => {
               console.log('🧾 [ProgressScreen] open report path', detailPath.id);
               setReportPath(true);
@@ -4353,11 +4384,11 @@ export function ProgressScreen() {
             style={{ alignSelf: 'flex-end', marginBottom: 8 }}
           >
             <Text color="#EF4444">Report Learning Path</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           {/* Always show normal path content - lock check happens before navigation */}
           {/* Completion progress */}
-          {totalCount > 0 && (
+          {/* {totalCount > 0 && (
             <YStack marginTop={8} marginBottom={24}>
               <XStack justifyContent="space-between" alignItems="center" marginBottom={8}>
                 <Text fontSize={18} fontWeight="bold" color="$color">
@@ -4386,10 +4417,10 @@ export function ProgressScreen() {
                 />
               </View>
             </YStack>
-          )}
+          )} */}
 
           {/* Mark all button */}
-          <TouchableOpacity
+          {/* <TouchableOpacity
             onPress={() => handleMarkAllExercises(!isFullyComplete)}
             style={{
               marginBottom: 24,
@@ -4403,11 +4434,11 @@ export function ProgressScreen() {
             <Text color={isFullyComplete ? '$color' : '#000'} fontWeight="bold">
               {isFullyComplete ? 'Mark All as Incomplete' : 'Mark All as Complete'}
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
-          <Text fontSize={22} fontWeight="bold" color="$color" marginBottom={16}>
+          {/* <Text fontSize={22} fontWeight="bold" color="$color" marginBottom={16}>
             Exercises
-          </Text>
+          </Text> */}
 
           {exercises.length === 0 ? (
             <Text color="$gray11">No exercises for this learning path.</Text>
@@ -4425,42 +4456,89 @@ export function ProgressScreen() {
               const mainIsAvailable = !mainIsPasswordLocked;
 
               return (
-                <YStack key={`exercise-detail-${main.id}-${exerciseIndex}`} marginBottom={16}>
+                <YStack
+                  key={`exercise-detail-${main.id}-${exerciseIndex}`}
+                  marginBottom={8}
+                  marginTop={32}
+                >
                   {/* Main Exercise */}
                   <TouchableOpacity
                     // ref={exerciseIndex === 0 ? exerciseItemRef : undefined} // DISABLED
                     onPress={() => handleExerciseSelect(main)}
                   >
-                    <XStack alignItems="flex-start" gap={12}>
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          if (mainIsAvailable) {
-                            // Use new function that includes repeats for Level 2 checkboxes
-                            toggleCompletionWithRepeats(main.id, true);
-                          }
-                        }}
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 6,
-                          borderWidth: 2,
-                          borderColor: mainIsDone ? '#00E6C3' : '#888',
-                          backgroundColor: mainIsDone ? '#00E6C3' : 'transparent',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginRight: 8,
-                        }}
-                      >
-                        {mainIsDone && <Feather name="check" size={20} color="#fff" />}
-                      </TouchableOpacity>
+                    <XStack alignItems="flex-start" gap={8}>
+                      <YStack alignItems="center" justifyContent="center" gap={8}>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            if (mainIsAvailable) {
+                              // Use new function that includes repeats for Level 2 checkboxes
+                              toggleCompletionWithRepeats(main.id, true);
+                            }
+                          }}
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 6,
+                            borderWidth: 2,
+                            borderColor: mainIsDone ? '#00E6C3' : '#888',
+                            backgroundColor: mainIsDone ? '#00E6C3' : 'transparent',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            // marginRight: 8,
+                          }}
+                        >
+                          {mainIsDone && <Feather name="check" size={20} color="#000" />}
+                        </TouchableOpacity>
+                        {(() => {
+                          const { completed, total } = getRepeatProgress(main);
+                          if (total <= 1) return null;
+                          return (
+                            <Text fontSize={10} color="$gray11" textAlign="center">
+                              {completed}/{total}
+                            </Text>
+                          );
+                        })()}
+
+                        {/* {main.repeat_count && main.repeat_count > 1 && (
+                          <XStack
+                            alignItems="center"
+                            gap={4}
+                          >
+                            <Feather name="repeat" size={14} color="white" />
+                            <Text fontSize={12} color="white" fontWeight="bold">
+                              {main.repeat_count}x
+                            </Text>
+                          </XStack>
+                        )} */}
+
+                        {!!commentCounts[main.id] && commentCounts[main.id] > 0 && (
+                          <XStack
+                            alignItems="center"
+                            justifyContent="center"
+                            gap={4}
+                            // backgroundColor="#1f2937"
+                            // paddingHorizontal={6}
+                            // paddingVertical={2}
+                            // borderRadius={10}
+                          >
+                            <Feather name="message-circle" size={12} color={iconColor} />
+                            <Text fontSize={10} color="$gray11">
+                              {commentCounts[main.id]}
+                            </Text>
+                          </XStack>
+                        )}
+                      </YStack>
                       <Card
-                        padding={16}
-                        borderRadius={16}
-                        backgroundColor="$backgroundStrong"
+                        paddingTop={0}
+                        paddingBottom={0}
+                        paddingLeft={16}
+                        paddingRight={16}
+                        // borderRadius={16}
+                        // backgroundColor="$backgroundStrong"
                         flex={1}
                       >
-                        <XStack justifyContent="space-between" alignItems="center">
+                        <XStack justifyContent="space-between" alignItems="center" gap={8}>
                           <XStack alignItems="center" gap={8} flex={1}>
                             <Text
                               fontSize={18}
@@ -4483,21 +4561,21 @@ export function ProgressScreen() {
                         </XStack>
 
                         {main.description?.[lang] && (
-                          <Text color="$gray11" marginTop={4}>
+                          <Text color="$gray11" marginTop={12} fontSize={14}>
                             {main.description[lang]}
                           </Text>
                         )}
-                        <TouchableOpacity
+                        {/* <TouchableOpacity
                           onPress={() => setReportExerciseId(main.id)}
                           style={{ alignSelf: 'flex-end', marginTop: 6 }}
                         >
                           <Text color="#EF4444" fontSize={12}>
                             Report Exercise
                           </Text>
-                        </TouchableOpacity>
+                        </TouchableOpacity> */}
 
                         {/* Show repeat count if it has repeats */}
-                        {main.repeat_count && main.repeat_count > 1 && (
+                        {/* {main.repeat_count && main.repeat_count > 1 && (
                           <XStack
                             backgroundColor="#4B6BFF"
                             paddingHorizontal={8}
@@ -4511,7 +4589,7 @@ export function ProgressScreen() {
                               {main.repeat_count}x
                             </Text>
                           </XStack>
-                        )}
+                        )} */}
 
                         {/* Show quiz indicator if exercise has quiz */}
                         {hasQuizQuestions[main.id] && (
@@ -4530,7 +4608,7 @@ export function ProgressScreen() {
                           </XStack>
                         )}
 
-                        {!!commentCounts[main.id] && commentCounts[main.id] > 0 && (
+                        {/* {!!commentCounts[main.id] && commentCounts[main.id] > 0 && (
                           <XStack
                             alignItems="center"
                             gap={4}
@@ -4544,9 +4622,9 @@ export function ProgressScreen() {
                               {commentCounts[main.id]}
                             </Text>
                           </XStack>
-                        )}
+                        )} */}
 
-                        <RepeatProgressBar exercise={main} />
+                        {/* <RepeatProgressBar exercise={main} /> */}
                         {lastAuditByExercise[main.id] && (
                           <Text color="$gray11" marginTop={4} fontSize={12}>
                             {(() => {
