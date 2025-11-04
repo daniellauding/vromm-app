@@ -31,7 +31,7 @@ import ReanimatedAnimated, {
 import { LeaveCollectionModal } from './LeaveCollectionModal';
 import { CollectionSharingModal } from './CollectionSharingModal';
 
-  // Hardcoded fallback translations for filter sheet
+// Hardcoded fallback translations for filter sheet
 const FILTER_FALLBACKS = {
   en: {
     seeRoutes: 'See Routes',
@@ -316,19 +316,21 @@ export function FilterSheet({
   selectedPresetId,
 }: FilterSheetProps) {
   const { t, language: lang } = useTranslation();
-  
+
   // Helper to get translation with fallback - handles both full keys and simple values
   const getT = (key: string, fallbackKey?: string): string => {
     const translation = t(key);
     // If translation returns the key itself, use hardcoded fallback
     if (translation === key) {
       const langKey = (lang === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
-      const fbKey = (fallbackKey || key.split('.').pop() || key) as keyof typeof FILTER_FALLBACKS['en'];
+      const fbKey = (fallbackKey ||
+        key.split('.').pop() ||
+        key) as keyof (typeof FILTER_FALLBACKS)['en'];
       return FILTER_FALLBACKS[langKey][fbKey] || fallbackKey || key;
     }
     return translation;
   };
-  
+
   const { showModal } = useModal();
   const { getEffectiveUserId } = useStudentSwitch();
   const { trackFilterUsage } = useSmartFilters();
@@ -2013,7 +2015,10 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {getT(`filters.transmissionType.${transmissionType}`, transmissionType)}
+                                {getT(
+                                  `filters.transmissionType.${transmissionType}`,
+                                  transmissionType,
+                                )}
                               </Text>
                               <Text
                                 style={[
@@ -2493,7 +2498,9 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {rating === 0 ? (getT('filters.allRatings', 'all') || 'All') : `${rating}+`}
+                                {rating === 0
+                                  ? getT('filters.allRatings', 'all') || 'All'
+                                  : `${rating}+`}
                               </Text>
                               <Text
                                 style={[

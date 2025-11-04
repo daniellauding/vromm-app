@@ -7,6 +7,35 @@ import * as Location from 'expo-location';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { supabase } from '../../lib/supabase';
 
+// Hardcoded fallback translations for filter labels (same as FilterSheet)
+const FILTER_LABEL_FALLBACKS: Record<string, { en: string; sv: string }> = {
+  // Difficulty
+  beginner: { en: 'Beginner', sv: 'Nybörjare' },
+  intermediate: { en: 'Intermediate', sv: 'Medel' },
+  advanced: { en: 'Advanced', sv: 'Avancerad' },
+  // Spot Type
+  urban: { en: 'Urban', sv: 'Urban' },
+  highway: { en: 'Highway', sv: 'Motorväg' },
+  rural: { en: 'Rural', sv: 'Landsbygd' },
+  parking: { en: 'Parking', sv: 'Parkering' },
+  // Category
+  incline_start: { en: 'Incline Start', sv: 'Backstart' },
+  // Transmission
+  automatic: { en: 'Automatic', sv: 'Automat' },
+  manual: { en: 'Manual', sv: 'Manuell' },
+  both: { en: 'Both', sv: 'Båda' },
+  // Activity Level
+  moderate: { en: 'Moderate', sv: 'Måttlig' },
+  high: { en: 'High', sv: 'Hög' },
+  // Season
+  all: { en: 'All', sv: 'Alla' },
+  'year-round': { en: 'Year-round', sv: 'Året runt' },
+  'avoid-winter': { en: 'Avoid Winter', sv: 'Undvik vinter' },
+  // Vehicle Types
+  passenger_car: { en: 'Passenger Car', sv: 'Personbil' },
+  rv: { en: 'RV', sv: 'Husbil' },
+};
+
 export const useWaypoints = (routes: Route[], activeRoutes?: Route[]): Waypoint[] => {
   const getAllWaypoints = React.useMemo(() => {
     console.log(
@@ -309,7 +338,19 @@ export const useActiveRoutes = (
 };
 
 export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+
+  // Helper to get label with fallback
+  const getLabel = (key: string, value: string): string => {
+    const translation = t(key);
+    if (translation === key && FILTER_LABEL_FALLBACKS[value]) {
+      const lang = (language === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
+      return FILTER_LABEL_FALLBACKS[value][lang];
+    }
+    return translation !== key
+      ? translation
+      : value.replace(/_/g, ' ').charAt(0).toUpperCase() + value.slice(1);
+  };
 
   // Extract filters from routes
   return React.useMemo(() => {
@@ -320,9 +361,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.difficulty) {
         filterMap[`difficulty-${route.difficulty}`] = {
           id: `difficulty-${route.difficulty}`,
-          label:
-            t(`filters.difficulty.${route.difficulty}`) ||
-            route.difficulty.charAt(0).toUpperCase() + route.difficulty.slice(1),
+          label: getLabel(`filters.difficulty.${route.difficulty}`, route.difficulty),
           value: route.difficulty,
           type: 'difficulty',
         };
@@ -332,9 +371,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.spot_type) {
         filterMap[`spot-${route.spot_type}`] = {
           id: `spot-${route.spot_type}`,
-          label:
-            t(`filters.spotType.${route.spot_type}`) ||
-            route.spot_type.replace(/_/g, ' ').charAt(0).toUpperCase() + route.spot_type.slice(1),
+          label: getLabel(`filters.spotType.${route.spot_type}`, route.spot_type),
           value: route.spot_type,
           type: 'spot_type',
         };
@@ -344,9 +381,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.category) {
         filterMap[`category-${route.category}`] = {
           id: `category-${route.category}`,
-          label:
-            t(`filters.category.${route.category}`) ||
-            route.category.replace(/_/g, ' ').charAt(0).toUpperCase() + route.category.slice(1),
+          label: getLabel(`filters.category.${route.category}`, route.category),
           value: route.category,
           type: 'category',
         };
@@ -356,10 +391,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.transmission_type) {
         filterMap[`transmission-${route.transmission_type}`] = {
           id: `transmission-${route.transmission_type}`,
-          label:
-            t(`filters.transmissionType.${route.transmission_type}`) ||
-            route.transmission_type.replace(/_/g, ' ').charAt(0).toUpperCase() +
-              route.transmission_type.slice(1),
+          label: getLabel(`filters.transmissionType.${route.transmission_type}`, route.transmission_type),
           value: route.transmission_type,
           type: 'transmission_type',
         };
@@ -369,10 +401,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.activity_level) {
         filterMap[`activity-${route.activity_level}`] = {
           id: `activity-${route.activity_level}`,
-          label:
-            t(`filters.activityLevel.${route.activity_level}`) ||
-            route.activity_level.replace(/_/g, ' ').charAt(0).toUpperCase() +
-              route.activity_level.slice(1),
+          label: getLabel(`filters.activityLevel.${route.activity_level}`, route.activity_level),
           value: route.activity_level,
           type: 'activity_level',
         };
@@ -382,10 +411,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
       if (route.best_season) {
         filterMap[`season-${route.best_season}`] = {
           id: `season-${route.best_season}`,
-          label:
-            t(`filters.bestSeason.${route.best_season}`) ||
-            route.best_season.replace(/-/g, ' ').charAt(0).toUpperCase() +
-              route.best_season.slice(1),
+          label: getLabel(`filters.bestSeason.${route.best_season}`, route.best_season),
           value: route.best_season,
           type: 'best_season',
         };
@@ -396,9 +422,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
         route.vehicle_types.forEach((type) => {
           filterMap[`vehicle-${type}`] = {
             id: `vehicle-${type}`,
-            label:
-              t(`filters.vehicleTypes.${type}`) ||
-              type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.slice(1),
+            label: getLabel(`filters.vehicleTypes.${type}`, type),
             value: type,
             type: 'vehicle_types',
           };
@@ -407,7 +431,7 @@ export const useRoutesFilters = (routes: Route[]): FilterCategory[] => {
     });
 
     return Object.values(filterMap);
-  }, [routes, t]);
+  }, [routes, t, language]);
 };
 
 export const useUserLocation = () => {
