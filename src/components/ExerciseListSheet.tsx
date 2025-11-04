@@ -43,6 +43,8 @@ import { ReportDialog } from './report/ReportDialog';
 import WebView from 'react-native-webview';
 import { Image } from 'react-native';
 import { Linking } from 'react-native';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 
 const { height } = Dimensions.get('window');
 
@@ -310,6 +312,28 @@ export function ExerciseListSheet({
   // Get effective user ID (student switch support)
   const effectiveUserId = activeStudentId || user?.id;
 
+  // Sound helper function with haptic feedback (like ProgressScreen)
+  const playDoneSound = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: false,
+        staysActiveInBackground: false,
+      });
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/ui-done.mp3'),
+        { shouldPlay: true, volume: 0.4 }
+      );
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.log('🔊 Done sound error (may be muted):', error);
+    }
+  };
+
   // Celebration modal state - now using global context (removed local state)
 
   // Load shared unlock data when user changes
@@ -437,7 +461,7 @@ export function ExerciseListSheet({
     }
   }, [effectiveUserId]);
 
-  // Toggle completion for an exercise with all its repeats
+  // Toggle completion for an exercise with all its repeats (ALIGNED WITH PROGRESSSCREEN)
   const toggleCompletionWithRepeats = async (
     exerciseId: string,
     includeAllRepeats: boolean = false,
@@ -449,6 +473,7 @@ export function ExerciseListSheet({
     if (!exercise) return;
 
     const isDone = completedIds.includes(exerciseId);
+    const shouldMarkDone = !isDone;
 
     console.log('🎯 [ExerciseListSheet] Toggle Completion With Repeats:', {
       exerciseId,
@@ -456,7 +481,7 @@ export function ExerciseListSheet({
       isCurrentlyCompleted: isDone,
       includeAllRepeats,
       repeatCount: exercise.repeat_count || 1,
-      actionToTake: isDone ? 'REMOVE ALL' : 'ADD ALL',
+      actionToTake: shouldMarkDone ? 'ADD ALL' : 'REMOVE ALL',
     });
 
     // Toggle main exercise
@@ -464,8 +489,6 @@ export function ExerciseListSheet({
 
     // If includeAllRepeats and exercise has repeats, toggle all virtual repeats
     if (includeAllRepeats && exercise.repeat_count && exercise.repeat_count > 1) {
-      const shouldMarkDone = !isDone; // If main was not done, we're marking everything as done
-
       for (let i = 2; i <= exercise.repeat_count; i++) {
         const virtualId = `${exerciseId}-virtual-${i}`;
         const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
@@ -477,6 +500,32 @@ export function ExerciseListSheet({
           await toggleVirtualRepeatCompletion(virtualId);
         }
       }
+    }
+    
+    // Show celebration when marking all as done (LIKE PROGRESSSCREEN)
+    if (shouldMarkDone && detailPath) {
+      setTimeout(() => {
+        const repeatCount = exercise.repeat_count || 1;
+        
+        console.log('🎉 [ExerciseListSheet] 🚀 Main checkbox - showing celebration for completed exercise!');
+        
+        showCelebration({
+          learningPathTitle: detailPath.title || exercise.title,
+          completedExercises: repeatCount,
+          totalExercises: repeatCount,
+          timeSpent: undefined,
+          streakDays: undefined,
+        });
+        
+        // Also check if entire path is complete (3 seconds later, like ProgressScreen)
+        if (exercise.learning_path_id && detailPath) {
+          setTimeout(async () => {
+            const updatedCompletedIds = [...completedIds, exerciseId];
+            console.log('🎉 [ExerciseListSheet] Also checking if entire learning path is complete...');
+            await checkForCelebration(detailPath, updatedCompletedIds);
+          }, 3000);
+        }
+      }, 500);
     }
   };
 
@@ -626,6 +675,9 @@ export function ExerciseListSheet({
     const repeatNumber = parseInt(parts[1]);
     const isDone = virtualRepeatCompletions.includes(virtualId);
 
+    // Find exercise for celebration
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    
     if (isDone) {
       setVirtualRepeatCompletions((prev) => prev.filter((id) => id !== virtualId));
       try {
@@ -648,6 +700,43 @@ export function ExerciseListSheet({
             repeat_number: repeatNumber,
           },
         ]);
+        
+        // Check for celebration after marking virtual repeat as done (LIKE PROGRESSSCREEN - with delays)
+        if (exercise && detailPath) {
+          setTimeout(() => {
+            console.log('🎉 [ExerciseListSheet] Checking celebration after virtual repeat toggle');
+            
+            // Wait for state to fully update before checking (extra delay like ProgressScreen)
+            setTimeout(() => {
+              // Check if THIS exercise is now fully complete (all repeats done)
+              const { completed, total } = getRepeatProgress(exercise);
+              console.log('🎉 [ExerciseListSheet] Exercise progress check:', { 
+                completed, 
+                total, 
+                isComplete: completed === total 
+              });
+              
+              if (completed === total && total > 1) {
+                console.log('🎉 [ExerciseListSheet] 🚀 Exercise fully complete! Showing celebration!');
+                showCelebration({
+                  learningPathTitle: detailPath.title || exercise.title,
+                  completedExercises: completed,
+                  totalExercises: total,
+                  timeSpent: undefined,
+                  streakDays: undefined,
+                });
+                
+                // Also check if entire path is complete (3 seconds later)
+                setTimeout(async () => {
+                  await checkForCelebration(detailPath, completedIds);
+                }, 3000);
+              } else {
+                // Just check if entire path is complete
+                checkForCelebration(detailPath, completedIds);
+              }
+            }, 300); // Extra delay for state updates (like ProgressScreen)
+          }, 200); // Initial delay (like ProgressScreen)
+        }
       } catch (error) {
         console.error('Error adding virtual repeat completion:', error);
       }
@@ -1279,6 +1368,8 @@ export function ExerciseListSheet({
                                         <TouchableOpacity
                                           onPress={(e) => {
                                             e.stopPropagation();
+                                            // Play sound
+                                            playDoneSound();
                                             toggleCompletion(selectedExercise.id);
                                           }}
                                           style={{
@@ -1350,6 +1441,8 @@ export function ExerciseListSheet({
                                               <TouchableOpacity
                                                 onPress={(e) => {
                                                   e.stopPropagation();
+                                                  // Play sound
+                                                  playDoneSound();
                                                   toggleVirtualRepeatCompletion(virtualId);
                                                 }}
                                                 style={{
@@ -1397,23 +1490,50 @@ export function ExerciseListSheet({
 
                             {/* Toggle done/not done button */}
                             <TouchableOpacity
-                              onPress={() => {
-                                toggleCompletion(selectedExercise.id);
+                              onPress={async () => {
+                                const shouldMarkDone = !isDone;
+                                
+                                // Toggle main exercise
+                                await toggleCompletion(selectedExercise.id);
+                                
+                                // Toggle all virtual repeats if exercise has repeats
                                 if (
                                   selectedExercise.repeat_count &&
                                   selectedExercise.repeat_count > 1
                                 ) {
-                                  const shouldMarkDone = !isDone;
                                   for (let i = 2; i <= selectedExercise.repeat_count; i++) {
                                     const virtualId = `${selectedExercise.id}-virtual-${i}`;
                                     const isVirtualDone =
                                       virtualRepeatCompletions.includes(virtualId);
                                     if (shouldMarkDone && !isVirtualDone) {
-                                      toggleVirtualRepeatCompletion(virtualId);
+                                      await toggleVirtualRepeatCompletion(virtualId);
                                     } else if (!shouldMarkDone && isVirtualDone) {
-                                      toggleVirtualRepeatCompletion(virtualId);
+                                      await toggleVirtualRepeatCompletion(virtualId);
                                     }
                                   }
+                                }
+                                
+                                // Trigger celebration when marking all as done (like ProgressScreen)
+                                if (shouldMarkDone && detailPath) {
+                                  setTimeout(() => {
+                                    const repeatCount = selectedExercise.repeat_count || 1;
+                                    
+                                    console.log('🎉 [ExerciseListSheet] Mark All as Done - showing celebration!');
+                                    
+                                    showCelebration({
+                                      learningPathTitle: detailPath.title || selectedExercise.title,
+                                      completedExercises: repeatCount,
+                                      totalExercises: repeatCount,
+                                      timeSpent: undefined,
+                                      streakDays: undefined,
+                                    });
+                                    
+                                    // Also check if entire path is complete
+                                    setTimeout(async () => {
+                                      const updatedCompletedIds = [...completedIds, selectedExercise.id];
+                                      await checkForCelebration(detailPath, updatedCompletedIds);
+                                    }, 3000);
+                                  }, 500);
                                 }
                               }}
                               style={{
@@ -1734,6 +1854,8 @@ export function ExerciseListSheet({
                                             onPress={(e) => {
                                               e.stopPropagation();
                                               if (mainIsAvailable) {
+                                                // Play sound
+                                                playDoneSound();
                                                 // Use new function that includes repeats for Level 2 checkboxes
                                                 toggleCompletionWithRepeats(main.id, true);
                                               }

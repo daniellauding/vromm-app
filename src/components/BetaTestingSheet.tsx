@@ -267,6 +267,8 @@ export function BetaTestingSheet({
   });
   const [customFeatures, setCustomFeatures] = useState<string[]>([]);
   const [newCustomFeature, setNewCustomFeature] = useState('');
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const audioSoundRef = useRef<Audio.Sound | null>(null);
 
   // Storage keys
   const getStorageKey = (key: string) => `beta_testing_${key}_${user?.id || 'anonymous'}`;
@@ -278,6 +280,70 @@ export function BetaTestingSheet({
       loadChecklistItems(viewingRole);
     }
   }, [isVisible, user?.id, viewingRole]);
+
+  // Cleanup audio on unmount or when sheet closes
+  useEffect(() => {
+    if (!isVisible && audioSoundRef.current) {
+      audioSoundRef.current.stopAsync().catch(console.error);
+      audioSoundRef.current.unloadAsync().catch(console.error);
+      audioSoundRef.current = null;
+      setIsAudioPlaying(false);
+    }
+    return () => {
+      if (audioSoundRef.current) {
+        audioSoundRef.current.unloadAsync().catch(console.error);
+      }
+    };
+  }, [isVisible]);
+
+  // Handle audio play/pause
+  const toggleAudio = async () => {
+    try {
+      if (isAudioPlaying) {
+        // Pause
+        if (audioSoundRef.current) {
+          await audioSoundRef.current.pauseAsync();
+          setIsAudioPlaying(false);
+        }
+      } else {
+        // Play
+        if (!audioSoundRef.current) {
+          // Load audio if not loaded
+          await Audio.setAudioModeAsync({
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: false,
+          });
+          const { sound } = await Audio.Sound.createAsync(
+            require('../../assets/voice-intro.mp3'),
+            { shouldPlay: true, volume: 1.0 }
+          );
+          audioSoundRef.current = sound;
+          
+          sound.setOnPlaybackStatusUpdate((status) => {
+            if (status.isLoaded) {
+              if (status.didJustFinish) {
+                setIsAudioPlaying(false);
+                sound.unloadAsync();
+                audioSoundRef.current = null;
+              } else {
+                setIsAudioPlaying(status.isPlaying);
+              }
+            }
+          });
+        } else {
+          await audioSoundRef.current.playAsync();
+          setIsAudioPlaying(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling audio:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to play audio. Please try again.',
+        type: 'error',
+      });
+    }
+  };
 
   // Create default assignments for a user based on their role
   const createDefaultAssignments = async (userId: string, userRole: string) => {
@@ -665,7 +731,7 @@ export function BetaTestingSheet({
             // Prefer completed items, or more recent if both completed or both not completed
             if (
               (assignment.is_completed && !existing.completed) ||
-              ((assignment.is_completed === existing.completed) && newDate > existingDate)
+              (assignment.is_completed === existing.completed && newDate > existingDate)
             ) {
               itemsMap.set(key, {
                 id: assignment.assignment_id,
@@ -716,7 +782,7 @@ export function BetaTestingSheet({
           // Prefer completed items, or more recent if both completed or both not completed
           if (
             (assignment.is_completed && !existing.completed) ||
-            ((assignment.is_completed === existing.completed) && newDate > existingDate)
+            (assignment.is_completed === existing.completed && newDate > existingDate)
           ) {
             itemsMap.set(key, {
               id: assignment.assignment_id,
@@ -1546,16 +1612,24 @@ export function BetaTestingSheet({
         )}
         
         <YStack position="relative">
-          <FormField
-            placeholder="Your name"
-            value={feedbackForm.name}
-            onChangeText={(text) => {
-              const newForm = { ...feedbackForm, name: text };
-              setFeedbackForm(newForm);
-              saveFeedback(newForm);
-            }}
-            size="md"
-          />
+          <YStack gap="$1">
+            <XStack alignItems="center" gap="$1">
+              <Text fontSize="$3" fontWeight="600" color={textColor}>
+                Your name
+              </Text>
+              <Text fontSize="$3" color="#EF4444">*</Text>
+            </XStack>
+            <FormField
+              placeholder="Your name"
+              value={feedbackForm.name}
+              onChangeText={(text) => {
+                const newForm = { ...feedbackForm, name: text };
+                setFeedbackForm(newForm);
+                saveFeedback(newForm);
+              }}
+              size="md"
+            />
+          </YStack>
           {!feedbackForm.name && (
             <View
               style={{
@@ -1589,9 +1663,12 @@ export function BetaTestingSheet({
         />
 
         <YStack gap="$2" position="relative">
-          <Text fontSize="$4" fontWeight="600" color={textColor}>
-            Rate your experience (1-5 stars):
-          </Text>
+          <XStack alignItems="center" gap="$1">
+            <Text fontSize="$4" fontWeight="600" color={textColor}>
+              Rate your experience (1-5 stars)
+            </Text>
+            <Text fontSize="$4" color="#EF4444">*</Text>
+          </XStack>
           {feedbackForm.rating === 0 && (
             <View
               style={{
@@ -1675,19 +1752,27 @@ export function BetaTestingSheet({
         </YStack>
 
         <YStack position="relative">
-          <FormField
-            placeholder="Your detailed feedback..."
-            value={feedbackForm.feedback}
-            onChangeText={(text) => {
-              const newForm = { ...feedbackForm, feedback: text };
-              setFeedbackForm(newForm);
-              saveFeedback(newForm);
-            }}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            size="md"
-          />
+          <YStack gap="$1">
+            <XStack alignItems="center" gap="$1">
+              <Text fontSize="$3" fontWeight="600" color={textColor}>
+                Your detailed feedback
+              </Text>
+              <Text fontSize="$3" color="#EF4444">*</Text>
+            </XStack>
+            <FormField
+              placeholder="Your detailed feedback..."
+              value={feedbackForm.feedback}
+              onChangeText={(text) => {
+                const newForm = { ...feedbackForm, feedback: text };
+                setFeedbackForm(newForm);
+                saveFeedback(newForm);
+              }}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              size="md"
+            />
+          </YStack>
           {!feedbackForm.feedback && (
             <View
               style={{
@@ -1851,16 +1936,41 @@ export function BetaTestingSheet({
           </TouchableOpacity>
         )}
 
-        <FormField
-          placeholder="Your name"
-          value={pricingForm.name}
-          onChangeText={(text) => {
-            const newForm = { ...pricingForm, name: text };
-            setPricingForm(newForm);
-            savePricing(newForm);
-          }}
-          size="md"
-        />
+        <YStack gap="$1" position="relative">
+          <XStack alignItems="center" gap="$1">
+            <Text fontSize="$3" fontWeight="600" color={textColor}>
+              Your name
+            </Text>
+            <Text fontSize="$3" color="#EF4444">*</Text>
+          </XStack>
+          <FormField
+            placeholder="Your name"
+            value={pricingForm.name}
+            onChangeText={(text) => {
+              const newForm = { ...pricingForm, name: text };
+              setPricingForm(newForm);
+              savePricing(newForm);
+            }}
+            size="md"
+          />
+          {!pricingForm.name && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: '#EF4444',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>!</Text>
+            </View>
+          )}
+        </YStack>
 
         <FormField
           placeholder="Email (optional)"
@@ -1886,16 +1996,41 @@ export function BetaTestingSheet({
           size="md"
         />
 
-        <FormField
-          placeholder="What would you be willing to pay for Vromm? (e.g., 99 SEK/month)"
-          value={pricingForm.suggestedPrice}
-          onChangeText={(text) => {
-            const newForm = { ...pricingForm, suggestedPrice: text };
-            setPricingForm(newForm);
-            savePricing(newForm);
-          }}
-          size="md"
-        />
+        <YStack gap="$1" position="relative">
+          <XStack alignItems="center" gap="$1">
+            <Text fontSize="$3" fontWeight="600" color={textColor}>
+              Suggested price for Vromm
+            </Text>
+            <Text fontSize="$3" color="#EF4444">*</Text>
+          </XStack>
+          <FormField
+            placeholder="What would you be willing to pay for Vromm? (e.g., 99 SEK/month)"
+            value={pricingForm.suggestedPrice}
+            onChangeText={(text) => {
+              const newForm = { ...pricingForm, suggestedPrice: text };
+              setPricingForm(newForm);
+              savePricing(newForm);
+            }}
+            size="md"
+          />
+          {!pricingForm.suggestedPrice && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: '#EF4444',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>!</Text>
+            </View>
+          )}
+        </YStack>
 
         <YStack gap="$2">
           <Text fontSize="$4" fontWeight="600" color={textColor}>
@@ -2050,19 +2185,44 @@ export function BetaTestingSheet({
           </YStack>
         </YStack>
 
-        <FormField
-          placeholder="Explain your reasoning for the suggested price..."
-          value={pricingForm.reasoning}
-          onChangeText={(text) => {
-            const newForm = { ...pricingForm, reasoning: text };
-            setPricingForm(newForm);
-            savePricing(newForm);
-          }}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-          size="md"
-        />
+        <YStack gap="$1" position="relative">
+          <XStack alignItems="center" gap="$1">
+            <Text fontSize="$3" fontWeight="600" color={textColor}>
+              Explain your reasoning
+            </Text>
+            <Text fontSize="$3" color="#EF4444">*</Text>
+          </XStack>
+          <FormField
+            placeholder="Explain your reasoning for the suggested price..."
+            value={pricingForm.reasoning}
+            onChangeText={(text) => {
+              const newForm = { ...pricingForm, reasoning: text };
+              setPricingForm(newForm);
+              savePricing(newForm);
+            }}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            size="md"
+          />
+          {!pricingForm.reasoning && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: '#EF4444',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>!</Text>
+            </View>
+          )}
+        </YStack>
 
         <Button variant="primary" onPress={submitPricing}>
           Submit Pricing Feedback
@@ -2075,20 +2235,34 @@ export function BetaTestingSheet({
   const renderVideoTab = () => (
     <YStack gap="$4">
       <Text fontSize="$6" fontWeight="700" color={textColor}>
-        Watch How It Works
+        Listen to Our Story
       </Text>
       <Text fontSize="$4" color={textColor} opacity={0.7}>
-        See Vromm in action and explore additional resources:
+        Hear from Vromm's co-founder and explore additional resources:
       </Text>
 
-      {/* Video placeholder */}
+      {/* Audio player */}
       <Card padding="$6" backgroundColor={`${primaryColor}10`} alignItems="center">
-        <Feather name="play-circle" size={48} color={primaryColor} />
-        <Text fontSize="$5" fontWeight="600" color={textColor} marginTop="$3">
-          Welcome Video
+        <TouchableOpacity
+          onPress={toggleAudio}
+          style={{
+            padding: 12,
+            borderRadius: 30,
+            backgroundColor: primaryColor,
+            marginBottom: 16,
+          }}
+        >
+          <Feather 
+            name={isAudioPlaying ? "pause" : "play"} 
+            size={32} 
+            color="#000" 
+          />
+        </TouchableOpacity>
+        <Text fontSize="$5" fontWeight="600" color={textColor} marginTop="$2">
+          Welcome Message
         </Text>
         <Text fontSize="$3" color={textColor} opacity={0.7} textAlign="center" marginTop="$2">
-          Watch this personal message from our team about what makes Vromm special
+          Listen to this personal message from our team about what makes Vromm special
         </Text>
       </Card>
 

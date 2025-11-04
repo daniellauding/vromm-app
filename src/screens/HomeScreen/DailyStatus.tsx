@@ -44,6 +44,38 @@ import { DropdownButton } from '../../components/SelectButton';
 
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 
+// Hardcoded fallback translations for daily status
+const DAILY_STATUS_FALLBACKS = {
+  en: {
+    learningExercises: 'Learning Exercises',
+    didYouDriveToday: 'Did you drive today?',
+    yesIDrove: 'Yes, I drove',
+    noDidntDrive: "No, I didn't drive",
+    howItWent: 'How did it go?',
+    challenges: 'Challenges?',
+    notes: 'Notes',
+    addMemory: 'Add Memory',
+    findRoutes: 'Find Routes',
+    myRoutes: 'My Routes',
+    saveStatus: 'Save Status',
+    resetStatus: 'Reset Status',
+  },
+  sv: {
+    learningExercises: 'Lärövningar',
+    didYouDriveToday: 'Körde du idag?',
+    yesIDrove: 'Ja, jag körde',
+    noDidntDrive: 'Nej, jag körde inte',
+    howItWent: 'Hur gick det?',
+    challenges: 'Utmaningar?',
+    notes: 'Anteckningar',
+    addMemory: 'Lägg till Minne',
+    findRoutes: 'Hitta Rutter',
+    myRoutes: 'Mina Rutter',
+    saveStatus: 'Spara Status',
+    resetStatus: 'Återställ Status',
+  },
+};
+
 const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 4,
@@ -82,6 +114,16 @@ export function DailyStatus({
   const navigation = useNavigation<NavigationProp>();
   const systemColorScheme = useColorScheme();
   const colorScheme = systemColorScheme || 'light';
+
+  // Helper to get translation with fallback
+  const getT = (key: string, fallbackKey: keyof typeof DAILY_STATUS_FALLBACKS['en']): string => {
+    const translation = t(key);
+    if (translation === key) {
+      const langKey = (lang === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
+      return DAILY_STATUS_FALLBACKS[langKey][fallbackKey];
+    }
+    return translation;
+  };
 
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -1331,7 +1373,7 @@ export function DailyStatus({
                         <XStack gap="$2">
                           <IconButton
                             icon="check-circle"
-                            label={t('dailyStatus.yesIDrove') || 'Yes, I drove'}
+                            label={getT('dailyStatus.yesIDrove', 'yesIDrove')}
                             onPress={() => {
                               const newStatus = formData.status === 'drove' ? null : 'drove';
                               console.log('✅ [DailyStatus] Status toggled:', newStatus);
@@ -1358,7 +1400,7 @@ export function DailyStatus({
 
                           <IconButton
                             icon="x-circle"
-                            label={t('dailyStatus.noDidntDrive') || "No, I didn't drive"}
+                            label={getT('dailyStatus.noDidntDrive', 'noDidntDrive')}
                             onPress={() => {
                               const newStatus =
                                 formData.status === 'didnt_drive' ? null : 'didnt_drive';
@@ -1409,7 +1451,7 @@ export function DailyStatus({
                         <>
                           {/* How it went */}
                           <FormField
-                            label={t('dailyStatus.howItWent') || 'How did it go?'}
+                            label={getT('dailyStatus.howItWent', 'howItWent')}
                             placeholder={
                               t('dailyStatus.howItWentPlaceholder') || 'Tell us how it went...'
                             }
@@ -1423,7 +1465,7 @@ export function DailyStatus({
 
                           {/* Challenges */}
                           <FormField
-                            label={t('dailyStatus.challenges') || 'Challenges?'}
+                            label={getT('dailyStatus.challenges', 'challenges')}
                             placeholder={
                               t('dailyStatus.challengesPlaceholder') || 'What was challenging?'
                             }
@@ -1437,7 +1479,7 @@ export function DailyStatus({
 
                           {/* Notes */}
                           <FormField
-                            label={t('dailyStatus.notes') || 'Notes'}
+                            label={getT('dailyStatus.notes', 'notes')}
                             placeholder={t('dailyStatus.notesPlaceholder') || 'Additional notes...'}
                             value={formData.notes}
                             onChangeText={(text) =>
@@ -1496,7 +1538,7 @@ export function DailyStatus({
                             fontWeight="600"
                             color={colorScheme === 'dark' ? '#FFF' : '#000'}
                           >
-                            {t('dailyStatus.learningExercises') || 'Learning Exercises'}
+                            {getT('dailyStatus.learningExercises', 'learningExercises')}
                           </Text>
                           <DropdownButton
                             onPress={() => {
@@ -1834,7 +1876,7 @@ export function DailyStatus({
                           {/* Add Memory Button */}
                           <IconButton
                             icon="camera"
-                            label={t('dailyStatus.addMemory') || 'Add Memory'}
+                            label={getT('dailyStatus.addMemory', 'addMemory')}
                             onPress={handleAddMedia}
                             flex={1}
                             backgroundColor="transparent"
@@ -1844,7 +1886,7 @@ export function DailyStatus({
                           {/* Find Routes Button */}
                           <IconButton
                             icon="map-pin"
-                            label={t('dailyStatus.findRoutes') || 'Find Routes'}
+                            label={getT('dailyStatus.findRoutes', 'findRoutes')}
                             onPress={handleNavigateToMap}
                             flex={1}
                             backgroundColor="transparent"
@@ -1857,7 +1899,7 @@ export function DailyStatus({
                           {/* My Routes Button */}
                           <IconButton
                             icon="list"
-                            label={t('dailyStatus.myRoutes') || 'My Routes'}
+                            label={getT('dailyStatus.myRoutes', 'myRoutes')}
                             onPress={handleOpenRouteList}
                             flex={1}
                             backgroundColor="transparent"
@@ -1900,13 +1942,13 @@ export function DailyStatus({
                           ? t('dailyStatus.saving') || 'Saving...'
                           : isFuture
                             ? t('dailyStatus.comeBackOnThisDay') || 'Come back on this day'
-                            : t('dailyStatus.saveStatus') || 'Save Status'}
+                            : getT('dailyStatus.saveStatus', 'saveStatus')}
                       </Button>
 
                       {/* Reset Button - Only show if not future and not currently saving */}
                       {!isFuture && !loading && (
                         <Button size="sm" variant="link" onPress={resetDailyStatus}>
-                          {t('dailyStatus.resetStatus') || 'Reset Status'}
+                          {getT('dailyStatus.resetStatus', 'resetStatus')}
                         </Button>
                       )}
                     </YStack>
