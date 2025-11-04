@@ -16,6 +16,30 @@ import { useCelebration } from '../../contexts/CelebrationContext';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 
+// Hardcoded fallback translations for weekly goals
+const WEEKLY_GOAL_FALLBACKS = {
+  en: {
+    title: 'Weekly Goal',
+    goalSettings: 'Goal Settings',
+    dailyGoal: 'Daily Exercise Goal',
+    goalType: 'Goal Type',
+    weekly: 'Weekly',
+    monthly: 'Monthly',
+    cancel: 'Cancel',
+    saveGoals: 'Save Goals',
+  },
+  sv: {
+    title: 'Veckokort',
+    goalSettings: 'Inställningar för Mål',
+    dailyGoal: 'Dagligt Träningsmål',
+    goalType: 'Måltyp',
+    weekly: 'Veckovis',
+    monthly: 'Månadsvis',
+    cancel: 'Avbryt',
+    saveGoals: 'Spara Mål',
+  },
+};
+
 interface DayProgress {
   day: string;
   date: string;
@@ -113,9 +137,19 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
 }: WeeklyGoalProps) {
   const { user } = useAuth();
   const { activeStudentId } = useStudentSwitch();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { showCelebration } = useCelebration();
   const colorScheme = useColorScheme();
+  
+  // Helper to get translation with fallback
+  const getT = (key: string, fallbackKey: keyof typeof WEEKLY_GOAL_FALLBACKS['en']): string => {
+    const translation = t(key);
+    if (translation === key) {
+      const lang = (language === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
+      return WEEKLY_GOAL_FALLBACKS[lang][fallbackKey];
+    }
+    return translation;
+  };
 
   const [weeklyProgress, setWeeklyProgress] = useState<DayProgress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -444,10 +478,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
       >
         <XStack alignItems="center" gap="$2">
           <Text fontSize="$5" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-            {(() => {
-              const translated = t('weeklyGoals.title');
-              return translated === 'weeklyGoals.title' ? 'Weekly Goal' : translated;
-            })()}
+            {getT('weeklyGoals.title', 'title')}
           </Text>
         </XStack>
 
@@ -749,7 +780,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                 fontWeight="bold"
                 color={colorScheme === 'dark' ? '#FFF' : '#000'}
               >
-                {t('weeklyGoals.goalSettings') || 'Goal Settings'}
+                {getT('weeklyGoals.goalSettings', 'goalSettings')}
               </Text>
               <TouchableOpacity onPress={closeGoalModal}>
                 <Feather name="x" size={24} color={colorScheme === 'dark' ? '#FFF' : '#666'} />
@@ -759,7 +790,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
             {/* Daily Goal Input */}
             <YStack gap="$3" marginBottom="$4">
               <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                {t('weeklyGoals.dailyGoal') || 'Daily Exercise Goal'}
+                {getT('weeklyGoals.dailyGoal', 'dailyGoal')}
               </Text>
               <Input
                 value={tempGoalSettings.dailyGoal.toString()}
@@ -791,7 +822,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
             {/* Goal Type Selection */}
             <YStack gap="$3" marginBottom="$4">
               <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                {t('weeklyGoals.goalType') || 'Goal Type'}
+                {getT('weeklyGoals.goalType', 'goalType')}
               </Text>
               <XStack gap="$2">
                 <TouchableOpacity
@@ -819,7 +850,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                     }
                     fontWeight={tempGoalSettings.goalType === 'weekly' ? 'bold' : 'normal'}
                   >
-                    {t('weeklyGoals.weekly') || 'Weekly'}
+                    {getT('weeklyGoals.weekly', 'weekly')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -847,7 +878,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                     }
                     fontWeight={tempGoalSettings.goalType === 'monthly' ? 'bold' : 'normal'}
                   >
-                    {t('weeklyGoals.monthly') || 'Monthly'}
+                    {getT('weeklyGoals.monthly', 'monthly')}
                   </Text>
                 </TouchableOpacity>
               </XStack>
@@ -888,7 +919,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                 }}
               >
                 <Text color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                  {t('weeklyGoals.cancel') || 'Cancel'}
+                  {getT('weeklyGoals.cancel', 'cancel')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -902,7 +933,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                 }}
               >
                 <Text color="#000" fontWeight="bold">
-                  {t('weeklyGoals.saveGoals') || 'Save Goals'}
+                  {getT('weeklyGoals.saveGoals', 'saveGoals')}
                 </Text>
               </TouchableOpacity>
             </XStack>

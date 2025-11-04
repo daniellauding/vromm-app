@@ -28,12 +28,14 @@ const CELEBRATION_FALLBACKS = {
     greatJob: 'Great job completing the lesson. You are one step further in your driving license journey',
     exercisesCompleted: 'completed',
     continue: 'CONTINUE',
+    gotIt: 'Got it!',
   },
   sv: {
     lessonComplete: 'Lektion klar!',
     greatJob: 'Bra jobbat med att slutföra lektionen. Du är ett steg närmare ditt körkort',
     exercisesCompleted: 'slutförda',
     continue: 'FORTSÄTT',
+    gotIt: 'Förstått!',
   },
 };
 
