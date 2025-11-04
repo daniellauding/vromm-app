@@ -5,7 +5,11 @@ import { useCelebration } from '../contexts/CelebrationContext';
 export function GlobalCelebrationModal() {
   const { isVisible, data, hideCelebration } = useCelebration();
 
+  console.log('🎊 [GlobalCelebrationModal] Render check:', { isVisible, hasData: !!data });
+
   if (!isVisible || !data) return null;
+
+  console.log('🎊 [GlobalCelebrationModal] RENDERING CELEBRATION MODAL!');
 
   return (
     <CelebrationModal

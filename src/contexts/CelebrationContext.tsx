@@ -26,8 +26,10 @@ export function CelebrationProvider({ children }: CelebrationProviderProps) {
   const [data, setData] = useState<CelebrationData | null>(null);
 
   const showCelebration = React.useCallback((celebrationData: CelebrationData) => {
+    console.log('🎊 [CelebrationContext] showCelebration() called with data:', celebrationData);
     setData(celebrationData);
     setIsVisible(true);
+    console.log('🎊 [CelebrationContext] isVisible set to TRUE');
   }, []);
 
   const hideCelebration = React.useCallback(() => {
