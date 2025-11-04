@@ -20,6 +20,22 @@ interface CelebrationModalProps {
   onNavigateToLesson?: () => void; // Optional callback to navigate back to lesson
 }
 
+// Hardcoded fallback translations for celebration modal
+const CELEBRATION_FALLBACKS = {
+  en: {
+    lessonComplete: 'Lesson complete!',
+    greatJob: 'Great job completing the lesson. You are one step further in your driving license journey',
+    exercisesCompleted: 'completed',
+    continue: 'CONTINUE',
+  },
+  sv: {
+    lessonComplete: 'Lektion klar!',
+    greatJob: 'Bra jobbat med att slutföra lektionen. Du är ett steg närmare ditt körkort',
+    exercisesCompleted: 'slutförda',
+    continue: 'FORTSÄTT',
+  },
+};
+
 export function CelebrationModal({
   visible,
   onClose,
@@ -35,6 +51,17 @@ export function CelebrationModal({
   const [scaleAnim] = useState(new Animated.Value(0));
   const [fadeAnim] = useState(new Animated.Value(0));
   const [confettiAnim] = useState(new Animated.Value(0));
+
+  // Helper to get translation with fallback
+  const getT = (key: string, fallbackKey: keyof typeof CELEBRATION_FALLBACKS['en']): string => {
+    const translation = t(key);
+    // If translation returns the key itself, use hardcoded fallback
+    if (translation === key) {
+      const langKey = (lang === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
+      return CELEBRATION_FALLBACKS[langKey][fallbackKey];
+    }
+    return translation;
+  };
 
   useEffect(() => {
     if (visible) {
@@ -304,13 +331,12 @@ export function CelebrationModal({
                     color={textColor}
                     textAlign="center"
                   >
-                    {t('celebration.lessonComplete') || 'Lesson complete!'}
+                    {getT('celebration.lessonComplete', 'lessonComplete')}
                   </Text>
 
                   {/* Message */}
                   <Text fontSize={16} color={textColor} textAlign="center" opacity={0.8}>
-                    {t('celebration.greatJob') ||
-                      'Great job completing the lesson. You are one step further in your driving license journey'}
+                    {getT('celebration.greatJob', 'greatJob')}
                   </Text>
 
                   {/* Completed Item Card - Clickable */}
@@ -385,10 +411,10 @@ export function CelebrationModal({
                             {learningPathTitle[lang as keyof typeof learningPathTitle] ||
                               learningPathTitle.en}
                           </Text>
-                          <Text fontSize={14} color={textColor} opacity={0.7}>
-                            {completedExercises} / {totalExercises}{' '}
-                            {t('celebration.exercisesCompleted') || 'completed'}
-                          </Text>
+                        <Text fontSize={14} color={textColor} opacity={0.7}>
+                          {completedExercises} / {totalExercises}{' '}
+                          {getT('celebration.exercisesCompleted', 'exercisesCompleted')}
+                        </Text>
                         </YStack>
 
                         {/* Arrow indicator */}
@@ -400,7 +426,7 @@ export function CelebrationModal({
                   {/* Action Buttons */}
                   <YStack gap="$2" marginTop="$2">
                     <Button size="sm" variant="primary" onPress={onClose}>
-                      {t('celebration.continue') || 'CONTINUE'}
+                      {getT('celebration.continue', 'continue')}
                     </Button>
                   </YStack>
                 </YStack>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { YStack, XStack, Image } from 'tamagui';
+import { YStack, XStack, Image, Card, TextArea } from 'tamagui';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { Button } from '../components/Button';
@@ -14,7 +14,7 @@ import { Database } from '../lib/database.types';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { Feather } from '@expo/vector-icons';
-import { Alert } from 'react-native';
+import { Alert, TouchableOpacity, useColorScheme, ScrollView, StyleSheet, View } from 'react-native';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 
@@ -34,6 +34,10 @@ export function AddReviewScreen({ route }: Props) {
   const navigation = useNavigation<NavigationProp>();
   const { language, t } = useTranslation();
   const { user } = useAuth();
+  const colorScheme = useColorScheme();
+  const textColor = colorScheme === 'dark' ? 'white' : 'black';
+  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
+  const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
 
   const [currentStep, setCurrentStep] = useState<Step>('rating');
   const [rating, setRating] = useState(0);
@@ -274,196 +278,315 @@ export function AddReviewScreen({ route }: Props) {
     switch (currentStep) {
       case 'rating':
         return (
-          <YStack gap="$4" alignItems="center">
-            <Text size="xl" weight="bold">
-              {t('review.ratingStep')}
-            </Text>
-            <XStack gap="$2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Button
-                  key={star}
-                  onPress={() => setRating(star)}
-                  backgroundColor={star <= rating ? '$blue10' : 'transparent'}
-                  borderColor="$blue10"
-                  borderWidth={1}
-                  size="lg"
-                >
-                  <Feather name="star" size={24} color={star <= rating ? 'white' : '#4287f5'} />
-                </Button>
-              ))}
-            </XStack>
-            <Button
-              onPress={() => setCurrentStep('content')}
-              disabled={rating === 0}
-              variant="primary"
-              size="lg"
-              backgroundColor="$blue10"
-            >
-              {t('review.ratingNext')}
-            </Button>
+          <YStack gap="$4" paddingHorizontal="$4">
+            <Card backgroundColor={backgroundColor} borderWidth={1} borderColor={borderColor} padding="$5" borderRadius={16}>
+              <YStack gap="$4" alignItems="center">
+                <Text fontSize={24} fontWeight="900" fontStyle="italic" color={textColor} textAlign="center">
+                  {t('review.ratingStep') || 'How was your experience?'}
+                </Text>
+                <XStack gap="$3" justifyContent="center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      onPress={() => setRating(star)}
+                      style={styles.starButton}
+                    >
+                      <Feather 
+                        name="star" 
+                        size={36} 
+                        color={star <= rating ? '#FFD700' : borderColor}
+                        fill={star <= rating ? '#FFD700' : 'transparent'}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </XStack>
+              </YStack>
+            </Card>
+            
+            <YStack gap="$2">
+              <Button
+                onPress={() => setCurrentStep('content')}
+                disabled={rating === 0}
+                variant="primary"
+                size="md"
+              >
+                {t('common.next') || 'Next'}
+              </Button>
+              <Button
+                onPress={handleBackPress}
+                variant="link"
+                size="md"
+              >
+                {t('common.cancel') || 'Cancel'}
+              </Button>
+            </YStack>
           </YStack>
         );
 
       case 'content':
         return (
-          <YStack gap="$4">
-            <Text size="xl" weight="bold">
-              {t('review.contentStep')}
-            </Text>
-            <FormField
-              label={t('review.reviewLabel')}
-              value={content}
-              onChangeText={setContent}
-              multiline
-              numberOfLines={4}
-              placeholder={t('review.reviewPlaceholder')}
-            />
-            <XStack gap="$2" flexWrap="wrap">
-              {images.map((image, index) => (
-                <XStack
-                  key={index}
-                  width={100}
-                  height={100}
-                  backgroundColor="$gray5"
-                  borderRadius="$2"
-                  overflow="hidden"
-                  position="relative"
-                >
-                  <Image
-                    source={{ uri: image.uri }}
-                    width="100%"
-                    height="100%"
-                    resizeMode="cover"
-                  />
-                  <Button
-                    position="absolute"
-                    top={4}
-                    right={4}
-                    size="sm"
-                    backgroundColor="$red10"
-                    onPress={() => setImages((prev) => prev.filter((_, i) => i !== index))}
-                  >
-                    <Feather name="x" size={16} color="white" />
-                  </Button>
-                </XStack>
-              ))}
-              {images.length < 5 && (
-                <XStack gap="$2">
-                  <Button onPress={handlePickImage} backgroundColor="$blue10" size="lg">
-                    <XStack gap="$2" alignItems="center">
-                      <Feather name="image" size={20} color="white" />
-                      <Text color="white">{t('review.addPhoto')}</Text>
-                    </XStack>
-                  </Button>
-                  <Button onPress={handleTakePhoto} backgroundColor="$blue10" size="lg">
-                    <XStack gap="$2" alignItems="center">
-                      <Feather name="camera" size={20} color="white" />
-                      <Text color="white">{t('review.takePhoto')}</Text>
-                    </XStack>
-                  </Button>
-                </XStack>
-              )}
-            </XStack>
-            <XStack gap="$2">
-              <Button
-                onPress={() => setCurrentStep('rating')}
-                variant="secondary"
-                size="lg"
-                flex={1}
-              >
-                {t('review.back')}
-              </Button>
+          <YStack gap="$4" paddingHorizontal="$4">
+            <Card backgroundColor={backgroundColor} borderWidth={1} borderColor={borderColor} padding="$5" borderRadius={16}>
+              <YStack gap="$4">
+                <Text fontSize={24} fontWeight="900" fontStyle="italic" color={textColor} textAlign="center">
+                  {t('review.contentStep') || 'Tell us about your experience'}
+                </Text>
+                
+                <TextArea
+                  value={content}
+                  onChangeText={setContent}
+                  placeholder={t('review.reviewPlaceholder') || 'Share your thoughts...'}
+                  numberOfLines={6}
+                  style={{
+                    backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                    borderColor: borderColor,
+                    borderWidth: 1,
+                    borderRadius: 12,
+                    color: textColor,
+                    padding: 12,
+                  }}
+                />
+                
+                <YStack gap="$3">
+                  <Text fontSize={16} fontWeight="600" color={textColor}>
+                    {t('review.addPhotos') || 'Add Photos (Optional)'}
+                  </Text>
+                  
+                  <XStack gap="$2" flexWrap="wrap">
+                    {images.map((image, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={{ position: 'relative', width: 100, height: 100, borderRadius: 12, overflow: 'hidden' }}
+                      >
+                        <Image
+                          source={{ uri: image.uri }}
+                          style={{ width: '100%', height: '100%' }}
+                          resizeMode="cover"
+                        />
+                        <TouchableOpacity
+                          onPress={() => setImages((prev) => prev.filter((_, i) => i !== index))}
+                          style={{
+                            position: 'absolute',
+                            top: 4,
+                            right: 4,
+                            backgroundColor: 'rgba(0,0,0,0.7)',
+                            borderRadius: 15,
+                            width: 30,
+                            height: 30,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Feather name="x" size={16} color="white" />
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    ))}
+                    
+                    {images.length < 5 && (
+                      <XStack gap="$2">
+                        <TouchableOpacity
+                          onPress={handlePickImage}
+                          style={{
+                            width: 100,
+                            height: 100,
+                            backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                            borderRadius: 12,
+                            borderWidth: 2,
+                            borderColor: borderColor,
+                            borderStyle: 'dashed',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Feather name="image" size={24} color={textColor} opacity={0.5} />
+                          <Text fontSize={10} color={textColor} opacity={0.5} marginTop={4}>
+                            {t('review.addPhoto') || 'Gallery'}
+                          </Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                          onPress={handleTakePhoto}
+                          style={{
+                            width: 100,
+                            height: 100,
+                            backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                            borderRadius: 12,
+                            borderWidth: 2,
+                            borderColor: borderColor,
+                            borderStyle: 'dashed',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Feather name="camera" size={24} color={textColor} opacity={0.5} />
+                          <Text fontSize={10} color={textColor} opacity={0.5} marginTop={4}>
+                            {t('review.takePhoto') || 'Camera'}
+                          </Text>
+                        </TouchableOpacity>
+                      </XStack>
+                    )}
+                  </XStack>
+                </YStack>
+              </YStack>
+            </Card>
+            
+            <YStack gap="$2">
               <Button
                 onPress={() => setCurrentStep('details')}
                 variant="primary"
-                size="lg"
-                backgroundColor="$blue10"
-                flex={1}
+                size="md"
               >
-                {t('review.ratingNext')}
+                {t('common.next') || 'Next'}
               </Button>
-            </XStack>
+              <Button
+                onPress={() => setCurrentStep('rating')}
+                variant="link"
+                size="md"
+              >
+                {t('common.back') || 'Back'}
+              </Button>
+            </YStack>
           </YStack>
         );
 
       case 'details':
         return (
-          <YStack gap="$4">
-            <Text size="xl" weight="bold">
-              {t('review.detailsStep')}
-            </Text>
+          <YStack gap="$4" paddingHorizontal="$4">
+            <Card backgroundColor={backgroundColor} borderWidth={1} borderColor={borderColor} padding="$5" borderRadius={16}>
+              <YStack gap="$4">
+                <Text fontSize={24} fontWeight="900" fontStyle="italic" color={textColor} textAlign="center">
+                  {t('review.detailsStep') || 'How difficult was it?'}
+                </Text>
+                
+                <YStack gap="$3">
+                  <Text fontSize={18} fontWeight="600" color={textColor}>
+                    {t('review.difficultyLevel') || 'Difficulty Level'}
+                  </Text>
+                  
+                  <XStack gap="$2" flexWrap="wrap">
+                    {(['beginner', 'intermediate', 'advanced'] as DifficultyLevel[]).map((level) => {
+                      const isSelected = difficulty === level;
+                      return (
+                        <TouchableOpacity
+                          key={level}
+                          onPress={() => setDifficulty(level)}
+                          style={[
+                            styles.filterChip,
+                            {
+                              borderColor,
+                              backgroundColor: isSelected ? '#27febe' : 'transparent',
+                              flex: 1,
+                              alignItems: 'center',
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.chipText,
+                              {
+                                color: isSelected ? '#000000' : textColor,
+                                fontWeight: isSelected ? '600' : '500',
+                              },
+                            ]}
+                          >
+                            {level === 'beginner'
+                              ? t('profile.experienceLevels.beginner') || 'Beginner'
+                              : level === 'intermediate'
+                                ? t('profile.experienceLevels.intermediate') || 'Intermediate'
+                                : t('profile.experienceLevels.advanced') || 'Advanced'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </XStack>
+                </YStack>
+              </YStack>
+            </Card>
+            
             <YStack gap="$2">
-              <Text size="lg" weight="medium">
-                {t('review.difficultyLevel')}
-              </Text>
-              <XStack gap="$2">
-                {(['beginner', 'intermediate', 'advanced'] as DifficultyLevel[]).map((level) => (
-                  <Button
-                    key={level}
-                    onPress={() => setDifficulty(level)}
-                    backgroundColor={difficulty === level ? '$blue10' : 'transparent'}
-                    borderColor="$blue10"
-                    borderWidth={1}
-                    flex={1}
-                  >
-                    <Text
-                      color={difficulty === level ? 'white' : '$blue10'}
-                      textTransform="capitalize"
-                    >
-                      {level === 'beginner'
-                        ? t('profile.experienceLevels.beginner')
-                        : level === 'intermediate'
-                          ? t('profile.experienceLevels.intermediate')
-                          : t('profile.experienceLevels.advanced')}
-                    </Text>
-                  </Button>
-                ))}
-              </XStack>
-            </YStack>
-            <FormField
-              label={t('review.visitDate')}
-              value={new Date(visitDate).toLocaleDateString()}
-              onPress={() => {
-                // You might want to add a date picker here
-              }}
-            />
-            <XStack gap="$2">
-              <Button
-                onPress={() => setCurrentStep('content')}
-                variant="secondary"
-                size="lg"
-                flex={1}
-              >
-                {t('review.back')}
-              </Button>
               <Button
                 onPress={handleSubmit}
                 variant="primary"
-                size="lg"
-                backgroundColor="$blue10"
-                flex={1}
+                size="md"
                 disabled={loading}
               >
-                {loading ? t('review.submitting') : t('review.submit')}
+                {loading ? (t('review.submitting') || 'Submitting...') : (t('review.submit') || 'Submit Review')}
               </Button>
-            </XStack>
+              <Button
+                onPress={() => setCurrentStep('content')}
+                variant="link"
+                size="md"
+              >
+                {t('common.back') || 'Back'}
+              </Button>
+            </YStack>
           </YStack>
         );
     }
   };
 
+  const styles = StyleSheet.create({
+    filterChip: {
+      marginRight: 8,
+      marginBottom: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+    },
+    chipText: {
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    starButton: {
+      padding: 8,
+    },
+  });
+
   return (
     <Screen>
-      <YStack f={1} gap="$4">
-        <Header title={t('review.title')} showBack onBackPress={handleBackPress} />
+      <YStack f={1} gap="$4" backgroundColor={backgroundColor}>
+        <Header 
+          title={t('review.title') || 'Add Review'} 
+          showBack 
+          onBackPress={handleBackPress}
+        />
+
+        {/* Progress Indicator */}
+        <XStack gap="$2" paddingHorizontal="$4" justifyContent="center">
+          {['rating', 'content', 'details'].map((step, index) => (
+            <View
+              key={step}
+              style={{
+                flex: 1,
+                height: 4,
+                backgroundColor:
+                  step === currentStep ||
+                  (currentStep === 'content' && step === 'rating') ||
+                  (currentStep === 'details' && (step === 'rating' || step === 'content'))
+                    ? '#00E6C3'
+                    : borderColor,
+                borderRadius: 2,
+              }}
+            />
+          ))}
+        </XStack>
 
         {error ? (
-          <Text size="sm" color="$red10" textAlign="center">
-            {error}
-          </Text>
+          <Card backgroundColor="rgba(239, 68, 68, 0.1)" padding="$3" marginHorizontal="$4" borderRadius={12}>
+            <Text fontSize={14} color="#EF4444" textAlign="center">
+              {error}
+            </Text>
+          </Card>
         ) : null}
 
-        {renderStep()}
+        <ScrollView 
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {renderStep()}
+        </ScrollView>
       </YStack>
     </Screen>
   );
