@@ -27,6 +27,7 @@ import {
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
 import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { supabase } from '../lib/supabase';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -298,12 +299,15 @@ export function ProgressScreen() {
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
-  // Sound helper function
+  // Sound helper function with haptic feedback
   const playDoneSound = async () => {
     try {
+      // Haptic feedback (works even if muted)
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
       // Set audio mode for iOS
       await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
+        playsInSilentModeIOS: false, // Respect silent mode
         staysActiveInBackground: false,
       });
       
@@ -320,7 +324,7 @@ export function ProgressScreen() {
         }
       });
     } catch (error) {
-      console.log('🔊 Done sound error:', error);
+      console.log('🔊 Done sound error (may be muted):', error);
     }
   };
 

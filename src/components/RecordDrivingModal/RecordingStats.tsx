@@ -7,6 +7,8 @@ import { useRecording } from '@/src/contexts/RecordingContext';
 import { Feather } from '@expo/vector-icons';
 import { AppAnalytics } from '../../utils/analytics';
 import { RecordedRouteData } from './types';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 
 const MIN_SPEED_THRESHOLD = 0.5;
 
@@ -54,6 +56,26 @@ export default function RecordingStats({
 
   const handleStartRecording = React.useCallback(async () => {
     try {
+      // Play start sound + vibration
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: false,
+          staysActiveInBackground: false,
+        });
+        const { sound } = await Audio.Sound.createAsync(
+          require('../../../assets/sounds/ui-done.mp3'),
+          { shouldPlay: true, volume: 0.5 }
+        );
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            sound.unloadAsync();
+          }
+        });
+      } catch (error) {
+        console.log('🔊 Start sound error:', error);
+      }
+      
       // Start recording immediately using global context (no delays)
       await startRecording();
 
@@ -184,7 +206,29 @@ export default function RecordingStats({
 
               <TouchableOpacity
                 style={[styles.controlButton, { backgroundColor: 'red' }]}
-                onPress={stopRecording}
+                onPress={async () => {
+                  // Play stop sound + vibration
+                  try {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                    await Audio.setAudioModeAsync({
+                      playsInSilentModeIOS: false,
+                      staysActiveInBackground: false,
+                    });
+                    const { sound } = await Audio.Sound.createAsync(
+                      require('../../../assets/sounds/ui-done.mp3'),
+                      { shouldPlay: true, volume: 0.6 }
+                    );
+                    sound.setOnPlaybackStatusUpdate((status) => {
+                      if (status.isLoaded && status.didJustFinish) {
+                        sound.unloadAsync();
+                      }
+                    });
+                  } catch (error) {
+                    console.log('🔊 Stop sound error:', error);
+                  }
+                  
+                  stopRecording();
+                }}
               >
                 <Feather name="square" size={28} color="white" />
               </TouchableOpacity>

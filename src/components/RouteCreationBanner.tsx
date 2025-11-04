@@ -81,7 +81,7 @@ export function RouteCreationBanner({ onPress, onDismiss }: RouteCreationBannerP
     <View
       style={{
         position: 'absolute',
-        top: 16,
+        bottom: 180, // Above the routes drawer
         left: 16,
         right: 16,
         zIndex: 1000,

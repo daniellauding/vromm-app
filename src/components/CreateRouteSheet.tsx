@@ -106,6 +106,68 @@ interface CreateRouteSheetProps {
   isModal?: boolean;
 }
 
+// Hardcoded fallback translations for create route sheet  
+const CREATE_ROUTE_FALLBACKS = {
+  en: {
+    // Difficulty
+    beginner: 'Beginner',
+    intermediate: 'Intermediate',
+    advanced: 'Advanced',
+    // Spot Type  
+    urban: 'Urban',
+    highway: 'Highway',
+    rural: 'Rural',
+    parking: 'Parking',
+    city: 'City',
+    track: 'Track',
+    // Category
+    incline_start: 'Incline Start',
+    // Transmission
+    automatic: 'Automatic',
+    manual: 'Manual',
+    both: 'Both',
+    // Activity Level
+    moderate: 'Moderate',
+    high: 'High',
+    // Season
+    all: 'All',
+    'year-round': 'Year-round',
+    'avoid-winter': 'Avoid Winter',
+    // Vehicle Types
+    passenger_car: 'Passenger Car',
+    rv: 'RV',
+  },
+  sv: {
+    // Difficulty
+    beginner: 'Nybörjare',
+    intermediate: 'Medel',
+    advanced: 'Avancerad',
+    // Spot Type
+    urban: 'Urban',
+    highway: 'Motorväg',
+    rural: 'Landsbygd',
+    parking: 'Parkering',
+    city: 'Stad',
+    track: 'Bana',
+    // Category
+    incline_start: 'Backstart',
+    // Transmission
+    automatic: 'Automat',
+    manual: 'Manuell',
+    both: 'Båda',
+    // Activity Level
+    moderate: 'Måttlig',
+    high: 'Hög',
+    // Season
+    all: 'Alla',
+    'year-round': 'Året runt',
+    'avoid-winter': 'Undvik vinter',
+    // Vehicle Types
+    passenger_car: 'Personbil',
+    rv: 'Husbil',
+  },
+};
+
 function getTranslation(t: (key: string) => string, key: string, fallback: string): string {
   const translation = t(key);
   // If the translation is the same as the key, it means the translation is missing
@@ -152,7 +214,20 @@ export function CreateRouteSheet({
     });
   }
 
-  const { t } = useTranslation();
+  const { t, language: lang } = useTranslation();
+  
+  // Helper to get translation with fallback - handles both full keys and simple values
+  const getT = (key: string, fallbackKey?: string): string => {
+    const translation = t(key);
+    // If translation returns the key itself, use hardcoded fallback
+    if (translation === key) {
+      const langKey = (lang === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
+      const fbKey = (fallbackKey || key.split('.').pop() || key) as keyof typeof CREATE_ROUTE_FALLBACKS['en'];
+      return CREATE_ROUTE_FALLBACKS[langKey][fbKey] || fallbackKey || key;
+    }
+    return translation;
+  };
+  
   const { showModal } = useModal();
   const { showRouteCreatedToast, showToast } = useToast();
   const createRouteContext = useCreateRoute();
@@ -378,6 +453,7 @@ export function CreateRouteSheet({
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const pendingToastRef = useRef<{ id: string; name: string; isEditing: boolean } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Drawing modes system - set to 'record' if coming from recorded route
   const [drawingMode, setDrawingMode] = useState<'pin' | 'waypoint' | 'pen' | 'record'>(
@@ -680,18 +756,38 @@ export function CreateRouteSheet({
 
   // Show toast when modal is closed and we have pending toast data
   useEffect(() => {
+    console.log('🍞 [CreateRouteSheet] Toast useEffect triggered - visible:', visible, 'pendingToastRef:', pendingToastRef.current);
+    
     if (!visible && pendingToastRef.current) {
       const { id, name, isEditing } = pendingToastRef.current;
-      console.log('🍞 [CreateRouteSheet] Modal closed, showing pending toast:', id, name);
+      console.log('🍞 [CreateRouteSheet] ✅ CONDITIONS MET - Modal closed, showing pending toast:', id, name);
+      console.log('🍞 [CreateRouteSheet] Setting timeout for 1200ms...');
       
-      // Use a longer delay to ensure modal is fully unmounted
-      setTimeout(() => {
-        showRouteCreatedToast(id, name, isEditing, false, () => {
-          // No-op: prevents auto-navigation to RouteDetailScreen
-          console.log('🍞 [CreateRouteSheet] Toast clicked for route:', id);
-        });
+      // Use a longer delay to ensure modal is fully unmounted and animations complete
+      const timeoutId = setTimeout(() => {
+        console.log('🍞 [CreateRouteSheet] ⏰ TIMEOUT FIRED - NOW showing toast after delay:', id, name);
+        console.log('🍞 [CreateRouteSheet] Calling showRouteCreatedToast function...');
+        try {
+          showRouteCreatedToast(id, name, isEditing, false, () => {
+            // No-op: prevents auto-navigation to RouteDetailScreen
+            console.log('🍞 [CreateRouteSheet] Toast clicked for route:', id);
+          });
+          console.log('🍞 [CreateRouteSheet] ✅ showRouteCreatedToast called successfully!');
+        } catch (error) {
+          console.error('🍞 [CreateRouteSheet] ❌ ERROR calling showRouteCreatedToast:', error);
+        }
         pendingToastRef.current = null; // Clear the pending toast
-      }, 500);
+        console.log('🍞 [CreateRouteSheet] Cleared pendingToastRef');
+      }, 1200); // Increased from 500ms to 1200ms for smooth animation completion
+      
+      console.log('🍞 [CreateRouteSheet] Timeout ID:', timeoutId);
+      
+      return () => {
+        console.log('🍞 [CreateRouteSheet] Cleanup - clearing timeout:', timeoutId);
+        clearTimeout(timeoutId);
+      };
+    } else {
+      console.log('🍞 [CreateRouteSheet] ❌ Conditions NOT met - visible:', visible, 'hasPendingToast:', !!pendingToastRef.current);
     }
   }, [visible, showRouteCreatedToast]);
 
@@ -1603,8 +1699,13 @@ export function CreateRouteSheet({
       const newMediaItems = media.filter((m) => !m.uri.startsWith('http'));
       const uploadResults: { type: mediaUtils.MediaType; url: string; description?: string }[] = [];
 
-      for (const item of newMediaItems) {
+      setUploadProgress({ current: 0, total: newMediaItems.length });
+
+      for (let i = 0; i < newMediaItems.length; i++) {
+        const item = newMediaItems[i];
         try {
+          setUploadProgress({ current: i + 1, total: newMediaItems.length });
+          
           const publicUrl = await mediaUtils.uploadMediaToSupabase(
             item,
             'media',
@@ -1623,6 +1724,8 @@ export function CreateRouteSheet({
           // Continue with other items even if one fails
         }
       }
+      
+      setUploadProgress(null);
 
       if (uploadResults.length > 0) {
         // Get current media_attachments
@@ -1995,12 +2098,19 @@ export function CreateRouteSheet({
       setLoading(false);
 
       // Store route data for toast - will be shown after modal unmounts
+      console.log('🍞 [CreateRouteSheet] Route saved successfully - route data:', { id: route?.id, name: route?.name, isEditing });
+      
       if (route?.id && route?.name) {
         pendingToastRef.current = { id: route.id, name: route.name, isEditing };
+        console.log('🍞 [CreateRouteSheet] ✅ SET pendingToastRef to:', pendingToastRef.current);
+      } else {
+        console.error('🍞 [CreateRouteSheet] ❌ Cannot set pendingToastRef - missing route.id or route.name!', route);
       }
 
+      console.log('🍞 [CreateRouteSheet] Calling onClose() to close sheet...');
       // Close the create sheet
       onClose();
+      console.log('🍞 [CreateRouteSheet] onClose() called - sheet should close now and trigger toast useEffect');
 
       // Don't call onRouteCreated to prevent navigation away from HomeScreen
       // User stays on HomeScreen with toast notification showing route was created
@@ -4036,12 +4146,8 @@ export function CreateRouteSheet({
                                           fontWeight: isSelected ? '600' : '500',
                                           color: isSelected ? '#000000' : textColor,
                                         }}
-                                  >
-                                    {level === 'beginner'
-                                      ? t('profile.experienceLevels.beginner')
-                                      : level === 'intermediate'
-                                        ? t('profile.experienceLevels.intermediate')
-                                        : t('profile.experienceLevels.advanced')}
+                                      >
+                                    {getT(`filters.difficulty.${level}`, level)}
                                       </Text>
                                     </TouchableOpacity>
                                   );
@@ -4089,11 +4195,7 @@ export function CreateRouteSheet({
                                           color: isSelected ? '#000000' : textColor,
                                         }}
                                       >
-                                    {getTranslation(
-                                      t,
-                                      `createRoute.spotTypes.${type}`,
-                                      type.charAt(0).toUpperCase() + type.slice(1),
-                                    )}
+                                    {getT(`filters.spotType.${type}`, type)}
                                       </Text>
                                     </TouchableOpacity>
                                   );
@@ -4154,7 +4256,7 @@ export function CreateRouteSheet({
                             {/* Category */}
                             <YStack gap="$2">
                               <Text weight="medium" color="$color">
-                                {t('filters.category')}
+                                {getT('filters.category', 'category')}
                               </Text>
                               <View
                                 style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
@@ -4191,7 +4293,7 @@ export function CreateRouteSheet({
                                           color: isSelected ? '#000000' : textColor,
                                         }}
                                       >
-                                        {t(`filters.category.${cat}`)}
+                                        {getT(`filters.category.${cat}`, cat)}
                                       </Text>
                                     </TouchableOpacity>
                                   );
@@ -4202,7 +4304,7 @@ export function CreateRouteSheet({
                             {/* Transmission Type */}
                             <YStack gap="$2">
                               <Text weight="medium" color="$color">
-                                {t('filters.transmissionType')}
+                                {getT('filters.transmissionType', 'transmissionType')}
                               </Text>
                               <View
                                 style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
@@ -4239,7 +4341,7 @@ export function CreateRouteSheet({
                                           color: isSelected ? '#000000' : textColor,
                                         }}
                                       >
-                                        {t(`filters.transmissionType.${trans}`)}
+                                        {getT(`filters.transmissionType.${trans}`, trans)}
                                       </Text>
                                     </TouchableOpacity>
                                   );
@@ -4250,7 +4352,7 @@ export function CreateRouteSheet({
                             {/* Activity Level */}
                             <YStack gap="$2">
                               <Text weight="medium" color="$color">
-                                {t('filters.activityLevel')}
+                                {getT('filters.activityLevel', 'activityLevel')}
                               </Text>
                               <View
                                 style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
@@ -4287,7 +4389,7 @@ export function CreateRouteSheet({
                                           color: isSelected ? '#000000' : textColor,
                                         }}
                                       >
-                                        {t(`filters.activityLevel.${level}`)}
+                                        {getT(`filters.activityLevel.${level}`, level)}
                                       </Text>
                                     </TouchableOpacity>
                                   );
@@ -4298,7 +4400,7 @@ export function CreateRouteSheet({
                             {/* Best Season */}
                             <YStack gap="$2">
                               <Text weight="medium" color="$color">
-                                {t('filters.bestSeason')}
+                                {getT('filters.bestSeason', 'bestSeason')}
                               </Text>
                               <View
                                 style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
@@ -4335,7 +4437,7 @@ export function CreateRouteSheet({
                                           color: isSelected ? '#000000' : textColor,
                                         }}
                                       >
-                                        {t(`filters.bestSeason.${season}`)}
+                                        {getT(`filters.bestSeason.${season}`, season)}
                                       </Text>
                                     </TouchableOpacity>
                                   );
@@ -4346,7 +4448,7 @@ export function CreateRouteSheet({
                             {/* Vehicle Types */}
                             <YStack gap="$2">
                               <Text weight="medium" color="$color">
-                                {t('filters.vehicleTypes')}
+                                {getT('filters.vehicleTypes', 'vehicleTypes')}
                               </Text>
                               <View
                                 style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
@@ -4385,7 +4487,7 @@ export function CreateRouteSheet({
                                           color: isSelected ? '#000000' : textColor,
                                         }}
                                       >
-                                        {t(`filters.vehicleTypes.${vehicle}`)}
+                                        {getT(`filters.vehicleTypes.${vehicle}`, vehicle)}
                                       </Text>
                                     </TouchableOpacity>
                                   );
@@ -4474,19 +4576,48 @@ export function CreateRouteSheet({
                   </XStack>
                 )}
 
+                {/* Upload Progress */}
+                {uploadProgress && (
+                  <YStack gap="$2">
+                    <Text fontSize={14} color={textColor} textAlign="center">
+                      Uploading media {uploadProgress.current}/{uploadProgress.total}...
+                    </Text>
+                    <View
+                      style={{
+                        width: '100%',
+                        height: 4,
+                        backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
+                          height: '100%',
+                          backgroundColor: '#00E6C3',
+                          borderRadius: 2,
+                        }}
+                      />
+                    </View>
+                  </YStack>
+                )}
+
                 {/* Create Route Button */}
                 <Button
                   onPress={handleCreate}
-                  disabled={loading || !formData.name.trim() || !isLocationComplete}
+                  disabled={loading || uploadProgress !== null || !formData.name.trim() || !isLocationComplete}
                   variant="primary"
                   size="md"
                   width="100%"
                 >
                   {loading
                     ? getTranslation(t, 'createRoute.saving', 'Saving...')
-                    : isEditing
-                      ? getTranslation(t, 'createRoute.save', 'Save')
-                      : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
+                    : uploadProgress
+                      ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...`
+                      : isEditing
+                        ? getTranslation(t, 'createRoute.save', 'Save')
+                        : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
                 </Button>
 
                 {/* Cancel Button */}

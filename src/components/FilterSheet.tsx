@@ -30,6 +30,127 @@ import ReanimatedAnimated, {
 } from 'react-native-reanimated';
 import { LeaveCollectionModal } from './LeaveCollectionModal';
 import { CollectionSharingModal } from './CollectionSharingModal';
+
+  // Hardcoded fallback translations for filter sheet
+const FILTER_FALLBACKS = {
+  en: {
+    seeRoutes: 'See Routes',
+    reset: 'Reset',
+    // Section Titles
+    sortBy: 'Sort By',
+    difficulty: 'Difficulty',
+    spotType: 'Spot Type',
+    category: 'Category',
+    transmissionType: 'Transmission',
+    activityLevel: 'Activity Level',
+    bestSeason: 'Best Season',
+    vehicleTypes: 'Vehicle Types',
+    content: 'Content',
+    routeType: 'Route Type',
+    minRating: 'Minimum Rating',
+    // Difficulty
+    beginner: 'Beginner',
+    intermediate: 'Intermediate',
+    advanced: 'Advanced',
+    // Spot Type
+    urban: 'Urban',
+    highway: 'Highway',
+    rural: 'Rural',
+    parking: 'Parking',
+    // Category
+    incline_start: 'Incline Start',
+    // Transmission
+    automatic: 'Automatic',
+    manual: 'Manual',
+    both: 'Both',
+    // Activity Level
+    moderate: 'Moderate',
+    high: 'High',
+    // Season
+    all: 'All',
+    'year-round': 'Year-round',
+    'avoid-winter': 'Avoid Winter',
+    // Vehicle Types
+    passenger_car: 'Passenger Car',
+    rv: 'RV',
+    // Content Filters
+    hasExercises: 'Has Exercises',
+    hasMedia: 'Has Media',
+    verified: 'Verified',
+    // Sort Options
+    best_match: 'Best Match',
+    most_popular: 'Most Popular',
+    closest: 'Closest',
+    newly_added: 'Newly Added',
+    newest: 'Newest',
+    my_created: 'My Created',
+    best_review: 'Best Review',
+    has_image: 'Has Image',
+    // Route Types
+    recorded: 'Recorded',
+    waypoint: 'Waypoint',
+    pen: 'Pen',
+  },
+  sv: {
+    seeRoutes: 'Visa Rutter',
+    reset: 'Återställ',
+    // Section Titles
+    sortBy: 'Sortera Efter',
+    difficulty: 'Svårighetsgrad',
+    spotType: 'Platstyp',
+    category: 'Kategori',
+    transmissionType: 'Växellåda',
+    activityLevel: 'Aktivitetsnivå',
+    bestSeason: 'Bästa Säsong',
+    vehicleTypes: 'Fordonstyper',
+    content: 'Innehåll',
+    routeType: 'Rutttyp',
+    minRating: 'Minsta Betyg',
+    // Difficulty
+    beginner: 'Nybörjare',
+    intermediate: 'Medel',
+    advanced: 'Avancerad',
+    // Spot Type
+    urban: 'Urban',
+    highway: 'Motorväg',
+    rural: 'Landsbygd',
+    parking: 'Parkering',
+    // Category
+    incline_start: 'Backstart',
+    // Transmission
+    automatic: 'Automat',
+    manual: 'Manuell',
+    both: 'Båda',
+    // Activity Level
+    moderate: 'Måttlig',
+    high: 'Hög',
+    // Season
+    all: 'Alla',
+    'year-round': 'Året runt',
+    'avoid-winter': 'Undvik vinter',
+    // Vehicle Types
+    passenger_car: 'Personbil',
+    rv: 'Husbil',
+    // Content Filters
+    hasExercises: 'Har Övningar',
+    hasMedia: 'Har Media',
+    verified: 'Verifierad',
+    // Sort Options
+    best_match: 'Bästa Matchning',
+    most_popular: 'Mest Populära',
+    closest: 'Närmast',
+    newly_added: 'Nyligen Tillagda',
+    newest: 'Nyaste',
+    my_created: 'Mina Skapade',
+    best_review: 'Bästa Recension',
+    has_image: 'Har Bild',
+    // Route Types
+    recorded: 'Inspelad',
+    waypoint: 'Vägpunkt',
+    pen: 'Penna',
+  },
+};
+
 // Route type definition
 type Route = {
   id: string;
@@ -194,7 +315,20 @@ export function FilterSheet({
   onPresetSelect,
   selectedPresetId,
 }: FilterSheetProps) {
-  const { t } = useTranslation();
+  const { t, language: lang } = useTranslation();
+  
+  // Helper to get translation with fallback - handles both full keys and simple values
+  const getT = (key: string, fallbackKey?: string): string => {
+    const translation = t(key);
+    // If translation returns the key itself, use hardcoded fallback
+    if (translation === key) {
+      const langKey = (lang === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
+      const fbKey = (fallbackKey || key.split('.').pop() || key) as keyof typeof FILTER_FALLBACKS['en'];
+      return FILTER_FALLBACKS[langKey][fbKey] || fallbackKey || key;
+    }
+    return translation;
+  };
+  
   const { showModal } = useModal();
   const { getEffectiveUserId } = useStudentSwitch();
   const { trackFilterUsage } = useSmartFilters();
@@ -1218,7 +1352,7 @@ export function FilterSheet({
                   {/* Collections Section */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('routeCollections.title') || 'Collections'}
+                      Collections
                     </SizableText>
 
                     {/* Collection Chips - REMOVED ICONS */}
@@ -1246,7 +1380,7 @@ export function FilterSheet({
                             },
                           ]}
                         >
-                          {t('routeCollections.allRoutes') || 'All Routes'}
+                          All Routes
                         </Text>
                       </TouchableOpacity>
 
@@ -1619,7 +1753,7 @@ export function FilterSheet({
                   {/* Sort Options - WITH ROUTE COUNTS */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.sortBy')}
+                      {getT('filters.sortBy', 'sortBy')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {[
@@ -1657,7 +1791,7 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {t(`filters.sort.${sort}`)}
+                                {getT(`filters.sort.${sort}`, sort)}
                               </Text>
                               <Text
                                 style={[
@@ -1681,7 +1815,7 @@ export function FilterSheet({
                   {/* Difficulty */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.difficulty')}
+                      {getT('filters.difficulty', 'difficulty')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {['beginner', 'intermediate', 'advanced'].map((difficulty) => {
@@ -1714,7 +1848,7 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {t(`filters.difficulty.${difficulty}`)}
+                                {getT(`filters.difficulty.${difficulty}`, difficulty)}
                               </Text>
                               <Text
                                 style={[
@@ -1740,7 +1874,7 @@ export function FilterSheet({
                   {/* Spot Type */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.spotType')}
+                      {getT('filters.spotType', 'spotType')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {['urban', 'highway', 'rural', 'parking'].map((spotType) => {
@@ -1769,7 +1903,7 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {t(`filters.spotType.${spotType}`)}
+                                {getT(`filters.spotType.${spotType}`, spotType)}
                               </Text>
                               <Text
                                 style={[
@@ -1793,7 +1927,7 @@ export function FilterSheet({
                   {/* Category */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.category')}
+                      {getT('filters.category', 'category')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {['parking', 'incline_start'].map((category) => {
@@ -1822,7 +1956,7 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {t(`filters.category.${category}`)}
+                                {getT(`filters.category.${category}`, category)}
                               </Text>
                               <Text
                                 style={[
@@ -1846,7 +1980,7 @@ export function FilterSheet({
                   {/* Transmission Type */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.transmissionType')}
+                      {getT('filters.transmissionType', 'transmissionType')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {['automatic', 'manual', 'both'].map((transmissionType) => {
@@ -1879,7 +2013,7 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {t(`filters.transmissionType.${transmissionType}`)}
+                                {getT(`filters.transmissionType.${transmissionType}`, transmissionType)}
                               </Text>
                               <Text
                                 style={[
@@ -1905,7 +2039,7 @@ export function FilterSheet({
                   {/* Activity Level */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.activityLevel')}
+                      {getT('filters.activityLevel', 'activityLevel')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {['moderate', 'high'].map((activityLevel) => {
@@ -1938,7 +2072,7 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {t(`filters.activityLevel.${activityLevel}`)}
+                                {getT(`filters.activityLevel.${activityLevel}`, activityLevel)}
                               </Text>
                               <Text
                                 style={[
@@ -1964,7 +2098,7 @@ export function FilterSheet({
                   {/* Best Season */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.bestSeason')}
+                      {getT('filters.bestSeason', 'bestSeason')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {['all', 'year-round', 'avoid-winter'].map((bestSeason) => {
@@ -1997,7 +2131,7 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {t(`filters.bestSeason.${bestSeason}`)}
+                                {getT(`filters.bestSeason.${bestSeason}`, bestSeason)}
                               </Text>
                               <Text
                                 style={[
@@ -2023,7 +2157,7 @@ export function FilterSheet({
                   {/* Vehicle Types */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.vehicleTypes')}
+                      {getT('filters.vehicleTypes', 'vehicleTypes')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {['passenger_car', 'rv'].map((vehicleType) => {
@@ -2056,7 +2190,7 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {t(`filters.vehicleTypes.${vehicleType}`)}
+                                {getT(`filters.vehicleTypes.${vehicleType}`, vehicleType)}
                               </Text>
                               <Text
                                 style={[
@@ -2141,7 +2275,7 @@ export function FilterSheet({
                   {/* Content Filters - REMOVED ICONS */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.content')}
+                      {getT('filters.content', 'content')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {/* Has Exercises */}
@@ -2167,7 +2301,7 @@ export function FilterSheet({
                               },
                             ]}
                           >
-                            {t('filters.hasExercises')}
+                            {getT('filters.hasExercises', 'hasExercises') || 'Has Exercises'}
                           </Text>
                           <Text
                             style={[
@@ -2207,7 +2341,7 @@ export function FilterSheet({
                               },
                             ]}
                           >
-                            {t('filters.hasMedia')}
+                            {getT('filters.hasMedia', 'hasMedia') || 'Has Media'}
                           </Text>
                           <Text
                             style={[
@@ -2247,7 +2381,7 @@ export function FilterSheet({
                               },
                             ]}
                           >
-                            {t('filters.verified')}
+                            {getT('filters.verified', 'verified') || 'Verified'}
                           </Text>
                           <Text
                             style={[
@@ -2269,7 +2403,7 @@ export function FilterSheet({
                   {/* Route Type - REMOVED ICONS */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.routeType')}
+                      {getT('filters.routeType', 'routeType')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {['recorded', 'waypoint', 'pen'].map((type) => {
@@ -2300,7 +2434,7 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {t(`filters.routeType.${type}`)}
+                                {getT(`filters.routeType.${type}`, type)}
                               </Text>
                               <Text
                                 style={[
@@ -2326,7 +2460,7 @@ export function FilterSheet({
                   {/* Minimum Rating - REMOVED ICONS */}
                   <YStack style={styles.filterSection}>
                     <SizableText fontWeight="600" style={styles.sectionTitle}>
-                      {t('filters.minRating')}
+                      {getT('filters.minRating', 'minRating')}
                     </SizableText>
                     <View style={styles.filterRow}>
                       {[0, 3, 4, 5].map((rating) => {
@@ -2359,7 +2493,7 @@ export function FilterSheet({
                                   },
                                 ]}
                               >
-                                {rating === 0 ? t('filters.allRatings') : `${rating}+`}
+                                {rating === 0 ? (getT('filters.allRatings', 'all') || 'All') : `${rating}+`}
                               </Text>
                               <Text
                                 style={[
@@ -2453,11 +2587,11 @@ export function FilterSheet({
                 >
                   <YStack gap="$2">
                     <Button size="sm" variant="primary" onPress={handleApply}>
-                      {t('filters.seeRoutes')} ({filteredCount})
+                      {getT('filters.seeRoutes', 'seeRoutes')} ({filteredCount})
                     </Button>
 
                     <Button size="sm" variant="link" onPress={handleReset}>
-                      {t('common.reset')}
+                      {getT('filters.reset', 'reset')}
                     </Button>
 
                     {/* <Button

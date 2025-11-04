@@ -21,6 +21,8 @@ import { useToast } from '../contexts/ToastContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
@@ -249,6 +251,8 @@ export function BetaTestingSheet({
     areas: [] as string[],
   });
   const [feedbackMedia, setFeedbackMedia] = useState<mediaUtils.MediaItem[]>([]);
+  const [uploadingFeedback, setUploadingFeedback] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Pricing form state
   const [pricingForm, setPricingForm] = useState({
@@ -733,6 +737,47 @@ export function BetaTestingSheet({
 
       console.log('🔍 [BetaTestingSheet] Final checklist items (deduplicated):', itemsWithStatus);
       setChecklistItems(itemsWithStatus);
+      
+      // Check for celebration if all items completed
+      const allCompleted = itemsWithStatus.every((item) => item.completed);
+      if (allCompleted && itemsWithStatus.length > 0 && user?.id) {
+        const checkKey = `beta_testing_celebrated_${user.id}_${viewingRole}`;
+        AsyncStorage.getItem(checkKey).then((celebrated) => {
+          if (!celebrated) {
+            const playCelebration = async () => {
+              try {
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                await Audio.setAudioModeAsync({
+                  playsInSilentModeIOS: false,
+                  staysActiveInBackground: false,
+                });
+                const { sound } = await Audio.Sound.createAsync(
+                  require('../../assets/sounds/ui-celebration.mp3'),
+                  { shouldPlay: true, volume: 0.6 }
+                );
+                sound.setOnPlaybackStatusUpdate((status) => {
+                  if (status.isLoaded && status.didJustFinish) {
+                    sound.unloadAsync();
+                  }
+                });
+              } catch (error) {
+                console.log('🔊 Celebration error:', error);
+              }
+            };
+            
+            playCelebration();
+            
+            // Use showToast instead of showCelebration since we're not in CelebrationProvider context
+            showToast({
+              title: '🎉 Beta Testing Complete!',
+              message: 'Thank you for completing all testing tasks!',
+              type: 'success',
+            });
+            
+            AsyncStorage.setItem(checkKey, 'true');
+          }
+        });
+      }
     } catch (error) {
       console.error('Error loading checklist items:', error);
       // Fallback to basic checklist if everything fails
@@ -1046,17 +1091,18 @@ export function BetaTestingSheet({
     }
 
     try {
+      setUploadingFeedback(true);
+      
       // Upload media files first
       let mediaUrls: string[] = [];
       if (feedbackMedia.length > 0) {
-        showToast({
-          title: 'Uploading...',
-          message: 'Uploading media files...',
-          type: 'info',
-        });
+        setUploadProgress({ current: 0, total: feedbackMedia.length });
 
-        for (const mediaItem of feedbackMedia) {
+        for (let i = 0; i < feedbackMedia.length; i++) {
+          const mediaItem = feedbackMedia[i];
           try {
+            setUploadProgress({ current: i + 1, total: feedbackMedia.length });
+            
             const publicUrl = await mediaUtils.uploadMediaToSupabase(
               mediaItem,
               'beta-test-images',
@@ -1070,6 +1116,8 @@ export function BetaTestingSheet({
             // Continue with other files even if one fails
           }
         }
+        
+        setUploadProgress(null);
       }
 
       // Submit to Supabase database
@@ -1137,6 +1185,9 @@ export function BetaTestingSheet({
         message: 'Could not save feedback. Please try again.',
         type: 'error',
       });
+    } finally {
+      setUploadingFeedback(false);
+      setUploadProgress(null);
     }
   };
 
@@ -1466,16 +1517,63 @@ export function BetaTestingSheet({
       </Text>
 
       <YStack gap="$3">
-        <FormField
-          placeholder="Your name"
-          value={feedbackForm.name}
-          onChangeText={(text) => {
-            const newForm = { ...feedbackForm, name: text };
-            setFeedbackForm(newForm);
-            saveFeedback(newForm);
-          }}
-          size="md"
-        />
+        {/* Quick-fill chip for logged-in user */}
+        {user && !feedbackForm.name && (
+          <TouchableOpacity
+            onPress={() => {
+              const newForm = { 
+                ...feedbackForm, 
+                name: user.email?.split('@')[0] || 'User',
+                email: user.email || ''
+              };
+              setFeedbackForm(newForm);
+              saveFeedback(newForm);
+            }}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: borderColor,
+              backgroundColor: 'transparent',
+              alignSelf: 'flex-start',
+            }}
+          >
+            <Text fontSize={14} color={textColor}>
+              Use my info: {user.email?.split('@')[0]}
+            </Text>
+          </TouchableOpacity>
+        )}
+        
+        <YStack position="relative">
+          <FormField
+            placeholder="Your name"
+            value={feedbackForm.name}
+            onChangeText={(text) => {
+              const newForm = { ...feedbackForm, name: text };
+              setFeedbackForm(newForm);
+              saveFeedback(newForm);
+            }}
+            size="md"
+          />
+          {!feedbackForm.name && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: '#EF4444',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>!</Text>
+            </View>
+          )}
+        </YStack>
 
         <FormField
           placeholder="Email (optional)"
@@ -1490,10 +1588,27 @@ export function BetaTestingSheet({
           autoCapitalize="none"
         />
 
-        <YStack gap="$2">
+        <YStack gap="$2" position="relative">
           <Text fontSize="$4" fontWeight="600" color={textColor}>
             Rate your experience (1-5 stars):
           </Text>
+          {feedbackForm.rating === 0 && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: '#EF4444',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>!</Text>
+            </View>
+          )}
           <XStack gap="$2">
             {[1, 2, 3, 4, 5].map((star) => (
               <TouchableOpacity
@@ -1559,19 +1674,38 @@ export function BetaTestingSheet({
           </YStack>
         </YStack>
 
-        <FormField
-          placeholder="Your detailed feedback..."
-          value={feedbackForm.feedback}
-          onChangeText={(text) => {
-            const newForm = { ...feedbackForm, feedback: text };
-            setFeedbackForm(newForm);
-            saveFeedback(newForm);
-          }}
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-          size="md"
-        />
+        <YStack position="relative">
+          <FormField
+            placeholder="Your detailed feedback..."
+            value={feedbackForm.feedback}
+            onChangeText={(text) => {
+              const newForm = { ...feedbackForm, feedback: text };
+              setFeedbackForm(newForm);
+              saveFeedback(newForm);
+            }}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+            size="md"
+          />
+          {!feedbackForm.feedback && (
+            <View
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                backgroundColor: '#EF4444',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>!</Text>
+            </View>
+          )}
+        </YStack>
 
         {/* Media Upload Section */}
         <YStack gap="$2">
@@ -1638,8 +1772,41 @@ export function BetaTestingSheet({
           </Button>
         </YStack>
 
-        <Button variant="primary" onPress={submitFeedback}>
-          Submit Feedback
+        {/* Upload Progress */}
+        {uploadProgress && (
+          <Card padding="$3" backgroundColor={`${primaryColor}20`}>
+            <YStack gap="$2">
+              <Text fontSize={14} color={textColor} textAlign="center" fontWeight="600">
+                Uploading media {uploadProgress.current}/{uploadProgress.total}...
+              </Text>
+              <View
+                style={{
+                  width: '100%',
+                  height: 6,
+                  backgroundColor: borderColor,
+                  borderRadius: 3,
+                  overflow: 'hidden',
+                }}
+              >
+                <View
+                  style={{
+                    width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
+                    height: '100%',
+                    backgroundColor: primaryColor,
+                    borderRadius: 3,
+                  }}
+                />
+              </View>
+            </YStack>
+          </Card>
+        )}
+
+        <Button 
+          variant="primary" 
+          onPress={submitFeedback}
+          disabled={uploadingFeedback || uploadProgress !== null}
+        >
+          {uploadingFeedback ? 'Submitting...' : 'Submit Feedback'}
         </Button>
       </YStack>
     </YStack>
@@ -1656,6 +1823,34 @@ export function BetaTestingSheet({
       </Text>
 
       <YStack gap="$3">
+        {/* Quick-fill chip for logged-in user */}
+        {user && !pricingForm.name && (
+          <TouchableOpacity
+            onPress={() => {
+              const newForm = { 
+                ...pricingForm, 
+                name: user.email?.split('@')[0] || 'User',
+                email: user.email || ''
+              };
+              setPricingForm(newForm);
+              savePricing(newForm);
+            }}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: borderColor,
+              backgroundColor: 'transparent',
+              alignSelf: 'flex-start',
+            }}
+          >
+            <Text fontSize={14} color={textColor}>
+              Use my info: {user.email?.split('@')[0]}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <FormField
           placeholder="Your name"
           value={pricingForm.name}

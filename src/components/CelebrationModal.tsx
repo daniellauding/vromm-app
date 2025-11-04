@@ -8,6 +8,7 @@ import { BlurView } from 'expo-blur';
 import { Button } from './Button';
 import Svg, { Circle } from 'react-native-svg';
 import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 
 interface CelebrationModalProps {
   visible: boolean;
@@ -97,12 +98,15 @@ export function CelebrationModal({
     }
   }, [visible]);
 
-  // Play celebration sound
+  // Play celebration sound with haptic feedback
   const playSound = async () => {
     try {
+      // Haptic feedback (works even if muted)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
       // Set audio mode for iOS
       await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
+        playsInSilentModeIOS: false, // Respect silent mode
         staysActiveInBackground: false,
       });
       
@@ -121,7 +125,7 @@ export function CelebrationModal({
         }
       });
     } catch (error) {
-      console.log('🔊 Celebration sound error:', error);
+      console.log('🔊 Celebration sound error (may be muted):', error);
     }
   };
 

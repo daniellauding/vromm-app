@@ -22,7 +22,8 @@ import ReanimatedAnimated, {
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
-import { YStack, XStack, Text, Card, Button, Progress, useTheme } from 'tamagui';
+import { YStack, XStack, Text, Card, Progress, useTheme } from 'tamagui';
+import { Button } from '../components/Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +35,8 @@ import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { Database } from '../lib/database.types';
 import { Map } from './Map';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import { Play } from '@tamagui/lucide-icons';
 import Carousel from 'react-native-reanimated-carousel';
 import { WebView } from 'react-native-webview';
@@ -658,6 +661,33 @@ export function RouteDetailSheet({
     }
   };
 
+  // Play sound and haptic for route actions
+  const playActionSound = async () => {
+    try {
+      // Haptic feedback (works even if muted)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Set audio mode for iOS
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: false, // Respect silent mode
+        staysActiveInBackground: false,
+      });
+
+      const { sound } = await Audio.Sound.createAsync(require('../../assets/sounds/ui-done.mp3'), {
+        shouldPlay: true,
+        volume: 0.5,
+      });
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.log('🔊 Action sound error (may be muted):', error);
+    }
+  };
+
   // Handle functions (exact copy from RouteDetailScreen)
   const handleSaveRoute = async () => {
     if (!user) {
@@ -680,13 +710,16 @@ export function RouteDetailSheet({
           type: 'info',
         });
       } else {
+        // Play sound and haptic
+        playActionSound();
+
         await supabase.from('saved_routes').insert({
           route_id: routeId,
           user_id: user.id,
           saved_at: new Date().toISOString(),
         });
         showToast({
-          title: t('routeDetail.saved') || 'Saved',
+          title: t('routeDetail.saved') || '✅ Saved!',
           message: t('routeDetail.routeSaved') || 'Route has been saved to your collection',
           type: 'success',
         });
@@ -805,6 +838,9 @@ export function RouteDetailSheet({
       // If already driven, show options sheet instead of alert
       setShowDrivenOptionsSheet(true);
     } else {
+      // Play sound and haptic
+      playActionSound();
+
       // First time marking as driven
       if (navigation) {
         try {
@@ -1657,7 +1693,7 @@ export function RouteDetailSheet({
                                 borderColor="transparent"
                                 flex={1}
                               />
-                              <IconButton
+                              {/* <IconButton
                                 icon="map"
                                 label={t('routeDetail.addToCollection') || 'Add to Collection'}
                                 onPress={handleAddToPreset}
@@ -1674,7 +1710,7 @@ export function RouteDetailSheet({
                                     : undefined
                                 }
                                 flex={1}
-                              />
+                              /> */}
                               {routeData?.exercises &&
                                 Array.isArray(routeData.exercises) &&
                                 routeData.exercises.length > 0 && (
@@ -1767,7 +1803,7 @@ export function RouteDetailSheet({
                               )}
                               <IconButton
                                 icon="more-vertical"
-                                label={t('routeDetail.more') || 'Op'}
+                                label="Options"
                                 onPress={handleShowOptions}
                                 backgroundColor={isSaved ? 'transparent' : 'transparent'}
                                 borderColor={isSaved ? 'transparent' : 'transparent'}
@@ -2248,7 +2284,7 @@ export function RouteDetailSheet({
                                     </Text>
                                   </TouchableOpacity>
 
-                                  <TouchableOpacity
+                                  {/* <TouchableOpacity
                                     onPress={() => {
                                       setShowOptionsSheet(false);
                                       handleShare();
@@ -2266,7 +2302,7 @@ export function RouteDetailSheet({
                                     <Text fontSize="$4" color="$color">
                                       {t('routeDetail.shareRoute') || 'Share Route'}
                                     </Text>
-                                  </TouchableOpacity>
+                                  </TouchableOpacity> */}
 
                                   {user?.id === routeData?.creator_id && (
                                     <TouchableOpacity
@@ -2276,15 +2312,15 @@ export function RouteDetailSheet({
                                       }}
                                       style={{
                                         padding: 16,
-                                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                        backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
                                         borderRadius: 12,
                                         flexDirection: 'row',
                                         alignItems: 'center',
                                         gap: 12,
                                       }}
                                     >
-                                      <Feather name="trash-2" size={20} color="#EF4444" />
-                                      <Text fontSize="$4" color="#EF4444">
+                                      <Feather name="trash-2" size={20} color={iconColor} />
+                                      <Text fontSize="$4" color="$color">
                                         {t('routeDetail.deleteRoute') || 'Delete Route'}
                                       </Text>
                                     </TouchableOpacity>
@@ -2298,15 +2334,15 @@ export function RouteDetailSheet({
                                       }}
                                       style={{
                                         padding: 16,
-                                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                        backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
                                         borderRadius: 12,
                                         flexDirection: 'row',
                                         alignItems: 'center',
                                         gap: 12,
                                       }}
                                     >
-                                      <Feather name="flag" size={20} color="#EF4444" />
-                                      <Text fontSize="$4" color="#EF4444">
+                                      <Feather name="flag" size={20} color={iconColor} />
+                                      <Text fontSize="$4" color="$color">
                                         {t('routeDetail.reportRoute') || 'Report Route'}
                                       </Text>
                                     </TouchableOpacity>
@@ -2314,8 +2350,8 @@ export function RouteDetailSheet({
                                 </YStack>
 
                                 <Button
-                                  variant="outlined"
                                   size="lg"
+                                  variant="link"
                                   onPress={() => setShowOptionsSheet(false)}
                                 >
                                   {t('common.cancel') || 'Cancel'}

@@ -1,0 +1,15 @@
+🚨 RELOAD THE APP RIGHT NOW!
+
+Press: Cmd+D in simulator
+Click: "Reload"
+
+ALL SECTION TITLES NOW HAVE FALLBACKS!
+
+After reload you should see:
+✅ "Sort By" not "filters.sortBy"
+✅ "Difficulty" not "filters.difficulty"
+✅ "Transmission" not "filters.transmissionType"
+✅ "Collections" not "routeCollections.title"
+
+RELOAD NOW - THEN COME BACK!
+

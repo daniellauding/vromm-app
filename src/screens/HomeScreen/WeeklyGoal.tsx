@@ -13,6 +13,8 @@ import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useTranslation } from '../../contexts/TranslationContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCelebration } from '../../contexts/CelebrationContext';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 
 interface DayProgress {
   day: string;
@@ -167,6 +169,30 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
       }
 
       if (shouldCelebrate) {
+        // Play celebration sound + haptic
+        const playCelebrationFeedback = async () => {
+          try {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            await Audio.setAudioModeAsync({
+              playsInSilentModeIOS: false,
+              staysActiveInBackground: false,
+            });
+            const { sound } = await Audio.Sound.createAsync(
+              require('../../../assets/sounds/ui-celebration.mp3'),
+              { shouldPlay: true, volume: 0.6 }
+            );
+            sound.setOnPlaybackStatusUpdate((status) => {
+              if (status.isLoaded && status.didJustFinish) {
+                sound.unloadAsync();
+              }
+            });
+          } catch (error) {
+            console.log('🔊 Celebration sound error (may be muted):', error);
+          }
+        };
+        
+        playCelebrationFeedback();
+        
         // Use global celebration context
         showCelebration({
           learningPathTitle: { en: celebrationTitle, sv: celebrationTitle },

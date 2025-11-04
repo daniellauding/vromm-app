@@ -42,6 +42,8 @@ import { useTourTarget } from '../../components/TourOverlay';
 import { CreateRouteSheet } from '../../components/CreateRouteSheet';
 import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 import { LearningPathsSheet } from '../../components/LearningPathsSheet';
+import { useCelebration } from '../../contexts/CelebrationContext';
+import { Audio } from 'expo-av';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -58,6 +60,7 @@ export const GettingStarted = () => {
   const navigation = useNavigation<NavigationProp>();
   const { isActive: tourActive, currentStep, steps } = useTour();
   const { t, language } = useTranslation();
+  const { showCelebration } = useCelebration();
   const colorScheme = useColorScheme();
 
   // Get window dimensions
@@ -1398,6 +1401,48 @@ export const GettingStarted = () => {
     hasRoleSelected &&
     hasConnections;
   // hasCreatedEvent; // DISABLED FOR BETA
+
+  // Check for celebration when getting started is completed
+  React.useEffect(() => {
+    if (isAllOnboardingCompleted && user?.id) {
+      const checkKey = `getting_started_celebrated_${user.id}`;
+      AsyncStorage.getItem(checkKey).then((celebrated) => {
+        if (!celebrated) {
+          // Play celebration sound + haptic
+          const playCelebration = async () => {
+            try {
+              await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await Audio.setAudioModeAsync({
+                playsInSilentModeIOS: false,
+                staysActiveInBackground: false,
+              });
+              const { sound } = await Audio.Sound.createAsync(
+                require('../../../assets/sounds/ui-celebration.mp3'),
+                { shouldPlay: true, volume: 0.6 }
+              );
+              sound.setOnPlaybackStatusUpdate((status) => {
+                if (status.isLoaded && status.didJustFinish) {
+                  sound.unloadAsync();
+                }
+              });
+            } catch (error) {
+              console.log('🔊 Celebration error:', error);
+            }
+          };
+          
+          playCelebration();
+          
+          showCelebration({
+            learningPathTitle: { en: 'Getting Started Complete! 🎉', sv: 'Komma Igång Klart! 🎉' },
+            completedExercises: 6,
+            totalExercises: 6,
+          });
+          
+          AsyncStorage.setItem(checkKey, 'true');
+        }
+      });
+    }
+  }, [isAllOnboardingCompleted, user?.id, showCelebration]);
 
   // Always show GettingStarted section for all users
   // if (isAllOnboardingCompleted) {

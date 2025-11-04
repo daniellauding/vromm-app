@@ -1,7 +1,7 @@
 import React from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { YStack, XStack, Text } from 'tamagui';
-import { FlatList, TouchableOpacity } from 'react-native';
+import { FlatList, TouchableOpacity, Platform } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -41,6 +41,9 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   const tourContext = useTour();
   const { startDatabaseTour, shouldShowTour } = tourContext;
   const { showModal } = usePromotionalModal();
+  
+  // Bottom inset for safe area (same as FilterSheet)
+  const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 
   // Sheet states
   const [showUserListSheet, setShowUserListSheet] = useState(false);
@@ -165,7 +168,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
       <FlatList
         data={[1]}
         keyExtractor={() => 'home-content'}
-        contentContainerStyle={{ paddingTop: 72, paddingBottom: 12 }}
+        contentContainerStyle={{ paddingTop: 72, paddingBottom: 40 + BOTTOM_INSET }}
         showsVerticalScrollIndicator={false}
         renderItem={() => (
           <YStack f={1}>
