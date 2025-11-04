@@ -96,9 +96,12 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Fetch translations from Supabase and cache them
   const fetchAndCacheTranslations = useCallback(async (lang: Language, forceFresh = false) => {
     try {
+      // Always fetch fresh in dev mode to see new translations immediately
+      const shouldForceFresh = __DEV__ || forceFresh;
+      
       // Check if we should use cache
       const now = Date.now();
-      if (!forceFresh && now - lastFetchTime.current < CACHE_MAX_AGE) {
+      if (!shouldForceFresh && now - lastFetchTime.current < CACHE_MAX_AGE) {
         return;
       }
 
@@ -106,6 +109,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const currentPlatform = Platform.OS === 'web' ? 'web' : 'mobile';
 
+      console.log('🌐 [TranslationContext] Fetching translations from Supabase...');
       const { data, error } = await supabase
         .from('translations')
         .select('key, value, platform, updated_at')
@@ -122,14 +126,22 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
 
       logger.info(`Received ${data?.length || 0} translations from Supabase`);
+      console.log('🌐 [TranslationContext] ✅ Loaded', data?.length || 0, 'translations');
 
       // Convert to record for easy lookup
       const fetchedTranslations: Record<string, string> = {};
       data?.forEach((item) => {
         fetchedTranslations[item.key] = item.value;
-        // Disabled debug logging for individual translations to reduce console spam
-        // logger.debug(`Translation: ${item.key} = ${item.value} (updated ${item.updated_at})`);
       });
+      
+      // Log celebration keys specifically for debugging
+      if (__DEV__) {
+        console.log('🌐 [TranslationContext] Celebration keys:', {
+          lessonComplete: fetchedTranslations['celebration.lessonComplete'],
+          greatJob: fetchedTranslations['celebration.greatJob'],
+          exercisesCompleted: fetchedTranslations['celebration.exercisesCompleted'],
+        });
+      }
 
       // Get local translations as fallback
       const localTranslations = getLocalTranslations(lang);
@@ -220,7 +232,14 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const loadTranslations = async () => {
       setIsLoading(true);
       try {
-        // Try to get from cache first
+        // ALWAYS fetch fresh in dev mode - ignore cache completely
+        if (__DEV__) {
+          console.log('🌐 [TranslationContext] DEV MODE - Fetching fresh translations (ignoring cache)');
+          await fetchAndCacheTranslations(language, true);
+          return;
+        }
+
+        // Try to get from cache first (production only)
         const cachedTranslations = await getCachedTranslations(language);
         if (cachedTranslations) {
           logger.debug('Using cached translations');

@@ -26,6 +26,7 @@ import {
 } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { Button } from '../components/Button';
+import { Audio } from 'expo-av';
 import { supabase } from '../lib/supabase';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
@@ -296,6 +297,32 @@ export function ProgressScreen() {
   const focusExerciseId: string | undefined = (route.params as any)?.focusExerciseId;
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+  // Sound helper function
+  const playDoneSound = async () => {
+    try {
+      // Set audio mode for iOS
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+      });
+      
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/ui-done.mp3'),
+        { shouldPlay: true, volume: 0.4 }
+      );
+      
+      console.log('🔊 Playing done sound');
+      
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.log('🔊 Done sound error:', error);
+    }
+  };
 
   // ALL TOURS DISABLED FOR PROGRESSSCREEN DUE TO PERFORMANCE ISSUES
   // const firstPathRef = useTourTarget('ProgressScreen.FirstPath');
@@ -4105,6 +4132,8 @@ export function ProgressScreen() {
                             // borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
                           }}
                           onPress={() => {
+                            // Play sound
+                            playDoneSound();
                             // For virtual repeats, toggle individual completion
                             toggleVirtualRepeatCompletion(virtualId);
                           }}
@@ -4114,6 +4143,8 @@ export function ProgressScreen() {
                               <TouchableOpacity
                                 onPress={(e) => {
                                   e.stopPropagation();
+                                  // Play sound
+                                  playDoneSound();
                                   // Toggle individual virtual repeat completion
                                   toggleVirtualRepeatCompletion(virtualId);
                                 }}
@@ -4631,6 +4662,9 @@ export function ProgressScreen() {
                           onPress={async (e) => {
                             e.stopPropagation();
                             if (mainIsAvailable) {
+                              // Play sound
+                              playDoneSound();
+                              
                               // Toggle main exercise AND all its repeats
                               const shouldMarkDone = !mainIsDone;
                               

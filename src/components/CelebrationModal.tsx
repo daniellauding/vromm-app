@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Dimensions, Animated, Pressable } from 'react-native';
-import { YStack, XStack, Text, Button, Card } from 'tamagui';
+import { View, Dimensions, Animated, Pressable, Image, TouchableOpacity } from 'react-native';
+import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useColorScheme } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Button } from './Button';
+import Svg, { Circle } from 'react-native-svg';
+import { Audio } from 'expo-av';
 
 interface CelebrationModalProps {
   visible: boolean;
@@ -14,6 +17,7 @@ interface CelebrationModalProps {
   totalExercises: number;
   timeSpent?: number; // in minutes
   streakDays?: number;
+  onNavigateToLesson?: () => void; // Optional callback to navigate back to lesson
 }
 
 export function CelebrationModal({
@@ -24,6 +28,7 @@ export function CelebrationModal({
   totalExercises,
   timeSpent,
   streakDays,
+  onNavigateToLesson,
 }: CelebrationModalProps) {
   const { t, language: lang } = useTranslation();
   const colorScheme = useColorScheme();
@@ -33,6 +38,9 @@ export function CelebrationModal({
 
   useEffect(() => {
     if (visible) {
+      // Play celebration sound
+      playSound();
+      
       // Entrance animation
       Animated.sequence([
         Animated.parallel([
@@ -61,6 +69,34 @@ export function CelebrationModal({
       confettiAnim.setValue(0);
     }
   }, [visible]);
+
+  // Play celebration sound
+  const playSound = async () => {
+    try {
+      // Set audio mode for iOS
+      await Audio.setAudioModeAsync({
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+      });
+      
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/ui-celebration.mp3'),
+        { shouldPlay: true, volume: 0.6 }
+      );
+      
+      console.log('🔊 Playing celebration sound');
+      
+      // Cleanup when sound finishes
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          console.log('🔊 Celebration sound finished');
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.log('🔊 Celebration sound error:', error);
+    }
+  };
 
   if (!visible) return null;
 
@@ -102,6 +138,9 @@ export function CelebrationModal({
   };
 
   const motivation = getMotivationalMessage();
+  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
+  const textColor = colorScheme === 'dark' ? 'white' : 'black';
+  const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
 
   return (
     <Animated.View
@@ -133,222 +172,241 @@ export function CelebrationModal({
         }}
         onPress={onClose}
       >
-        <Pressable onPress={(e) => e.stopPropagation()} style={{ width: '90%', maxWidth: 400 }}>
-          {/* Confetti Animation */}
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              opacity: confettiAnim,
-            }}
+        <Pressable onPress={(e) => e.stopPropagation()}>
+          <YStack
+            width="90%"
+            maxWidth={400}
+            backgroundColor="transparent"
+            justifyContent="center"
+            alignItems="center"
           >
-            {[...Array(20)].map((_, i) => (
-              <Animated.View
-                key={i}
-                style={{
-                  position: 'absolute',
-                  left: `${Math.random() * 100}%`,
-                  top: -50,
-                  width: 8,
-                  height: 8,
-                  backgroundColor: ['#FFD700', '#FF6B35', '#4B6BFF', '#00E6C3'][
-                    Math.floor(Math.random() * 4)
-                  ],
-                  borderRadius: 4,
-                  transform: [
-                    {
-                      translateY: confettiAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, Dimensions.get('window').height + 100],
-                      }),
-                    },
-                    {
-                      rotate: confettiAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '720deg'],
-                      }),
-                    },
-                  ],
-                }}
-              />
-            ))}
-          </Animated.View>
-
-          <Animated.View
-            style={{
-              transform: [{ scale: scaleAnim }],
-              width: Dimensions.get('window').width * 0.9,
-              maxWidth: 400,
-            }}
-          >
-            <Card
-              padding="$6"
-              borderRadius="$6"
-              backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
-              borderWidth={2}
-              borderColor={motivation.color}
-              shadowColor={colorScheme === 'dark' ? '#000' : '#000'}
-              shadowOffset={{ width: 0, height: 8 }}
-              shadowOpacity={0.3}
-              shadowRadius={16}
-              elevation={8}
+            {/* Confetti Animation */}
+            <Animated.View
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                opacity: confettiAnim,
+                zIndex: -1,
+              }}
             >
-              <YStack alignItems="center" gap="$4">
-                {/* Celebration Icon */}
-                <View
+              {[...Array(30)].map((_, i) => (
+                <Animated.View
+                  key={i}
                   style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: 40,
-                    backgroundColor: motivation.color,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    shadowColor: motivation.color,
-                    shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 8,
-                    elevation: 4,
+                    position: 'absolute',
+                    left: `${Math.random() * 100}%`,
+                    top: -50,
+                    width: 10,
+                    height: 10,
+                    backgroundColor: ['#FFD700', '#00E6C3', '#4B6BFF', '#FF6B35'][
+                      Math.floor(Math.random() * 4)
+                    ],
+                    borderRadius: 5,
+                    transform: [
+                      {
+                        translateY: confettiAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, Dimensions.get('window').height + 100],
+                        }),
+                      },
+                      {
+                        rotate: confettiAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '1080deg'],
+                        }),
+                      },
+                    ],
                   }}
-                >
-                  <Feather
-                    name={motivation.icon as keyof typeof Feather.glyphMap}
-                    size={40}
-                    color="white"
-                  />
-                </View>
+                />
+              ))}
+            </Animated.View>
 
-                {/* Title */}
-                <Text
-                  fontSize="$7"
-                  fontWeight="bold"
-                  color="$color"
-                  textAlign="center"
-                  numberOfLines={2}
-                >
-                  {motivation.title}
-                </Text>
-
-                {/* Learning Path Title */}
-                <Text
-                  fontSize="$5"
-                  fontWeight="600"
-                  color={motivation.color}
-                  textAlign="center"
-                  numberOfLines={2}
-                >
-                  {learningPathTitle[lang as keyof typeof learningPathTitle] ||
-                    learningPathTitle.en}
-                </Text>
-
-                {/* Message */}
-                <Text fontSize="$4" color="$gray11" textAlign="center" lineHeight="$1">
-                  {motivation.message}
-                </Text>
-
-                {/* Progress Stats */}
+            <Animated.View
+              style={{
+                transform: [{ scale: scaleAnim }],
+                width: '100%',
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                paddingVertical="$4"
+                paddingTop="$0"
+                overflow="hidden"
+                paddingHorizontal="$0"
+                borderRadius="$4"
+                width="100%"
+                gap="$3"
+                borderColor={borderColor}
+                borderWidth={1}
+              >
+                {/* Header Image */}
                 <YStack
-                  backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
-                  padding="$4"
-                  borderRadius="$4"
-                  width="100%"
-                  gap="$3"
+                  alignItems="center"
+                  backgroundColor="rgba(0, 230, 195, 0.1)"
+                  position="relative"
                 >
-                  {/* Progress Bar */}
-                  <YStack gap="$2">
-                    <XStack justifyContent="space-between" alignItems="center">
-                      <Text fontSize="$3" fontWeight="600" color="$color">
-                        {t('celebration.progress') || 'Progress'}
-                      </Text>
-                      <Text fontSize="$3" fontWeight="bold" color={motivation.color}>
-                        {completionPercentage}%
-                      </Text>
-                    </XStack>
-                    <View
-                      style={{
-                        width: '100%',
-                        height: 8,
-                        backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
-                        borderRadius: 4,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: `${completionPercentage}%`,
-                          height: '100%',
-                          backgroundColor: motivation.color,
-                          borderRadius: 4,
-                        }}
-                      />
-                    </View>
-                    <Text fontSize="$2" color="$gray11" textAlign="center">
-                      {completedExercises} / {totalExercises}{' '}
-                      {t('celebration.exercisesCompleted') || 'exercises completed'}
-                    </Text>
-                  </YStack>
+                  <Image
+                    source={require('../../assets/images/lesson_complete.png')}
+                    style={{
+                      width: '100%',
+                      height: 200,
+                    }}
+                    resizeMode="cover"
+                    fadeDuration={0}
+                  />
 
-                  {/* Additional Stats */}
-                  {(timeSpent || streakDays) && (
-                    <XStack justifyContent="space-around" alignItems="center">
-                      {timeSpent && (
-                        <YStack alignItems="center" gap="$1">
-                          <Feather name="clock" size={16} color={motivation.color} />
-                          <Text fontSize="$2" color="$gray11" textAlign="center">
-                            {timeSpent} {t('celebration.minutes') || 'min'}
-                          </Text>
-                        </YStack>
-                      )}
-                      {streakDays && (
-                        <YStack alignItems="center" gap="$1">
-                          <Feather name="zap" size={16} color="#FF6B35" />
-                          <Text fontSize="$2" color="$gray11" textAlign="center">
-                            {streakDays} {t('celebration.days') || 'days'}
-                          </Text>
-                        </YStack>
-                      )}
-                    </XStack>
-                  )}
+                  {/* 100% Badge */}
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: 16,
+                      left: 16,
+                      backgroundColor: '#00E6C3',
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 20,
+                    }}
+                  >
+                    <Text fontSize={16} fontWeight="bold" color="#000">
+                      100%
+                    </Text>
+                  </View>
+
+                  {/* Close button */}
+                  <Pressable
+                    onPress={onClose}
+                    style={{
+                      position: 'absolute',
+                      top: 16,
+                      right: 16,
+                      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                      borderRadius: 20,
+                      width: 40,
+                      height: 40,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Feather name="x" size={24} color="white" />
+                  </Pressable>
                 </YStack>
 
-                {/* Action Buttons */}
-                <XStack gap="$3" width="100%">
-                  <Button
-                    flex={1}
-                    backgroundColor="$gray8"
-                    color="$color"
-                    onPress={onClose}
-                    borderRadius="$4"
-                    paddingVertical="$3"
+                {/* Content */}
+                <YStack paddingHorizontal="$4" gap="$3" paddingBottom="$4">
+                  {/* Title */}
+                  <Text
+                    fontSize={28}
+                    fontWeight="900"
+                    fontStyle="italic"
+                    color={textColor}
+                    textAlign="center"
                   >
-                    <Text fontSize="$4" fontWeight="600">
-                      {t('celebration.continue') || 'Continue'}
-                    </Text>
-                  </Button>
+                    {t('celebration.lessonComplete') || 'Lesson complete!'}
+                  </Text>
 
-                  {completionPercentage === 100 && (
-                    <Button
-                      flex={1}
-                      backgroundColor={motivation.color}
-                      color="white"
-                      onPress={() => {
-                        // TODO: Navigate to next learning path or share achievement
-                        onClose();
-                      }}
-                      borderRadius="$4"
-                      paddingVertical="$3"
+                  {/* Message */}
+                  <Text fontSize={16} color={textColor} textAlign="center" opacity={0.8}>
+                    {t('celebration.greatJob') ||
+                      'Great job completing the lesson. You are one step further in your driving license journey'}
+                  </Text>
+
+                  {/* Completed Item Card - Clickable */}
+                  <TouchableOpacity
+                    onPress={() => {
+                      onNavigateToLesson?.();
+                      onClose();
+                    }}
+                    activeOpacity={0.7}
+                    style={{ width: '100%' }}
+                  >
+                    <Card
+                      backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
+                      borderRadius={16}
+                      padding="$4"
+                      borderWidth={2}
+                      borderColor="#00E6C3"
                     >
-                      <Text fontSize="$4" fontWeight="600" color="white">
-                        {t('celebration.nextPath') || 'Next Path'}
-                      </Text>
+                      <XStack alignItems="center" gap="$3">
+                        {/* Progress Circle */}
+                        <View style={{ position: 'relative' }}>
+                          <Svg width={60} height={60}>
+                            <Circle
+                              cx={30}
+                              cy={30}
+                              r={27}
+                              stroke="#333"
+                              strokeWidth={6}
+                              fill="none"
+                            />
+                            <Circle
+                              cx={30}
+                              cy={30}
+                              r={27}
+                              stroke="#00E6C3"
+                              strokeWidth={6}
+                              fill="none"
+                              strokeDasharray={`${2 * Math.PI * 27},${2 * Math.PI * 27}`}
+                              strokeDashoffset={0}
+                              strokeLinecap="round"
+                              rotation="-90"
+                              origin="30,30"
+                            />
+                          </Svg>
+                          <Text
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: 60,
+                              height: 60,
+                              textAlign: 'center',
+                              lineHeight: 60,
+                            }}
+                            fontSize={12}
+                            color="#00E6C3"
+                            fontWeight="bold"
+                          >
+                            100%
+                          </Text>
+                        </View>
+
+                        {/* Exercise Info */}
+                        <YStack flex={1}>
+                          <Text
+                            fontSize={18}
+                            fontWeight="900"
+                            fontStyle="italic"
+                            color={textColor}
+                            numberOfLines={2}
+                          >
+                            {learningPathTitle[lang as keyof typeof learningPathTitle] ||
+                              learningPathTitle.en}
+                          </Text>
+                          <Text fontSize={14} color={textColor} opacity={0.7}>
+                            {completedExercises} / {totalExercises}{' '}
+                            {t('celebration.exercisesCompleted') || 'completed'}
+                          </Text>
+                        </YStack>
+
+                        {/* Arrow indicator */}
+                        <Feather name="chevron-right" size={24} color={textColor} opacity={0.5} />
+                      </XStack>
+                    </Card>
+                  </TouchableOpacity>
+
+                  {/* Action Buttons */}
+                  <YStack gap="$2" marginTop="$2">
+                    <Button size="sm" variant="primary" onPress={onClose}>
+                      {t('celebration.continue') || 'CONTINUE'}
                     </Button>
-                  )}
-                </XStack>
+                  </YStack>
+                </YStack>
               </YStack>
-            </Card>
-          </Animated.View>
+            </Animated.View>
+          </YStack>
         </Pressable>
       </Pressable>
     </Animated.View>

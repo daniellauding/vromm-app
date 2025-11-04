@@ -8,6 +8,8 @@ import {
   Platform,
   ScrollView,
   Pressable,
+  Image,
+  Alert,
 } from 'react-native';
 import { Text, XStack, YStack, useTheme, Card } from 'tamagui';
 import { Button } from './Button';
@@ -26,6 +28,7 @@ import ReanimatedAnimated, {
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
+import * as mediaUtils from '../utils/mediaUtils';
 
 interface BetaTestingSheetProps {
   isVisible: boolean;
@@ -37,6 +40,7 @@ interface BetaTestingSheetProps {
 }
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
+const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 
 // Dynamic checklist items will be loaded from database
 
@@ -232,6 +236,8 @@ export function BetaTestingSheet({
   // Checklist state
   const [checklistItems, setChecklistItems] = useState<any[]>([]);
   const [checklistLoading, setChecklistLoading] = useState(false);
+  // Viewing role for checklist (separate from user's actual role)
+  const [viewingRole, setViewingRole] = useState<'student' | 'supervisor' | 'other'>('student');
 
   // Feedback form state
   const [feedbackForm, setFeedbackForm] = useState({
@@ -242,6 +248,7 @@ export function BetaTestingSheet({
     feedback: '',
     areas: [] as string[],
   });
+  const [feedbackMedia, setFeedbackMedia] = useState<mediaUtils.MediaItem[]>([]);
 
   // Pricing form state
   const [pricingForm, setPricingForm] = useState({
@@ -254,6 +261,8 @@ export function BetaTestingSheet({
     willingness: 0,
     premiumFeatures: [] as string[],
   });
+  const [customFeatures, setCustomFeatures] = useState<string[]>([]);
+  const [newCustomFeature, setNewCustomFeature] = useState('');
 
   // Storage keys
   const getStorageKey = (key: string) => `beta_testing_${key}_${user?.id || 'anonymous'}`;
@@ -262,9 +271,9 @@ export function BetaTestingSheet({
   useEffect(() => {
     if (isVisible && user?.id) {
       loadSavedData();
-      loadChecklistItems();
+      loadChecklistItems(viewingRole);
     }
-  }, [isVisible, user?.id]);
+  }, [isVisible, user?.id, viewingRole]);
 
   // Create default assignments for a user based on their role
   const createDefaultAssignments = async (userId: string, userRole: string) => {
@@ -311,6 +320,44 @@ export function BetaTestingSheet({
           id: 'test_features',
           title: 'Test core features',
           description: 'Spend 15-20 minutes exploring the main app features',
+          order: 6,
+        },
+      ],
+      supervisor: [
+        {
+          id: 'create_supervisor_account',
+          title: 'Create supervisor account',
+          description: 'Set up your account and verify credentials',
+          order: 1,
+        },
+        {
+          id: 'guide_student_route',
+          title: 'Guide student through route',
+          description: 'Use the app to guide a student through a practice route',
+          order: 2,
+        },
+        {
+          id: 'provide_realtime_feedback',
+          title: 'Provide real-time feedback',
+          description: 'Give feedback during a driving session using app features',
+          order: 3,
+        },
+        {
+          id: 'track_student_improvement',
+          title: 'Track student improvement',
+          description: 'Monitor and log student progress over multiple sessions',
+          order: 4,
+        },
+        {
+          id: 'coordinate_with_instructors',
+          title: 'Coordinate with instructors',
+          description: 'Communicate with driving schools or instructors through the app',
+          order: 5,
+        },
+        {
+          id: 'use_safety_features',
+          title: 'Use safety features',
+          description: 'Test emergency and safety features during practice sessions',
           order: 6,
         },
       ],
@@ -390,6 +437,44 @@ export function BetaTestingSheet({
           order: 6,
         },
       ],
+      other: [
+        {
+          id: 'browse_interface',
+          title: 'Browse the app interface',
+          description: 'Navigate through all main sections and explore the app structure',
+          order: 1,
+        },
+        {
+          id: 'test_navigation',
+          title: 'Test basic navigation flows',
+          description: 'Test moving between different screens and features',
+          order: 2,
+        },
+        {
+          id: 'check_performance',
+          title: 'Check app performance and loading',
+          description: 'Monitor loading times, responsiveness, and overall app speed',
+          order: 3,
+        },
+        {
+          id: 'test_edge_cases',
+          title: 'Test edge cases and error handling',
+          description: 'Try unusual inputs, poor network conditions, and error scenarios',
+          order: 4,
+        },
+        {
+          id: 'stress_test',
+          title: 'Stress test core features',
+          description: 'Use features intensively to find performance issues and bottlenecks',
+          order: 5,
+        },
+        {
+          id: 'document_usability',
+          title: 'Document general usability issues',
+          description: 'Note any confusing UI elements, unclear instructions, or usability problems',
+          order: 6,
+        },
+      ],
     };
 
     const assignments =
@@ -433,14 +518,14 @@ export function BetaTestingSheet({
   };
 
   // Load checklist items from database
-  const loadChecklistItems = async () => {
+  const loadChecklistItems = async (roleToView: 'student' | 'supervisor' | 'other' = viewingRole) => {
     if (!user?.id) return;
 
     try {
       setChecklistLoading(true);
-      console.log('🔍 [BetaTestingSheet] Loading checklist items for user:', user.id);
+      console.log('🔍 [BetaTestingSheet] Loading checklist items for user:', user.id, 'viewing role:', roleToView);
 
-      // Get user's role from profile
+      // Get user's role from profile (this is the actual user role, not the viewing role)
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -448,24 +533,25 @@ export function BetaTestingSheet({
         .single();
 
       const userRole = profile?.role || 'student';
-      console.log('🔍 [BetaTestingSheet] User role from profile:', userRole);
+      console.log('🔍 [BetaTestingSheet] User role from profile:', userRole, 'Viewing role:', roleToView);
 
-      // Load assignments for this specific user
+      // Load assignments for this specific user filtered by the viewing role
       const { data: assignments, error } = await supabase
         .from('beta_test_assignments')
         .select('*')
         .eq('browser_id', user.id)
+        .eq('role', roleToView)
         .order('order_index', { ascending: true });
 
       console.log('🔍 [BetaTestingSheet] Existing assignments:', assignments);
       console.log('🔍 [BetaTestingSheet] Assignment error:', error);
 
-      // Check if assignments are standardized (should have 6 items for each role)
+      // Check if assignments are standardized (should have 6 items for the viewing role)
       const expectedCount = 6;
       const hasStandardizedAssignments =
         assignments &&
         assignments.length === expectedCount &&
-        assignments.every((a) => a.role === userRole && a.order_index > 0);
+        assignments.every((a) => a.role === roleToView && a.order_index > 0);
 
       console.log(
         '🔍 [BetaTestingSheet] Has standardized assignments:',
@@ -479,27 +565,29 @@ export function BetaTestingSheet({
           '🔍 [BetaTestingSheet] No standardized assignments found, cleaning up and creating new ones...',
         );
 
-        // Clean up old assignments if they exist
+        // Clean up old assignments for this specific role if they exist
         if (assignments && assignments.length > 0) {
-          console.log('🔍 [BetaTestingSheet] Cleaning up old assignments...');
+          console.log('🔍 [BetaTestingSheet] Cleaning up old assignments for role:', roleToView);
           const { error: deleteError } = await supabase
             .from('beta_test_assignments')
             .delete()
-            .eq('browser_id', user.id);
+            .eq('browser_id', user.id)
+            .eq('role', roleToView);
 
           if (deleteError) {
             console.error('🔍 [BetaTestingSheet] Error cleaning up old assignments:', deleteError);
           }
         }
 
-        // Create default assignments for this user's role
-        await createDefaultAssignments(user.id, userRole);
+        // Create default assignments for the viewing role (not user's actual role)
+        await createDefaultAssignments(user.id, roleToView);
 
         // Reload assignments after creating them
         const { data: newAssignments, error: reloadError } = await supabase
           .from('beta_test_assignments')
           .select('*')
           .eq('browser_id', user.id)
+          .eq('role', roleToView)
           .order('order_index', { ascending: true });
 
         if (reloadError) {
@@ -546,9 +634,65 @@ export function BetaTestingSheet({
           return;
         }
 
-        // Use the newly created assignments
-        const itemsWithStatus =
-          newAssignments?.map((assignment) => ({
+        // Use the newly created assignments and remove duplicates
+        // Use role + order_index as the key to prevent duplicates with same order_index
+        const itemsMap = new Map();
+        newAssignments?.forEach((assignment) => {
+          const key = `${assignment.role}-${assignment.order_index}`;
+          // If we already have this order_index, keep the one with the most recent completion or creation
+          if (!itemsMap.has(key)) {
+            itemsMap.set(key, {
+              id: assignment.assignment_id,
+              label: assignment.title,
+              description: assignment.description,
+              completed: assignment.is_completed || false,
+              completedAt: assignment.completed_at,
+              orderIndex: assignment.order_index,
+              metadata: assignment.metadata,
+              assignmentId: assignment.assignment_id,
+              createdAt: assignment.created_at,
+            });
+          } else {
+            // If duplicate found, keep the one with completion or most recent
+            const existing = itemsMap.get(key);
+            const existingDate = existing.completedAt || existing.createdAt;
+            const newDate = assignment.completed_at || assignment.created_at;
+            
+            // Prefer completed items, or more recent if both completed or both not completed
+            if (
+              (assignment.is_completed && !existing.completed) ||
+              ((assignment.is_completed === existing.completed) && newDate > existingDate)
+            ) {
+              itemsMap.set(key, {
+                id: assignment.assignment_id,
+                label: assignment.title,
+                description: assignment.description,
+                completed: assignment.is_completed || false,
+                completedAt: assignment.completed_at,
+                orderIndex: assignment.order_index,
+                metadata: assignment.metadata,
+                assignmentId: assignment.assignment_id,
+                createdAt: assignment.created_at,
+              });
+            }
+          }
+        });
+
+        const itemsWithStatus = Array.from(itemsMap.values()).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+
+        console.log('🔍 [BetaTestingSheet] New assignments created (deduplicated):', itemsWithStatus);
+        setChecklistItems(itemsWithStatus);
+        return;
+      }
+
+      // Merge assignments with completion status and remove duplicates
+      // Use role + order_index as the key to prevent duplicates with same order_index
+      const itemsMap = new Map();
+      assignments?.forEach((assignment) => {
+        const key = `${assignment.role}-${assignment.order_index}`;
+        // If we already have this order_index, keep the one with the most recent completion or creation
+        if (!itemsMap.has(key)) {
+          itemsMap.set(key, {
             id: assignment.assignment_id,
             label: assignment.title,
             description: assignment.description,
@@ -557,27 +701,37 @@ export function BetaTestingSheet({
             orderIndex: assignment.order_index,
             metadata: assignment.metadata,
             assignmentId: assignment.assignment_id,
-          })) || [];
+            createdAt: assignment.created_at,
+          });
+        } else {
+          // If duplicate found, keep the one with completion or most recent
+          const existing = itemsMap.get(key);
+          const existingDate = existing.completedAt || existing.createdAt;
+          const newDate = assignment.completed_at || assignment.created_at;
+          
+          // Prefer completed items, or more recent if both completed or both not completed
+          if (
+            (assignment.is_completed && !existing.completed) ||
+            ((assignment.is_completed === existing.completed) && newDate > existingDate)
+          ) {
+            itemsMap.set(key, {
+              id: assignment.assignment_id,
+              label: assignment.title,
+              description: assignment.description,
+              completed: assignment.is_completed || false,
+              completedAt: assignment.completed_at,
+              orderIndex: assignment.order_index,
+              metadata: assignment.metadata,
+              assignmentId: assignment.assignment_id,
+              createdAt: assignment.created_at,
+            });
+          }
+        }
+      });
 
-        console.log('🔍 [BetaTestingSheet] New assignments created:', itemsWithStatus);
-        setChecklistItems(itemsWithStatus);
-        return;
-      }
+      const itemsWithStatus = Array.from(itemsMap.values()).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
-      // Merge assignments with completion status
-      const itemsWithStatus =
-        assignments?.map((assignment) => ({
-          id: assignment.assignment_id,
-          label: assignment.title,
-          description: assignment.description,
-          completed: assignment.is_completed || false,
-          completedAt: assignment.completed_at,
-          orderIndex: assignment.order_index,
-          metadata: assignment.metadata,
-          assignmentId: assignment.assignment_id,
-        })) || [];
-
-      console.log('🔍 [BetaTestingSheet] Final checklist items:', itemsWithStatus);
+      console.log('🔍 [BetaTestingSheet] Final checklist items (deduplicated):', itemsWithStatus);
       setChecklistItems(itemsWithStatus);
     } catch (error) {
       console.error('Error loading checklist items:', error);
@@ -638,14 +792,25 @@ export function BetaTestingSheet({
       const feedbackKey = getStorageKey('feedback');
       const savedFeedback = await AsyncStorage.getItem(feedbackKey);
       if (savedFeedback) {
-        setFeedbackForm(JSON.parse(savedFeedback));
+        const feedback = JSON.parse(savedFeedback);
+        setFeedbackForm(feedback);
+        // Load media if saved (though media URIs may not be valid after reload)
+        if (feedback.mediaUrls) {
+          // Note: Media items from previous sessions won't be reloadable
+          // This is expected - users should add media fresh each time
+        }
       }
 
       // Load pricing form
       const pricingKey = getStorageKey('pricing');
       const savedPricing = await AsyncStorage.getItem(pricingKey);
       if (savedPricing) {
-        setPricingForm(JSON.parse(savedPricing));
+        const pricing = JSON.parse(savedPricing);
+        setPricingForm(pricing);
+        // Load custom features if saved
+        if (pricing.customFeatures && Array.isArray(pricing.customFeatures)) {
+          setCustomFeatures(pricing.customFeatures);
+        }
       }
     } catch (error) {
       console.error('Error loading saved beta testing data:', error);
@@ -671,7 +836,11 @@ export function BetaTestingSheet({
 
   const savePricing = async (form: typeof pricingForm) => {
     try {
-      await AsyncStorage.setItem(getStorageKey('pricing'), JSON.stringify(form));
+      const dataToSave = {
+        ...form,
+        customFeatures: customFeatures,
+      };
+      await AsyncStorage.setItem(getStorageKey('pricing'), JSON.stringify(dataToSave));
     } catch (error) {
       console.error('Error saving pricing:', error);
     }
@@ -776,6 +945,95 @@ export function BetaTestingSheet({
     savePricing(newForm);
   };
 
+  // Handle custom features
+  const handleAddCustomFeature = () => {
+    if (newCustomFeature.trim() && !customFeatures.includes(newCustomFeature.trim())) {
+      const updated = [...customFeatures, newCustomFeature.trim()];
+      setCustomFeatures(updated);
+      setNewCustomFeature('');
+      // Also save to pricing form state
+      const newForm = { ...pricingForm };
+      setPricingForm(newForm);
+      savePricing(newForm);
+    }
+  };
+
+  const handleRemoveCustomFeature = (feature: string) => {
+    const updated = customFeatures.filter((f) => f !== feature);
+    setCustomFeatures(updated);
+    const newForm = { ...pricingForm };
+    setPricingForm(newForm);
+    savePricing(newForm);
+  };
+
+  // Handle media upload for feedback
+  const handlePickMedia = async () => {
+    try {
+      const media = await mediaUtils.pickMediaFromLibrary(true);
+      if (media && media.length > 0) {
+        setFeedbackMedia([...feedbackMedia, ...media]);
+      }
+    } catch (error) {
+      console.error('Error picking media:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to pick media. Please try again.',
+        type: 'error',
+      });
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const media = await mediaUtils.takePhoto();
+      if (media) {
+        setFeedbackMedia([...feedbackMedia, media]);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to take photo. Please try again.',
+        type: 'error',
+      });
+    }
+  };
+
+  const handleRecordVideo = async () => {
+    try {
+      const media = await mediaUtils.recordVideo();
+      if (media) {
+        setFeedbackMedia([...feedbackMedia, media]);
+      }
+    } catch (error) {
+      console.error('Error recording video:', error);
+      showToast({
+        title: 'Error',
+        message: 'Failed to record video. Please try again.',
+        type: 'error',
+      });
+    }
+  };
+
+  const handleRemoveMedia = (index: number) => {
+    const updated = feedbackMedia.filter((_, i) => i !== index);
+    setFeedbackMedia(updated);
+  };
+
+  const showMediaPickerOptions = () => {
+    Alert.alert(
+      'Add Media',
+      'Choose how to add media',
+      [
+        { text: 'Take Photo', onPress: handleTakePhoto },
+        { text: 'Record Video', onPress: handleRecordVideo },
+        { text: 'Choose from Library', onPress: handlePickMedia },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+      { cancelable: true },
+    );
+  };
+
   // Submit feedback
   const submitFeedback = async () => {
     if (!feedbackForm.name || !feedbackForm.feedback || feedbackForm.rating === 0) {
@@ -788,6 +1046,32 @@ export function BetaTestingSheet({
     }
 
     try {
+      // Upload media files first
+      let mediaUrls: string[] = [];
+      if (feedbackMedia.length > 0) {
+        showToast({
+          title: 'Uploading...',
+          message: 'Uploading media files...',
+          type: 'info',
+        });
+
+        for (const mediaItem of feedbackMedia) {
+          try {
+            const publicUrl = await mediaUtils.uploadMediaToSupabase(
+              mediaItem,
+              'beta-test-images',
+              `feedback/${user?.id || 'anonymous'}`,
+            );
+            if (publicUrl) {
+              mediaUrls.push(publicUrl);
+            }
+          } catch (uploadError) {
+            console.error('Error uploading media:', uploadError);
+            // Continue with other files even if one fails
+          }
+        }
+      }
+
       // Submit to Supabase database
       const { data, error } = await supabase
         .from('beta_test_feedback')
@@ -798,10 +1082,12 @@ export function BetaTestingSheet({
           rating: feedbackForm.rating,
           comment: feedbackForm.feedback,
           feedback_type: 'general',
+          image_url: mediaUrls.length > 0 ? JSON.stringify(mediaUrls) : null,
           metadata: {
             areas: feedbackForm.areas,
             submittedAt: Date.now(),
             userId: user?.id,
+            mediaCount: mediaUrls.length,
           },
         })
         .select()
@@ -820,6 +1106,7 @@ export function BetaTestingSheet({
         submittedAt: Date.now(),
         userId: user?.id,
         supabaseId: data.id,
+        mediaUrls,
       };
 
       const existingFeedback = await AsyncStorage.getItem('beta_feedback_submissions');
@@ -842,6 +1129,7 @@ export function BetaTestingSheet({
         feedback: '',
         areas: [],
       });
+      setFeedbackMedia([]);
     } catch (error) {
       console.error('Feedback submission error:', error);
       showToast({
@@ -864,6 +1152,9 @@ export function BetaTestingSheet({
     }
 
     try {
+      // Combine standard and custom features
+      const allFeatures = [...pricingForm.premiumFeatures, ...customFeatures];
+
       // Submit to Supabase database
       const { data, error } = await supabase
         .from('beta_test_feedback')
@@ -878,6 +1169,8 @@ export function BetaTestingSheet({
             currentPrice: pricingForm.currentPrice,
             suggestedPrice: pricingForm.suggestedPrice,
             premiumFeatures: pricingForm.premiumFeatures,
+            customFeatures: customFeatures,
+            allFeatures: allFeatures,
             submittedAt: Date.now(),
             userId: user?.id,
           },
@@ -895,6 +1188,7 @@ export function BetaTestingSheet({
       // Also save to local storage as backup
       const pricingData = {
         ...pricingForm,
+        customFeatures,
         submittedAt: Date.now(),
         userId: user?.id,
         supabaseId: data.id,
@@ -922,6 +1216,8 @@ export function BetaTestingSheet({
         willingness: 0,
         premiumFeatures: [],
       });
+      setCustomFeatures([]);
+      setNewCustomFeature('');
     } catch (error) {
       console.error('Pricing feedback submission error:', error);
       showToast({
@@ -976,12 +1272,106 @@ export function BetaTestingSheet({
   // Render checklist tab
   const renderChecklistTab = () => (
     <YStack gap="$4">
-      <Text fontSize="$6" fontWeight="700" color={textColor}>
-        Testing Checklist
-      </Text>
-      <Text fontSize="$4" color={textColor} opacity={0.7}>
-        Complete these tasks to help us test Vromm effectively:
-      </Text>
+      <YStack gap="$2">
+        <Text fontSize="$6" fontWeight="700" color={textColor}>
+          Testing Checklist
+        </Text>
+        <Text fontSize="$4" color={textColor} opacity={0.7}>
+          Complete these tasks to help us test Vromm effectively:
+        </Text>
+        
+        {/* Role selector for checklist view */}
+        <Card padding="$3" backgroundColor={`${primaryColor}10`} marginTop="$2">
+          <YStack gap="$2">
+            <Text fontSize="$3" fontWeight="600" color={textColor} opacity={0.8}>
+              Select checklist to view:
+            </Text>
+            <XStack gap="$2" flexWrap="wrap">
+              <TouchableOpacity
+                onPress={() => {
+                  setViewingRole('student');
+                  setChecklistItems([]); // Clear items before loading new ones
+                  loadChecklistItems('student');
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: 100,
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: viewingRole === 'student' ? primaryColor : borderColor,
+                  backgroundColor: viewingRole === 'student' ? primaryColor : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text
+                  fontSize="$4"
+                  fontWeight={viewingRole === 'student' ? '600' : '500'}
+                  color={viewingRole === 'student' ? '#000000' : textColor}
+                >
+                  Student
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setViewingRole('supervisor');
+                  setChecklistItems([]); // Clear items before loading new ones
+                  loadChecklistItems('supervisor');
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: 100,
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: viewingRole === 'supervisor' ? primaryColor : borderColor,
+                  backgroundColor: viewingRole === 'supervisor' ? primaryColor : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text
+                  fontSize="$4"
+                  fontWeight={viewingRole === 'supervisor' ? '600' : '500'}
+                  color={viewingRole === 'supervisor' ? '#000000' : textColor}
+                >
+                  Supervisor
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setViewingRole('other');
+                  setChecklistItems([]); // Clear items before loading new ones
+                  loadChecklistItems('other');
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: 100,
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: viewingRole === 'other' ? primaryColor : borderColor,
+                  backgroundColor: viewingRole === 'other' ? primaryColor : 'transparent',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text
+                  fontSize="$4"
+                  fontWeight={viewingRole === 'other' ? '600' : '500'}
+                  color={viewingRole === 'other' ? '#000000' : textColor}
+                >
+                  Other / Stress Test
+                </Text>
+              </TouchableOpacity>
+            </XStack>
+          </YStack>
+        </Card>
+      </YStack>
 
       {checklistLoading ? (
         <Card padding="$4" backgroundColor={`${primaryColor}10`}>
@@ -1183,6 +1573,71 @@ export function BetaTestingSheet({
           size="md"
         />
 
+        {/* Media Upload Section */}
+        <YStack gap="$2">
+          <Text fontSize="$4" fontWeight="600" color={textColor}>
+            Attach Media (optional)
+          </Text>
+          <Text fontSize="$3" color={textColor} opacity={0.7}>
+            Add screenshots, videos, or photos to help explain your feedback
+          </Text>
+
+          {/* Media Grid */}
+          {feedbackMedia.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+              {feedbackMedia.map((media, index) => (
+                <View key={index} style={{ position: 'relative', width: 80, height: 80 }}>
+                  {media.type === 'image' ? (
+                    <Image
+                      source={{ uri: media.uri }}
+                      style={{ width: 80, height: 80, borderRadius: 8 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View
+                      style={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 8,
+                        backgroundColor: '#000',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Feather name="play" size={24} color="#FFF" />
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    onPress={() => handleRemoveMedia(index)}
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      backgroundColor: '#FF3B30',
+                      borderRadius: 12,
+                      width: 24,
+                      height: 24,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Feather name="x" size={14} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Add Media Button */}
+          <Button
+            variant="outlined"
+            onPress={showMediaPickerOptions}
+            icon={<Feather name="plus" size={16} />}
+          >
+            Add Media
+          </Button>
+        </YStack>
+
         <Button variant="primary" onPress={submitFeedback}>
           Submit Feedback
         </Button>
@@ -1325,6 +1780,79 @@ export function BetaTestingSheet({
               </TouchableOpacity>
             ))}
           </YStack>
+
+          {/* Custom Features Section */}
+          <YStack gap="$2" marginTop="$2">
+            <Text fontSize="$4" fontWeight="600" color={textColor}>
+              Add your own important features:
+            </Text>
+            <XStack gap="$2" alignItems="center">
+              <View style={{ flex: 1 }}>
+                <FormField
+                  placeholder="Enter a feature that matters to you..."
+                  value={newCustomFeature}
+                  onChangeText={setNewCustomFeature}
+                  size="md"
+                  onSubmitEditing={handleAddCustomFeature}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={handleAddCustomFeature}
+                disabled={!newCustomFeature.trim()}
+                style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  backgroundColor: newCustomFeature.trim() ? primaryColor : borderColor,
+                  opacity: newCustomFeature.trim() ? 1 : 0.5,
+                }}
+              >
+                <Feather
+                  name="plus"
+                  size={20}
+                  color={newCustomFeature.trim() ? '#000' : textColor}
+                />
+              </TouchableOpacity>
+            </XStack>
+
+            {/* Custom Features List */}
+            {customFeatures.length > 0 && (
+              <YStack gap="$2">
+                {customFeatures.map((feature, index) => (
+                  <Card
+                    key={index}
+                    padding="$3"
+                    backgroundColor={`${primaryColor}20`}
+                    borderColor={primaryColor}
+                  >
+                    <XStack alignItems="center" justifyContent="space-between">
+                      <XStack alignItems="center" gap="$2" flex={1}>
+                        <View
+                          style={[
+                            styles.checkbox,
+                            { backgroundColor: primaryColor, borderColor: primaryColor },
+                          ]}
+                        >
+                          <Feather name="check" size={16} color="#FFFFFF" />
+                        </View>
+                        <Text fontSize="$4" fontWeight="600" color={textColor} flex={1}>
+                          {feature}
+                        </Text>
+                      </XStack>
+                      <TouchableOpacity
+                        onPress={() => handleRemoveCustomFeature(feature)}
+                        style={{
+                          padding: 4,
+                          borderRadius: 4,
+                        }}
+                      >
+                        <Feather name="x" size={16} color="#FF3B30" />
+                      </TouchableOpacity>
+                    </XStack>
+                  </Card>
+                ))}
+              </YStack>
+            )}
+          </YStack>
         </YStack>
 
         <FormField
@@ -1461,7 +1989,7 @@ export function BetaTestingSheet({
             animatedGestureStyle,
           ]}
         >
-          <YStack padding="$4" gap="$4" flex={1}>
+          <YStack padding="$3" paddingBottom={20 + BOTTOM_INSET} gap="$3" flex={1}>
             {/* Drag Handle */}
             <View
               style={{
@@ -1505,7 +2033,7 @@ export function BetaTestingSheet({
                 <ScrollView
                   showsVerticalScrollIndicator={false}
                   style={{ flex: 1 }}
-                  contentContainerStyle={{ paddingBottom: 20 }}
+                  contentContainerStyle={{ paddingBottom: 40 + BOTTOM_INSET }}
                 >
                   {renderTabContent()}
                 </ScrollView>
