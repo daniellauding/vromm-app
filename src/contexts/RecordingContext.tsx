@@ -311,14 +311,21 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       );
 
       await Location.startLocationUpdatesAsync(LOCATION_TRACKING, {
+        activityType: Location.ActivityType.AutomotiveNavigation,
         accuracy: Location.Accuracy.BestForNavigation,
         timeInterval: 1000,
+        distanceInterval: 5,
         deferredUpdatesInterval: 1000,
+        deferredUpdatesDistance: 0,
+        pausesUpdatesAutomatically: false,
+        showsBackgroundLocationIndicator: true,
         foregroundService: {
           notificationTitle: 'Vromm',
           notificationBody: 'Recording your drive',
           notificationColor: '#1C1C1C',
+          killServiceOnDestroy: false,
         },
+        mayShowUserSettingsDialog: true,
       });
 
       const subscription: Location.LocationSubscription = {
