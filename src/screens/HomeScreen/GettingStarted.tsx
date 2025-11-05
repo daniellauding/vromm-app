@@ -44,6 +44,7 @@ import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 import { LearningPathsSheet } from '../../components/LearningPathsSheet';
 import { useCelebration } from '../../contexts/CelebrationContext';
 import { Audio } from 'expo-av';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {

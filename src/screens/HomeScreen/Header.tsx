@@ -31,6 +31,18 @@ import { ProfileSheet } from '../../components/ProfileSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// Hardcoded fallback translations for header
+const HEADER_FALLBACKS = {
+  en: {
+    logout: 'Logout',
+    logoutDescription: 'Sign out of your account',
+  },
+  sv: {
+    logout: 'Logga ut',
+    logoutDescription: 'Logga ut från ditt konto',
+  },
+};
+
 const ProgressCircle = ({ percent, size = 44, color = '#00E6C3', bg = '#333' }) => {
   const strokeWidth = 3;
   const radius = (size - strokeWidth) / 2;
@@ -64,11 +76,21 @@ const ProgressCircle = ({ percent, size = 44, color = '#00E6C3', bg = '#333' }) 
 };
 
 export const HomeHeader = React.memo(function HomeHeader() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const colorScheme = useColorScheme();
   const { profile, signOut } = useAuth();
   const { setActiveStudent, activeStudentId } = useStudentSwitch();
   const insets = useSafeAreaInsets();
+
+  // Helper to get translation with fallback
+  const getT = (key: string, fallbackKey: keyof typeof HEADER_FALLBACKS['en']): string => {
+    const translation = t(key);
+    if (translation === key) {
+      const langKey = (language === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
+      return HEADER_FALLBACKS[langKey][fallbackKey];
+    }
+    return translation;
+  };
 
   // Register profile avatar for instructor tour targeting
   const profileAvatarRef = useTourTarget('Header.ProfileAvatar');
@@ -665,10 +687,10 @@ export const HomeHeader = React.memo(function HomeHeader() {
                       <Feather name="log-out" size={24} color="#FF6B6B" />
                       <YStack flex={1}>
                         <Text fontWeight="600" fontSize={18} color="#FF6B6B">
-                          {t('auth.logout') || 'Logout'}
+                          {getT('auth.logout', 'logout')}
                         </Text>
                         <Text fontSize={14} color={colorScheme === 'dark' ? '#999' : '#666'}>
-                          {t('auth.logoutDescription') || 'Sign out of your account'}
+                          {getT('auth.logoutDescription', 'logoutDescription')}
                         </Text>
                       </YStack>
                     </XStack>
