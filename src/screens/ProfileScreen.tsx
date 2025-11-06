@@ -3209,7 +3209,7 @@ export function ProfileScreen() {
                 </YStack>
 
                 {/* Developer Tools (Combined Testing & Developer Options) - Only show if developer mode enabled */}
-                {(profile as any)?.developer_mode && (
+                {/* {(profile as any)?.developer_mode && (
                   <YStack marginVertical="$2">
                     <DropdownButton
                       onPress={showDeveloperSheet}
@@ -3217,7 +3217,7 @@ export function ProfileScreen() {
                       placeholder="Developer Tools"
                     />
                   </YStack>
-                )}
+                )} */}
 
                 {error ? (
                   <Text size="sm" intent="error" textAlign="center">

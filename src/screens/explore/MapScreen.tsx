@@ -43,6 +43,7 @@ import { PIN_COLORS } from '../../styles/mapStyles';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { RouteCreationBanner } from '../../components/RouteCreationBanner';
+import { supabase } from '../../lib/supabase';
 
 type SearchResult = {
   id: string;
@@ -254,6 +255,62 @@ export function MapScreen({
 
     loadInitialData();
   }, [loadRoutes, getEffectiveUserId]);
+
+  // Real-time subscription for new routes - auto-refresh when routes are created
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    console.log('🔄 [MapScreen] Setting up real-time subscription for routes');
+    
+    const channelName = `map-routes-${Date.now()}`;
+    const subscription = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'routes',
+        },
+        (payload) => {
+          console.log('🆕 [MapScreen] New route detected via real-time:', payload.new);
+          // Reload routes to show the new pin
+          loadRoutes();
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'routes',
+        },
+        (payload) => {
+          console.log('📝 [MapScreen] Route updated via real-time:', payload.new);
+          // Reload routes to show updated data
+          loadRoutes();
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'routes',
+        },
+        (payload) => {
+          console.log('🗑️ [MapScreen] Route deleted via real-time:', payload.old);
+          // Reload routes to remove the deleted pin
+          loadRoutes();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      console.log('🔄 [MapScreen] Cleaning up real-time subscription');
+      supabase.removeChannel(subscription);
+    };
+  }, [profile?.id, loadRoutes]);
 
   useEffect(() => {
     (async () => {
