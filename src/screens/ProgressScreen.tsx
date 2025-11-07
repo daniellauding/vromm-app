@@ -304,20 +304,20 @@ export function ProgressScreen() {
     try {
       // Haptic feedback (works even if muted)
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
+
       // Set audio mode for iOS
       await Audio.setAudioModeAsync({
         playsInSilentModeIOS: false, // Respect silent mode
         staysActiveInBackground: false,
       });
-      
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../assets/sounds/ui-done.mp3'),
-        { shouldPlay: true, volume: 0.4 }
-      );
-      
+
+      const { sound } = await Audio.Sound.createAsync(require('../../assets/sounds/ui-done.mp3'), {
+        shouldPlay: true,
+        volume: 0.4,
+      });
+
       console.log('🔊 Playing done sound');
-      
+
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
           sound.unloadAsync();
@@ -401,6 +401,7 @@ export function ProgressScreen() {
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [completionsLoading, setCompletionsLoading] = useState(false);
   const [pathProgress, setPathProgress] = useState<{ [pathId: string]: number }>({});
+  const [allPathExercises, setAllPathExercises] = useState<PathExercise[]>([]); // NEW: Store ALL exercises for progress calculation
 
   // Add comprehensive logging
   const { logAction, logAsyncAction, logRenderIssue, logMemoryWarning } = useScreenLogger({
@@ -1479,11 +1480,13 @@ export function ProgressScreen() {
             setTimeout(async () => {
               const updatedCompletedIds = [...completedIds, exerciseId];
               console.log('🎉 [ProgressScreen] Checking celebration after manual exercise toggle');
-              
+
               // Check if THIS exercise is now fully complete (all repeats done)
               const { completed, total } = getRepeatProgress(exercise);
               if (completed === total && total > 1) {
-                console.log('🎉 [ProgressScreen] 🚀 Exercise fully complete via manual toggle! Showing celebration!');
+                console.log(
+                  '🎉 [ProgressScreen] 🚀 Exercise fully complete via manual toggle! Showing celebration!',
+                );
                 showCelebration({
                   learningPathTitle: learningPath?.title || exercise.title,
                   completedExercises: completed,
@@ -1491,14 +1494,22 @@ export function ProgressScreen() {
                   timeSpent: undefined,
                   streakDays: undefined,
                 });
-                
+
                 // Also check if entire path is complete
                 setTimeout(async () => {
-                  await checkForCelebration(exercise.learning_path_id, learningPath, updatedCompletedIds);
+                  await checkForCelebration(
+                    exercise.learning_path_id,
+                    learningPath,
+                    updatedCompletedIds,
+                  );
                 }, 3000);
               } else {
                 // Just check if entire path is complete
-                await checkForCelebration(exercise.learning_path_id, learningPath, updatedCompletedIds);
+                await checkForCelebration(
+                  exercise.learning_path_id,
+                  learningPath,
+                  updatedCompletedIds,
+                );
               }
             }, 500);
           }
@@ -1520,25 +1531,25 @@ export function ProgressScreen() {
     try {
       // Get all exercises for this learning path
       const pathExercises = exercises.filter((ex) => ex.learning_path_id === pathId);
-      
+
       if (pathExercises.length === 0) return;
 
       // Count ALL completions including main exercises AND virtual repeats
       const idsToCheck = currentCompletedIds || completedIds;
-      
+
       // Calculate total required completions (exercises + their repeats)
       let totalCompletionsNeeded = 0;
       let completedCount = 0;
-      
+
       pathExercises.forEach((ex) => {
         const repeatCount = ex.repeat_count || 1;
         totalCompletionsNeeded += repeatCount;
-        
+
         // Count main exercise
         if (idsToCheck.includes(ex.id)) {
           completedCount++;
         }
-        
+
         // Count virtual repeats (if repeat_count > 1)
         if (repeatCount > 1) {
           for (let i = 2; i <= repeatCount; i++) {
@@ -1611,7 +1622,7 @@ export function ProgressScreen() {
           timeSpent,
           streakDays,
         });
-        
+
         showCelebration({
           learningPathTitle: learningPath.title,
           completedExercises: completedCount,
@@ -1619,7 +1630,7 @@ export function ProgressScreen() {
           timeSpent,
           streakDays,
         });
-        
+
         console.log('🎉 [ProgressScreen] ✅ showCelebration() called successfully!');
       }
     } catch (error) {
@@ -1999,15 +2010,21 @@ export function ProgressScreen() {
             // Check for celebration when marking virtual repeat as done
             setTimeout(async () => {
               console.log('🎉 [ProgressScreen] Checking celebration after virtual repeat toggle');
-              
+
               // Wait for state to fully update before checking
               setTimeout(async () => {
                 // Check if THIS exercise is now fully complete (all repeats done)
                 const { completed, total } = getRepeatProgress(exercise);
-                console.log('🎉 [ProgressScreen] Exercise progress check:', { completed, total, isComplete: completed === total });
-                
+                console.log('🎉 [ProgressScreen] Exercise progress check:', {
+                  completed,
+                  total,
+                  isComplete: completed === total,
+                });
+
                 if (completed === total && total > 1) {
-                  console.log('🎉 [ProgressScreen] 🚀 Exercise fully complete! Showing celebration!');
+                  console.log(
+                    '🎉 [ProgressScreen] 🚀 Exercise fully complete! Showing celebration!',
+                  );
                   showCelebration({
                     learningPathTitle: learningPath?.title || exercise.title,
                     completedExercises: completed,
@@ -2015,7 +2032,7 @@ export function ProgressScreen() {
                     timeSpent: undefined,
                     streakDays: undefined,
                   });
-                  
+
                   // Also check if entire path is complete
                   setTimeout(async () => {
                     await checkForCelebration(exercise.learning_path_id, learningPath);
@@ -2440,18 +2457,30 @@ export function ProgressScreen() {
     return unsubscribe;
   }, [navigation, showDetailView, detailPath]); // Removed tour dependencies
 
-  // Populate exercisesByPath mapping for consistent progress calculation
+  // Populate exercisesByPath mapping AND allPathExercises for consistent progress calculation
   useEffect(() => {
     const fetchAllExercises = async () => {
       const map: { [pathId: string]: string[] } = {};
+      const allExercises: PathExercise[] = [];
+
       for (const path of paths) {
         const { data } = await supabase
           .from('learning_path_exercises')
-          .select('id')
-          .eq('learning_path_id', path.id);
+          .select('*') // Get full exercise objects, not just IDs
+          .eq('learning_path_id', path.id)
+          .order('order_index', { ascending: true });
+
         map[path.id] = data ? data.map((e: { id: string }) => e.id) : [];
+        if (data) {
+          allExercises.push(...data);
+        }
       }
       setExercisesByPath(map);
+      setAllPathExercises(allExercises); // Store ALL exercises for progress calculation
+      console.log(
+        '✅ [ProgressScreen] Loaded all exercises for progress calculation:',
+        allExercises.length,
+      );
     };
     if (paths.length > 0) fetchAllExercises();
   }, [paths]);
@@ -2694,22 +2723,35 @@ export function ProgressScreen() {
     const ids = exercisesByPath[pathId] || [];
     if (ids.length === 0) return 0;
 
-    // Get full exercise objects to check repeat counts
-    const pathExercises = exercises.filter((ex) => ex.learning_path_id === pathId);
-    
+    // Get full exercise objects to check repeat counts - USE allPathExercises instead of exercises
+    const pathExercises = allPathExercises.filter((ex) => ex.learning_path_id === pathId);
+
+    // Fallback: if allPathExercises is empty, calculate simple progress without repeats
+    if (pathExercises.length === 0) {
+      const completed = ids.filter((id) => completedIds.includes(id)).length;
+      const progress = ids.length > 0 ? completed / ids.length : 0;
+      console.log(`📊 [ProgressScreen] Path progress (simple) for ${pathId}:`, {
+        pathId,
+        totalExercises: ids.length,
+        completedCount: completed,
+        progressPercent: Math.round(progress * 100),
+      });
+      return progress;
+    }
+
     // Calculate total required completions (exercises + their repeats)
     let totalCompletionsNeeded = 0;
     let completedCount = 0;
-    
+
     pathExercises.forEach((ex) => {
       const repeatCount = ex.repeat_count || 1;
       totalCompletionsNeeded += repeatCount;
-      
+
       // Count main exercise
       if (completedIds.includes(ex.id)) {
         completedCount++;
       }
-      
+
       // Count virtual repeats (if repeat_count > 1)
       if (repeatCount > 1) {
         for (let i = 2; i <= repeatCount; i++) {
@@ -2730,6 +2772,7 @@ export function ProgressScreen() {
       progressPercent: Math.round(progress * 100),
       effectiveUserId,
       isViewingStudent: activeUserId && activeUserId !== authUser?.id,
+      pathExercisesCount: pathExercises.length,
     });
 
     return progress;
@@ -4044,15 +4087,17 @@ export function ProgressScreen() {
 
                 {/* Show the original exercise first */}
                 <TouchableOpacity
-                  style={{
-                    // backgroundColor: '#222',
-                    // padding: 12,
-                    // borderRadius: 8,
-                    // borderLeftWidth: 4,
-                    // borderLeftColor: completedIds.includes(selectedExercise.id)
-                    //   ? '#00E6C3'
-                    //   : '#4B6BFF',
-                  }}
+                  style={
+                    {
+                      // backgroundColor: '#222',
+                      // padding: 12,
+                      // borderRadius: 8,
+                      // borderLeftWidth: 4,
+                      // borderLeftColor: completedIds.includes(selectedExercise.id)
+                      //   ? '#00E6C3'
+                      //   : '#4B6BFF',
+                    }
+                  }
                   onPress={() => {
                     // Toggle the main exercise completion
                     toggleCompletion(selectedExercise.id);
@@ -4128,13 +4173,15 @@ export function ProgressScreen() {
                       return (
                         <TouchableOpacity
                           key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
-                          style={{
-                            // backgroundColor: '#222',
-                            // padding: 12,
-                            // borderRadius: 8,
-                            // borderLeftWidth: 4,
-                            // borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
-                          }}
+                          style={
+                            {
+                              // backgroundColor: '#222',
+                              // padding: 12,
+                              // borderRadius: 8,
+                              // borderLeftWidth: 4,
+                              // borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
+                            }
+                          }
                           onPress={() => {
                             // Play sound
                             playDoneSound();
@@ -4193,13 +4240,15 @@ export function ProgressScreen() {
                     return (
                       <TouchableOpacity
                         key={`repeat-${repeat.id}-${repeatIndex}`}
-                        style={{
-                          // backgroundColor: '#222',
-                          // padding: 12,
-                          // borderRadius: 8,
-                          // borderLeftWidth: 4,
-                          // borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
-                        }}
+                        style={
+                          {
+                            // backgroundColor: '#222',
+                            // padding: 12,
+                            // borderRadius: 8,
+                            // borderLeftWidth: 4,
+                            // borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
+                          }
+                        }
                         onPress={() => setSelectedExercise(repeat)}
                       >
                         <XStack justifyContent="space-between" alignItems="center">
@@ -4254,7 +4303,7 @@ export function ProgressScreen() {
             variant={isDone ? 'link' : 'primary'}
             onPress={async () => {
               const shouldMarkDone = !isDone;
-              
+
               // Toggle main exercise
               toggleCompletion(selectedExercise.id);
 
@@ -4276,16 +4325,22 @@ export function ProgressScreen() {
 
               // Trigger celebration when marking all repeats as done
               if (shouldMarkDone) {
-                console.log('🎉 [ProgressScreen] Mark All as Done - showing celebration for exercise completion');
-                
+                console.log(
+                  '🎉 [ProgressScreen] Mark All as Done - showing celebration for exercise completion',
+                );
+
                 // Wait a bit for state to update
                 setTimeout(async () => {
                   const repeatCount = selectedExercise.repeat_count || 1;
-                  const learningPath = paths.find((p) => p.id === selectedExercise.learning_path_id);
-                  
+                  const learningPath = paths.find(
+                    (p) => p.id === selectedExercise.learning_path_id,
+                  );
+
                   // First, celebrate completing THIS exercise with all repeats
-                  console.log('🎉 [ProgressScreen] 🚀 Showing celebration for completed exercise with all repeats!');
-                  
+                  console.log(
+                    '🎉 [ProgressScreen] 🚀 Showing celebration for completed exercise with all repeats!',
+                  );
+
                   showCelebration({
                     learningPathTitle: learningPath?.title || selectedExercise.title,
                     completedExercises: repeatCount,
@@ -4293,15 +4348,21 @@ export function ProgressScreen() {
                     timeSpent: undefined,
                     streakDays: undefined,
                   });
-                  
+
                   // Then, check if the entire learning path is now complete
                   if (selectedExercise.learning_path_id && learningPath) {
                     const updatedCompletedIds = [...completedIds, selectedExercise.id];
-                    
+
                     // Wait for exercise celebration to close before checking path celebration
                     setTimeout(async () => {
-                      console.log('🎉 [ProgressScreen] Also checking if entire learning path is complete...');
-                      await checkForCelebration(selectedExercise.learning_path_id, learningPath, updatedCompletedIds);
+                      console.log(
+                        '🎉 [ProgressScreen] Also checking if entire learning path is complete...',
+                      );
+                      await checkForCelebration(
+                        selectedExercise.learning_path_id,
+                        learningPath,
+                        updatedCompletedIds,
+                      );
                     }, 3000); // Wait 3 seconds for exercise celebration to be seen
                   }
                 }, 500);
@@ -4668,19 +4729,20 @@ export function ProgressScreen() {
                             if (mainIsAvailable) {
                               // Play sound
                               playDoneSound();
-                              
+
                               // Toggle main exercise AND all its repeats
                               const shouldMarkDone = !mainIsDone;
-                              
+
                               // Toggle main exercise
                               await toggleCompletion(main.id);
-                              
+
                               // Toggle all virtual repeats if this exercise has repeats
                               if (main.repeat_count && main.repeat_count > 1) {
                                 for (let i = 2; i <= main.repeat_count; i++) {
                                   const virtualId = `${main.id}-virtual-${i}`;
-                                  const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
-                                  
+                                  const isVirtualDone =
+                                    virtualRepeatCompletions.includes(virtualId);
+
                                   // Only toggle if virtual repeat state doesn't match desired state
                                   if (shouldMarkDone && !isVirtualDone) {
                                     await toggleVirtualRepeatCompletion(virtualId);
@@ -4689,15 +4751,19 @@ export function ProgressScreen() {
                                   }
                                 }
                               }
-                              
+
                               // Show celebration when marking all as done
                               if (shouldMarkDone) {
                                 setTimeout(() => {
                                   const repeatCount = main.repeat_count || 1;
-                                  const learningPath = paths.find((p) => p.id === main.learning_path_id);
-                                  
-                                  console.log('🎉 [ProgressScreen] 🚀 Main checkbox - showing celebration for completed exercise!');
-                                  
+                                  const learningPath = paths.find(
+                                    (p) => p.id === main.learning_path_id,
+                                  );
+
+                                  console.log(
+                                    '🎉 [ProgressScreen] 🚀 Main checkbox - showing celebration for completed exercise!',
+                                  );
+
                                   showCelebration({
                                     learningPathTitle: learningPath?.title || main.title,
                                     completedExercises: repeatCount,
@@ -4705,12 +4771,16 @@ export function ProgressScreen() {
                                     timeSpent: undefined,
                                     streakDays: undefined,
                                   });
-                                  
+
                                   // Also check if entire path is complete
                                   if (main.learning_path_id && learningPath) {
                                     setTimeout(async () => {
                                       const updatedCompletedIds = [...completedIds, main.id];
-                                      await checkForCelebration(main.learning_path_id, learningPath, updatedCompletedIds);
+                                      await checkForCelebration(
+                                        main.learning_path_id,
+                                        learningPath,
+                                        updatedCompletedIds,
+                                      );
                                     }, 3000);
                                   }
                                 }, 500);
