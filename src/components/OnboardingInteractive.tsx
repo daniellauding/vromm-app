@@ -469,11 +469,28 @@ export function OnboardingInteractive({
       id: 'license_plan',
       title: t('onboarding.licensePlan.title') || 'Your License Journey',
       description:
-        t('onboarding.licensePlan.description') ||
-        'Tell us about your experience level, driving goals and vehicle preferences',
+        t('onboarding.licensePlan.descriptionShort') ||
+        'Tell us about your experience level and vehicle preferences',
       icon: 'clipboard',
       type: 'selection',
       actionButton: t('onboarding.licensePlan.setPreferences') || 'Set My Preferences',
+      skipButton: t('onboarding.skipForNow') || 'Skip for now',
+    },
+    {
+      id: 'license_details',
+      title:
+        t('onboarding.licenseDetails.title') ||
+        (language === 'sv' ? 'Ytterligare detaljer' : 'Additional Details'),
+      description:
+        t('onboarding.licenseDetails.description') ||
+        (language === 'sv'
+          ? 'Dela dina testresultat och körmål'
+          : 'Share your test progress and driving goals'),
+      icon: 'file-text',
+      type: 'selection',
+      actionButton:
+        t('onboarding.licenseDetails.save') ||
+        (language === 'sv' ? 'Spara detaljer' : 'Save Details'),
       skipButton: t('onboarding.skipForNow') || 'Skip for now',
     },
     {
@@ -1904,7 +1921,7 @@ export function OnboardingInteractive({
         contentContainerStyle={{
           flexGrow: 1,
           paddingHorizontal: 16,
-          paddingTop: 60,
+          paddingTop: insets.top + 20,
           paddingBottom: 120,
         }}
         showsVerticalScrollIndicator={false}
@@ -1917,6 +1934,33 @@ export function OnboardingInteractive({
           minHeight={height - 300}
           paddingHorizontal="$4"
         >
+          {/* Navigation buttons - scrollable */}
+          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$4">
+            {currentIndex > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  scrollTo(currentIndex - 1);
+                }}
+                style={{
+                  padding: 12,
+                  marginLeft: -8,
+                }}
+              >
+                <Feather name="arrow-left" size={24} color={iconColor} />
+              </TouchableOpacity>
+            )}
+            {currentIndex === 0 && <View style={{ width: 48 }} />}
+            <TouchableOpacity
+              onPress={completeOnboarding}
+              style={{
+                padding: 12,
+                marginRight: -8,
+              }}
+            >
+              <Feather name="x" size={24} color={iconColor} />
+            </TouchableOpacity>
+          </XStack>
+
           {/* Step Header */}
           <YStack alignItems="center" marginBottom="$6" width="100%">
             <Text
@@ -1937,204 +1981,112 @@ export function OnboardingInteractive({
           {/* License Preferences */}
           <YStack gap="$3" width="100%" marginTop="$4">
             {/* Experience Level */}
-            <DropdownButton
-              onPress={() => setShowExperienceModal(true)}
-              value={
-                (experienceLevels.length > 0
-                  ? experienceLevels
-                  : [
-                      {
-                        id: 'beginner',
-                        title:
-                          language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)',
-                      },
-                      {
-                        id: 'intermediate',
-                        title:
-                          language === 'sv'
-                            ? 'Medel (viss vägvana)'
-                            : 'Intermediate (some road experience)',
-                      },
-                      {
-                        id: 'advanced',
-                        title:
-                          language === 'sv'
-                            ? 'Avancerad (behöver förfinas / förberedas inför prov)'
-                            : 'Advanced (needs refinement / preparing for test)',
-                      },
-                      {
-                        id: 'refresher',
-                        title:
-                          language === 'sv'
-                            ? 'Repetitionskurs (återvändande förare)'
-                            : 'Refresher (returning drivers)',
-                      },
-                      { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert' },
-                    ]
-                ).find((e) => e.id.toLowerCase() === selectedExperienceLevel.toLowerCase())
-                  ?.title ||
-                (language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')
-              }
-              isActive={showExperienceModal}
-            />
+            <YStack gap="$2">
+              <Text size="md" fontWeight="600" color="$color">
+                {t('onboarding.licensePlan.experienceLevel') ||
+                  (language === 'sv' ? 'Erfarenhetsnivå' : 'Experience Level')}
+              </Text>
+              <DropdownButton
+                onPress={() => setShowExperienceModal(true)}
+                value={
+                  (experienceLevels.length > 0
+                    ? experienceLevels
+                    : [
+                        {
+                          id: 'beginner',
+                          title:
+                            language === 'sv'
+                              ? 'Nybörjare (aldrig kört)'
+                              : 'Beginner (never driven)',
+                        },
+                        {
+                          id: 'intermediate',
+                          title:
+                            language === 'sv'
+                              ? 'Medel (viss vägvana)'
+                              : 'Intermediate (some road experience)',
+                        },
+                        {
+                          id: 'advanced',
+                          title:
+                            language === 'sv'
+                              ? 'Avancerad (behöver förfinas / förberedas inför prov)'
+                              : 'Advanced (needs refinement / preparing for test)',
+                        },
+                        {
+                          id: 'refresher',
+                          title:
+                            language === 'sv'
+                              ? 'Repetitionskurs (återvändande förare)'
+                              : 'Refresher (returning drivers)',
+                        },
+                        { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert' },
+                      ]
+                  ).find((e) => e.id.toLowerCase() === selectedExperienceLevel.toLowerCase())
+                    ?.title ||
+                  (language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')
+                }
+                isActive={showExperienceModal}
+              />
+            </YStack>
 
             {/* License Target Date */}
-            <DropdownButton
-              onPress={() => setShowDateModal(true)}
-              value={`${t('onboarding.date.targetDate') || 'Want my license on'}: ${selectedTargetDate.toLocaleDateString()}`}
-              isActive={showDateModal}
-            />
-
-            <DropdownButton
-              onPress={showVehicleModal}
-              value={
-                vehicleTypes.find((v) => v.id === vehicleType)?.title ||
-                (language === 'sv' ? 'Bil' : 'Car')
-              }
-              isActive={showVehicleDrawer}
-            />
-
-            <DropdownButton
-              onPress={showTransmissionModal}
-              value={
-                transmissionTypes.find((t) => t.id === transmissionType)?.title ||
-                (language === 'sv' ? 'Manuell' : 'Manual')
-              }
-              isActive={showTransmissionDrawer}
-            />
-
-            <DropdownButton
-              onPress={showLicenseModal}
-              value={
-                licenseTypes.find((l) => l.id === licenseType)?.title ||
-                (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')
-              }
-              isActive={showLicenseDrawer}
-            />
-
-            {/* Theory Test Toggle */}
-            <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
-              <Text size="md" weight="semibold" color="$color">
-                {t('onboarding.licensePlan.hasTheory') || 'Have you passed the theory test?'}
+            <YStack gap="$2">
+              <Text size="md" fontWeight="600" color="$color">
+                {t('onboarding.licensePlan.targetDate') ||
+                  (language === 'sv' ? 'Målatum för körkort' : 'Target License Date')}
               </Text>
-              <XStack alignItems="center" gap="$2">
-                <Switch
-                  size="$4"
-                  checked={hasTheory}
-                  onCheckedChange={async (checked) => {
-                    setHasTheory(checked);
-                    // 🔥 CRITICAL FIX: Save theory status immediately to profile
-                    if (user) {
-                      try {
-                        const currentLicenseData = (profile?.license_plan_data as any) || {};
-                        const updatedLicenseData = {
-                          ...currentLicenseData,
-                          has_theory: checked,
-                        };
-
-                        const { error } = await supabase
-                          .from('profiles')
-                          .update({
-                            license_plan_data: updatedLicenseData,
-                          })
-                          .eq('id', user.id);
-
-                        if (error) {
-                          console.error('Error saving theory status:', error);
-                        } else {
-                          console.log('✅ Theory status saved:', checked);
-                          // Refresh profile for cross-screen sync
-                          await refreshProfile();
-                        }
-                      } catch (error) {
-                        console.error('Error updating theory status:', error);
-                      }
-                    }
-                  }}
-                  backgroundColor={hasTheory ? '$blue8' : '$gray6'}
-                >
-                  <Switch.Thumb />
-                </Switch>
-                <Text size="md" color="$color">
-                  {hasTheory ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
-                </Text>
-              </XStack>
+              <DropdownButton
+                onPress={() => setShowDateModal(true)}
+                value={selectedTargetDate.toLocaleDateString()}
+                isActive={showDateModal}
+              />
             </YStack>
 
-            {/* Practice Test Toggle */}
-            <YStack gap="$2" padding="$3" backgroundColor="$backgroundHover" borderRadius="$3">
-              <Text size="md" weight="semibold" color="$color">
-                {t('onboarding.licensePlan.hasPractice') || 'Have you passed the practical test?'}
+            <YStack gap="$2">
+              <Text size="md" fontWeight="600" color="$color">
+                {t('onboarding.licensePlan.vehicleType') ||
+                  (language === 'sv' ? 'Fordonstyp' : 'Vehicle Type')}
               </Text>
-              <XStack alignItems="center" gap="$2">
-                <Switch
-                  size="$4"
-                  checked={hasPractice}
-                  onCheckedChange={async (checked) => {
-                    setHasPractice(checked);
-                    // 🔥 CRITICAL FIX: Save practice status immediately to profile
-                    if (user) {
-                      try {
-                        const currentLicenseData = (profile?.license_plan_data as any) || {};
-                        const updatedLicenseData = {
-                          ...currentLicenseData,
-                          has_practice: checked,
-                        };
-
-                        const { error } = await supabase
-                          .from('profiles')
-                          .update({
-                            license_plan_data: updatedLicenseData,
-                          })
-                          .eq('id', user.id);
-
-                        if (error) {
-                          console.error('Error saving practice status:', error);
-                        } else {
-                          console.log('✅ Practice status saved:', checked);
-                          // Refresh profile for cross-screen sync
-                          await refreshProfile();
-                        }
-                      } catch (error) {
-                        console.error('Error updating practice status:', error);
-                      }
-                    }
-                  }}
-                  backgroundColor={hasPractice ? '$blue8' : '$gray6'}
-                >
-                  <Switch.Thumb />
-                </Switch>
-                <Text size="md" color="$color">
-                  {hasPractice ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
-                </Text>
-              </XStack>
+              <DropdownButton
+                onPress={showVehicleModal}
+                value={
+                  vehicleTypes.find((v) => v.id === vehicleType)?.title ||
+                  (language === 'sv' ? 'Bil' : 'Car')
+                }
+                isActive={showVehicleDrawer}
+              />
             </YStack>
 
-            {/* Previous Experience Dropdown */}
-            <DropdownButton
-              onPress={showPreviousExperienceSheet}
-              value={
-                previousExperience ||
-                t('onboarding.licensePlan.experiencePlaceholder') ||
-                'Describe your previous driving experience'
-              }
-              placeholder={
-                t('onboarding.licensePlan.previousExperience') || 'Previous driving experience'
-              }
-              isActive={showPreviousExperienceModal}
-            />
+            <YStack gap="$2">
+              <Text size="md" fontWeight="600" color="$color">
+                {t('onboarding.licensePlan.transmissionType') ||
+                  (language === 'sv' ? 'Växellådstyp' : 'Transmission Type')}
+              </Text>
+              <DropdownButton
+                onPress={showTransmissionModal}
+                value={
+                  transmissionTypes.find((t) => t.id === transmissionType)?.title ||
+                  (language === 'sv' ? 'Manuell' : 'Manual')
+                }
+                isActive={showTransmissionDrawer}
+              />
+            </YStack>
 
-            {/* Specific Goals Dropdown */}
-            <DropdownButton
-              onPress={showSpecificGoalsSheet}
-              value={
-                specificGoals ||
-                t('onboarding.licensePlan.goalsPlaceholder') ||
-                'Do you have specific goals with your license?'
-              }
-              placeholder={t('onboarding.licensePlan.specificGoals') || 'Specific goals'}
-              isActive={showSpecificGoalsModal}
-            />
+            <YStack gap="$2">
+              <Text size="md" fontWeight="600" color="$color">
+                {t('onboarding.licensePlan.licenseType') ||
+                  (language === 'sv' ? 'Körkortstyp' : 'License Type')}
+              </Text>
+              <DropdownButton
+                onPress={showLicenseModal}
+                value={
+                  licenseTypes.find((l) => l.id === licenseType)?.title ||
+                  (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')
+                }
+                isActive={showLicenseDrawer}
+              />
+            </YStack>
 
             {/* Save Button */}
             <Button
@@ -2146,6 +2098,247 @@ export function OnboardingInteractive({
               marginTop="$4"
             >
               {t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
+            </Button>
+
+            {/* Skip Button */}
+            {item.skipButton && (
+              <Button
+                variant="link"
+                size="md"
+                onPress={() => {
+                  handleSkipStep(item);
+                }}
+                marginTop="$2"
+              >
+                {item.skipButton}
+              </Button>
+            )}
+          </YStack>
+        </YStack>
+      </ScrollView>
+    );
+  };
+
+  const renderLicenseDetailsStep = (item: OnboardingStep) => {
+    return (
+      <ScrollView
+        style={{ width, flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 16,
+          paddingTop: insets.top + 20,
+          paddingBottom: 120,
+        }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        <YStack
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          minHeight={height - 300}
+          paddingHorizontal="$4"
+        >
+          {/* Navigation buttons - scrollable */}
+          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$4">
+            <TouchableOpacity
+              onPress={() => {
+                scrollTo(currentIndex - 1);
+              }}
+              style={{
+                padding: 12,
+                marginLeft: -8,
+              }}
+            >
+              <Feather name="arrow-left" size={24} color={iconColor} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={completeOnboarding}
+              style={{
+                padding: 12,
+                marginRight: -8,
+              }}
+            >
+              <Feather name="x" size={24} color={iconColor} />
+            </TouchableOpacity>
+          </XStack>
+
+          {/* Step Header */}
+          <YStack alignItems="center" marginBottom="$6" width="100%">
+            <Text
+              size="3xl"
+              fontWeight="800"
+              fontStyle="italic"
+              textAlign="center"
+              fontFamily="$heading"
+              color="$color"
+            >
+              {language === 'sv' ? 'Ytterligare detaljer' : 'Additional Details'}
+            </Text>
+            <Text size="lg" textAlign="center" color="$color" opacity={0.9} marginTop="$2">
+              {language === 'sv'
+                ? 'Dela dina testresultat och körmål'
+                : 'Share your test progress and driving goals'}
+            </Text>
+          </YStack>
+
+          {/* License Details Fields */}
+          <YStack gap="$3" width="100%" marginTop="$4">
+            {/* Have passed theory test */}
+            <YStack gap="$2">
+              <Text size="md" fontWeight="600" color="$color">
+                {t('onboarding.license_details.theoryTest') ||
+                  (language === 'sv'
+                    ? 'Har du klarat teoriprov?'
+                    : 'Have you passed the theory test?')}
+              </Text>
+              <XStack gap="$3">
+                <Button
+                  variant={hasTheory ? 'primary' : 'outlined'}
+                  size="md"
+                  flex={1}
+                  onPress={() => setHasTheory(true)}
+                >
+                  {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
+                </Button>
+                <Button
+                  variant={!hasTheory ? 'primary' : 'outlined'}
+                  size="md"
+                  flex={1}
+                  onPress={() => setHasTheory(false)}
+                >
+                  {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
+                </Button>
+              </XStack>
+            </YStack>
+
+            {/* Have passed practical test */}
+            <YStack gap="$2" marginTop="$2">
+              <Text size="md" fontWeight="600" color="$color">
+                {t('onboarding.license_details.practicalTest') ||
+                  (language === 'sv'
+                    ? 'Har du klarat körprov?'
+                    : 'Have you passed the practical test?')}
+              </Text>
+              <XStack gap="$3">
+                <Button
+                  variant={hasPractice ? 'primary' : 'outlined'}
+                  size="md"
+                  flex={1}
+                  onPress={() => setHasPractice(true)}
+                >
+                  {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
+                </Button>
+                <Button
+                  variant={!hasPractice ? 'primary' : 'outlined'}
+                  size="md"
+                  flex={1}
+                  onPress={() => setHasPractice(false)}
+                >
+                  {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
+                </Button>
+              </XStack>
+            </YStack>
+
+            {/* Describe driving experience */}
+            <YStack gap="$2" marginTop="$2">
+              <Text size="md" fontWeight="600" color="$color">
+                {t('onboarding.license_details.drivingExperience') ||
+                  (language === 'sv'
+                    ? 'Beskriv din körerfarenhet'
+                    : 'Describe your driving experience')}
+              </Text>
+              <TextArea
+                placeholder={
+                  t('onboarding.license_details.drivingExperiencePlaceholder') ||
+                  (language === 'sv'
+                    ? 'Berätta om din körerfarenhet...'
+                    : 'Tell us about your driving experience...')
+                }
+                value={previousExperience}
+                onChangeText={setPreviousExperience}
+                minHeight={100}
+                numberOfLines={4}
+              />
+            </YStack>
+
+            {/* Goals with license */}
+            <YStack gap="$2" marginTop="$2">
+              <Text size="md" fontWeight="600" color="$color">
+                {t('onboarding.license_details.goals') ||
+                  (language === 'sv'
+                    ? 'Vilka är dina mål med körkortet?'
+                    : 'What are your goals with getting a license?')}
+              </Text>
+              <TextArea
+                placeholder={
+                  t('onboarding.license_details.goalsPlaceholder') ||
+                  (language === 'sv'
+                    ? 'Vad vill du uppnå med ditt körkort?'
+                    : 'What do you want to achieve with your license?')
+                }
+                value={specificGoals}
+                onChangeText={setSpecificGoals}
+                minHeight={100}
+                numberOfLines={4}
+              />
+            </YStack>
+
+            {/* Save Button */}
+            <Button
+              variant="primary"
+              size="lg"
+              onPress={async () => {
+                // Save license details to profile
+                if (user) {
+                  try {
+                    const currentLicenseData = (profile?.license_plan_data as any) || {};
+                    const updatedLicenseData = {
+                      ...currentLicenseData,
+                      has_theory: hasTheory,
+                      has_practice: hasPractice,
+                      previous_experience: previousExperience,
+                      specific_goals: specificGoals,
+                    };
+
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({
+                        license_plan_data: updatedLicenseData,
+                      })
+                      .eq('id', user.id);
+
+                    if (!error) {
+                      console.log('✅ License details saved successfully');
+                      await refreshProfile();
+                      // Mark step as completed
+                      setCompletedSteps((prev) => new Set(prev).add(item.id));
+                      // Move to next step
+                      nextSlide();
+                    } else {
+                      console.error('Error saving license details:', error);
+                      showToast({
+                        title: t('errors.title') || (language === 'sv' ? 'Fel' : 'Error'),
+                        message:
+                          t('errors.saveFailed') ||
+                          (language === 'sv'
+                            ? 'Kunde inte spara detaljer'
+                            : 'Failed to save details'),
+                        type: 'error',
+                      });
+                    }
+                  } catch (error) {
+                    console.error('Error saving license details:', error);
+                  }
+                } else {
+                  // If no user, just move to next step
+                  nextSlide();
+                }
+              }}
+              marginTop="$4"
+            >
+              {t('onboarding.licenseDetails.save') ||
+                (language === 'sv' ? 'Spara detaljer' : 'Save Details')}
             </Button>
 
             {/* Skip Button */}
@@ -2195,7 +2388,7 @@ export function OnboardingInteractive({
         contentContainerStyle={{
           flexGrow: 1,
           paddingHorizontal: 16,
-          paddingTop: 60,
+          paddingTop: insets.top + 20,
           paddingBottom: 120,
         }}
         showsVerticalScrollIndicator={false}
@@ -2208,6 +2401,33 @@ export function OnboardingInteractive({
           minHeight={height - 300}
           paddingHorizontal="$4"
         >
+          {/* Navigation buttons - scrollable */}
+          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$4">
+            {currentIndex > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  scrollTo(currentIndex - 1);
+                }}
+                style={{
+                  padding: 12,
+                  marginLeft: -8,
+                }}
+              >
+                <Feather name="arrow-left" size={24} color={iconColor} />
+              </TouchableOpacity>
+            )}
+            {currentIndex === 0 && <View style={{ width: 48 }} />}
+            <TouchableOpacity
+              onPress={completeOnboarding}
+              style={{
+                padding: 12,
+                marginRight: -8,
+              }}
+            >
+              <Feather name="x" size={24} color={iconColor} />
+            </TouchableOpacity>
+          </XStack>
+
           {/* Step Header */}
           <YStack alignItems="center" marginBottom="$6" width="100%">
             <Text
@@ -2261,7 +2481,7 @@ export function OnboardingInteractive({
         contentContainerStyle={{
           flexGrow: 1,
           paddingHorizontal: 16,
-          paddingTop: 60,
+          paddingTop: insets.top + 20,
           paddingBottom: 120,
         }}
         showsVerticalScrollIndicator={false}
@@ -2274,6 +2494,33 @@ export function OnboardingInteractive({
           minHeight={height - 300}
           paddingHorizontal="$4"
         >
+          {/* Navigation buttons - scrollable */}
+          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$4">
+            {currentIndex > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  scrollTo(currentIndex - 1);
+                }}
+                style={{
+                  padding: 12,
+                  marginLeft: -8,
+                }}
+              >
+                <Feather name="arrow-left" size={24} color={iconColor} />
+              </TouchableOpacity>
+            )}
+            {currentIndex === 0 && <View style={{ width: 48 }} />}
+            <TouchableOpacity
+              onPress={completeOnboarding}
+              style={{
+                padding: 12,
+                marginRight: -8,
+              }}
+            >
+              <Feather name="x" size={24} color={iconColor} />
+            </TouchableOpacity>
+          </XStack>
+
           {/* Simplified Step Content */}
           <YStack alignItems="center" gap="$4" width="100%">
             {/* Show Vromm logo on complete step */}
@@ -2342,12 +2589,19 @@ export function OnboardingInteractive({
                   )}
                 </Button>
 
-                <DropdownButton
-                  onPress={showCityModal}
-                  value={selectedCity}
-                  placeholder={t('onboarding.location.selectCity') || 'Or Select Your City'}
-                  isActive={showCityDrawer}
-                />
+                <YStack gap="$2">
+                  <Text size="md" fontWeight="600" color="$color">
+                    {t('onboarding.location.cityLabel') || language === 'sv'
+                      ? 'Din stad'
+                      : 'Your City'}
+                  </Text>
+                  <DropdownButton
+                    onPress={showCityModal}
+                    value={selectedCity}
+                    placeholder={t('onboarding.location.selectCity') || 'Select Your City'}
+                    isActive={showCityDrawer}
+                  />
+                </YStack>
 
                 {/* Clear location chip */}
                 {selectedCity && (
@@ -2618,8 +2872,17 @@ export function OnboardingInteractive({
                           nextSlide();
                         }}
                       >
-                        Save {selectedConnections.length > 1 ? 'Connections' : 'Connection'} &
-                        Continue
+                        <Text color="white">
+                          {language === 'sv' ? 'Spara' : 'Save'}{' '}
+                          {selectedConnections.length > 1
+                            ? language === 'sv'
+                              ? 'kontakter'
+                              : 'Connections'
+                            : language === 'sv'
+                              ? 'kontakt'
+                              : 'Connection'}{' '}
+                          {language === 'sv' ? '& Fortsätt' : '& Continue'}
+                        </Text>
                       </Button>
                     ) : existingRelationships.length > 0 ? (
                       <YStack gap="$2" width="100%">
@@ -2656,12 +2919,18 @@ export function OnboardingInteractive({
                 ) : item.id === 'complete' ? (
                   <YStack gap="$2" width="100%">
                     {/* Language Selection Dropdown */}
-                    <DropdownButton
-                      onPress={showLanguageSheet}
-                      value={LANGUAGE_LABELS[language]}
-                      placeholder={t('onboarding.complete.selectLanguage') || 'Select Language'}
-                      isActive={showLanguageModal}
-                    />
+                    <YStack gap="$2">
+                      <Text size="md" fontWeight="600" color="$color">
+                        {t('onboarding.complete.languageLabel') ||
+                          (language === 'sv' ? 'Välj språk' : 'Select Language')}
+                      </Text>
+                      <DropdownButton
+                        onPress={showLanguageSheet}
+                        value={LANGUAGE_LABELS[language]}
+                        placeholder={t('onboarding.complete.selectLanguage') || 'Select Language'}
+                        isActive={showLanguageModal}
+                      />
+                    </YStack>
 
                     <Button variant="primary" size="lg" onPress={completeOnboarding}>
                       {t('onboarding.complete.startJourney') || 'Start Using Vromm!'}
@@ -2699,6 +2968,11 @@ export function OnboardingInteractive({
       return renderLicensePlanStep(item);
     }
 
+    // Special rendering for license details step (always editable)
+    if (item.id === 'license_details') {
+      return renderLicenseDetailsStep(item);
+    }
+
     // Special rendering for role selection step (always editable)
     if (item.id === 'role') {
       return renderRoleSelectionStep(item);
@@ -2713,54 +2987,6 @@ export function OnboardingInteractive({
   return (
     <View style={{ flex: 1, height: '100%' }}>
       <Stack flex={1} bg="$background" height="100%">
-        {/* Back Button - Header Style */}
-        {currentIndex > 0 && (
-          <View
-            style={{
-              position: 'absolute',
-              top: insets.top || 40,
-              left: 16,
-              zIndex: 1000,
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => {
-                scrollTo(currentIndex - 1);
-              }}
-              style={{
-                padding: 12,
-                marginLeft: -8,
-              }}
-            >
-              <Feather name="arrow-left" size={24} color={iconColor} />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Close Button - Header Style */}
-        <View
-          style={{
-            position: 'absolute',
-            top: insets.top || 40,
-            right: 16,
-            zIndex: 1000,
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => {
-              // Close button should complete onboarding permanently
-              // Users can still access features through GettingStarted.tsx
-              completeOnboarding();
-            }}
-            style={{
-              padding: 12,
-              marginRight: -8,
-            }}
-          >
-            <Feather name="x" size={24} color={iconColor} />
-          </TouchableOpacity>
-        </View>
-
         {/* Main Content */}
         <FlatList
           data={steps}
@@ -2789,49 +3015,6 @@ export function OnboardingInteractive({
           style={{ flex: 1, height: '100%' }}
           contentContainerStyle={{ height: '100%' }}
         />
-
-        {/* Dots indicator - similar to SplashScreen */}
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 20,
-            left: 0,
-            right: 0,
-            zIndex: 20,
-          }}
-        >
-          <XStack justifyContent="center" gap="$1" paddingVertical="$2">
-            {steps.map((_, i) => {
-              const isActive = currentIndex === i;
-
-              return (
-                <TouchableOpacity
-                  key={`dot-${i}`}
-                  onPress={() => scrollTo(i)}
-                  style={{
-                    padding: 6,
-                  }}
-                >
-                  <Animated.View
-                    style={{
-                      width: isActive ? 16 : 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: isActive ? '#00FFBC' : textColor,
-                      marginHorizontal: 2,
-                      opacity: isActive ? 1 : 0.5,
-                      shadowColor: isActive ? '#00FFBC' : 'transparent',
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: isActive ? 0.3 : 0,
-                      shadowRadius: isActive ? 4 : 0,
-                      elevation: isActive ? 3 : 0,
-                    }}
-                  />
-                </TouchableOpacity>
-              );
-            })}
-          </XStack>
-        </View>
 
         {/* City Selection Modal */}
         <Modal
@@ -3179,8 +3362,16 @@ export function OnboardingInteractive({
                           // Selected connections remain in state for the save button
                         }}
                       >
-                        Select {selectedConnections.length} Connection
-                        {selectedConnections.length > 1 ? 's' : ''}
+                        <Text color="white">
+                          {language === 'sv' ? 'Välj' : 'Select'} {selectedConnections.length}{' '}
+                          {language === 'sv'
+                            ? selectedConnections.length > 1
+                              ? 'kontakter'
+                              : 'kontakt'
+                            : selectedConnections.length > 1
+                              ? 'Connections'
+                              : 'Connection'}
+                        </Text>
                       </Button>
                     )}
                     <Button

@@ -214,7 +214,37 @@ export function ActionSheet({
 
     onClose();
     console.log('🎭 ActionSheet closed, showing RecordDrivingModal...');
-    showModal(<RecordDrivingModal onCreateRoute={onCreateRoute} />);
+    // Pass a callback that opens CreateRouteSheet with the recorded data
+    showModal(
+      <RecordDrivingModal
+        onCreateRoute={(routeData) => {
+          console.log('🎭 Route data received from recording:', routeData);
+          // Close RecordDrivingModal first
+          hideModal();
+          // Then show CreateRouteSheet with the recorded route data
+          setTimeout(() => {
+            showModal(
+              <CreateRouteSheet
+                visible={true}
+                onClose={() => {
+                  console.log('🎭 [ActionSheet] CreateRouteSheet onClose called');
+                  hideModal();
+                }}
+                onRouteCreated={(routeId) => {
+                  console.log('🎭 ✅ Route created with ID:', routeId);
+                  onCreateRoute(routeData); // Call parent callback with route data
+                }}
+                onRouteUpdated={(routeId) => {
+                  console.log('🎭 ✅ Route updated with ID:', routeId);
+                }}
+                onNavigateToMap={onNavigateToMap}
+                recordedRouteData={routeData} // Pass the recorded route data to CreateRouteSheet
+              />,
+            );
+          }, 300);
+        }}
+      />,
+    );
     console.log('🎭 ✅ RecordDrivingModal shown');
   };
 

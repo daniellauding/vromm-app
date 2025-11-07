@@ -80,6 +80,16 @@ type MapPressEvent = {
   };
 };
 
+interface RecordedRouteData {
+  waypoints: Array<{ latitude: number; longitude: number; title?: string; description?: string }>;
+  name: string;
+  description: string;
+  searchCoordinates: string;
+  routePath: Array<{ latitude: number; longitude: number }>;
+  startPoint?: { latitude: number; longitude: number };
+  endPoint?: { latitude: number; longitude: number };
+}
+
 interface CreateRouteSheetProps {
   visible: boolean;
   onClose: () => void;
@@ -103,6 +113,7 @@ interface CreateRouteSheetProps {
     latitude: number;
     longitude: number;
   };
+  recordedRouteData?: RecordedRouteData; // NEW: Accept recorded route data from RecordDrivingSheet
   isModal?: boolean;
 }
 
@@ -188,21 +199,32 @@ export function CreateRouteSheet({
   initialRoutePath,
   initialStartPoint,
   initialEndPoint,
+  recordedRouteData, // NEW: Accept recorded route data from RecordDrivingSheet
   isModal = false,
 }: CreateRouteSheetProps) {
+  // If recordedRouteData is provided, use it to override initial values
+  const finalInitialWaypoints = recordedRouteData?.waypoints || initialWaypoints;
+  const finalInitialName = recordedRouteData?.name || initialName;
+  const finalInitialDescription = recordedRouteData?.description || initialDescription;
+  const finalInitialSearchCoordinates = recordedRouteData?.searchCoordinates || initialSearchCoordinates;
+  const finalInitialRoutePath = recordedRouteData?.routePath || initialRoutePath;
+  const finalInitialStartPoint = recordedRouteData?.startPoint || initialStartPoint;
+  const finalInitialEndPoint = recordedRouteData?.endPoint || initialEndPoint;
+
   console.log('🏗️ ==================== CREATE ROUTE SHEET INIT ====================');
   console.log('🏗️ CreateRouteSheet initialized with props:', {
     visible,
     routeId,
-    hasInitialWaypoints: !!initialWaypoints,
-    waypointCount: initialWaypoints?.length || 0,
-    initialName,
-    hasInitialDescription: !!initialDescription,
-    hasInitialSearchCoordinates: !!initialSearchCoordinates,
-    hasInitialRoutePath: !!initialRoutePath,
-    routePathLength: initialRoutePath?.length || 0,
-    hasInitialStartPoint: !!initialStartPoint,
-    hasInitialEndPoint: !!initialEndPoint,
+    hasRecordedRouteData: !!recordedRouteData,
+    hasInitialWaypoints: !!finalInitialWaypoints,
+    waypointCount: finalInitialWaypoints?.length || 0,
+    initialName: finalInitialName,
+    hasInitialDescription: !!finalInitialDescription,
+    hasInitialSearchCoordinates: !!finalInitialSearchCoordinates,
+    hasInitialRoutePath: !!finalInitialRoutePath,
+    routePathLength: finalInitialRoutePath?.length || 0,
+    hasInitialStartPoint: !!finalInitialStartPoint,
+    hasInitialEndPoint: !!finalInitialEndPoint,
     hasOnRouteCreated: !!onRouteCreated,
   });
 
@@ -423,11 +445,11 @@ export function CreateRouteSheet({
   const [error, setError] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
     console.log('🏗️ Initializing waypoints state:', {
-      hasInitialWaypoints: !!initialWaypoints,
-      count: initialWaypoints?.length || 0,
-      waypoints: initialWaypoints,
+      hasInitialWaypoints: !!finalInitialWaypoints,
+      count: finalInitialWaypoints?.length || 0,
+      waypoints: finalInitialWaypoints,
     });
-    return initialWaypoints || [];
+    return finalInitialWaypoints || [];
   });
   const [region, setRegion] = useState({
     latitude: 55.7047,
@@ -457,7 +479,7 @@ export function CreateRouteSheet({
 
   // Drawing modes system - set to 'record' if coming from recorded route
   const [drawingMode, setDrawingMode] = useState<'pin' | 'waypoint' | 'pen' | 'record'>(
-    initialWaypoints?.length ? 'record' : 'pin',
+    finalInitialWaypoints?.length ? 'record' : 'pin',
   );
   const [snapToRoads, setSnapToRoads] = useState(false);
   const [undoneWaypoints, setUndoneWaypoints] = useState<Waypoint[]>([]);
@@ -476,27 +498,27 @@ export function CreateRouteSheet({
   useEffect(() => {
     console.log('🏗️ ==================== USE EFFECT - SEARCH COORDINATES ====================');
     console.log('🏗️ Search coordinates effect triggered:', {
-      hasInitialSearchCoordinates: !!initialSearchCoordinates,
-      initialSearchCoordinates,
+      hasInitialSearchCoordinates: !!finalInitialSearchCoordinates,
+      finalInitialSearchCoordinates,
       currentSearchQuery: searchQuery,
-      shouldSet: initialSearchCoordinates && searchQuery === '',
+      shouldSet: finalInitialSearchCoordinates && searchQuery === '',
     });
 
-    if (initialSearchCoordinates && searchQuery === '') {
-      console.log('🏗️ Setting initial search coordinates:', initialSearchCoordinates);
-      setSearchQuery(initialSearchCoordinates);
+    if (finalInitialSearchCoordinates && searchQuery === '') {
+      console.log('🏗️ Setting initial search coordinates:', finalInitialSearchCoordinates);
+      setSearchQuery(finalInitialSearchCoordinates);
       console.log('🏗️ ✅ Search coordinates set successfully');
     }
-  }, [initialSearchCoordinates, searchQuery]);
+  }, [finalInitialSearchCoordinates, searchQuery]);
 
   // Setup routePath for map if provided
   const [routePath, setRoutePath] = useState<Array<{ latitude: number; longitude: number }> | null>(
-    initialRoutePath || null,
+    finalInitialRoutePath || null,
   );
 
   useEffect(() => {
     // Only try to get current location if we're creating a new route (not editing) and there are no initial waypoints
-    if (!isEditing && !initialWaypoints?.length) {
+    if (!isEditing && !finalInitialWaypoints?.length) {
       (async () => {
         try {
           if (!locationPermission) {
@@ -565,14 +587,14 @@ export function CreateRouteSheet({
     console.log('🏗️ Checking initial waypoints:', {
       hasInitialWaypoints: !!initialWaypoints?.length,
       count: initialWaypoints?.length || 0,
-      waypoints: initialWaypoints,
+      waypoints: finalInitialWaypoints,
     });
 
-    if (initialWaypoints?.length) {
+    if (finalInitialWaypoints?.length) {
       console.log('🏗️ Setting up region from initial waypoints...');
 
-      const latitudes = initialWaypoints.map((wp) => wp.latitude);
-      const longitudes = initialWaypoints.map((wp) => wp.longitude);
+      const latitudes = finalInitialWaypoints.map((wp) => wp.latitude);
+      const longitudes = finalInitialWaypoints.map((wp) => wp.longitude);
 
       const minLat = Math.min(...latitudes);
       const maxLat = Math.max(...latitudes);
@@ -596,7 +618,7 @@ export function CreateRouteSheet({
 
       console.log('🏗️ ✅ Region and active section set for recorded route');
     }
-  }, [isEditing, locationPermission, initialWaypoints]);
+  }, [isEditing, locationPermission, finalInitialWaypoints]);
 
   useEffect(() => {
     if (isEditing && routeId) {
@@ -605,8 +627,8 @@ export function CreateRouteSheet({
   }, [isEditing, routeId]);
 
   const [formData, setFormData] = useState({
-    name: initialName || '',
-    description: initialDescription || '',
+    name: finalInitialName || '',
+    description: finalInitialDescription || '',
     difficulty: 'beginner' as DifficultyLevel,
     spot_type: 'urban' as SpotType,
     visibility: 'public' as SpotVisibility,

@@ -677,7 +677,7 @@ export function ExerciseListSheet({
 
     // Find exercise for celebration
     const exercise = exercises.find((ex) => ex.id === exerciseId);
-    
+
     if (isDone) {
       setVirtualRepeatCompletions((prev) => prev.filter((id) => id !== virtualId));
       try {

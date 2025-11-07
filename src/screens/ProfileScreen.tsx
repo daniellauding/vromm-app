@@ -3138,10 +3138,10 @@ export function ProfileScreen() {
                 </YStack>
 
                 <YStack>
-                  <Text size="lg" weight="medium" mb="$2" color="$color" display="none">
-                    {t('profile.location')}
-                  </Text>
                   <YStack gap="$2">
+                    <Text size="md" fontWeight="600" color="$color">
+                      {t('profile.location') || (language === 'sv' ? 'Plats' : 'Location')}
+                    </Text>
                     <DropdownButton
                       onPress={() => {
                         // Search for nearby locations first, then show sheet
@@ -3151,44 +3151,69 @@ export function ProfileScreen() {
                         showLocationSheet();
                       }}
                       value={formData.location}
-                      placeholder="Select Your Location"
+                      placeholder={
+                        t('profile.selectLocation') || language === 'sv'
+                          ? 'Välj din plats'
+                          : 'Select Your Location'
+                      }
                       isActive={showLocationDrawer}
                     />
                   </YStack>
                 </YStack>
 
-                <DropdownButton
-                  onPress={showRoleSheet}
-                  value={
-                    formData.role === 'student'
-                      ? t('profile.roles.student')
-                      : formData.role === 'instructor'
-                        ? t('profile.roles.instructor')
-                        : t('profile.roles.school')
-                  }
-                  placeholder={t('profile.selectRole') || 'Select Role'}
-                  isActive={showRoleModal}
-                />
+                <YStack gap="$2">
+                  <Text size="md" fontWeight="600" color="$color">
+                    {t('profile.roleLabel') || (language === 'sv' ? 'Roll' : 'Role')}
+                  </Text>
+                  <DropdownButton
+                    onPress={showRoleSheet}
+                    value={
+                      formData.role === 'student'
+                        ? t('profile.roles.student')
+                        : formData.role === 'instructor'
+                          ? t('profile.roles.instructor')
+                          : t('profile.roles.school')
+                    }
+                    placeholder={t('profile.selectRole') || 'Select Role'}
+                    isActive={showRoleModal}
+                  />
+                </YStack>
 
-                <DropdownButton
-                  onPress={showExperienceSheet}
-                  value={
-                    formData.experience_level === 'beginner'
-                      ? t('profile.experienceLevels.beginner')
-                      : formData.experience_level === 'intermediate'
-                        ? t('profile.experienceLevels.intermediate')
-                        : t('profile.experienceLevels.advanced')
-                  }
-                  placeholder="Select Experience Level"
-                  isActive={showExperienceModal}
-                />
+                <YStack gap="$2">
+                  <Text size="md" fontWeight="600" color="$color">
+                    {t('profile.experienceLabel') || language === 'sv'
+                      ? 'Erfarenhetsnivå'
+                      : 'Experience Level'}
+                  </Text>
+                  <DropdownButton
+                    onPress={showExperienceSheet}
+                    value={
+                      formData.experience_level === 'beginner'
+                        ? t('profile.experienceLevels.beginner')
+                        : formData.experience_level === 'intermediate'
+                          ? t('profile.experienceLevels.intermediate')
+                          : t('profile.experienceLevels.advanced')
+                    }
+                    placeholder={
+                      t('profile.selectExperience') || language === 'sv'
+                        ? 'Välj erfarenhetsnivå'
+                        : 'Select Experience Level'
+                    }
+                    isActive={showExperienceModal}
+                  />
+                </YStack>
 
-                <DropdownButton
-                  onPress={showLanguageSheet}
-                  value={LANGUAGE_LABELS[language]}
-                  placeholder={t('profile.selectLanguage') || 'Select Language'}
-                  isActive={showLanguageModal}
-                />
+                <YStack gap="$2">
+                  <Text size="md" fontWeight="600" color="$color">
+                    {t('profile.languageLabel') || (language === 'sv' ? 'Språk' : 'Language')}
+                  </Text>
+                  <DropdownButton
+                    onPress={showLanguageSheet}
+                    value={LANGUAGE_LABELS[language]}
+                    placeholder={t('profile.selectLanguage') || 'Select Language'}
+                    isActive={showLanguageModal}
+                  />
+                </YStack>
 
                 {/* Notification Settings */}
                 <YStack marginVertical="$2" display="none">
@@ -3201,11 +3226,19 @@ export function ProfileScreen() {
 
                 {/* Theme Settings */}
                 <YStack marginVertical="$2">
-                  <DropdownButton
-                    onPress={showThemeSheet}
-                    value={t('profile.themeSettings') || 'Theme Settings'}
-                    placeholder="Theme Settings"
-                  />
+                  <YStack gap="$2">
+                    <Text size="md" fontWeight="600" color="$color">
+                      {t('profile.themeLabel') || (language === 'sv' ? 'Tema' : 'Theme')}
+                    </Text>
+                    <DropdownButton
+                      onPress={showThemeSheet}
+                      value={
+                        t('profile.themeSettings') ||
+                        (language === 'sv' ? 'Temainställningar' : 'Theme Settings')
+                      }
+                      placeholder={language === 'sv' ? 'Temainställningar' : 'Theme Settings'}
+                    />
+                  </YStack>
                 </YStack>
 
                 {/* Developer Tools (Combined Testing & Developer Options) - Only show if developer mode enabled */}
