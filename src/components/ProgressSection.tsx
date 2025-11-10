@@ -295,18 +295,6 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     }
   }, [effectiveUserId, loadUserPayments, loadUnlockedContent]);
 
-  // Debug logging for user switching (matching ProgressScreen.tsx)
-  console.log('🔍 [ProgressSection] User ID Debug:', {
-    activeUserId: activeUserId,
-    authUserId: authUser?.id,
-    activeStudentId: activeStudentId,
-    effectiveUserId: effectiveUserId,
-    isViewingStudent: activeUserId && activeUserId !== authUser?.id,
-    isViewingStudentFromContext: !!activeStudentId,
-    authUserName: authUser?.email,
-    profileRole: profile?.role,
-  });
-
   // Access control helper functions (uses shared context)
   const isPathPasswordLocked = (path: LearningPath): boolean => {
     return !!path.is_locked && !isPathUnlocked(path.id);
@@ -317,46 +305,58 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     return !hasPathPayment(path.id);
   };
 
-  const checkPathPaywall = async (path: LearningPath): Promise<boolean> => {
-    if (!path.paywall_enabled) return true;
-    if (hasPathPayment(path.id)) return true;
-    setPaywallPath(path);
-    setShowPaywallModal(true);
-    return false;
-  };
+  const checkPathPaywall = React.useCallback(
+    async (path: LearningPath): Promise<boolean> => {
+      if (!path.paywall_enabled) return true;
+      if (hasPathPayment(path.id)) return true;
+      setPaywallPath(path);
+      setShowPaywallModal(true);
+      return false;
+    },
+    [hasPathPayment],
+  );
 
-  const checkPathPassword = async (path: LearningPath): Promise<boolean> => {
-    if (!path.is_locked) return true;
-    if (isPathUnlocked(path.id)) return true;
-    setPasswordPath(path);
-    setShowPasswordModal(true);
-    return false;
-  };
+  const checkPathPassword = React.useCallback(
+    async (path: LearningPath): Promise<boolean> => {
+      if (!path.is_locked) return true;
+      if (isPathUnlocked(path.id)) return true;
+      setPasswordPath(path);
+      setShowPasswordModal(true);
+      return false;
+    },
+    [isPathUnlocked],
+  );
 
   // Helper function to get user profile preferences (same as ProgressScreen)
-  const getProfilePreference = (key: string, defaultValue: string): string => {
-    if (!profile) return defaultValue;
+  const getProfilePreference = React.useCallback(
+    (key: string, defaultValue: string): string => {
+      if (!profile) return defaultValue;
 
-    try {
-      // Check if profile has license_plan_data from onboarding
-      const licenseData = (profile as any)?.license_plan_data;
-      if (licenseData && typeof licenseData === 'object') {
-        const value = licenseData[key];
-        console.log(`🔍 [ProgressSection] Reading profile preference ${key}:`, value);
+      try {
+        // Check if profile has license_plan_data from onboarding
+        const licenseData = (profile as any)?.license_plan_data;
+        if (licenseData && typeof licenseData === 'object') {
+          const value = licenseData[key];
+          console.log(`🔍 [ProgressSection] Reading profile preference ${key}:`, value);
+          return value || defaultValue;
+        }
+
+        // Fallback to direct profile properties
+        const value = (profile as any)[key];
         return value || defaultValue;
+      } catch (error) {
+        console.log('Error getting profile preference:', error);
+        return defaultValue;
       }
-
-      // Fallback to direct profile properties
-      const value = (profile as any)[key];
-      return value || defaultValue;
-    } catch (error) {
-      console.log('Error getting profile preference:', error);
-      return defaultValue;
-    }
-  };
+    },
+    [profile],
+  );
 
   // Load filter preferences from AsyncStorage - USER-SPECIFIC (same as ProgressScreen)
-  const loadFilterPreferences = async (): Promise<Record<CategoryType, string> | null> => {
+  const loadFilterPreferences = React.useCallback(async (): Promise<Record<
+    CategoryType,
+    string
+  > | null> => {
     try {
       // Make filter loading user-specific for supervisors viewing different students
       const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
@@ -374,7 +374,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       console.error('Error loading filter preferences:', error);
     }
     return null;
-  };
+  }, [effectiveUserId]);
 
   // Load filters and learning paths
   useEffect(() => {
@@ -493,22 +493,24 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         setPaths(data);
         setActivePath(data[0].id);
       }
-      setLoading(false);
     };
     fetch();
-  }, [profile]); // Reload when profile changes
+  }, [profile, getProfilePreference, loadFilterPreferences]); // Reload when profile changes
 
   // Add useFocusEffect to refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log('ProgressSection: Screen focused, refreshing data');
       if (effectiveUserId) {
-        fetchCompletions(effectiveUserId);
+        fetchCompletions(effectiveUserId).then((completions) => {
+          setCompletedIds(completions);
+        });
       }
     }, [effectiveUserId]),
   );
 
   useEffect(() => {
+    console.log('ProgressSection: Fetching last audit and completions');
     const fetch = async () => {
       const [lastAudit, completions] = await Promise.all([
         loadLastAudit(effectiveUserId),
@@ -525,30 +527,48 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
 
     // Create a unique channel name that includes the component instance
     const channelName = `exercise-completions-home-${Date.now()}`;
-    console.log(`ProgressSection: Creating channel ${channelName}`);
 
     const subscription = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          event: 'INSERT', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'learning_path_exercise_completions',
           filter: `user_id=eq.${effectiveUserId}`,
         },
-        (payload) => {
-          // Log payload for debugging
-          console.log('ProgressSection: Realtime update received:', payload.eventType);
-
+        () => {
           // Debounce to handle batch updates (like Mark All)
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
-            console.log('ProgressSection: Executing debounced fetch');
-            fetchCompletions(effectiveUserId);
+            fetchCompletions(effectiveUserId).then((completions) => {
+              setCompletedIds(completions);
+            });
           }, 200); // Short delay to batch multiple rapid changes
         },
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'learning_path_exercise_completions',
+        },
+        () => {
+          // Debounce to handle batch updates (like Mark All)
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            fetchCompletions(effectiveUserId).then((completions) => {
+              setCompletedIds(completions);
+            });
+          }, 200); // Short delay to batch multiple rapid changes
+        },
+      )
+      .subscribe();
+
+    const virtualRepeatSubscription = supabase
+      .channel(`progress-section-virtual-repeat-completions-${effectiveUserId}`)
       .on(
         'postgres_changes',
         {
@@ -560,16 +580,19 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         () => {
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
-            console.log('ProgressSection: Executing debounced fetch (virtual repeats)');
-            fetchCompletions(effectiveUserId);
+            fetchCompletions(effectiveUserId).then((completions) => {
+              setCompletedIds(completions);
+            });
           }, 200);
         },
-      );
+      )
+      .subscribe();
 
     // Clean up subscription and timer on unmount
     return () => {
       clearTimeout(debounceTimer);
       supabase.removeChannel(subscription);
+      supabase.removeChannel(virtualRepeatSubscription);
     };
   }, [effectiveUserId]);
 
@@ -638,6 +661,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
 
   // Filter paths based on user preferences (same logic as ProgressScreen)
   const filteredPaths = React.useMemo(() => {
+    setLoading(false);
     return paths.filter((path) => {
       // Handle variations in data values and allow null values
       const matchesVehicleType =
@@ -703,15 +727,6 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     const completed = ids.filter((id) => completedIds.includes(id)).length;
     return completed / ids.length;
   };
-
-  // Debug logging for ProgressSection visibility
-  console.log('🔍 [ProgressSection] Render check:', {
-    loading,
-    pathsCount: paths.length,
-    filteredPathsCount: filteredPaths.length,
-    effectiveUserId,
-    profileRole: profile?.role,
-  });
 
   if (loading) {
     console.log('🔍 [ProgressSection] Still loading, not rendering');
