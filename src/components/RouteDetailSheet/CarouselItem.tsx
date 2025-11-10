@@ -20,12 +20,15 @@ export default function CarouselItem({ item }: { item: any }): React.JSX.Element
         waypoints={item.waypoints}
         region={item.region}
         style={{ width: width - 32, height: HERO_HEIGHT }}
-        zoomEnabled={true}
+        zoomEnabled={false}
+        pitchEnabled={false}
+        rotateEnabled={false}
         scrollEnabled={false}
         routePath={item.routePath}
         pins={item.pins}
         routePathColor={PIN_COLORS.ROUTE_PATH}
         showStartEndMarkers={item.showStartEndMarkers}
+        drawingMode={item.waypoints.length > 2 ? 'waypoint' : 'pen'}
       />
     );
   } else if (item.type === 'image') {

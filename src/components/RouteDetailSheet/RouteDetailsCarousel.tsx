@@ -155,7 +155,23 @@ interface RouteDetailSheetProps {
 export default function RouteDetailsCarousel({ routeData }: { routeData: any }) {
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
-  if (getCarouselItems(routeData).length === 0) return null;
+  const carouselItems = React.useMemo(() => getCarouselItems(routeData), [routeData]);
+  if (carouselItems.length === 0) return null;
+
+  if (carouselItems.length === 1) {
+    return (
+      <View
+        style={{
+          height: height * 0.3,
+          borderRadius: 12,
+          overflow: 'hidden',
+          marginBottom: 16,
+        }}
+      >
+        <CarouselItem item={carouselItems[0]} />
+      </View>
+    );
+  }
 
   return (
     <View
@@ -170,12 +186,12 @@ export default function RouteDetailsCarousel({ routeData }: { routeData: any }) 
         loop
         width={width - 32}
         height={height * 0.3}
-        data={getCarouselItems(routeData)}
+        data={carouselItems}
         renderItem={({ item }) => <CarouselItem item={item} />}
         onSnapToItem={setActiveMediaIndex}
       />
       {/* Pagination dots */}
-      {getCarouselItems(routeData).length > 1 && (
+      {carouselItems.length > 1 && (
         <XStack
           position="absolute"
           bottom={16}
@@ -185,7 +201,7 @@ export default function RouteDetailsCarousel({ routeData }: { routeData: any }) 
           backgroundColor="transparent"
           borderRadius="$4"
         >
-          {getCarouselItems(routeData).map((_, index) => (
+          {carouselItems.map((_, index) => (
             <View
               key={index}
               style={{

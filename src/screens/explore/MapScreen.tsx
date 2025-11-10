@@ -2,14 +2,12 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   TouchableOpacity,
   Animated,
   Easing,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map } from '../../components/Map';
 
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -18,7 +16,7 @@ import { NavigationProp, FilterCategory } from '../../types/navigation';
 import * as Location from 'expo-location';
 import { Screen } from '../../components/Screen';
 import { useRoutes } from '../../hooks/useRoutes';
-import type { Route as RouteType, WaypointData } from '../../hooks/useRoutes';
+import type { Route as RouteType } from '../../hooks/useRoutes';
 import { RoutesDrawer } from './RoutesDrawer';
 import MapView from '../../components/MapView';
 import { AppHeader } from '../../components/AppHeader';
@@ -27,19 +25,14 @@ import { FilterOptions, FilterSheetModal } from '../../components/FilterSheet';
 import { useModal } from '../../contexts/ModalContext';
 import { Text, useTheme } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
-import { MapPresetSheetModal } from '../../components/MapPresetSheet';
 import { SelectedRoute } from './SelectedRoute';
 import { useActiveRoutes, useRoutesFilters, useWaypoints } from './hooks';
-import { calculateDistance, getDistanceFromLatLonInKm } from './utils';
+import { calculateDistance } from './utils';
 import { useLocation } from '../../context/LocationContext';
 import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
 import { useUserCollections } from '../../hooks/useUserCollections';
 import { PIN_COLORS } from '../../styles/mapStyles';
-// Tour imports disabled to prevent performance issues
-// import { useTourTarget } from '../../components/TourOverlay';
-// import { useScreenTours } from '../../utils/screenTours';
-// import { useTour } from '../../contexts/TourContext';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { RouteCreationBanner } from '../../components/RouteCreationBanner';
@@ -50,17 +43,6 @@ type SearchResult = {
   place_name: string;
   center: [number, number];
   place_type: string[];
-};
-
-const DARK_THEME = {
-  background: '$background',
-  bottomSheet: '$backgroundHover',
-  text: '$color',
-  secondaryText: '$gray11',
-  borderColor: '$borderColor',
-  handleColor: '$gray8',
-  iconColor: '$color',
-  cardBackground: '$backgroundHover',
 };
 
 export function MapScreen({

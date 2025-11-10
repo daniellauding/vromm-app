@@ -476,31 +476,32 @@ export function Map({
           routePathWidth={routePathWidth}
           showStartEndMarkers={showStartEndMarkers}
         />
-        {clusters.map((cluster, index) => {
-          // Find waypoint index for proper coloring
-          const waypointIndex = waypoints.findIndex(
-            (wp) =>
-              wp.id === cluster.properties.id ||
-              `waypoint-${waypoints.indexOf(wp)}` === cluster.properties.id,
-          );
+        {drawingMode !== 'waypoint' &&
+          clusters.map((cluster, index) => {
+            // Find waypoint index for proper coloring
+            const waypointIndex = waypoints.findIndex(
+              (wp) =>
+                wp.id === cluster.properties.id ||
+                `waypoint-${waypoints.indexOf(wp)}` === cluster.properties.id,
+            );
 
-          // Cluster marker pressed
+            // Cluster marker pressed
 
-          return (
-            <WaypointMarker
-              key={cluster.properties.cluster_id ?? cluster.properties.id ?? cluster.id ?? index}
-              cluster={cluster}
-              expandedCluster={null}
-              onMarkerPress={onMarkerPress || (() => {})}
-              customMarker={customMarker}
-              selectedPin={selectedPin || null}
-              handleClusterPress={handleClusterPress}
-              drawingMode={drawingMode}
-              waypointIndex={waypointIndex >= 0 ? waypointIndex : index}
-              totalWaypoints={waypoints.length}
-            />
-          );
-        })}
+            return (
+              <WaypointMarker
+                key={cluster.properties.cluster_id ?? cluster.properties.id ?? cluster.id ?? index}
+                cluster={cluster}
+                expandedCluster={null}
+                onMarkerPress={onMarkerPress || (() => {})}
+                customMarker={customMarker}
+                selectedPin={selectedPin || null}
+                handleClusterPress={handleClusterPress}
+                drawingMode={drawingMode}
+                waypointIndex={waypointIndex >= 0 ? waypointIndex : index}
+                totalWaypoints={waypoints.length}
+              />
+            );
+          })}
       </MapView>
     </View>
   );

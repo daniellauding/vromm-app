@@ -19,6 +19,7 @@ import { Database } from '../lib/database.types';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 import { AppAnalytics } from '../utils/analytics';
 import { PIN_COLORS } from '../styles/mapStyles';
+import RouteDetailsCarousel from './RouteDetailSheet/RouteDetailsCarousel';
 
 type WaypointData = {
   lat: number;
@@ -80,7 +81,7 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
   });
 
   // Navigation function to be called from runOnJS
-  const navigateToRoute = () => {
+  const navigateToRoute = React.useCallback(() => {
     // Track route card interaction
     AppAnalytics.trackButtonPress('route_card', 'RouteCard', {
       route_id: route.id,
@@ -102,10 +103,10 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
         params: { screen: 'RouteDetail', params: { routeId: route.id } },
       });
     }
-  };
+  }, [route.id, route.title, route.spot_type, onPress, navigation]);
 
   // Enhanced press handler with animations
-  const handlePress = () => {
+  const handlePress = React.useCallback(() => {
     // Zoom and fade animation sequence
     scale.value = withSequence(
       withSpring(0.95, { damping: 15, stiffness: 300 }),
@@ -120,258 +121,13 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
         runOnJS(navigateToRoute)();
       }),
     );
-  };
-
-  const getMapRegion = () => {
-    const waypointsData = (route.waypoint_details ||
-      route.metadata?.waypoints ||
-      []) as WaypointData[];
-    if (waypointsData.length > 0) {
-      const latitudes = waypointsData.map((wp) => Number(wp.lat));
-      const longitudes = waypointsData.map((wp) => Number(wp.lng));
-
-      const minLat = Math.min(...latitudes);
-      const maxLat = Math.max(...latitudes);
-      const minLng = Math.min(...longitudes);
-      const maxLng = Math.max(...longitudes);
-
-      const latPadding = (maxLat - minLat) * 0.1;
-      const lngPadding = (maxLng - minLng) * 0.1;
-
-      const minDelta = 0.01;
-      const latDelta = Math.max(maxLat - minLat + latPadding, minDelta);
-      const lngDelta = Math.max(maxLng - minLng + lngPadding, minDelta);
-
-      return {
-        latitude: (minLat + maxLat) / 2,
-        longitude: (minLng + maxLng) / 2,
-        latitudeDelta: latDelta,
-        longitudeDelta: lngDelta,
-      };
-    }
-    return null;
-  };
-
-  const getWaypoints = () => {
-    const waypointsData = (route.waypoint_details ||
-      route.metadata?.waypoints ||
-      []) as WaypointData[];
-    return waypointsData.map((wp) => ({
-      latitude: Number(wp.lat),
-      longitude: Number(wp.lng),
-      title: wp.title?.toString(),
-      description: wp.description?.toString(),
-    }));
-  };
-
-  const region = getMapRegion();
-  const waypoints = getWaypoints();
-  const imageAttachments = route.media_attachments?.filter((m) => m.type === 'image') || [];
-
-  const carouselItems = useMemo(() => {
-    const items = [];
-
-    // Add map if waypoints exist
-    if (region && waypoints.length > 0) {
-      // Create route path for recorded routes (more than just waypoints)
-      const routePath = waypoints.length > 2 ? waypoints : undefined;
-      const showStartEndMarkers = true; // Always show markers for better visibility
-
-      // Extract pen drawing coordinates from metadata
-      const penDrawingCoordinates = route.metadata?.coordinates || [];
-
-      // Map item added
-
-      items.push({
-        type: 'map' as const,
-        data: {
-          region,
-          waypoints,
-          routePath,
-          showStartEndMarkers,
-          drawingMode: route.drawing_mode,
-          penDrawingCoordinates,
-        },
-      });
-    }
-
-    // Add route media attachments (deduplicated) - include images AND videos
-    const uniqueAttachments =
-      route.media_attachments?.filter(
-        (m, index, arr) =>
-          (m.type === 'image' || m.type === 'video') &&
-          arr.findIndex((a) => a.url === m.url && a.type === m.type) === index,
-      ) || [];
-
-    // Media attachments processed
-
-    // Validate and filter out invalid URLs
-    const validAttachments = uniqueAttachments.filter((m) => {
-      const isValidUrl =
-        m.url &&
-        (m.url.startsWith('http://') ||
-          m.url.startsWith('https://') ||
-          m.url.startsWith('file://') ||
-          m.url.startsWith('data:') ||
-          m.url.startsWith('content://'));
-
-      if (!isValidUrl) {
-        // Invalid media URL skipped
-        return false;
-      }
-
-      return true;
-    });
-
-    // Media validation completed
-
-    const media = validAttachments.map((m) => ({
-      type: m.type as const,
-      data: {
-        url: m.url,
-        description: m.description,
-      },
-    }));
-
-    return [...items, ...media];
-  }, [route.media_attachments, region, waypoints, route.drawing_mode]);
+  }, [scale, opacity, navigateToRoute]);
 
   return (
     <Animated.View style={animatedStyle}>
       <Card padding="$4" onPress={handlePress}>
         <YStack space="$4">
-          {carouselItems.length > 0 && (
-            <View style={{ height: 200, borderRadius: 16, overflow: 'hidden' }}>
-              {carouselItems.length === 1 ? (
-                <View style={{ flex: 1 }}>
-                  {carouselItems[0].type === 'map' ? (
-                    <Map
-                      waypoints={carouselItems[0].data.waypoints}
-                      region={carouselItems[0].data.region}
-                      scrollEnabled={false}
-                      zoomEnabled={false}
-                      pitchEnabled={false}
-                      rotateEnabled={false}
-                      style={{ width: '100%', height: '100%' }}
-                      routePath={carouselItems[0].data.routePath}
-                      routePathColor={PIN_COLORS.ROUTE_PATH}
-                      showStartEndMarkers={carouselItems[0].data.showStartEndMarkers}
-                      drawingMode={carouselItems[0].data.drawingMode}
-                      penDrawingCoordinates={carouselItems[0].data.penDrawingCoordinates}
-                    />
-                  ) : carouselItems[0].type === 'video' ? (
-                    <TouchableOpacity
-                      style={{ width: '100%', height: '100%', position: 'relative' }}
-                      onPress={() =>
-                        console.log('🎥 Video play requested:', carouselItems[0].data.url)
-                      }
-                      activeOpacity={0.8}
-                    >
-                      <View
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          backgroundColor: '#000',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <View
-                          style={{
-                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                            borderRadius: 50,
-                            width: 80,
-                            height: 80,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <Play size={32} color="#FFF" />
-                        </View>
-                        <Text style={{ color: '#FFF', marginTop: 8, fontSize: 12 }}>
-                          Tap to play video
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  ) : (
-                    <ImageWithFallback
-                      source={{ uri: carouselItems[0].data.url }}
-                      style={{ width: '100%', height: '100%' }}
-                      resizeMode="cover"
-                    />
-                  )}
-                </View>
-              ) : (
-                <Carousel
-                  loop
-                  width={width}
-                  height={200}
-                  data={carouselItems}
-                  defaultIndex={0}
-                  autoPlay={false}
-                  enabled={true}
-                  renderItem={({ item }) => (
-                    <View style={{ flex: 1 }}>
-                      {item.type === 'map' ? (
-                        <Map
-                          waypoints={item.data.waypoints}
-                          region={item.data.region}
-                          scrollEnabled={false}
-                          zoomEnabled={false}
-                          pitchEnabled={false}
-                          rotateEnabled={false}
-                          style={{ width: '100%', height: '100%' }}
-                          routePath={item.data.routePath}
-                          routePathColor={PIN_COLORS.ROUTE_PATH}
-                          showStartEndMarkers={item.data.showStartEndMarkers}
-                          drawingMode={item.data.drawingMode}
-                          penDrawingCoordinates={item.data.penDrawingCoordinates}
-                        />
-                      ) : item.type === 'video' ? (
-                        <TouchableOpacity
-                          style={{ width: '100%', height: '100%', position: 'relative' }}
-                          onPress={() => console.log('🎥 Video play requested:', item.data.url)}
-                          activeOpacity={0.8}
-                        >
-                          <View
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              backgroundColor: '#000',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <View
-                              style={{
-                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                borderRadius: 50,
-                                width: 80,
-                                height: 80,
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                              }}
-                            >
-                              <Play size={32} color="#FFF" />
-                            </View>
-                            <Text style={{ color: '#FFF', marginTop: 8, fontSize: 12 }}>
-                              Tap to play video
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      ) : (
-                        <ImageWithFallback
-                          source={{ uri: item.data.url }}
-                          style={{ width: '100%', height: '100%' }}
-                          resizeMode="cover"
-                        />
-                      )}
-                    </View>
-                  )}
-                />
-              )}
-            </View>
-          )}
+          <RouteDetailsCarousel routeData={route} />
 
           <YStack space="$3">
             <Text fontSize="$5" fontWeight="bold">
