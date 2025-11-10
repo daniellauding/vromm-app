@@ -353,7 +353,7 @@ export function Map({
   // Calculate clusters (but skip clustering in drawing modes)
   const calculateClusters = useCallback(
     async ({ region }: { region: Region | null }) => {
-      if (!region || !waypoints.length) return [];
+      if (!waypoints.length) return [];
 
       // Skip clustering in drawing modes - show individual waypoints
       if (drawingMode === 'pin' || drawingMode === 'waypoint' || drawingMode === 'pen') {
