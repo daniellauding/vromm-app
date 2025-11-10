@@ -28,7 +28,7 @@ export default function CarouselItem({ item }: { item: any }): React.JSX.Element
         pins={item.pins}
         routePathColor={PIN_COLORS.ROUTE_PATH}
         showStartEndMarkers={item.showStartEndMarkers}
-        drawingMode={item.waypoints.length > 2 ? 'waypoint' : 'pen'}
+        drawingMode={item.waypoints.length > 2 ? 'waypoint' : 'pin'}
       />
     );
   } else if (item.type === 'image') {
