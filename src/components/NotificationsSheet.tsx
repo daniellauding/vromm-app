@@ -16,6 +16,7 @@ import { useColorScheme } from 'react-native';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { notificationService } from '../services/notificationService';
 import { useToast } from '../contexts/ToastContext';
+import { useTranslation } from '../contexts/TranslationContext';
 import { Button } from './Button';
 
 const { height } = Dimensions.get('window');
@@ -31,6 +32,14 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const { showToast } = useToast();
   const theme = useTheme();
+  const { language, t } = useTranslation();
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
 
   // State
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -68,8 +77,11 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
       setIsProcessing(true);
       await notificationService.markAllAsRead();
       showToast({
-        title: 'Success',
-        message: 'All notifications cleared',
+        title: getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
+        message: getTranslation(
+          'notifications.allCleared',
+          language === 'sv' ? 'Alla notiser rensade' : 'All notifications cleared'
+        ),
         type: 'success',
       });
       setShowBulkActions(false);
@@ -274,7 +286,15 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                 {/* Header */}
                 <XStack justifyContent="space-between" alignItems="center">
                   <Text fontSize="$6" fontWeight="bold" color="$color">
-                    {showArchived ? 'Archived Notifications' : 'Notifications'}
+                    {showArchived
+                      ? getTranslation(
+                          'notifications.archived',
+                          language === 'sv' ? 'Arkiverade notiser' : 'Archived Notifications'
+                        )
+                      : getTranslation(
+                          'notifications.title',
+                          language === 'sv' ? 'Notiser' : 'Notifications'
+                        )}
                   </Text>
 
                   <XStack alignItems="center" gap="$2">
@@ -398,11 +418,19 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
             maxWidth={400}
           >
             <Text fontSize="$5" fontWeight="bold" color="$color" textAlign="center">
-              Archive All Notifications?
+              {getTranslation(
+                'notifications.archiveAllConfirm',
+                language === 'sv' ? 'Arkivera alla notiser?' : 'Archive All Notifications?'
+              )}
             </Text>
 
             <Text fontSize="$3" color="$gray11" textAlign="center" lineHeight={20}>
-              This will archive all your notifications. You can view archived notifications later.
+              {getTranslation(
+                'notifications.archiveAllDescription',
+                language === 'sv'
+                  ? 'Detta kommer att arkivera alla dina notiser. Du kan visa arkiverade notiser senare.'
+                  : 'This will archive all your notifications. You can view archived notifications later.'
+              )}
             </Text>
 
             <XStack gap="$3" justifyContent="center">

@@ -611,7 +611,9 @@ export const HomeHeader = React.memo(function HomeHeader() {
                           {(() => {
                             const translated = t('profile.myProgression');
                             return translated === 'profile.myProgression'
-                              ? 'My Progression'
+                              ? language === 'sv'
+                                ? 'Min Progression'
+                                : 'My Progression'
                               : translated;
                           })()}
                         </Text>
@@ -619,7 +621,9 @@ export const HomeHeader = React.memo(function HomeHeader() {
                           {(() => {
                             const translated = t('profile.myProgressionDescription');
                             return translated === 'profile.myProgressionDescription'
-                              ? 'View your learning progress and achievements'
+                              ? language === 'sv'
+                                ? 'Visa din inlärningsframsteg och prestationer'
+                                : 'View your learning progress and achievements'
                               : translated;
                           })()}
                         </Text>
@@ -784,7 +788,11 @@ export const HomeHeader = React.memo(function HomeHeader() {
               <Text fontSize="$6" fontWeight="bold" color={textColor}>
                 {(() => {
                   const translated = t('profile.myProgression');
-                  return translated === 'profile.myProgression' ? 'My Progression' : translated;
+                  return translated === 'profile.myProgression'
+                    ? language === 'sv'
+                      ? 'Min Progression'
+                      : 'My Progression'
+                    : translated;
                 })()}
               </Text>
               <TouchableOpacity onPress={() => setShowProgressionModal(false)}>

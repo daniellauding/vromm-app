@@ -2613,15 +2613,18 @@ export function OnboardingInteractive({
 
                 <YStack gap="$2">
                   <Text size="sm" fontWeight="400" color="$color">
-                    {/* {t('onboarding.location.cityLabel') || language === 'en'
-                      ? 'Din stad'
-                      : 'Your City'} */}
-                    {t('onboarding.location.cityLabel')}
+                    {getTranslation(
+                      'onboarding.location.cityLabel',
+                      language === 'sv' ? 'Din stad' : 'Your City'
+                    )}
                   </Text>
                   <DropdownButton
                     onPress={showCityModal}
                     value={selectedCity}
-                    placeholder={t('onboarding.location.selectCity') || 'Select Your City'}
+                    placeholder={getTranslation(
+                      'onboarding.location.selectCity',
+                      language === 'sv' ? 'Välj din stad' : 'Select Your City'
+                    )}
                     isActive={showCityDrawer}
                   />
                 </YStack>

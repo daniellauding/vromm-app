@@ -62,11 +62,18 @@ export function UserListSheet({
 }: UserListSheetProps) {
   const insets = useSafeAreaInsets();
   const { user, profile: currentUserProfile } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const theme = useTheme();
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
 
   // Theme colors - matching OnboardingInteractive exactly
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
@@ -415,7 +422,15 @@ export function UserListSheet({
                           fontSize="$2"
                           fontWeight="500"
                         >
-                          {user.isFollowing ? 'Unfollow' : 'Follow'}
+                          {user.isFollowing
+                            ? getTranslation(
+                                'users.unfollow',
+                                language === 'sv' ? 'Sluta följa' : 'Unfollow'
+                              )
+                            : getTranslation(
+                                'users.follow',
+                                language === 'sv' ? 'Följ' : 'Follow'
+                              )}
                         </Text>
                       </>
                     )}
@@ -485,7 +500,12 @@ export function UserListSheet({
                   <Feather name="search" size={16} color={iconColor} />
                   <Input
                     flex={1}
-                    placeholder={t('userList.searchPlaceholder') || 'Search users by name or email...'}
+                    placeholder={getTranslation(
+                      'userList.searchPlaceholder',
+                      language === 'sv'
+                        ? 'Sök användare efter namn eller e-post...'
+                        : 'Search users by name or email...'
+                    )}
                     value={searchQuery}
                     onChangeText={handleSearchChange}
                     backgroundColor="transparent"
@@ -578,7 +598,10 @@ export function UserListSheet({
                   <YStack alignItems="center" justifyContent="center" flex={1} gap="$2">
                     <Feather name="users" size={48} color="#666" />
                     <Text color="$gray11" textAlign="center">
-                      {t('users.noUsers') || 'No users found'}
+                      {getTranslation(
+                        'users.noUsers',
+                        language === 'sv' ? 'Inga användare hittades' : 'No users found'
+                      )}
                     </Text>
                   </YStack>
                 ) : (

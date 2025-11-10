@@ -646,7 +646,11 @@ export function FeaturedContent2() {
         <SectionHeader
           title={(() => {
             const translated = t('home.featuredContent');
-            return translated === 'home.featuredContent' ? 'Featured Learning Cards' : translated;
+            return translated === 'home.featuredContent'
+              ? lang === 'sv'
+                ? 'Utvalda Lärningskort'
+                : 'Featured Learning Cards'
+              : translated;
           })()}
         />
         <YStack alignItems="center" justifyContent="center" padding="$4">
@@ -670,7 +674,11 @@ export function FeaturedContent2() {
       <SectionHeader
         title={(() => {
           const translated = t('home.featuredContent');
-          return translated === 'home.featuredContent' ? 'Featured Learning Cards' : translated;
+          return translated === 'home.featuredContent'
+            ? lang === 'sv'
+              ? 'Utvalda Lärningskort'
+              : 'Featured Learning Cards'
+            : translated;
         })()}
       />
 

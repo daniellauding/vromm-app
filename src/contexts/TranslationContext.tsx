@@ -89,7 +89,7 @@ const getLocalTranslations = (language: Language): Record<string, string> => {
 
 export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [translations, setTranslations] = useState<Record<string, string>>({});
-  const [language, setLanguageState] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>('sv'); // Default to Swedish for Sweden launch
   const [isLoading, setIsLoading] = useState(true);
   const lastFetchTime = useRef(0);
 

@@ -250,6 +250,13 @@ export function ProfileScreen() {
   const { checkForPromotionalContent } = usePromotionalModal();
   const { showToast } = useToast();
 
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
+
   // Lock modal state
   const {
     showModal: showLockModal,
@@ -3141,7 +3148,7 @@ export function ProfileScreen() {
                 <YStack>
                   <YStack gap="$2">
                     <Text size="sm" fontWeight="400" color="$color">
-                      {t('profile.location') || (language === 'sv' ? 'Plats' : 'Location')}
+                      {getTranslation('profile.location', language === 'sv' ? 'Plats' : 'Location')}
                     </Text>
                     <DropdownButton
                       onPress={() => {
@@ -3152,11 +3159,10 @@ export function ProfileScreen() {
                         showLocationSheet();
                       }}
                       value={formData.location}
-                      placeholder={
-                        t('profile.selectLocation') || language === 'sv'
-                          ? 'Välj din plats'
-                          : 'Select Your Location'
-                      }
+                      placeholder={getTranslation(
+                        'profile.selectLocation',
+                        language === 'sv' ? 'Välj din plats' : 'Select Your Location'
+                      )}
                       isActive={showLocationDrawer}
                     />
                   </YStack>
@@ -3182,9 +3188,10 @@ export function ProfileScreen() {
 
                 <YStack gap="$2">
                   <Text size="sm" fontWeight="400" color="$color">
-                    {t('profile.experienceLabel') || language === 'sv'
-                      ? 'Erfarenhetsnivå'
-                      : 'Experience Level'}
+                    {getTranslation(
+                      'profile.experienceLabel',
+                      language === 'sv' ? 'Erfarenhetsnivå' : 'Experience Level'
+                    )}
                   </Text>
                   <DropdownButton
                     onPress={showExperienceSheet}
@@ -5328,7 +5335,12 @@ export function ProfileScreen() {
                   <YStack gap="$1">
                     {locationSearchResults.length === 0 && (
                       <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                        No locations found. Keep typing to search worldwide.
+                        {getTranslation(
+                          'profile.location.noLocationsFound',
+                          language === 'sv'
+                            ? 'Inga platser hittades. Fortsätt skriva för att söka globalt.'
+                            : 'No locations found. Keep typing to search worldwide.'
+                        )}
                       </Text>
                     )}
 
@@ -5424,7 +5436,10 @@ export function ProfileScreen() {
                 gap="$4"
               >
                 <Text size="xl" weight="bold" color="$color" textAlign="center">
-                  Change Avatar
+                  {getTranslation(
+                    'profile.avatar.changeAvatar',
+                    language === 'sv' ? 'Ändra profilbild' : 'Change Avatar'
+                  )}
                 </Text>
 
                 <YStack gap="$1">
@@ -5438,7 +5453,10 @@ export function ProfileScreen() {
                     <XStack gap={12} padding="$2" alignItems="center">
                       <Feather name="image" size={20} color="#00E6C3" />
                       <Text color="$color" size="lg">
-                        Choose from Library
+                        {getTranslation(
+                          'profile.avatar.chooseFromLibrary',
+                          language === 'sv' ? 'Välj från bibliotek' : 'Choose from Library'
+                        )}
                       </Text>
                     </XStack>
                   </TouchableOpacity>
@@ -5453,7 +5471,10 @@ export function ProfileScreen() {
                     <XStack gap={12} padding="$2" alignItems="center">
                       <Feather name="camera" size={20} color="#00E6C3" />
                       <Text color="$color" size="lg">
-                        Take Photo
+                        {getTranslation(
+                          'profile.avatar.takePhoto',
+                          language === 'sv' ? 'Ta foto' : 'Take Photo'
+                        )}
                       </Text>
                     </XStack>
                   </TouchableOpacity>
@@ -5469,7 +5490,10 @@ export function ProfileScreen() {
                       <XStack gap={12} padding="$2" alignItems="center">
                         <Feather name="trash-2" size={20} color="#EF4444" />
                         <Text color="#EF4444" size="lg">
-                          Remove Avatar
+                          {getTranslation(
+                            'profile.avatar.removeAvatar',
+                            language === 'sv' ? 'Ta bort profilbild' : 'Remove Avatar'
+                          )}
                         </Text>
                       </XStack>
                     </TouchableOpacity>

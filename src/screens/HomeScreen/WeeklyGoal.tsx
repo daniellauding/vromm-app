@@ -275,7 +275,10 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
       });
 
       // Create day progress data
-      const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const dayNames =
+        language === 'sv'
+          ? ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön']
+          : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const progressData: DayProgress[] = weekDates.map((date, index) => {
         const dateString = date.toDateString();
         const exercises = completionsByDate[dateString] || 0;
@@ -667,7 +670,10 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                     );
                   })
                 : // Placeholder circles while loading to prevent jumping
-                  ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayName, index) => (
+                  (language === 'sv'
+                    ? ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön']
+                    : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                  ).map((dayName, index) => (
                     <YStack key={`placeholder-${dayName}-${index}`} alignItems="center" gap="$1">
                       <DayProgressCircle
                         progress={0}
@@ -893,16 +899,24 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
               borderRadius="$3"
             >
               <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                📊 How Weekly Goals Work
+                {language === 'sv'
+                  ? '📊 Hur Veckomål Fungerar'
+                  : '📊 How Weekly Goals Work'}
               </Text>
               <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Complete exercises daily to fill your progress circles
+                {language === 'sv'
+                  ? '• Gör övningar dagligen för att fylla dina framstegscirklar'
+                  : '• Complete exercises daily to fill your progress circles'}
               </Text>
               <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Green circles = daily goal achieved
+                {language === 'sv'
+                  ? '• Gröna cirklar = dagligt mål uppnått'
+                  : '• Green circles = daily goal achieved'}
               </Text>
               <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Use arrows to view past or future weeks
+                {language === 'sv'
+                  ? '• Använd pilar för att visa tidigare eller framtida veckor'
+                  : '• Use arrows to view past or future weeks'}
               </Text>
             </YStack>
 
