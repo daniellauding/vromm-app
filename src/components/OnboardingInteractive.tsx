@@ -2032,7 +2032,7 @@ export function OnboardingInteractive({
 
             {/* License Target Date */}
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.licensePlan.targetDate') ||
                   (language === 'en' ? 'Måldatum för körkort' : 'Target License Date')}
               </Text>
@@ -2044,7 +2044,7 @@ export function OnboardingInteractive({
             </YStack>
 
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.licensePlan.vehicleType') ||
                   (language === 'en' ? 'Fordonstyp' : 'Vehicle Type')}
               </Text>
@@ -2059,7 +2059,7 @@ export function OnboardingInteractive({
             </YStack>
 
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.licensePlan.transmissionType') ||
                   (language === 'en' ? 'Växellådstyp' : 'Transmission Type')}
               </Text>
@@ -2074,7 +2074,7 @@ export function OnboardingInteractive({
             </YStack>
 
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.licensePlan.licenseType') ||
                   (language === 'en' ? 'Körkortstyp' : 'License Type')}
               </Text>
@@ -2186,7 +2186,7 @@ export function OnboardingInteractive({
           <YStack gap="$3" width="100%" marginTop="$4">
             {/* Have passed theory test */}
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.license_details.theoryTest') ||
                   (language === 'en'
                     ? 'Har du klarat teoriprov?'
@@ -2214,7 +2214,7 @@ export function OnboardingInteractive({
 
             {/* Have passed practical test */}
             <YStack gap="$2" marginTop="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.license_details.practicalTest') ||
                   (language === 'en'
                     ? 'Har du klarat körprov?'
@@ -2242,7 +2242,7 @@ export function OnboardingInteractive({
 
             {/* Describe driving experience */}
             <YStack gap="$2" marginTop="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.license_details.drivingExperience') ||
                   (language === 'en'
                     ? 'Beskriv din körerfarenhet'
@@ -2264,7 +2264,7 @@ export function OnboardingInteractive({
 
             {/* Goals with license */}
             <YStack gap="$2" marginTop="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.license_details.goals') ||
                   (language === 'en'
                     ? 'Vilka är dina mål med körkortet?'
@@ -2590,7 +2590,7 @@ export function OnboardingInteractive({
                 </Button>
 
                 <YStack gap="$2">
-                  <Text size="md" fontWeight="600" color="$color">
+                  <Text size="sm" fontWeight="400" color="$color">
                     {t('onboarding.location.cityLabel') || language === 'en'
                       ? 'Din stad'
                       : 'Your City'}
@@ -2722,7 +2722,7 @@ export function OnboardingInteractive({
                                 pendingInvitations.map((invitation) => (
                                   <XStack key={invitation.id} gap="$2" alignItems="center">
                                     <YStack flex={1}>
-                                      <Text size="md" fontWeight="600" color="$color">
+                                      <Text size="sm" fontWeight="400" color="$color">
                                         {invitation.metadata?.targetUserName || invitation.email}
                                       </Text>
                                       <Text size="sm" color="$gray11">
@@ -2819,7 +2819,7 @@ export function OnboardingInteractive({
                         backgroundColor="$backgroundHover"
                         borderRadius="$4"
                       >
-                        <Text size="md" fontWeight="600" color="$color">
+                        <Text size="sm" fontWeight="400" color="$color">
                           {t('onboarding.relationships.newConnectionsTitle') ||
                             'New Connection to Add'}{' '}
                           ({selectedConnections.length}):
@@ -2920,7 +2920,7 @@ export function OnboardingInteractive({
                   <YStack gap="$2" width="100%">
                     {/* Language Selection Dropdown */}
                     <YStack gap="$2">
-                      <Text size="md" fontWeight="600" color="$color">
+                      <Text size="sm" fontWeight="400" color="$color">
                         {t('onboarding.complete.languageLabel') ||
                           (language === 'en' ? 'Välj språk' : 'Select Language')}
                       </Text>
@@ -3931,7 +3931,7 @@ export function OnboardingInteractive({
                     })}
 
                     {/* Custom Date Picker with Popover */}
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                       ref={dateButtonRef}
                       onPress={() => {
                         console.log('🗓️ [OnboardingInteractive] Opening date popover');
@@ -3969,7 +3969,7 @@ export function OnboardingInteractive({
                           <Feather name="calendar" size={16} color={textColor} />
                         )}
                       </XStack>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
 
                     <Popover
                       isVisible={showDatePopover}
