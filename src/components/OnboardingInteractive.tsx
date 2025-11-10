@@ -480,17 +480,17 @@ export function OnboardingInteractive({
       id: 'license_details',
       title:
         t('onboarding.licenseDetails.title') ||
-        (language === 'sv' ? 'Ytterligare detaljer' : 'Additional Details'),
+        (language === 'en' ? 'Ytterligare detaljer' : 'Additional Details'),
       description:
         t('onboarding.licenseDetails.description') ||
-        (language === 'sv'
+        (language === 'en'
           ? 'Dela dina testresultat och körmål'
           : 'Share your test progress and driving goals'),
       icon: 'file-text',
       type: 'selection',
       actionButton:
         t('onboarding.licenseDetails.save') ||
-        (language === 'sv' ? 'Spara detaljer' : 'Save Details'),
+        (language === 'en' ? 'Spara detaljer' : 'Save Details'),
       skipButton: t('onboarding.skipForNow') || 'Skip for now',
     },
     {
@@ -572,33 +572,33 @@ export function OnboardingInteractive({
           console.error('Error loading categories:', error);
           // Fallback to hardcoded values that match database values
           setVehicleTypes([
-            { id: 'Car', title: language === 'sv' ? 'Bil' : 'Car' },
-            { id: 'Motorcycle', title: language === 'sv' ? 'Motorcykel' : 'Motorcycle' },
-            { id: 'Truck / Lorry', title: language === 'sv' ? 'Lastbil' : 'Truck / Lorry' },
+            { id: 'Car', title: language === 'en' ? 'Bil' : 'Car' },
+            { id: 'Motorcycle', title: language === 'en' ? 'Motorcykel' : 'Motorcycle' },
+            { id: 'Truck / Lorry', title: language === 'en' ? 'Lastbil' : 'Truck / Lorry' },
           ]);
           setTransmissionTypes([
-            { id: 'Manual', title: language === 'sv' ? 'Manuell' : 'Manual' },
-            { id: 'Automatic', title: language === 'sv' ? 'Automat' : 'Automatic' },
+            { id: 'Manual', title: language === 'en' ? 'Manuell' : 'Manual' },
+            { id: 'Automatic', title: language === 'en' ? 'Automat' : 'Automatic' },
           ]);
           setLicenseTypes([
             {
               id: 'Standard Driving License (B)',
               title:
-                language === 'sv'
+                language === 'en'
                   ? 'Standardkörkort (t.ex. klass B i Europa / klass C i USA)'
                   : 'Standard Driving License (e.g. Class B in Europe / Class C in the US)',
             },
             {
               id: 'Motorcycle License (A)',
               title:
-                language === 'sv'
+                language === 'en'
                   ? 'Motorcykelkörkort (t.ex. klass A)'
                   : 'Motorcycle License (e.g. Class A)',
             },
             {
               id: 'Commercial Driving License',
               title:
-                language === 'sv'
+                language === 'en'
                   ? 'Yrkeskörkort (CDL / klass C/D etc.)'
                   : 'Commercial Driving License (CDL / Class C/D etc.)',
             },
@@ -1875,43 +1875,43 @@ export function OnboardingInteractive({
         : [
             {
               id: 'beginner',
-              title: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)',
+              title: language === 'en' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)',
               description:
-                language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)',
+                language === 'en' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)',
             },
             {
               id: 'intermediate',
               title:
-                language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)',
+                language === 'en' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)',
               description:
-                language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)',
+                language === 'en' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)',
             },
             {
               id: 'advanced',
               title:
-                language === 'sv'
+                language === 'en'
                   ? 'Avancerad (behöver förfinas / förberedas inför prov)'
                   : 'Advanced (needs refinement / preparing for test)',
               description:
-                language === 'sv'
+                language === 'en'
                   ? 'Avancerad (behöver förfinas / förberedas inför prov)'
                   : 'Advanced (needs refinement / preparing for test)',
             },
             {
               id: 'refresher',
               title:
-                language === 'sv'
+                language === 'en'
                   ? 'Repetitionskurs (återvändande förare)'
                   : 'Refresher (returning drivers)',
               description:
-                language === 'sv'
+                language === 'en'
                   ? 'Repetitionskurs (återvändande förare)'
                   : 'Refresher (returning drivers)',
             },
             {
               id: 'expert',
-              title: language === 'sv' ? 'Expert' : 'Expert',
-              description: language === 'sv' ? 'Expert' : 'Expert',
+              title: language === 'en' ? 'Expert' : 'Expert',
+              description: language === 'en' ? 'Expert' : 'Expert',
             },
           ];
 
@@ -1982,110 +1982,110 @@ export function OnboardingInteractive({
           <YStack gap="$3" width="100%" marginTop="$4">
             {/* Experience Level */}
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.licensePlan.experienceLevel') ||
-                  (language === 'sv' ? 'Erfarenhetsnivå' : 'Experience Level')}
+                  (language === 'en' ? 'Erfarenhetsnivå' : 'Experience Level')}
               </Text>
-            <DropdownButton
-              onPress={() => setShowExperienceModal(true)}
-              value={
-                (experienceLevels.length > 0
-                  ? experienceLevels
-                  : [
-                      {
-                        id: 'beginner',
-                        title:
-                            language === 'sv'
+              <DropdownButton
+                onPress={() => setShowExperienceModal(true)}
+                value={
+                  (experienceLevels.length > 0
+                    ? experienceLevels
+                    : [
+                        {
+                          id: 'beginner',
+                          title:
+                            language === 'en'
                               ? 'Nybörjare (aldrig kört)'
                               : 'Beginner (never driven)',
-                      },
-                      {
-                        id: 'intermediate',
-                        title:
-                          language === 'sv'
-                            ? 'Medel (viss vägvana)'
-                            : 'Intermediate (some road experience)',
-                      },
-                      {
-                        id: 'advanced',
-                        title:
-                          language === 'sv'
-                            ? 'Avancerad (behöver förfinas / förberedas inför prov)'
-                            : 'Advanced (needs refinement / preparing for test)',
-                      },
-                      {
-                        id: 'refresher',
-                        title:
-                          language === 'sv'
-                            ? 'Repetitionskurs (återvändande förare)'
-                            : 'Refresher (returning drivers)',
-                      },
-                      { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert' },
-                    ]
-                ).find((e) => e.id.toLowerCase() === selectedExperienceLevel.toLowerCase())
-                  ?.title ||
-                (language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')
-              }
-              isActive={showExperienceModal}
-            />
+                        },
+                        {
+                          id: 'intermediate',
+                          title:
+                            language === 'en'
+                              ? 'Medel (viss vägvana)'
+                              : 'Intermediate (some road experience)',
+                        },
+                        {
+                          id: 'advanced',
+                          title:
+                            language === 'en'
+                              ? 'Avancerad (behöver förfinas / förberedas inför prov)'
+                              : 'Advanced (needs refinement / preparing for test)',
+                        },
+                        {
+                          id: 'refresher',
+                          title:
+                            language === 'en'
+                              ? 'Repetitionskurs (återvändande förare)'
+                              : 'Refresher (returning drivers)',
+                        },
+                        { id: 'expert', title: language === 'en' ? 'Expert' : 'Expert' },
+                      ]
+                  ).find((e) => e.id.toLowerCase() === selectedExperienceLevel.toLowerCase())
+                    ?.title ||
+                  (language === 'en' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')
+                }
+                isActive={showExperienceModal}
+              />
             </YStack>
 
             {/* License Target Date */}
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.licensePlan.targetDate') ||
-                  (language === 'sv' ? 'Målatum för körkort' : 'Target License Date')}
+                  (language === 'en' ? 'Måldatum för körkort' : 'Target License Date')}
               </Text>
-            <DropdownButton
-              onPress={() => setShowDateModal(true)}
+              <DropdownButton
+                onPress={() => setShowDateModal(true)}
                 value={selectedTargetDate.toLocaleDateString()}
-              isActive={showDateModal}
-            />
+                isActive={showDateModal}
+              />
             </YStack>
 
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.licensePlan.vehicleType') ||
-                  (language === 'sv' ? 'Fordonstyp' : 'Vehicle Type')}
+                  (language === 'en' ? 'Fordonstyp' : 'Vehicle Type')}
               </Text>
-            <DropdownButton
-              onPress={showVehicleModal}
-              value={
-                vehicleTypes.find((v) => v.id === vehicleType)?.title ||
-                (language === 'sv' ? 'Bil' : 'Car')
-              }
-              isActive={showVehicleDrawer}
-            />
+              <DropdownButton
+                onPress={showVehicleModal}
+                value={
+                  vehicleTypes.find((v) => v.id === vehicleType)?.title ||
+                  (language === 'en' ? 'Bil' : 'Car')
+                }
+                isActive={showVehicleDrawer}
+              />
             </YStack>
 
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.licensePlan.transmissionType') ||
-                  (language === 'sv' ? 'Växellådstyp' : 'Transmission Type')}
+                  (language === 'en' ? 'Växellådstyp' : 'Transmission Type')}
               </Text>
-            <DropdownButton
-              onPress={showTransmissionModal}
-              value={
-                transmissionTypes.find((t) => t.id === transmissionType)?.title ||
-                (language === 'sv' ? 'Manuell' : 'Manual')
-              }
-              isActive={showTransmissionDrawer}
-            />
+              <DropdownButton
+                onPress={showTransmissionModal}
+                value={
+                  transmissionTypes.find((t) => t.id === transmissionType)?.title ||
+                  (language === 'en' ? 'Manuell' : 'Manual')
+                }
+                isActive={showTransmissionDrawer}
+              />
             </YStack>
 
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.licensePlan.licenseType') ||
-                  (language === 'sv' ? 'Körkortstyp' : 'License Type')}
+                  (language === 'en' ? 'Körkortstyp' : 'License Type')}
               </Text>
-            <DropdownButton
-              onPress={showLicenseModal}
-              value={
-                licenseTypes.find((l) => l.id === licenseType)?.title ||
-                (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')
-              }
-              isActive={showLicenseDrawer}
-            />
+              <DropdownButton
+                onPress={showLicenseModal}
+                value={
+                  licenseTypes.find((l) => l.id === licenseType)?.title ||
+                  (language === 'en' ? 'Standardkörkort (B)' : 'Standard License (B)')
+                }
+                isActive={showLicenseDrawer}
+              />
             </YStack>
 
             {/* Save Button */}
@@ -2173,10 +2173,10 @@ export function OnboardingInteractive({
               fontFamily="$heading"
               color="$color"
             >
-              {language === 'sv' ? 'Ytterligare detaljer' : 'Additional Details'}
+              {language === 'en' ? 'Ytterligare detaljer' : 'Additional Details'}
             </Text>
             <Text size="lg" textAlign="center" color="$color" opacity={0.9} marginTop="$2">
-              {language === 'sv'
+              {language === 'en'
                 ? 'Dela dina testresultat och körmål'
                 : 'Share your test progress and driving goals'}
             </Text>
@@ -2186,9 +2186,9 @@ export function OnboardingInteractive({
           <YStack gap="$3" width="100%" marginTop="$4">
             {/* Have passed theory test */}
             <YStack gap="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.license_details.theoryTest') ||
-                  (language === 'sv'
+                  (language === 'en'
                     ? 'Har du klarat teoriprov?'
                     : 'Have you passed the theory test?')}
               </Text>
@@ -2199,7 +2199,7 @@ export function OnboardingInteractive({
                   flex={1}
                   onPress={() => setHasTheory(true)}
                 >
-                  {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
+                  {t('common.yes') || (language === 'en' ? 'Ja' : 'Yes')}
                 </Button>
                 <Button
                   variant={!hasTheory ? 'primary' : 'outlined'}
@@ -2207,16 +2207,16 @@ export function OnboardingInteractive({
                   flex={1}
                   onPress={() => setHasTheory(false)}
                 >
-                  {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
+                  {t('common.no') || (language === 'en' ? 'Nej' : 'No')}
                 </Button>
               </XStack>
             </YStack>
 
             {/* Have passed practical test */}
             <YStack gap="$2" marginTop="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.license_details.practicalTest') ||
-                  (language === 'sv'
+                  (language === 'en'
                     ? 'Har du klarat körprov?'
                     : 'Have you passed the practical test?')}
               </Text>
@@ -2227,7 +2227,7 @@ export function OnboardingInteractive({
                   flex={1}
                   onPress={() => setHasPractice(true)}
                 >
-                  {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
+                  {t('common.yes') || (language === 'en' ? 'Ja' : 'Yes')}
                 </Button>
                 <Button
                   variant={!hasPractice ? 'primary' : 'outlined'}
@@ -2235,23 +2235,23 @@ export function OnboardingInteractive({
                   flex={1}
                   onPress={() => setHasPractice(false)}
                 >
-                  {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
+                  {t('common.no') || (language === 'en' ? 'Nej' : 'No')}
                 </Button>
               </XStack>
             </YStack>
 
             {/* Describe driving experience */}
             <YStack gap="$2" marginTop="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.license_details.drivingExperience') ||
-                  (language === 'sv'
+                  (language === 'en'
                     ? 'Beskriv din körerfarenhet'
                     : 'Describe your driving experience')}
               </Text>
               <TextArea
                 placeholder={
                   t('onboarding.license_details.drivingExperiencePlaceholder') ||
-                  (language === 'sv'
+                  (language === 'en'
                     ? 'Berätta om din körerfarenhet...'
                     : 'Tell us about your driving experience...')
                 }
@@ -2264,16 +2264,16 @@ export function OnboardingInteractive({
 
             {/* Goals with license */}
             <YStack gap="$2" marginTop="$2">
-              <Text size="md" fontWeight="600" color="$color">
+              <Text size="sm" fontWeight="400" color="$color">
                 {t('onboarding.license_details.goals') ||
-                  (language === 'sv'
+                  (language === 'en'
                     ? 'Vilka är dina mål med körkortet?'
                     : 'What are your goals with getting a license?')}
               </Text>
               <TextArea
                 placeholder={
                   t('onboarding.license_details.goalsPlaceholder') ||
-                  (language === 'sv'
+                  (language === 'en'
                     ? 'Vad vill du uppnå med ditt körkort?'
                     : 'What do you want to achieve with your license?')
                 }
@@ -2318,10 +2318,10 @@ export function OnboardingInteractive({
                     } else {
                       console.error('Error saving license details:', error);
                       showToast({
-                        title: t('errors.title') || (language === 'sv' ? 'Fel' : 'Error'),
+                        title: t('errors.title') || (language === 'en' ? 'Fel' : 'Error'),
                         message:
                           t('errors.saveFailed') ||
-                          (language === 'sv'
+                          (language === 'en'
                             ? 'Kunde inte spara detaljer'
                             : 'Failed to save details'),
                         type: 'error',
@@ -2338,7 +2338,7 @@ export function OnboardingInteractive({
               marginTop="$4"
             >
               {t('onboarding.licenseDetails.save') ||
-                (language === 'sv' ? 'Spara detaljer' : 'Save Details')}
+                (language === 'en' ? 'Spara detaljer' : 'Save Details')}
             </Button>
 
             {/* Skip Button */}
@@ -2590,17 +2590,17 @@ export function OnboardingInteractive({
                 </Button>
 
                 <YStack gap="$2">
-                  <Text size="md" fontWeight="600" color="$color">
-                    {t('onboarding.location.cityLabel') || language === 'sv'
+                  <Text size="sm" fontWeight="400" color="$color">
+                    {t('onboarding.location.cityLabel') || language === 'en'
                       ? 'Din stad'
                       : 'Your City'}
                   </Text>
-                <DropdownButton
-                  onPress={showCityModal}
-                  value={selectedCity}
+                  <DropdownButton
+                    onPress={showCityModal}
+                    value={selectedCity}
                     placeholder={t('onboarding.location.selectCity') || 'Select Your City'}
-                  isActive={showCityDrawer}
-                />
+                    isActive={showCityDrawer}
+                  />
                 </YStack>
 
                 {/* Clear location chip */}
@@ -2722,7 +2722,7 @@ export function OnboardingInteractive({
                                 pendingInvitations.map((invitation) => (
                                   <XStack key={invitation.id} gap="$2" alignItems="center">
                                     <YStack flex={1}>
-                                      <Text size="md" fontWeight="600" color="$color">
+                                      <Text size="sm" fontWeight="400" color="$color">
                                         {invitation.metadata?.targetUserName || invitation.email}
                                       </Text>
                                       <Text size="sm" color="$gray11">
@@ -2819,7 +2819,7 @@ export function OnboardingInteractive({
                         backgroundColor="$backgroundHover"
                         borderRadius="$4"
                       >
-                        <Text size="md" fontWeight="600" color="$color">
+                        <Text size="sm" fontWeight="400" color="$color">
                           {t('onboarding.relationships.newConnectionsTitle') ||
                             'New Connection to Add'}{' '}
                           ({selectedConnections.length}):
@@ -2873,15 +2873,15 @@ export function OnboardingInteractive({
                         }}
                       >
                         <Text color="white">
-                          {language === 'sv' ? 'Spara' : 'Save'}{' '}
+                          {language === 'en' ? 'Spara' : 'Save'}{' '}
                           {selectedConnections.length > 1
-                            ? language === 'sv'
+                            ? language === 'en'
                               ? 'kontakter'
                               : 'Connections'
-                            : language === 'sv'
+                            : language === 'en'
                               ? 'kontakt'
                               : 'Connection'}{' '}
-                          {language === 'sv' ? '& Fortsätt' : '& Continue'}
+                          {language === 'en' ? '& Fortsätt' : '& Continue'}
                         </Text>
                       </Button>
                     ) : existingRelationships.length > 0 ? (
@@ -2920,16 +2920,16 @@ export function OnboardingInteractive({
                   <YStack gap="$2" width="100%">
                     {/* Language Selection Dropdown */}
                     <YStack gap="$2">
-                      <Text size="md" fontWeight="600" color="$color">
+                      <Text size="sm" fontWeight="400" color="$color">
                         {t('onboarding.complete.languageLabel') ||
-                          (language === 'sv' ? 'Välj språk' : 'Select Language')}
+                          (language === 'en' ? 'Välj språk' : 'Select Language')}
                       </Text>
-                    <DropdownButton
-                      onPress={showLanguageSheet}
-                      value={LANGUAGE_LABELS[language]}
-                      placeholder={t('onboarding.complete.selectLanguage') || 'Select Language'}
-                      isActive={showLanguageModal}
-                    />
+                      <DropdownButton
+                        onPress={showLanguageSheet}
+                        value={LANGUAGE_LABELS[language]}
+                        placeholder={t('onboarding.complete.selectLanguage') || 'Select Language'}
+                        isActive={showLanguageModal}
+                      />
                     </YStack>
 
                     <Button variant="primary" size="lg" onPress={completeOnboarding}>
@@ -3363,8 +3363,8 @@ export function OnboardingInteractive({
                         }}
                       >
                         <Text color="white">
-                          {language === 'sv' ? 'Välj' : 'Select'} {selectedConnections.length}{' '}
-                          {language === 'sv'
+                          {language === 'en' ? 'Välj' : 'Select'} {selectedConnections.length}{' '}
+                          {language === 'en'
                             ? selectedConnections.length > 1
                               ? 'kontakter'
                               : 'kontakt'
@@ -3633,51 +3633,51 @@ export function OnboardingInteractive({
                             {
                               id: 'beginner',
                               title:
-                                language === 'sv'
+                                language === 'en'
                                   ? 'Nybörjare (aldrig kört)'
                                   : 'Beginner (never driven)',
                               description:
-                                language === 'sv'
+                                language === 'en'
                                   ? 'Nybörjare (aldrig kört)'
                                   : 'Beginner (never driven)',
                             },
                             {
                               id: 'intermediate',
                               title:
-                                language === 'sv'
+                                language === 'en'
                                   ? 'Medel (viss vägvana)'
                                   : 'Intermediate (some road experience)',
                               description:
-                                language === 'sv'
+                                language === 'en'
                                   ? 'Medel (viss vägvana)'
                                   : 'Intermediate (some road experience)',
                             },
                             {
                               id: 'advanced',
                               title:
-                                language === 'sv'
+                                language === 'en'
                                   ? 'Avancerad (behöver förfinas / förberedas inför prov)'
                                   : 'Advanced (needs refinement / preparing for test)',
                               description:
-                                language === 'sv'
+                                language === 'en'
                                   ? 'Avancerad (behöver förfinas / förberedas inför prov)'
                                   : 'Advanced (needs refinement / preparing for test)',
                             },
                             {
                               id: 'refresher',
                               title:
-                                language === 'sv'
+                                language === 'en'
                                   ? 'Repetitionskurs (återvändande förare)'
                                   : 'Refresher (returning drivers)',
                               description:
-                                language === 'sv'
+                                language === 'en'
                                   ? 'Repetitionskurs (återvändande förare)'
                                   : 'Refresher (returning drivers)',
                             },
                             {
                               id: 'expert',
-                              title: language === 'sv' ? 'Expert' : 'Expert',
-                              description: language === 'sv' ? 'Expert' : 'Expert',
+                              title: language === 'en' ? 'Expert' : 'Expert',
+                              description: language === 'en' ? 'Expert' : 'Expert',
                             },
                           ]
                       ).map((level: { id: string; title: string; description?: string }) => (
@@ -3931,7 +3931,7 @@ export function OnboardingInteractive({
                     })}
 
                     {/* Custom Date Picker with Popover */}
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                       ref={dateButtonRef}
                       onPress={() => {
                         console.log('🗓️ [OnboardingInteractive] Opening date popover');
@@ -3969,7 +3969,7 @@ export function OnboardingInteractive({
                           <Feather name="calendar" size={16} color={textColor} />
                         )}
                       </XStack>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
 
                     <Popover
                       isVisible={showDatePopover}
@@ -4049,7 +4049,7 @@ export function OnboardingInteractive({
                             }}
                             themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
                             accentColor="#00E6C3"
-                            locale={language === 'sv' ? 'sv-SE' : 'en-US'}
+                            locale={language === 'en' ? 'sv-SE' : 'en-US'}
                           />
                         </View>
                       </YStack>

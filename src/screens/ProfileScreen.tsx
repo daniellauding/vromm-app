@@ -3134,12 +3134,13 @@ export function ProfileScreen() {
                     }}
                     placeholder={t('profile.fullNamePlaceholder')}
                     autoCapitalize="none"
+                    label={t('profile.fullName')}
                   />
                 </YStack>
 
                 <YStack>
                   <YStack gap="$2">
-                    <Text size="md" fontWeight="600" color="$color">
+                    <Text size="sm" fontWeight="400" color="$color">
                       {t('profile.location') || (language === 'sv' ? 'Plats' : 'Location')}
                     </Text>
                     <DropdownButton
@@ -3162,57 +3163,57 @@ export function ProfileScreen() {
                 </YStack>
 
                 <YStack gap="$2">
-                  <Text size="md" fontWeight="600" color="$color">
+                  <Text size="sm" fontWeight="400" color="$color">
                     {t('profile.roleLabel') || (language === 'sv' ? 'Roll' : 'Role')}
                   </Text>
-                <DropdownButton
-                  onPress={showRoleSheet}
-                  value={
-                    formData.role === 'student'
-                      ? t('profile.roles.student')
-                      : formData.role === 'instructor'
-                        ? t('profile.roles.instructor')
-                        : t('profile.roles.school')
-                  }
-                  placeholder={t('profile.selectRole') || 'Select Role'}
-                  isActive={showRoleModal}
-                />
+                  <DropdownButton
+                    onPress={showRoleSheet}
+                    value={
+                      formData.role === 'student'
+                        ? t('profile.roles.student')
+                        : formData.role === 'instructor'
+                          ? t('profile.roles.instructor')
+                          : t('profile.roles.school')
+                    }
+                    placeholder={t('profile.selectRole') || 'Select Role'}
+                    isActive={showRoleModal}
+                  />
                 </YStack>
 
                 <YStack gap="$2">
-                  <Text size="md" fontWeight="600" color="$color">
+                  <Text size="sm" fontWeight="400" color="$color">
                     {t('profile.experienceLabel') || language === 'sv'
                       ? 'Erfarenhetsnivå'
                       : 'Experience Level'}
                   </Text>
-                <DropdownButton
-                  onPress={showExperienceSheet}
-                  value={
-                    formData.experience_level === 'beginner'
-                      ? t('profile.experienceLevels.beginner')
-                      : formData.experience_level === 'intermediate'
-                        ? t('profile.experienceLevels.intermediate')
-                        : t('profile.experienceLevels.advanced')
-                  }
+                  <DropdownButton
+                    onPress={showExperienceSheet}
+                    value={
+                      formData.experience_level === 'beginner'
+                        ? t('profile.experienceLevels.beginner')
+                        : formData.experience_level === 'intermediate'
+                          ? t('profile.experienceLevels.intermediate')
+                          : t('profile.experienceLevels.advanced')
+                    }
                     placeholder={
                       t('profile.selectExperience') || language === 'sv'
                         ? 'Välj erfarenhetsnivå'
                         : 'Select Experience Level'
                     }
-                  isActive={showExperienceModal}
-                />
+                    isActive={showExperienceModal}
+                  />
                 </YStack>
 
                 <YStack gap="$2">
-                  <Text size="md" fontWeight="600" color="$color">
+                  <Text size="sm" fontWeight="400" color="$color">
                     {t('profile.languageLabel') || (language === 'sv' ? 'Språk' : 'Language')}
                   </Text>
-                <DropdownButton
-                  onPress={showLanguageSheet}
-                  value={LANGUAGE_LABELS[language]}
-                  placeholder={t('profile.selectLanguage') || 'Select Language'}
-                  isActive={showLanguageModal}
-                />
+                  <DropdownButton
+                    onPress={showLanguageSheet}
+                    value={LANGUAGE_LABELS[language]}
+                    placeholder={t('profile.selectLanguage') || 'Select Language'}
+                    isActive={showLanguageModal}
+                  />
                 </YStack>
 
                 {/* Notification Settings */}
@@ -3227,17 +3228,17 @@ export function ProfileScreen() {
                 {/* Theme Settings */}
                 <YStack marginVertical="$2">
                   <YStack gap="$2">
-                    <Text size="md" fontWeight="600" color="$color">
+                    <Text size="sm" fontWeight="400" color="$color">
                       {t('profile.themeLabel') || (language === 'sv' ? 'Tema' : 'Theme')}
                     </Text>
-                  <DropdownButton
-                    onPress={showThemeSheet}
+                    <DropdownButton
+                      onPress={showThemeSheet}
                       value={
                         t('profile.themeSettings') ||
                         (language === 'sv' ? 'Temainställningar' : 'Theme Settings')
                       }
                       placeholder={language === 'sv' ? 'Temainställningar' : 'Theme Settings'}
-                  />
+                    />
                   </YStack>
                 </YStack>
 
@@ -3295,7 +3296,7 @@ export function ProfileScreen() {
                     }
                   }}
                 >
-                  <Text size="md" color="$color">
+                  <Text size="sm" fontWeight="400" color="$color">
                     {t('profile.privateProfile')}
                   </Text>
                   <Switch
@@ -3319,6 +3320,10 @@ export function ProfileScreen() {
                     <Switch.Thumb backgroundColor="$switchThumb" />
                   </Switch>
                 </XStack>
+
+                <Button onPress={handleSignOut} disabled={loading} variant="outlined" size="lg">
+                  {t('profile.signOut')}
+                </Button>
 
                 {/* Save Button */}
                 <Button
@@ -3356,14 +3361,14 @@ export function ProfileScreen() {
             )}
 
             {/* Account Actions */}
-            <YStack gap="$3" marginTop="$4">
+            {/* <YStack gap="$3" marginTop="$4">
               <Button onPress={handleSignOut} disabled={loading} variant="outlined" size="lg">
                 {t('profile.signOut')}
               </Button>
               <Button onPress={showDeleteSheet} disabled={loading} variant="outlined" size="lg">
                 {t('settings.deleteAccount') || 'Delete Account'}
               </Button>
-            </YStack>
+            </YStack> */}
 
             {/* Relationships Tab */}
             {activeTab === 'relationships' && (
@@ -5168,9 +5173,9 @@ export function ProfileScreen() {
                 <Button variant="secondary" onPress={() => setShowDeleteDialog(false)}>
                   {t('deleteAccount.cancel') || 'Cancel'}
                 </Button>
-                <Button variant="primary" onPress={handleConfirmDeleteAccount}>
+                {/* <Button variant="primary" onPress={handleConfirmDeleteAccount}>
                   {t('deleteAccount.confirm') || 'Delete my account'}
-                </Button>
+                </Button> */}
               </XStack>
             </YStack>
           </Card>
