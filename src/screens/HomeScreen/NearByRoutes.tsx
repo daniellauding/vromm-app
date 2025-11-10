@@ -26,6 +26,13 @@ export const NearByRoutes = ({ onRoutePress }: NearByRoutesProps = {}) => {
   const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
   const userLocation = useUserLocation();
 
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
+
   // User location tracking without null logging
   React.useEffect(() => {
     if (!user || !userLocation) return;
@@ -73,17 +80,17 @@ export const NearByRoutes = ({ onRoutePress }: NearByRoutesProps = {}) => {
       {nearbyRoutes.length === 0 ? (
         <YStack px="$4">
           <EmptyState
-            title={t('home.nearbyRoutes.noRoutes') || 'No Nearby Routes'}
-            message={
-              t('home.nearbyRoutes.noRoutesMessage') ||
+            title={getTranslation('home.nearbyRoutes.noRoutes', 'No Nearby Routes')}
+            message={getTranslation(
+              'home.nearbyRoutes.noRoutesMessage',
               'No practice routes found within 100km of your location. Create the first route in your area or explore the map!'
-            }
+            )}
             icon="map-pin"
             variant="warning"
-            actionLabel={t('home.nearbyRoutes.createRouteHere') || 'Create Route Here'}
+            actionLabel={getTranslation('home.nearbyRoutes.createRouteHere', 'Create Route Here')}
             actionIcon="plus"
             onAction={() => navigation.navigate('CreateRoute')}
-            secondaryLabel={t('home.nearbyRoutes.exploreMap') || 'Explore Map'}
+            secondaryLabel={getTranslation('home.nearbyRoutes.exploreMap', 'Explore Map')}
             secondaryIcon="map"
             onSecondaryAction={() => navigation.navigate('MapTab')}
           />

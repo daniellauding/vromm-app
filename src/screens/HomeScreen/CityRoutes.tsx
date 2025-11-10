@@ -99,6 +99,13 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
   const cityBackdropOpacity = React.useRef(new Animated.Value(0)).current;
   const citySheetTranslateY = React.useRef(new Animated.Value(300)).current;
 
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
+
   const userLocation = useUserLocation();
 
   React.useEffect(() => {
@@ -329,14 +336,18 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                 {/* Title and Message */}
                 <YStack alignItems="center" gap="$2">
                   <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                    {t('home.cityRoutes.noRoutesInCity') ||
-                      (language === 'sv' ? 'Inga rutter i denna stad' : 'No Routes in This City')}
+                    {getTranslation(
+                      'home.cityRoutes.noRoutesInCity',
+                      language === 'sv' ? 'Inga rutter i denna stad' : 'No Routes in This City'
+                    )}
                   </Text>
                   <Text fontSize="$4" color="$gray11" textAlign="center">
-                    {t('home.cityRoutes.noRoutesMessage') ||
-                      (language === 'sv'
+                    {getTranslation(
+                      'home.cityRoutes.noRoutesMessage',
+                      language === 'sv'
                         ? `Inga övningsrutter hittades i ${selectedCity}. Var först med att skapa en eller utforska andra städer!`
-                        : `No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`)}
+                        : `No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`
+                    )}
                   </Text>
                 </YStack>
 
@@ -353,8 +364,10 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                     }}
                   >
                     <Text fontSize="$4" fontWeight="600" color="#000">
-                      {t('home.cityRoutes.createRouteHere') ||
-                        (language === 'sv' ? 'Skapa rutt här' : 'Create Route Here')}
+                      {getTranslation(
+                        'home.cityRoutes.createRouteHere',
+                        language === 'sv' ? 'Skapa rutt här' : 'Create Route Here'
+                      )}
                     </Text>
                   </TouchableOpacity>
 
@@ -372,8 +385,10 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                     }}
                   >
                     <Text fontSize="$4" fontWeight="600" color="$color">
-                      {t('home.cityRoutes.changeCity') ||
-                        (language === 'sv' ? 'Byt stad' : 'Change City')}
+                      {getTranslation(
+                        'home.cityRoutes.changeCity',
+                        language === 'sv' ? 'Byt stad' : 'Change City'
+                      )}
                     </Text>
                   </TouchableOpacity>
                 </YStack>

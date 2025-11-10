@@ -77,6 +77,13 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
   const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
   const colorScheme = useColorScheme();
 
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
+
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
   React.useEffect(() => {
@@ -275,10 +282,12 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
                       borderRadius: 12,
                       alignItems: 'center',
                     }}
-                  >
+                    >
                     <Text fontSize="$4" fontWeight="600" color="#000">
-                      {t('home.drivenRoutes.findRoutes') ||
-                        (language === 'sv' ? 'Hitta rutter' : 'Find Routes')}
+                      {getTranslation(
+                        'home.drivenRoutes.findRoutes',
+                        language === 'sv' ? 'Hitta rutter' : 'Find Routes'
+                      )}
                     </Text>
                   </TouchableOpacity>
 
@@ -296,8 +305,10 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
                     }}
                   >
                     <Text fontSize="$4" fontWeight="600" color="$color">
-                      {t('home.drivenRoutes.createRoute') ||
-                        (language === 'sv' ? 'Skapa rutt' : 'Create Route')}
+                      {getTranslation(
+                        'home.drivenRoutes.createRoute',
+                        language === 'sv' ? 'Skapa rutt' : 'Create Route'
+                      )}
                     </Text>
                   </TouchableOpacity>
                 </YStack>

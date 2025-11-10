@@ -33,6 +33,13 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
   const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
   const colorScheme = useColorScheme();
 
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
+
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
 
@@ -160,8 +167,10 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
                       }}
                     >
                       <Text fontSize="$4" fontWeight="600" color="#000">
-                        {t('home.createdRoutes.createRoute') ||
-                          (language === 'sv' ? 'Skapa rutt' : 'Create Route')}
+                        {getTranslation(
+                          'home.createdRoutes.createRoute',
+                          language === 'sv' ? 'Skapa rutt' : 'Create Route'
+                        )}
                       </Text>
                     </TouchableOpacity>
 
@@ -181,8 +190,10 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
                       }}
                     >
                       <Text fontSize="$4" fontWeight="600" color="$color">
-                        {t('home.createdRoutes.getInspired') ||
-                          (language === 'sv' ? 'Hämta inspiration' : 'Get Inspired')}
+                        {getTranslation(
+                          'home.createdRoutes.getInspired',
+                          language === 'sv' ? 'Hämta inspiration' : 'Get Inspired'
+                        )}
                       </Text>
                     </TouchableOpacity>
                   </YStack>

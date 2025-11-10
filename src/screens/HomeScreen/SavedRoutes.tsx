@@ -61,6 +61,13 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
   const [savedRoutes, setSavedRoutes] = React.useState<SavedRoute[]>([]);
   const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
 
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
+
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
 
@@ -180,8 +187,10 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
                 }}
               >
                 <Text fontSize="$4" fontWeight="600" color="#000">
-                  {t('home.savedRoutes.exploreRoutes') ||
-                    (language === 'sv' ? 'Utforska rutter' : 'Explore Routes')}
+                  {getTranslation(
+                    'home.savedRoutes.exploreRoutes',
+                    language === 'sv' ? 'Utforska rutter' : 'Explore Routes'
+                  )}
                 </Text>
               </TouchableOpacity>
             )}

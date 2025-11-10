@@ -299,6 +299,13 @@ export function ProgressScreen() {
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
+
   // Sound helper function with haptic feedback
   const playDoneSound = async () => {
     try {
@@ -755,11 +762,11 @@ export function ProgressScreen() {
 
   // Category labels for display - EXTENDED with translations
   const categoryLabels: Record<CategoryType, string> = {
-    vehicle_type: t('filters.vehicleType') || 'Vehicle Type',
-    transmission_type: t('filters.transmissionType') || 'Transmission',
-    license_type: t('filters.licenseType') || 'License Type',
-    experience_level: t('filters.experienceLevel') || 'Experience Level',
-    purpose: t('filters.purpose') || 'Purpose',
+    vehicle_type: getTranslation('filters.vehicleType', 'Vehicle Type'),
+    transmission_type: getTranslation('filters.transmissionType', 'Transmission'),
+    license_type: getTranslation('filters.licenseType', 'License Type'),
+    experience_level: getTranslation('filters.experienceLevel', 'Experience Level'),
+    purpose: getTranslation('filters.purpose', 'Purpose'),
     user_profile: t('filters.userProfile') || 'User Profile',
     platform: t('filters.platform') || 'Platform',
     type: t('filters.contentType') || 'Content Type',
