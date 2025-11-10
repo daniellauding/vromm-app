@@ -826,10 +826,14 @@ export const GettingStarted = () => {
       restDisplacementThreshold: 0.01,
       restSpeedThreshold: 0.01,
     });
-    console.log('🔗 [GettingStarted] Setting relationshipRemovalCurrentState to relationshipRemovalSnapPoints.large');
+    console.log(
+      '🔗 [GettingStarted] Setting relationshipRemovalCurrentState to relationshipRemovalSnapPoints.large',
+    );
     relationshipRemovalCurrentState.value = relationshipRemovalSnapPoints.large;
     setCurrentRelationshipRemovalSnapPoint(relationshipRemovalSnapPoints.large);
-    console.log('🔗 [GettingStarted] Setting currentRelationshipRemovalSnapPoint to relationshipRemovalSnapPoints.large');
+    console.log(
+      '🔗 [GettingStarted] Setting currentRelationshipRemovalSnapPoint to relationshipRemovalSnapPoints.large',
+    );
     Animated.timing(relationshipRemovalBackdropOpacity, {
       toValue: 1,
       duration: 200,
@@ -1186,27 +1190,50 @@ export const GettingStarted = () => {
     role_confirmed?: boolean;
   };
 
-  React.useEffect(() => {
-    const checkCreatedRoutes = async () => {
-      if (!user) return;
-      try {
-        const { count, error } = await supabase
-          .from('routes')
-          .select('id', { count: 'exact', head: true })
-          .eq('creator_id', user.id);
+  const checkCreatedRoutes = React.useCallback(async () => {
+    if (!user) return;
+    try {
+      const { count, error } = await supabase
+        .from('routes')
+        .select('id', { count: 'exact', head: true })
+        .eq('creator_id', user.id);
 
-        if (!error && typeof count === 'number') {
-          setHasCreatedRoutes(count > 0);
-        } else {
-          setHasCreatedRoutes(false);
-        }
-      } catch (err) {
+      if (!error && typeof count === 'number') {
+        setHasCreatedRoutes(count > 0);
+      } else {
         setHasCreatedRoutes(false);
       }
-    };
-
-    checkCreatedRoutes();
+    } catch (err) {
+      setHasCreatedRoutes(false);
+    }
   }, [user]);
+
+  React.useEffect(() => {
+    checkCreatedRoutes();
+  }, [checkCreatedRoutes]);
+
+  React.useEffect(() => {
+    if (hasCreatedRoutes) return;
+    const subscription = supabase
+      .channel(`getting-started-routes`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'routes',
+          filter: `creator_id=eq.${user?.id}`,
+        },
+        () => {
+          checkCreatedRoutes();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [checkCreatedRoutes, hasCreatedRoutes, user?.id]);
 
   // Load learning paths (like ProgressSection.tsx)
   React.useEffect(() => {
@@ -1419,7 +1446,7 @@ export const GettingStarted = () => {
               });
               const { sound } = await Audio.Sound.createAsync(
                 require('../../../assets/sounds/ui-celebration.mp3'),
-                { shouldPlay: true, volume: 0.6 }
+                { shouldPlay: true, volume: 0.6 },
               );
               sound.setOnPlaybackStatusUpdate((status) => {
                 if (status.isLoaded && status.didJustFinish) {
@@ -1430,15 +1457,15 @@ export const GettingStarted = () => {
               console.log('🔊 Celebration error:', error);
             }
           };
-          
+
           playCelebration();
-          
+
           showCelebration({
             learningPathTitle: { en: 'Getting Started Complete! 🎉', sv: 'Komma Igång Klart! 🎉' },
             completedExercises: 6,
             totalExercises: 6,
           });
-          
+
           AsyncStorage.setItem(checkKey, 'true');
         }
       });

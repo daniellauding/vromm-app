@@ -243,7 +243,7 @@ export function MapScreen({
     if (!profile?.id) return;
 
     console.log('🔄 [MapScreen] Setting up real-time subscription for routes');
-    
+
     const channelName = `map-routes-${Date.now()}`;
     const subscription = supabase
       .channel(channelName)
