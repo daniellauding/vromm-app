@@ -1986,48 +1986,48 @@ export function OnboardingInteractive({
                 {t('onboarding.licensePlan.experienceLevel') ||
                   (language === 'sv' ? 'Erfarenhetsnivå' : 'Experience Level')}
               </Text>
-              <DropdownButton
-                onPress={() => setShowExperienceModal(true)}
-                value={
-                  (experienceLevels.length > 0
-                    ? experienceLevels
-                    : [
-                        {
-                          id: 'beginner',
-                          title:
+            <DropdownButton
+              onPress={() => setShowExperienceModal(true)}
+              value={
+                (experienceLevels.length > 0
+                  ? experienceLevels
+                  : [
+                      {
+                        id: 'beginner',
+                        title:
                             language === 'sv'
                               ? 'Nybörjare (aldrig kört)'
                               : 'Beginner (never driven)',
-                        },
-                        {
-                          id: 'intermediate',
-                          title:
-                            language === 'sv'
-                              ? 'Medel (viss vägvana)'
-                              : 'Intermediate (some road experience)',
-                        },
-                        {
-                          id: 'advanced',
-                          title:
-                            language === 'sv'
-                              ? 'Avancerad (behöver förfinas / förberedas inför prov)'
-                              : 'Advanced (needs refinement / preparing for test)',
-                        },
-                        {
-                          id: 'refresher',
-                          title:
-                            language === 'sv'
-                              ? 'Repetitionskurs (återvändande förare)'
-                              : 'Refresher (returning drivers)',
-                        },
-                        { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert' },
-                      ]
-                  ).find((e) => e.id.toLowerCase() === selectedExperienceLevel.toLowerCase())
-                    ?.title ||
-                  (language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')
-                }
-                isActive={showExperienceModal}
-              />
+                      },
+                      {
+                        id: 'intermediate',
+                        title:
+                          language === 'sv'
+                            ? 'Medel (viss vägvana)'
+                            : 'Intermediate (some road experience)',
+                      },
+                      {
+                        id: 'advanced',
+                        title:
+                          language === 'sv'
+                            ? 'Avancerad (behöver förfinas / förberedas inför prov)'
+                            : 'Advanced (needs refinement / preparing for test)',
+                      },
+                      {
+                        id: 'refresher',
+                        title:
+                          language === 'sv'
+                            ? 'Repetitionskurs (återvändande förare)'
+                            : 'Refresher (returning drivers)',
+                      },
+                      { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert' },
+                    ]
+                ).find((e) => e.id.toLowerCase() === selectedExperienceLevel.toLowerCase())
+                  ?.title ||
+                (language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')
+              }
+              isActive={showExperienceModal}
+            />
             </YStack>
 
             {/* License Target Date */}
@@ -2036,11 +2036,11 @@ export function OnboardingInteractive({
                 {t('onboarding.licensePlan.targetDate') ||
                   (language === 'sv' ? 'Målatum för körkort' : 'Target License Date')}
               </Text>
-              <DropdownButton
-                onPress={() => setShowDateModal(true)}
+            <DropdownButton
+              onPress={() => setShowDateModal(true)}
                 value={selectedTargetDate.toLocaleDateString()}
-                isActive={showDateModal}
-              />
+              isActive={showDateModal}
+            />
             </YStack>
 
             <YStack gap="$2">
@@ -2048,14 +2048,14 @@ export function OnboardingInteractive({
                 {t('onboarding.licensePlan.vehicleType') ||
                   (language === 'sv' ? 'Fordonstyp' : 'Vehicle Type')}
               </Text>
-              <DropdownButton
-                onPress={showVehicleModal}
-                value={
-                  vehicleTypes.find((v) => v.id === vehicleType)?.title ||
-                  (language === 'sv' ? 'Bil' : 'Car')
-                }
-                isActive={showVehicleDrawer}
-              />
+            <DropdownButton
+              onPress={showVehicleModal}
+              value={
+                vehicleTypes.find((v) => v.id === vehicleType)?.title ||
+                (language === 'sv' ? 'Bil' : 'Car')
+              }
+              isActive={showVehicleDrawer}
+            />
             </YStack>
 
             <YStack gap="$2">
@@ -2063,14 +2063,14 @@ export function OnboardingInteractive({
                 {t('onboarding.licensePlan.transmissionType') ||
                   (language === 'sv' ? 'Växellådstyp' : 'Transmission Type')}
               </Text>
-              <DropdownButton
-                onPress={showTransmissionModal}
-                value={
-                  transmissionTypes.find((t) => t.id === transmissionType)?.title ||
-                  (language === 'sv' ? 'Manuell' : 'Manual')
-                }
-                isActive={showTransmissionDrawer}
-              />
+            <DropdownButton
+              onPress={showTransmissionModal}
+              value={
+                transmissionTypes.find((t) => t.id === transmissionType)?.title ||
+                (language === 'sv' ? 'Manuell' : 'Manual')
+              }
+              isActive={showTransmissionDrawer}
+            />
             </YStack>
 
             <YStack gap="$2">
@@ -2078,14 +2078,14 @@ export function OnboardingInteractive({
                 {t('onboarding.licensePlan.licenseType') ||
                   (language === 'sv' ? 'Körkortstyp' : 'License Type')}
               </Text>
-              <DropdownButton
-                onPress={showLicenseModal}
-                value={
-                  licenseTypes.find((l) => l.id === licenseType)?.title ||
-                  (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')
-                }
-                isActive={showLicenseDrawer}
-              />
+            <DropdownButton
+              onPress={showLicenseModal}
+              value={
+                licenseTypes.find((l) => l.id === licenseType)?.title ||
+                (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')
+              }
+              isActive={showLicenseDrawer}
+            />
             </YStack>
 
             {/* Save Button */}
@@ -2595,12 +2595,12 @@ export function OnboardingInteractive({
                       ? 'Din stad'
                       : 'Your City'}
                   </Text>
-                  <DropdownButton
-                    onPress={showCityModal}
-                    value={selectedCity}
+                <DropdownButton
+                  onPress={showCityModal}
+                  value={selectedCity}
                     placeholder={t('onboarding.location.selectCity') || 'Select Your City'}
-                    isActive={showCityDrawer}
-                  />
+                  isActive={showCityDrawer}
+                />
                 </YStack>
 
                 {/* Clear location chip */}
@@ -2924,12 +2924,12 @@ export function OnboardingInteractive({
                         {t('onboarding.complete.languageLabel') ||
                           (language === 'sv' ? 'Välj språk' : 'Select Language')}
                       </Text>
-                      <DropdownButton
-                        onPress={showLanguageSheet}
-                        value={LANGUAGE_LABELS[language]}
-                        placeholder={t('onboarding.complete.selectLanguage') || 'Select Language'}
-                        isActive={showLanguageModal}
-                      />
+                    <DropdownButton
+                      onPress={showLanguageSheet}
+                      value={LANGUAGE_LABELS[language]}
+                      placeholder={t('onboarding.complete.selectLanguage') || 'Select Language'}
+                      isActive={showLanguageModal}
+                    />
                     </YStack>
 
                     <Button variant="primary" size="lg" onPress={completeOnboarding}>

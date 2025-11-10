@@ -7,7 +7,7 @@ import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
 import { YStack, XStack, Card } from 'tamagui';
-import { FlatList } from 'react-native';
+import { FlatList, TouchableOpacity } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { navigateDomain } from '@/src/utils/navigation';
@@ -16,6 +16,11 @@ import { Image, ImageSourcePropType, useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Text } from '@/src/components';
 import { EmptyState } from './EmptyState';
+
+// Import getting started images
+const GETTING_STARTED_IMAGES = {
+  startLearning: require('../../../assets/images/getting_started/getting_started_03.png'),
+};
 
 type DrivenRouteFromDB = {
   id: string;
@@ -64,7 +69,7 @@ interface DrivenRoutesProps {
 }
 
 export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { user } = useAuth();
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
@@ -224,18 +229,82 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
           }}
         />
       ) : (
-        <EmptyState
-          title="No Driven Routes"
-          message="Start driving practice routes to track your progress and see them here"
-          icon="map-pin"
-          variant="info"
-          actionLabel={t('home.drivenRoutes.findRoutes') || 'Find Routes'}
-          actionIcon="map"
-          onAction={() => (navigation as any).navigate('MapTab')}
-          secondaryLabel={t('home.drivenRoutes.createRoute') || 'Create Route'}
-          secondaryIcon="plus"
-          onSecondaryAction={() => (navigation as any).navigate('CreateRoute')}
-        />
+        <YStack px="$4">
+          <Card
+            backgroundColor="$backgroundStrong"
+            borderRadius="$4"
+            overflow="hidden"
+            borderWidth={1}
+            borderColor="$borderColor"
+          >
+            {/* Image from Getting Started - Full width at top */}
+            <Image
+              source={GETTING_STARTED_IMAGES.startLearning}
+              style={{
+                width: '100%',
+                height: 140,
+                resizeMode: 'cover',
+              }}
+            />
+
+            {/* Content below image */}
+            <YStack alignItems="center" gap="$4" padding="$6">
+              {/* Title and Message */}
+              <YStack alignItems="center" gap="$2">
+                <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                  {language === 'sv' ? 'Inga körda rutter' : 'No Driven Routes'}
+                </Text>
+                <Text fontSize="$4" color="$gray11" textAlign="center">
+                  {isViewingAsStudent
+                    ? `${activeStudentName || (language === 'sv' ? 'Denna elev' : 'This student')} ${language === 'sv' ? 'har inte kört några övningsrutter än' : "hasn't driven any practice routes yet"}`
+                    : language === 'sv'
+                      ? 'Börja köra övningsrutter för att spåra dina framsteg och se dem här'
+                      : 'Start driving practice routes to track your progress and see them here'}
+                </Text>
+              </YStack>
+
+              {/* Action Buttons */}
+              {!isViewingAsStudent && (
+                <YStack gap="$2" width="100%">
+                  <TouchableOpacity
+                    onPress={() => (navigation as any).navigate('MapTab')}
+                    style={{
+                      backgroundColor: '#00E6C3',
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text fontSize="$4" fontWeight="600" color="#000">
+                      {t('home.drivenRoutes.findRoutes') ||
+                        (language === 'sv' ? 'Hitta rutter' : 'Find Routes')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => (navigation as any).navigate('CreateRoute')}
+                    style={{
+                      backgroundColor: 'transparent',
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor:
+                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                    }}
+                  >
+                    <Text fontSize="$4" fontWeight="600" color="$color">
+                      {t('home.drivenRoutes.createRoute') ||
+                        (language === 'sv' ? 'Skapa rutt' : 'Create Route')}
+                    </Text>
+                  </TouchableOpacity>
+                </YStack>
+              )}
+            </YStack>
+          </Card>
+        </YStack>
       )}
 
       {/* Route List Sheet */}

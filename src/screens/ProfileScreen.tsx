@@ -3165,18 +3165,18 @@ export function ProfileScreen() {
                   <Text size="md" fontWeight="600" color="$color">
                     {t('profile.roleLabel') || (language === 'sv' ? 'Roll' : 'Role')}
                   </Text>
-                  <DropdownButton
-                    onPress={showRoleSheet}
-                    value={
-                      formData.role === 'student'
-                        ? t('profile.roles.student')
-                        : formData.role === 'instructor'
-                          ? t('profile.roles.instructor')
-                          : t('profile.roles.school')
-                    }
-                    placeholder={t('profile.selectRole') || 'Select Role'}
-                    isActive={showRoleModal}
-                  />
+                <DropdownButton
+                  onPress={showRoleSheet}
+                  value={
+                    formData.role === 'student'
+                      ? t('profile.roles.student')
+                      : formData.role === 'instructor'
+                        ? t('profile.roles.instructor')
+                        : t('profile.roles.school')
+                  }
+                  placeholder={t('profile.selectRole') || 'Select Role'}
+                  isActive={showRoleModal}
+                />
                 </YStack>
 
                 <YStack gap="$2">
@@ -3185,34 +3185,34 @@ export function ProfileScreen() {
                       ? 'Erfarenhetsnivå'
                       : 'Experience Level'}
                   </Text>
-                  <DropdownButton
-                    onPress={showExperienceSheet}
-                    value={
-                      formData.experience_level === 'beginner'
-                        ? t('profile.experienceLevels.beginner')
-                        : formData.experience_level === 'intermediate'
-                          ? t('profile.experienceLevels.intermediate')
-                          : t('profile.experienceLevels.advanced')
-                    }
+                <DropdownButton
+                  onPress={showExperienceSheet}
+                  value={
+                    formData.experience_level === 'beginner'
+                      ? t('profile.experienceLevels.beginner')
+                      : formData.experience_level === 'intermediate'
+                        ? t('profile.experienceLevels.intermediate')
+                        : t('profile.experienceLevels.advanced')
+                  }
                     placeholder={
                       t('profile.selectExperience') || language === 'sv'
                         ? 'Välj erfarenhetsnivå'
                         : 'Select Experience Level'
                     }
-                    isActive={showExperienceModal}
-                  />
+                  isActive={showExperienceModal}
+                />
                 </YStack>
 
                 <YStack gap="$2">
                   <Text size="md" fontWeight="600" color="$color">
                     {t('profile.languageLabel') || (language === 'sv' ? 'Språk' : 'Language')}
                   </Text>
-                  <DropdownButton
-                    onPress={showLanguageSheet}
-                    value={LANGUAGE_LABELS[language]}
-                    placeholder={t('profile.selectLanguage') || 'Select Language'}
-                    isActive={showLanguageModal}
-                  />
+                <DropdownButton
+                  onPress={showLanguageSheet}
+                  value={LANGUAGE_LABELS[language]}
+                  placeholder={t('profile.selectLanguage') || 'Select Language'}
+                  isActive={showLanguageModal}
+                />
                 </YStack>
 
                 {/* Notification Settings */}
@@ -3230,14 +3230,14 @@ export function ProfileScreen() {
                     <Text size="md" fontWeight="600" color="$color">
                       {t('profile.themeLabel') || (language === 'sv' ? 'Tema' : 'Theme')}
                     </Text>
-                    <DropdownButton
-                      onPress={showThemeSheet}
+                  <DropdownButton
+                    onPress={showThemeSheet}
                       value={
                         t('profile.themeSettings') ||
                         (language === 'sv' ? 'Temainställningar' : 'Theme Settings')
                       }
                       placeholder={language === 'sv' ? 'Temainställningar' : 'Theme Settings'}
-                    />
+                  />
                   </YStack>
                 </YStack>
 

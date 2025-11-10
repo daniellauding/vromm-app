@@ -6,25 +6,32 @@ import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
-import { YStack, XStack } from 'tamagui';
-import { FlatList } from 'react-native';
+import { YStack, XStack, Card } from 'tamagui';
+import { FlatList, Image, TouchableOpacity, useColorScheme } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { navigateDomain } from '@/src/utils/navigation';
 import { supabase } from '../../lib/supabase';
 import { EmptyState } from './EmptyState';
+import { Text } from '../../components/Text';
+
+// Import getting started images
+const GETTING_STARTED_IMAGES = {
+  firstRoute: require('../../../assets/images/getting_started/getting_started_02.png'),
+};
 
 interface CreatedRoutesProps {
   onRoutePress?: (routeId: string) => void;
 }
 
 export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { user } = useAuth();
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const [createdRoutes, setCreatedRoutes] = React.useState<Route[]>([]);
   const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
+  const colorScheme = useColorScheme();
 
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
@@ -100,24 +107,88 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
 
         {createdRoutes.length === 0 ? (
           <YStack px="$4">
-            <EmptyState
-              title={isViewingAsStudent ? 'No Routes Created' : 'Create Your First Route'}
-              message={
-                isViewingAsStudent
-                  ? `${activeStudentName || 'This student'} hasn't created any routes yet`
-                  : 'Share your favorite practice spots with the community! Create detailed routes with exercises and help other learners.'
-              }
-              icon="map-pin"
-              variant="success"
-              actionLabel={isViewingAsStudent ? undefined : 'Create Route'}
-              actionIcon="plus"
-              onAction={isViewingAsStudent ? undefined : () => navigation.navigate('CreateRoute')}
-              secondaryLabel={isViewingAsStudent ? undefined : 'Get Inspired'}
-              secondaryIcon="map"
-              onSecondaryAction={
-                isViewingAsStudent ? undefined : () => navigation.navigate('MapTab')
-              }
-            />
+            <Card
+              backgroundColor="$backgroundStrong"
+              borderRadius="$4"
+              overflow="hidden"
+              borderWidth={1}
+              borderColor="$borderColor"
+            >
+              {/* Image from Getting Started - Full width at top */}
+              <Image
+                source={GETTING_STARTED_IMAGES.firstRoute}
+                style={{
+                  width: '100%',
+                  height: 140,
+                  resizeMode: 'cover',
+                }}
+              />
+
+              {/* Content below image */}
+              <YStack alignItems="center" gap="$4" padding="$6">
+                {/* Title and Message */}
+                <YStack alignItems="center" gap="$2">
+                  <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                    {isViewingAsStudent
+                      ? language === 'sv'
+                        ? 'Inga rutter skapade'
+                        : 'No Routes Created'
+                      : language === 'sv'
+                        ? 'Skapa din första rutt'
+                        : 'Create Your First Route'}
+                  </Text>
+                  <Text fontSize="$4" color="$gray11" textAlign="center">
+                    {isViewingAsStudent
+                      ? `${activeStudentName || (language === 'sv' ? 'Denna elev' : 'This student')} ${language === 'sv' ? 'har inte skapat några rutter än' : "hasn't created any routes yet"}`
+                      : language === 'sv'
+                        ? 'Dela dina favoritövningsplatser med communityn! Skapa detaljerade rutter med övningar och hjälp andra elever.'
+                        : 'Share your favorite practice spots with the community! Create detailed routes with exercises and help other learners.'}
+                  </Text>
+                </YStack>
+
+                {/* Action Buttons */}
+                {!isViewingAsStudent && (
+                  <YStack gap="$2" width="100%">
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('CreateRoute')}
+                      style={{
+                        backgroundColor: '#00E6C3',
+                        paddingHorizontal: 24,
+                        paddingVertical: 12,
+                        borderRadius: 12,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text fontSize="$4" fontWeight="600" color="#000">
+                        {t('home.createdRoutes.createRoute') ||
+                          (language === 'sv' ? 'Skapa rutt' : 'Create Route')}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('MapTab')}
+                      style={{
+                        backgroundColor: 'transparent',
+                        paddingHorizontal: 24,
+                        paddingVertical: 12,
+                        borderRadius: 12,
+                        alignItems: 'center',
+                        borderWidth: 1,
+                        borderColor:
+                          colorScheme === 'dark'
+                            ? 'rgba(255, 255, 255, 0.1)'
+                            : 'rgba(0, 0, 0, 0.1)',
+                      }}
+                    >
+                      <Text fontSize="$4" fontWeight="600" color="$color">
+                        {t('home.createdRoutes.getInspired') ||
+                          (language === 'sv' ? 'Hämta inspiration' : 'Get Inspired')}
+                      </Text>
+                    </TouchableOpacity>
+                  </YStack>
+                )}
+              </YStack>
+            </Card>
           </YStack>
         ) : (
           <XStack paddingHorizontal="$4">

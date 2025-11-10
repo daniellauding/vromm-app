@@ -15,6 +15,11 @@ import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { supabase } from '../../lib/supabase';
 import { Route, SavedRoute, SavedRouteFromDB } from '@/src/types/route';
 
+// Import getting started images
+const GETTING_STARTED_IMAGES = {
+  firstRoute: require('../../../assets/images/getting_started/getting_started_02.png'),
+};
+
 const isValidRoute = (route: any): route is Route => {
   return (
     route &&
@@ -50,7 +55,7 @@ interface SavedRoutesProps {
 }
 
 export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const [savedRoutes, setSavedRoutes] = React.useState<SavedRoute[]>([]);
@@ -129,28 +134,59 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
   if (savedRoutes.length === 0) {
     return (
       <YStack px="$4" mt="$4">
-        <EmptyState
-          title="No Saved Routes"
-          message={
-            isViewingAsStudent
-              ? `${activeStudentName || 'This student'} hasn't saved any routes yet`
-              : 'Save routes from the map or community to access them quickly here'
-          }
-          icon="bookmark"
-          variant="info"
-          actionLabel={
-            isViewingAsStudent ? undefined : t('home.savedRoutes.exploreRoutes') || 'Explore Routes'
-          }
-          actionIcon="map"
-          onAction={isViewingAsStudent ? undefined : () => navigation.navigate('MapTab')}
-          secondaryLabel={
-            isViewingAsStudent ? undefined : t('home.savedRoutes.viewCommunity') || 'View Community'
-          }
-          secondaryIcon="users"
-          onSecondaryAction={
-            isViewingAsStudent ? undefined : () => navigation.navigate('CommunityFeedScreen')
-          }
-        />
+        <Card
+          backgroundColor="$backgroundStrong"
+          borderRadius="$4"
+          overflow="hidden"
+          borderWidth={1}
+          borderColor="$borderColor"
+        >
+          {/* Image from Getting Started - Full width at top */}
+          <Image
+            source={GETTING_STARTED_IMAGES.firstRoute}
+            style={{
+              width: '100%',
+              height: 140,
+              resizeMode: 'cover',
+            }}
+          />
+
+          {/* Content below image */}
+          <YStack alignItems="center" gap="$4" padding="$6">
+            {/* Title and Message */}
+            <YStack alignItems="center" gap="$2">
+              <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                {language === 'sv' ? 'Inga sparade rutter' : 'No Saved Routes'}
+              </Text>
+              <Text fontSize="$4" color="$gray11" textAlign="center">
+                {isViewingAsStudent
+                  ? `${activeStudentName || (language === 'sv' ? 'Denna elev' : 'This student')} ${language === 'sv' ? 'har inte sparat några rutter än' : "hasn't saved any routes yet"}`
+                  : language === 'sv'
+                    ? 'Spara rutter från kartan eller community för att komma åt dem snabbt här'
+                    : 'Save routes from the map or community to access them quickly here'}
+              </Text>
+            </YStack>
+
+            {/* Single Action Button */}
+            {!isViewingAsStudent && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('MapTab')}
+                style={{
+                  backgroundColor: '#00E6C3',
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  marginTop: 8,
+                }}
+              >
+                <Text fontSize="$4" fontWeight="600" color="#000">
+                  {t('home.savedRoutes.exploreRoutes') ||
+                    (language === 'sv' ? 'Utforska rutter' : 'Explore Routes')}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </YStack>
+        </Card>
       </YStack>
     );
   }

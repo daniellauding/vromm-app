@@ -23,6 +23,11 @@ import {
 import { useUserLocation } from '../explore/hooks';
 import { deg2rad } from '../explore/utils';
 
+// Import getting started images
+const GETTING_STARTED_IMAGES = {
+  saveRoute: require('../../../assets/images/getting_started/getting_started_04.png'),
+};
+
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371; // Radius of the earth in km
   const dLat = deg2rad(lat2 - lat1);
@@ -83,7 +88,7 @@ interface CityRoutesProps {
 }
 
 export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [selectedCity, setSelectedCity] = React.useState<string | null>(null);
   const [cityRoutes, setCityRoutes] = React.useState<{ [key: string]: Route[] }>({});
   const [routes, setRoutes] = React.useState<Route[]>([]);
@@ -301,37 +306,80 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
             </Card>
           ))
         ) : (
-          <EmptyState
-            title={(() => {
-              const translated = t('home.cityRoutes.noRoutesInCity');
-              return translated === 'home.cityRoutes.noRoutesInCity'
-                ? 'No Routes in This City'
-                : translated;
-            })()}
-            message={(() => {
-              const translated = t('home.cityRoutes.noRoutesMessage');
-              if (translated && translated !== 'home.cityRoutes.noRoutesMessage') {
-                return translated.replace('{city}', selectedCity || '');
-              }
-              return `No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`;
-            })()}
-            icon="map-pin"
-            variant="warning"
-            actionLabel={(() => {
-              const translated = t('home.cityRoutes.createRouteHere');
-              return translated === 'home.cityRoutes.createRouteHere'
-                ? 'Create Route Here'
-                : translated;
-            })()}
-            actionIcon="plus"
-            onAction={() => navigation.navigate('CreateRoute')}
-            secondaryLabel={(() => {
-              const translated = t('home.cityRoutes.changeCity');
-              return translated === 'home.cityRoutes.changeCity' ? 'Change City' : translated;
-            })()}
-            secondaryIcon="map"
-            onSecondaryAction={showCityModal}
-          />
+          <YStack px="$4">
+            <Card
+              backgroundColor="$backgroundStrong"
+              borderRadius="$4"
+              overflow="hidden"
+              borderWidth={1}
+              borderColor="$borderColor"
+            >
+              {/* Image from Getting Started - Full width at top */}
+              <Image
+                source={GETTING_STARTED_IMAGES.saveRoute}
+                style={{
+                  width: '100%',
+                  height: 140,
+                  resizeMode: 'cover',
+                }}
+              />
+
+              {/* Content below image */}
+              <YStack alignItems="center" gap="$4" padding="$6">
+                {/* Title and Message */}
+                <YStack alignItems="center" gap="$2">
+                  <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                    {t('home.cityRoutes.noRoutesInCity') ||
+                      (language === 'sv' ? 'Inga rutter i denna stad' : 'No Routes in This City')}
+                  </Text>
+                  <Text fontSize="$4" color="$gray11" textAlign="center">
+                    {t('home.cityRoutes.noRoutesMessage') ||
+                      (language === 'sv'
+                        ? `Inga övningsrutter hittades i ${selectedCity}. Var först med att skapa en eller utforska andra städer!`
+                        : `No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`)}
+                  </Text>
+                </YStack>
+
+                {/* Action Buttons */}
+                <YStack gap="$2" width="100%">
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('CreateRoute')}
+                    style={{
+                      backgroundColor: '#00E6C3',
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Text fontSize="$4" fontWeight="600" color="#000">
+                      {t('home.cityRoutes.createRouteHere') ||
+                        (language === 'sv' ? 'Skapa rutt här' : 'Create Route Here')}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={showCityModal}
+                    style={{
+                      backgroundColor: 'transparent',
+                      paddingHorizontal: 24,
+                      paddingVertical: 12,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor:
+                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                    }}
+                  >
+                    <Text fontSize="$4" fontWeight="600" color="$color">
+                      {t('home.cityRoutes.changeCity') ||
+                        (language === 'sv' ? 'Byt stad' : 'Change City')}
+                    </Text>
+                  </TouchableOpacity>
+                </YStack>
+              </YStack>
+            </Card>
+          </YStack>
         )}
       </YStack>
 
