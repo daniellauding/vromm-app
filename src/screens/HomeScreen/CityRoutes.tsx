@@ -24,6 +24,7 @@ import { useUserLocation } from '../explore/hooks';
 import { deg2rad } from '../explore/utils';
 import { useModal } from '@/src/contexts/ModalContext';
 import { CreateRouteSheet } from '@/src/components/CreateRouteSheet';
+import RouteDetailsCarousel from '@/src/components/RouteDetailSheet/RouteDetailsCarousel';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -216,15 +217,15 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
           selectedCity ||
           getTranslation(
             'home.cityRoutes.selectCity',
-            language === 'sv' ? 'Välj en stad' : 'Select a city'
+            language === 'sv' ? 'Välj en stad' : 'Select a city',
           )
         }
         variant="dropdown"
         onAction={showCityModal}
-        actionLabel={selectedCity || getTranslation(
-          'home.cityRoutes.select',
-          language === 'sv' ? 'Välj' : 'Select'
-        )}
+        actionLabel={
+          selectedCity ||
+          getTranslation('home.cityRoutes.select', language === 'sv' ? 'Välj' : 'Select')
+        }
       />
       <YStack gap="$3" px="$4">
         {routes.length > 0 ? (
@@ -245,27 +246,9 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
               }}
             >
               <YStack f={1}>
-                {getRouteImage(route) ? (
-                  <Image
-                    source={{ uri: getRouteImage(route) } as ImageSourcePropType}
-                    style={{
-                      width: '100%',
-                      height: 180,
-                      borderTopLeftRadius: 12,
-                      borderTopRightRadius: 12,
-                    }}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <YStack
-                    height={180}
-                    backgroundColor="$gray5"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    <Feather name="image" size={32} color="$gray11" />
-                  </YStack>
-                )}
+                {/* Carousel for map/media */}
+                <RouteDetailsCarousel routeData={route} />
+
                 <YStack padding="$3" gap="$2">
                   <XStack justifyContent="space-between" alignItems="center">
                     <YStack>
@@ -282,9 +265,9 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                           color="$gray11"
                           size="xs"
                           onPress={() => {
-                            if (route.creator?.id) {
+                            if ((route.creator as any)?.id) {
                               navigation.navigate('PublicProfile', {
-                                userId: route.creator.id,
+                                userId: (route.creator as any).id,
                               });
                             }
                           }}
@@ -344,7 +327,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                   <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
                     {getTranslation(
                       'home.cityRoutes.noRoutesInCity',
-                      language === 'sv' ? 'Inga rutter i denna stad' : 'No Routes in This City'
+                      language === 'sv' ? 'Inga rutter i denna stad' : 'No Routes in This City',
                     )}
                   </Text>
                   <Text fontSize="$4" color="$gray11" textAlign="center">
@@ -352,7 +335,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                       'home.cityRoutes.noRoutesMessage',
                       language === 'sv'
                         ? `Inga övningsrutter hittades i ${selectedCity}. Var först med att skapa en eller utforska andra städer!`
-                        : `No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`
+                        : `No practice routes found in ${selectedCity}. Be the first to create one or explore other cities!`,
                     )}
                   </Text>
                 </YStack>
@@ -383,7 +366,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                     <Text fontSize="$4" fontWeight="600" color="#000">
                       {getTranslation(
                         'home.cityRoutes.createRouteHere',
-                        language === 'sv' ? 'Skapa rutt här' : 'Create Route Here'
+                        language === 'sv' ? 'Skapa rutt här' : 'Create Route Here',
                       )}
                     </Text>
                   </TouchableOpacity>
@@ -404,7 +387,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                     <Text fontSize="$4" fontWeight="600" color="$color">
                       {getTranslation(
                         'home.cityRoutes.changeCity',
-                        language === 'sv' ? 'Byt stad' : 'Change City'
+                        language === 'sv' ? 'Byt stad' : 'Change City',
                       )}
                     </Text>
                   </TouchableOpacity>
@@ -443,6 +426,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                 bottom: 0,
                 left: 0,
                 right: 0,
+                backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#FFFFFF',
                 borderTopLeftRadius: 16,
                 borderTopRightRadius: 16,
               },
@@ -452,11 +436,11 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
             ]}
           >
             <YStack
-              backgroundColor="$background"
               padding="$4"
               borderTopLeftRadius="$4"
               borderTopRightRadius="$4"
               gap="$4"
+              backgroundColor={colorScheme === 'dark' ? '#1C1C1E' : '#FFFFFF'}
             >
               {/* Sheet Handle */}
               <View
@@ -470,10 +454,10 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                 }}
               />
 
-              <Text size="xl" weight="bold" color="white" textAlign="center">
+              <Text size="xl" weight="bold" color="$color" textAlign="center">
                 {getTranslation(
                   'home.cityRoutes.selectCityTitle',
-                  language === 'sv' ? 'Välj stad' : 'Select City'
+                  language === 'sv' ? 'Välj stad' : 'Select City',
                 )}
               </Text>
 
@@ -490,14 +474,14 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                         alignItems="center"
                         gap="$2"
                       >
-                        <Text color="white" size="lg">
+                        <Text color="$color" size="lg">
                           {city}
                         </Text>
                         {selectedCity === city && (
                           <Feather
                             name="check"
                             size={16}
-                            color="white"
+                            color={colorScheme === 'dark' ? '#00E6C3' : '#00C9A7'}
                             style={{ marginLeft: 'auto' }}
                           />
                         )}

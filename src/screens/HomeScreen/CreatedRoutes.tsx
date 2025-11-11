@@ -16,6 +16,7 @@ import { EmptyState } from './EmptyState';
 import { Text } from '../../components/Text';
 import { useModal } from '@/src/contexts/ModalContext';
 import { CreateRouteSheet } from '@/src/components/CreateRouteSheet';
+import RouteDetailsCarousel from '@/src/components/RouteDetailSheet/RouteDetailsCarousel';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {

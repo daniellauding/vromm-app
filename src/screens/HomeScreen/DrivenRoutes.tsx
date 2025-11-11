@@ -7,7 +7,7 @@ import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
 import { YStack, XStack, Card } from 'tamagui';
-import { FlatList, TouchableOpacity } from 'react-native';
+import { FlatList, TouchableOpacity, View } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { navigateDomain } from '@/src/utils/navigation';
@@ -18,6 +18,7 @@ import { Text } from '@/src/components';
 import { EmptyState } from './EmptyState';
 import { useModal } from '@/src/contexts/ModalContext';
 import { CreateRouteSheet } from '@/src/components/CreateRouteSheet';
+import RouteDetailsCarousel from '@/src/components/RouteDetailSheet/RouteDetailsCarousel';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -179,27 +180,11 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
                   }}
                 >
                   <YStack f={1}>
-                    {imageUrl ? (
-                      <Image
-                        source={{ uri: imageUrl } as ImageSourcePropType}
-                        style={{
-                          width: '100%',
-                          height: 120,
-                          borderTopLeftRadius: 12,
-                          borderTopRightRadius: 12,
-                        }}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <YStack
-                        height={120}
-                        backgroundColor="$gray5"
-                        alignItems="center"
-                        justifyContent="center"
-                      >
-                        <Feather name="image" size={32} color="$gray11" />
-                      </YStack>
-                    )}
+                    {/* Carousel for map/media */}
+                    <View style={{ height: 120 }}>
+                      <RouteDetailsCarousel routeData={route} />
+                    </View>
+
                     <YStack padding="$3" gap="$1" flex={1}>
                       <Text size="md" weight="bold" numberOfLines={1} ellipsizeMode="tail">
                         {route.name}
@@ -214,8 +199,10 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
                           color="$gray11"
                           size="xs"
                           onPress={() => {
-                            if (route.creator?.id) {
-                              navigation.navigate('PublicProfile', { userId: route.creator.id });
+                            if ((route.creator as any)?.id) {
+                              navigation.navigate('PublicProfile', {
+                                userId: (route.creator as any).id,
+                              });
                             }
                           }}
                           pressStyle={{ opacity: 0.7 }}
@@ -285,11 +272,11 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
                       borderRadius: 12,
                       alignItems: 'center',
                     }}
-                    >
+                  >
                     <Text fontSize="$4" fontWeight="600" color="#000">
                       {getTranslation(
                         'home.drivenRoutes.findRoutes',
-                        language === 'sv' ? 'Hitta rutter' : 'Find Routes'
+                        language === 'sv' ? 'Hitta rutter' : 'Find Routes',
                       )}
                     </Text>
                   </TouchableOpacity>
@@ -321,7 +308,7 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
                     <Text fontSize="$4" fontWeight="600" color="$color">
                       {getTranslation(
                         'home.drivenRoutes.createRoute',
-                        language === 'sv' ? 'Skapa rutt' : 'Create Route'
+                        language === 'sv' ? 'Skapa rutt' : 'Create Route',
                       )}
                     </Text>
                   </TouchableOpacity>

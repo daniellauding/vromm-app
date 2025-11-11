@@ -143,7 +143,18 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
             </Text>
 
             <XStack space="$2" alignItems="center">
-              <Feather name="user" size={16} color={iconColor} />
+              {(route.creator as any)?.avatar_url ? (
+                <Image
+                  source={{ uri: (route.creator as any).avatar_url }}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: 8,
+                  }}
+                />
+              ) : (
+                <Feather name="user" size={16} color={iconColor} />
+              )}
               <Text
                 color="$gray11"
                 onPress={() => {
@@ -168,12 +179,51 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
             <XStack space="$4">
               <XStack space="$1" alignItems="center">
                 <Feather name="bar-chart" size={16} color={iconColor} />
-                <Text>{route.difficulty}</Text>
+                <Text>
+                  {route.difficulty === 'beginner'
+                    ? getTranslation(
+                        'filters.difficulty.beginner',
+                        language === 'sv' ? 'Nybörjare' : 'Beginner',
+                      )
+                    : route.difficulty === 'intermediate'
+                      ? getTranslation(
+                          'filters.difficulty.intermediate',
+                          language === 'sv' ? 'Medel' : 'Intermediate',
+                        )
+                      : route.difficulty === 'advanced'
+                        ? getTranslation(
+                            'filters.difficulty.advanced',
+                            language === 'sv' ? 'Avancerad' : 'Advanced',
+                          )
+                        : route.difficulty}
+                </Text>
               </XStack>
 
               <XStack space="$1" alignItems="center">
                 <Feather name="map-pin" size={16} color={iconColor} />
-                <Text>{route.spot_type}</Text>
+                <Text>
+                  {route.spot_type === 'urban'
+                    ? getTranslation(
+                        'filters.spotType.urban',
+                        language === 'sv' ? 'Urban' : 'Urban',
+                      )
+                    : route.spot_type === 'highway'
+                      ? getTranslation(
+                          'filters.spotType.highway',
+                          language === 'sv' ? 'Motorväg' : 'Highway',
+                        )
+                      : route.spot_type === 'rural'
+                        ? getTranslation(
+                            'filters.spotType.rural',
+                            language === 'sv' ? 'Landsbygd' : 'Rural',
+                          )
+                        : route.spot_type === 'residential'
+                          ? getTranslation(
+                              'filters.spotType.parking',
+                              language === 'sv' ? 'Parkering' : 'Parking',
+                            )
+                          : route.spot_type}
+                </Text>
               </XStack>
             </XStack>
 

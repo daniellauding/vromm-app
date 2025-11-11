@@ -9,6 +9,7 @@ import {
   View,
   Animated,
   PanResponder,
+  Image,
 } from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
@@ -35,6 +36,7 @@ interface FeaturedLearningPath {
   description: { en: string; sv: string };
   icon?: string;
   image?: string;
+  youtube_url?: string;
   is_featured: boolean;
   // Access Control & Paywall
   is_locked?: boolean;
@@ -50,6 +52,7 @@ interface FeaturedExercise {
   description: { en: string; sv: string };
   icon?: string;
   image?: string;
+  youtube_url?: string;
   learning_path_id: string;
   is_featured: boolean;
   repeat_count?: number;
@@ -64,7 +67,7 @@ interface FeaturedExercise {
 export function FeaturedContent2() {
   // ALL HOOKS MUST BE CALLED IN THE SAME ORDER EVERY TIME
   const navigation = useNavigation<NavigationProp>();
-  const { t, language: lang } = useTranslation();
+  const { t, language } = useTranslation();
   const colorScheme = useColorScheme();
   const { user: authUser, profile } = useAuth();
   const { showToast } = useToast();
@@ -102,11 +105,17 @@ export function FeaturedContent2() {
   const rotate = useRef(new Animated.Value(0)).current;
 
   // ALL useMemo/useCallback CALLS
+  // Helper function to get translation with fallback
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
+  };
+
   // Completion check helper function
   const isExerciseCompleted = (exercise: FeaturedExercise): boolean => {
     // Check if the main exercise is completed
     const mainCompleted = completedExerciseIds.includes(exercise.id);
-    
+
     // If no repeats, just check main completion
     if (!exercise.repeat_count || exercise.repeat_count <= 1) {
       return mainCompleted;
@@ -114,14 +123,14 @@ export function FeaturedContent2() {
 
     // If has repeats, check if all repeats are completed
     if (!mainCompleted) return false;
-    
+
     for (let i = 2; i <= exercise.repeat_count; i++) {
       const virtualId = `${exercise.id}-virtual-${i}`;
       if (!virtualRepeatCompletions.includes(virtualId)) {
         return false;
       }
     }
-    
+
     return true;
   };
 
@@ -146,7 +155,9 @@ export function FeaturedContent2() {
         onPanResponderGrant: () => {
           console.log('🃏 [FeaturedContent2] Swipe started');
           pan.setOffset({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             x: (pan.x as any)._value,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             y: (pan.y as any)._value,
           });
         },
@@ -241,7 +252,7 @@ export function FeaturedContent2() {
           tappedIndex: index,
           currentIndex: currentCardIndex,
           isCurrentCard: index === currentCardIndex,
-          itemTitle: item.title[lang] || item.title.en,
+          itemTitle: item.title[language] || item.title.en,
           totalCards: allFeaturedContent.length,
         });
 
@@ -262,7 +273,7 @@ export function FeaturedContent2() {
         console.error('🃏 [FeaturedContent2] Card tap error:', error);
       }
     },
-    [currentCardIndex, allFeaturedContent.length, lang],
+    [currentCardIndex, allFeaturedContent.length, language],
   );
 
   // Load completion data
@@ -377,7 +388,7 @@ export function FeaturedContent2() {
       totalContent: allFeaturedContent.length,
       currentIndex: currentCardIndex,
       currentItem:
-        allFeaturedContent[currentCardIndex]?.title?.[lang] ||
+        allFeaturedContent[currentCardIndex]?.title?.[language] ||
         allFeaturedContent[currentCardIndex]?.title?.en,
     });
   }, [featuredPaths.length, featuredExercises.length, currentCardIndex]);
@@ -406,7 +417,7 @@ export function FeaturedContent2() {
       const { data: pathsData, error: pathsError } = await supabase
         .from('learning_paths')
         .select(
-          'id, title, description, icon, image, is_featured, is_locked, lock_password, paywall_enabled, price_usd, price_sek',
+          'id, title, description, icon, image, youtube_url, is_featured, is_locked, lock_password, paywall_enabled, price_usd, price_sek',
         )
         .eq('is_featured', true)
         .eq('active', true)
@@ -423,7 +434,7 @@ export function FeaturedContent2() {
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('learning_path_exercises')
         .select(
-          'id, title, description, icon, image, learning_path_id, is_featured, repeat_count',
+          'id, title, description, icon, image, youtube_url, learning_path_id, is_featured, repeat_count',
         )
         .eq('is_featured', true)
         .order('created_at', { ascending: false })
@@ -509,7 +520,7 @@ export function FeaturedContent2() {
   };
 
   const handleContentPress = async (item: FeaturedLearningPath | FeaturedExercise) => {
-    console.log('🎯 [FeaturedContent2] Content pressed:', item.title[lang] || item.title.en);
+    console.log('🎯 [FeaturedContent2] Content pressed:', item.title[language] || item.title.en);
 
     // Check paywall first
     const canAccessPaywall = await checkPathPaywall(item);
@@ -530,7 +541,7 @@ export function FeaturedContent2() {
     }
     setSelectedPathId(pathId);
     setSelectedExerciseId(exerciseId); // Set specific exercise ID if it's an exercise, otherwise undefined
-    setSelectedTitle(item.title[lang] || item.title.en);
+    setSelectedTitle(item.title[language] || item.title.en);
     setShowExerciseSheet(true);
   };
 
@@ -546,6 +557,7 @@ export function FeaturedContent2() {
     const isExercise = 'learning_path_id' in item;
     const isPasswordLocked = isPathPasswordLocked(item);
     const isPaywallLocked = isPathPaywallLocked(item);
+    const hasMedia = !!(item.image || item.youtube_url);
 
     return (
       <TouchableOpacity
@@ -563,10 +575,10 @@ export function FeaturedContent2() {
           width="100%"
           style={{
             shadowColor: isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : '#000',
-            shadowOpacity: isCurrentCard ? 0.25 : 0.15, // Increased shadow visibility
-            shadowRadius: isCurrentCard ? 16 : 8, // Larger shadow radius
-            shadowOffset: { width: 0, height: isCurrentCard ? 8 : 4 }, // Larger shadow offset
-            elevation: isCurrentCard ? 12 : 6, // Android shadow elevation
+            shadowOpacity: isCurrentCard ? 0.25 : 0.15,
+            shadowRadius: isCurrentCard ? 16 : 8,
+            shadowOffset: { width: 0, height: isCurrentCard ? 8 : 4 },
+            elevation: isCurrentCard ? 12 : 6,
           }}
         >
           <YStack gap="$2" position="relative" height="100%" justifyContent="space-between">
@@ -609,18 +621,54 @@ export function FeaturedContent2() {
                 )}
                 <Text fontSize="$3" fontWeight="600" color={isExercise ? '#00E6C3' : '#00FFBC'}>
                   {isExercise
-                    ? t('home.exercise') || 'Exercise'
-                    : t('home.learningPath') || 'Learning Path'}
+                    ? getTranslation('home.exercise', language === 'sv' ? 'Övning' : 'Exercise')
+                    : getTranslation(
+                        'home.learningPath',
+                        language === 'sv' ? 'Inlärningsväg' : 'Learning Path',
+                      )}
                 </Text>
               </XStack>
 
               <Text fontSize="$5" fontWeight="bold" color="$color" numberOfLines={2}>
-                {item.title?.[lang] || item.title?.en || 'Untitled'}
+                {item.title?.[language] || item.title?.en || 'Untitled'}
               </Text>
 
-              {item.description?.[lang] && (
-                <Text fontSize="$3" color="$gray11" numberOfLines={2}>
-                  {item.description[lang]}
+              {/* Media (Image or Video thumbnail) - below title, above description */}
+              {hasMedia && (
+                <View
+                  style={{
+                    width: '100%',
+                    height: 60,
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    backgroundColor: colorScheme === 'dark' ? '#222' : '#F5F5F5',
+                  }}
+                >
+                  {item.image ? (
+                    <Image
+                      source={{ uri: item.image }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
+                  ) : item.youtube_url ? (
+                    <View
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        backgroundColor: '#000',
+                      }}
+                    >
+                      <Feather name="play-circle" size={24} color="#FF0000" />
+                    </View>
+                  ) : null}
+                </View>
+              )}
+
+              {item.description?.[language] && (
+                <Text fontSize="$3" color="$gray11" numberOfLines={hasMedia ? 1 : 2}>
+                  {item.description[language]}
                 </Text>
               )}
             </YStack>
@@ -629,8 +677,14 @@ export function FeaturedContent2() {
               <Feather name={isExercise ? 'play-circle' : 'book-open'} size={16} color="$gray11" />
               <Text fontSize="$2" color="$gray11" numberOfLines={1}>
                 {isExercise
-                  ? t('home.startExercise') || 'Start Exercise'
-                  : t('home.startLearning') || 'Start Learning'}
+                  ? getTranslation(
+                      'home.startExercise',
+                      language === 'sv' ? 'Starta övning' : 'Start Exercise',
+                    )
+                  : getTranslation(
+                      'home.startLearning',
+                      language === 'sv' ? 'Börja lära' : 'Start Learning',
+                    )}
               </Text>
               <Feather name="arrow-right" size={12} color="$gray11" />
             </XStack>
@@ -644,17 +698,15 @@ export function FeaturedContent2() {
     return (
       <YStack marginBottom="$4">
         <SectionHeader
-          title={(() => {
-            const translated = t('home.featuredContent');
-            return translated === 'home.featuredContent'
-              ? lang === 'sv'
-                ? 'Utvalda Lärningskort'
-                : 'Featured Learning Cards'
-              : translated;
-          })()}
+          title={getTranslation(
+            'home.featuredContent',
+            language === 'sv' ? 'Utvalda Lärningskort' : 'Featured Learning Cards',
+          )}
         />
         <YStack alignItems="center" justifyContent="center" padding="$4">
-          <Text color="$gray11">{t('common.loading') || 'Loading...'}</Text>
+          <Text color="$gray11">
+            {getTranslation('common.loading', language === 'sv' ? 'Laddar...' : 'Loading...')}
+          </Text>
         </YStack>
       </YStack>
     );
@@ -672,14 +724,10 @@ export function FeaturedContent2() {
   return (
     <YStack marginBottom="$6">
       <SectionHeader
-        title={(() => {
-          const translated = t('home.featuredContent');
-          return translated === 'home.featuredContent'
-            ? lang === 'sv'
-              ? 'Utvalda Lärningskort'
-              : 'Featured Learning Cards'
-            : translated;
-        })()}
+        title={getTranslation(
+          'home.featuredContent',
+          language === 'sv' ? 'Utvalda Lärningskort' : 'Featured Learning Cards',
+        )}
       />
 
       <View style={{ paddingHorizontal: CARD_MARGIN, height: CARD_HEIGHT + 60 }}>
@@ -822,10 +870,10 @@ export function FeaturedContent2() {
                   {/* Path Info */}
                   <YStack gap={12}>
                     <Text fontSize={24} fontWeight="bold" color="$color">
-                      {paywallPath.title[lang] || paywallPath.title.en}
+                      {paywallPath.title[language] || paywallPath.title.en}
                     </Text>
                     <Text fontSize={16} color="$gray11">
-                      {paywallPath.description[lang] || paywallPath.description.en}
+                      {paywallPath.description[language] || paywallPath.description.en}
                     </Text>
                   </YStack>
 
@@ -941,10 +989,15 @@ export function FeaturedContent2() {
                 <>
                   <YStack gap={12}>
                     <Text fontSize={24} fontWeight="bold" color="$color">
-                      {passwordPath.title[lang] || passwordPath.title.en}
+                      {passwordPath.title[language] || passwordPath.title.en}
                     </Text>
                     <Text fontSize={16} color="$gray11">
-                      This learning path is locked and requires a password to access.
+                      {getTranslation(
+                        'progressScreen.passwordLock.description',
+                        language === 'sv'
+                          ? 'Denna inlärningsväg är låst och kräver ett lösenord för åtkomst.'
+                          : 'This learning path is locked and requires a password to access.',
+                      )}
                     </Text>
                   </YStack>
 
@@ -1012,7 +1065,7 @@ export function FeaturedContent2() {
 
                           // Now open the exercise sheet
                           setSelectedPathId(passwordPath.id);
-                          setSelectedTitle(passwordPath.title[lang] || passwordPath.title.en);
+                          setSelectedTitle(passwordPath.title[language] || passwordPath.title.en);
                           setShowExerciseSheet(true);
                         } else {
                           Alert.alert(

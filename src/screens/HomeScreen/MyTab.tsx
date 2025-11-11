@@ -26,6 +26,11 @@ import { NearByRoutes } from './NearByRoutes';
 import { DrivenRoutes } from './DrivenRoutes';
 import { DraftRoutes } from './DraftRoutes';
 import { CommunityFeed } from './CommunityFeed';
+import { LearningPathsSheet } from '../../components/LearningPathsSheet';
+import { ExerciseListSheet } from '../../components/ExerciseListSheet';
+import { LearningPathCard } from './LearningPathCard';
+import { RoleSelectionCard } from './RoleSelectionCard';
+import { ConnectionsCard } from './ConnectionsCard';
 
 export default React.memo(function MyTab({
   activeUserId,
@@ -47,6 +52,12 @@ export default React.memo(function MyTab({
   const navigation = useNavigation<NavigationProp>();
   const effectiveUserId = activeUserId || getEffectiveUserId();
   const [selectedDailyStatusDate, setSelectedDailyStatusDate] = useState(new Date());
+  const [showLearningPathsSheet, setShowLearningPathsSheet] = useState(false);
+  const [showExerciseListSheet, setShowExerciseListSheet] = useState(false);
+  const [selectedLearningPath, setSelectedLearningPath] = useState<{
+    id: string;
+    title: { en: string; sv: string };
+  } | null>(null);
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -92,6 +103,16 @@ export default React.memo(function MyTab({
 
       <GettingStarted />
 
+      {/* Learning Path Card */}
+      <LearningPathCard
+        activeUserId={effectiveUserId || undefined}
+        onPress={(path) => {
+          setSelectedLearningPath(path);
+          setShowExerciseListSheet(true);
+        }}
+        onPressSeeAll={() => setShowLearningPathsSheet(true)}
+      />
+
       <ProgressSection activeUserId={effectiveUserId} />
 
       {/* Featured Content */}
@@ -118,18 +139,54 @@ export default React.memo(function MyTab({
         <DrivenRoutes onRoutePress={handleRoutePress} />
         <NearByRoutes onRoutePress={handleRoutePress} />
       </YStack>
+
+      {/* Role Selection and Connections Cards */}
+      <YStack gap="$4" marginTop="$6">
+        <RoleSelectionCard />
+        <ConnectionsCard />
+      </YStack>
+
       <YStack gap="$4" marginTop="$6" marginBottom="$6">
         <SectionHeader
-          title={getTranslation(
-            'home.users.title',
-            language === 'sv' ? 'Användare' : 'Users'
-          )}
+          title={getTranslation('home.users.title', language === 'sv' ? 'Användare' : 'Users')}
           variant="chevron"
           onAction={() => setShowUserListSheet(true)}
           actionLabel={t('common.seeAll')}
         />
         <UsersList onUserPress={onShowUser} />
       </YStack>
+
+      {/* Exercise List Sheet for Selected Path */}
+      {selectedLearningPath && (
+        <ExerciseListSheet
+          visible={showExerciseListSheet}
+          onClose={() => {
+            setShowExerciseListSheet(false);
+            setSelectedLearningPath(null);
+          }}
+          onBackToAllPaths={() => {
+            setShowExerciseListSheet(false);
+            setShowLearningPathsSheet(true);
+          }}
+          title={`${t('exercises.learningExercises') || 'Learning Exercises'}: ${
+            language === 'sv' ? selectedLearningPath.title.sv : selectedLearningPath.title.en
+          }`}
+          learningPathId={selectedLearningPath.id}
+          showAllPaths={false}
+        />
+      )}
+
+      {/* Learning Paths Sheet - Opens from "See All" */}
+      <LearningPathsSheet
+        visible={showLearningPathsSheet}
+        onClose={() => setShowLearningPathsSheet(false)}
+        onPathSelected={(path) => {
+          console.log('Selected learning path:', path);
+          setSelectedLearningPath(path);
+          setShowLearningPathsSheet(false);
+          setShowExerciseListSheet(true);
+        }}
+      />
     </YStack>
   );
 });

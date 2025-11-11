@@ -268,7 +268,7 @@ export const RoutesDrawer = React.forwardRef<
       transform: [{ translateY: translateY.value }],
     }));
 
-    // Filter routes based on search query
+    // Filter routes based on search query - expanded to include more metadata
     const searchFilteredRoutes = useMemo(() => {
       if (!searchQuery.trim()) {
         return filteredRoutes;
@@ -276,19 +276,60 @@ export const RoutesDrawer = React.forwardRef<
 
       const query = searchQuery.toLowerCase().trim();
       return filteredRoutes.filter((route) => {
-        // Search by route name (routes use 'name' not 'title')
+        // Search by route name
         const nameMatch = route.name?.toLowerCase().includes(query);
 
-        // Search by city if available (city may not be in base Route type)
+        // Search by city (from waypoint details)
         const cityMatch = (route as Route & { city?: string }).city?.toLowerCase().includes(query);
 
-        // Search by description if available
+        // Search by waypoint titles/descriptions
+        const waypointMatch = route.waypoint_details?.some(
+          (wp: { title?: string; description?: string }) =>
+            wp.title?.toLowerCase().includes(query) ||
+            wp.description?.toLowerCase().includes(query),
+        );
+
+        // Search by description
         const descriptionMatch = route.description?.toLowerCase().includes(query);
 
-        // Search by creator name if available (use full_name only)
+        // Search by creator name
         const creatorMatch = route.creator?.full_name?.toLowerCase().includes(query);
 
-        return nameMatch || cityMatch || descriptionMatch || creatorMatch;
+        // Search by difficulty (beginner, intermediate, advanced)
+        const difficultyMatch = route.difficulty?.toLowerCase().includes(query);
+
+        // Search by spot type (urban, highway, rural, parking)
+        const spotTypeMatch = route.spot_type?.toLowerCase().includes(query);
+
+        // Search by category (parking, incline_start, etc.)
+        const categoryMatch = route.category?.toLowerCase().includes(query);
+
+        // Search by transmission type (automatic, manual, both)
+        const transmissionMatch = route.transmission_type?.toLowerCase().includes(query);
+
+        // Search by activity level (moderate, high)
+        const activityMatch = route.activity_level?.toLowerCase().includes(query);
+
+        // Search by season (all, year-round, avoid-winter)
+        const seasonMatch = route.best_season?.toLowerCase().includes(query);
+
+        // Search by drawing mode (recorded, waypoint, pen)
+        const drawingModeMatch = route.drawing_mode?.toLowerCase().includes(query);
+
+        return (
+          nameMatch ||
+          cityMatch ||
+          waypointMatch ||
+          descriptionMatch ||
+          creatorMatch ||
+          difficultyMatch ||
+          spotTypeMatch ||
+          categoryMatch ||
+          transmissionMatch ||
+          activityMatch ||
+          seasonMatch ||
+          drawingModeMatch
+        );
       });
     }, [filteredRoutes, searchQuery]);
 

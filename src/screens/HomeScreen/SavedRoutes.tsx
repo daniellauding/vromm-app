@@ -14,6 +14,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { supabase } from '../../lib/supabase';
 import { Route, SavedRoute, SavedRouteFromDB } from '@/src/types/route';
+import RouteDetailsCarousel from '@/src/components/RouteDetailSheet/RouteDetailsCarousel';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -177,7 +178,7 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
             {/* Single Action Button */}
             {!isViewingAsStudent && (
               <TouchableOpacity
-                onPress={() => navigation.navigate('MapTab')}
+                onPress={() => (navigation as any).navigate('MapTab')}
                 style={{
                   backgroundColor: '#00E6C3',
                   paddingHorizontal: 24,
@@ -189,7 +190,7 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
                 <Text fontSize="$4" fontWeight="600" color="#000">
                   {getTranslation(
                     'home.savedRoutes.exploreRoutes',
-                    language === 'sv' ? 'Utforska rutter' : 'Explore Routes'
+                    language === 'sv' ? 'Utforska rutter' : 'Explore Routes',
                   )}
                 </Text>
               </TouchableOpacity>
@@ -223,7 +224,9 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
           <SavedRoutesGrid
             routes={savedRoutes}
             getImageUrl={getRouteImage}
-            onRoutePress={onRoutePress ? (route) => onRoutePress(route.id) : undefined}
+            onRoutePress={
+              onRoutePress ? (route: { id: string }) => onRoutePress(route.id) : undefined
+            }
           />
         </XStack>
       </YStack>
@@ -280,37 +283,16 @@ const SavedRoutesGrid = ({ routes, getImageUrl, onRoutePress }: SavedRoutesGridP
           borderRadius="$3"
         >
           <YStack gap="$2" height="100%">
-            {/* Image */}
+            {/* Carousel for map/media */}
             <View
               style={{
                 width: '100%',
                 height: itemWidth * 0.6,
                 borderRadius: 8,
                 overflow: 'hidden',
-                backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5',
               }}
             >
-              {imageUrl ? (
-                <Image
-                  source={{ uri: imageUrl }}
-                  style={{ width: '100%', height: '100%' }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5',
-                  }}
-                >
-                  <Text color="$gray10" fontSize="$2">
-                    No Image
-                  </Text>
-                </View>
-              )}
+              <RouteDetailsCarousel routeData={item} />
             </View>
 
             {/* Route Info */}

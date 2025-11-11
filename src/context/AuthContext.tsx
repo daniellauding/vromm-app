@@ -73,8 +73,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               .from('profiles')
               .update({ email: user.email })
               .eq('id', user.id)
-              .catch((err) => {
-                console.warn('Failed to update profile email:', err);
+              .then(({ error }) => {
+                if (error) {
+                  console.warn('Failed to update profile email:', error);
+                }
               });
           } else if (data && data.email) {
             setProfile(data);

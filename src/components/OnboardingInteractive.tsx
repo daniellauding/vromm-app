@@ -920,10 +920,12 @@ export function OnboardingInteractive({
   };
 
   const skipOnboarding = () => {
+    // Skip for now - don't mark as completed, just close the modal
+    // User will see onboarding again when they reload the app
     if (onSkip) {
       onSkip();
-    } else {
-      completeOnboarding();
+    } else if (onCloseModal) {
+      onCloseModal();
     }
   };
 
@@ -1986,6 +1988,12 @@ export function OnboardingInteractive({
             <Text size="lg" textAlign="center" color="$color" opacity={0.9} marginTop="$2">
               {item.description}
             </Text>
+            {/* Step counter */}
+            <Text size="md" textAlign="center" color="$color" opacity={0.6} marginTop="$2">
+              {language === 'sv'
+                ? `Steg ${currentIndex + 1} av ${steps.length}`
+                : `Step ${currentIndex + 1} of ${steps.length}`}
+            </Text>
           </YStack>
 
           {/* License Preferences */}
@@ -2191,6 +2199,12 @@ export function OnboardingInteractive({
               {language === 'sv'
                 ? 'Dela dina testresultat och körmål'
                 : 'Share your test progress and driving goals'}
+            </Text>
+            {/* Step counter */}
+            <Text size="md" textAlign="center" color="$color" opacity={0.6} marginTop="$2">
+              {language === 'sv'
+                ? `Steg ${currentIndex + 1} av ${steps.length}`
+                : `Step ${currentIndex + 1} of ${steps.length}`}
             </Text>
           </YStack>
 
@@ -2465,6 +2479,12 @@ export function OnboardingInteractive({
             <Text size="lg" textAlign="center" color="$color" opacity={0.9} marginTop="$2">
               {item.description}
             </Text>
+            {/* Step counter */}
+            <Text size="md" textAlign="center" color="$color" opacity={0.6} marginTop="$2">
+              {language === 'sv'
+                ? `Steg ${currentIndex + 1} av ${steps.length}`
+                : `Step ${currentIndex + 1} of ${steps.length}`}
+            </Text>
           </YStack>
 
           {/* Role Options */}
@@ -2571,6 +2591,13 @@ export function OnboardingInteractive({
 
             <Text size="lg" textAlign="center" color="$color" opacity={0.9}>
               {item.description}
+            </Text>
+
+            {/* Step counter */}
+            <Text size="md" textAlign="center" color="$color" opacity={0.6} marginTop="$2">
+              {language === 'sv'
+                ? `Steg ${currentIndex + 1} av ${steps.length}`
+                : `Step ${currentIndex + 1} of ${steps.length}`}
             </Text>
 
             {/* Removed status indicators - users can always interact */}
