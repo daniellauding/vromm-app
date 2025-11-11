@@ -1,4 +1,4 @@
-import { useColorScheme, Platform, NativeModules, AppState } from 'react-native';
+import { View, useColorScheme, Platform, NativeModules, AppState } from 'react-native';
 import React, { useEffect, useState, useRef } from 'react';
 
 import { NavigationContainer } from '@react-navigation/native';
@@ -28,6 +28,7 @@ import { AppAnalytics } from './utils/analytics';
 import { TourOverlay } from './components/TourOverlay';
 import { GlobalCelebrationModal } from './components/GlobalCelebrationModal';
 import type { NavigationContainerRef } from '@react-navigation/native';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LoadingScreen } from './components/LoadingScreen';
 
@@ -275,191 +276,206 @@ function AuthenticatedAppContent() {
 
   console.log('🎯 [AuthenticatedAppContent] Rendering');
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <Stack.Navigator
-      initialRouteName="MainTabs"
-      screenOptions={{
-        headerShown: false,
+    <View
+      style={{
+        flex: 1,
+        paddingBottom: Platform.OS === 'android' ? insets.bottom : 0,
+        // backgroundColor: '#fff',
       }}
+      // edges={['bottom', 'left', 'right']}
     >
-      <Stack.Screen name="AuthGate" component={AuthGate} />
-      <Stack.Screen
-        name="MainTabs"
-        component={TabNavigator}
-        options={{
+      <Stack.Navigator
+        initialRouteName="MainTabs"
+        screenOptions={{
           headerShown: false,
         }}
-      />
-      <Stack.Screen
-        name="Onboarding"
-        component={OnboardingScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="RouteDetail"
-        component={RouteDetailScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="CreateRoute"
-        component={CreateRouteScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="Search"
-        component={SearchScreen}
-        options={{
-          headerShown: false,
-          presentation: 'modal',
-          animationTypeForReplace: 'push',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <Stack.Screen name="AddReview" component={AddReviewScreen} options={{ headerShown: false }} />
-      <Stack.Screen
-        name="OnboardingDemo"
-        component={OnboardingDemoScreen}
-        options={{
-          headerShown: true,
-          title: 'Onboarding Content',
-        }}
-      />
-      <Stack.Screen
-        name="TranslationDemo"
-        component={TranslationDemoScreen}
-        options={{
-          headerShown: true,
-          title: 'Translation Admin',
-        }}
-      />
-      <Stack.Screen
-        name="ContentDemo"
-        component={ContentDemoScreen}
-        options={{
-          headerShown: true,
-          title: 'Content Demo',
-        }}
-      />
-      <Stack.Screen
-        name="RouteList"
-        component={RouteListScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="LicensePlanScreen"
-        component={LicensePlanScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="RoleSelectionScreen"
-        component={RoleSelectionScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="PublicProfile"
-        component={PublicProfileScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="ProfileScreen"
-        component={ProfileScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="UsersScreen"
-        component={UsersScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
+      >
+        <Stack.Screen name="AuthGate" component={AuthGate} />
+        <Stack.Screen
+          name="MainTabs"
+          component={TabNavigator}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="Onboarding"
+          component={OnboardingScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="RouteDetail"
+          component={RouteDetailScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreateRoute"
+          component={CreateRouteScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Search"
+          component={SearchScreen}
+          options={{
+            headerShown: false,
+            presentation: 'modal',
+            animationTypeForReplace: 'push',
+            animation: 'slide_from_bottom',
+          }}
+        />
+        <Stack.Screen
+          name="AddReview"
+          component={AddReviewScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="OnboardingDemo"
+          component={OnboardingDemoScreen}
+          options={{
+            headerShown: true,
+            title: 'Onboarding Content',
+          }}
+        />
+        <Stack.Screen
+          name="TranslationDemo"
+          component={TranslationDemoScreen}
+          options={{
+            headerShown: true,
+            title: 'Translation Admin',
+          }}
+        />
+        <Stack.Screen
+          name="ContentDemo"
+          component={ContentDemoScreen}
+          options={{
+            headerShown: true,
+            title: 'Content Demo',
+          }}
+        />
+        <Stack.Screen
+          name="RouteList"
+          component={RouteListScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="LicensePlanScreen"
+          component={LicensePlanScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="RoleSelectionScreen"
+          component={RoleSelectionScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="PublicProfile"
+          component={PublicProfileScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="ProfileScreen"
+          component={ProfileScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="UsersScreen"
+          component={UsersScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
 
-      {/* Messaging screens */}
-      <Stack.Screen
-        name="Messages"
-        component={MessagesScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="Conversation"
-        component={ConversationScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="Notifications"
-        component={NotificationsScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="NewMessage"
-        component={NewMessageScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
+        {/* Messaging screens */}
+        <Stack.Screen
+          name="Messages"
+          component={MessagesScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="Conversation"
+          component={ConversationScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="Notifications"
+          component={NotificationsScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="NewMessage"
+          component={NewMessageScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
 
-      {/* Events screens */}
-      <Stack.Screen
-        name="Events"
-        component={EventsScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="EventDetail"
-        component={EventDetailScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="CreateEvent"
-        component={CreateEventScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="InviteUsers"
-        component={InviteUsersScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
+        {/* Events screens */}
+        <Stack.Screen
+          name="Events"
+          component={EventsScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="EventDetail"
+          component={EventDetailScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="CreateEvent"
+          component={CreateEventScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="InviteUsers"
+          component={InviteUsersScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
 
-      <Stack.Screen
-        name="RouteExercise"
-        component={RouteExerciseScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="StudentManagementScreen"
-        component={StudentManagementScreen}
-        options={{
-          headerShown: false,
-        }}
-      />
-    </Stack.Navigator>
+        <Stack.Screen
+          name="RouteExercise"
+          component={RouteExerciseScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="StudentManagementScreen"
+          component={StudentManagementScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+      </Stack.Navigator>
+    </View>
   );
 }
 

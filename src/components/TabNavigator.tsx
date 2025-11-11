@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { tokens } from '../tokens';
 import { useTranslation } from '../contexts/TranslationContext';
 import { TabParamList, RootStackParamList } from '../types/navigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Platform,
   useColorScheme,
