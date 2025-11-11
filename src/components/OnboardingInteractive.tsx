@@ -314,8 +314,28 @@ export function OnboardingInteractive({
   const connectionsBackdropOpacity = useRef(new Animated.Value(0)).current;
   const connectionsSheetTranslateY = useRef(new Animated.Value(300)).current;
 
-  // Gesture handling for connections modal (like RouteDetailSheet)
+  // Gesture handling for connections modal and city modal (like RouteDetailSheet)
   const { height } = Dimensions.get('window');
+  
+  // City modal snap points and gesture handling
+  const cityTranslateY = useSharedValue(height);
+  const cityBackdropOpacityShared = useSharedValue(0);
+  
+  const citySnapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: height * 0.7, // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85, // Top at 85% of screen (show 15% - just title)
+      dismissed: height, // Completely off-screen
+    };
+    return points;
+  }, [height]);
+
+  const [currentCitySnapPoint, setCurrentCitySnapPoint] = useState(citySnapPoints.large);
+  const currentCityState = useSharedValue(citySnapPoints.large);
+
+  // Connections modal snap points
   const connectionsTranslateY = useSharedValue(height);
   const connectionsBackdropOpacityShared = useSharedValue(0);
 
@@ -335,11 +355,82 @@ export function OnboardingInteractive({
   );
   const currentConnectionsState = useSharedValue(connectionsSnapPoints.large);
 
+  // Animated styles
+  const cityAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: cityTranslateY.value }],
+    };
+  });
+
   const connectionsAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: connectionsTranslateY.value }],
     };
   });
+
+  // City modal pan gesture
+  const cityPanGesture = Gesture.Pan()
+    .onBegin(() => {
+      console.log('🎯 [OnboardingInteractive] CITY DRAG HANDLE GESTURE STARTED');
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentCityState.value + translationY;
+
+        const minPosition = citySnapPoints.large;
+        const maxPosition = citySnapPoints.mini + 100;
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+
+        cityTranslateY.value = boundedPosition;
+      } catch (error) {
+        console.log('cityPanGesture error', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      const currentPosition = currentCityState.value + translationY;
+
+      if (currentPosition > citySnapPoints.mini + 30 && velocityY > 200) {
+        console.log('🎯 [OnboardingInteractive] CITY DRAG HANDLE - DISMISSING MODAL');
+        runOnJS(hideCityModal)();
+        return;
+      }
+
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        targetSnapPoint = citySnapPoints.large;
+      } else if (velocityY > 500) {
+        targetSnapPoint = citySnapPoints.mini;
+      } else {
+        const positions = [
+          citySnapPoints.large,
+          citySnapPoints.medium,
+          citySnapPoints.small,
+          citySnapPoints.mini,
+        ];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+      }
+
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, citySnapPoints.large),
+        citySnapPoints.mini,
+      );
+
+      cityTranslateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+
+      currentCityState.value = boundedTarget;
+      runOnJS(setCurrentCitySnapPoint)(boundedTarget);
+    });
 
   const connectionsPanGesture = Gesture.Pan()
     .onBegin(() => {
@@ -1049,37 +1140,34 @@ export function OnboardingInteractive({
   // Modal show/hide functions (like SplashScreen)
   const showCityModal = () => {
     setShowCityDrawer(true);
-    // Fade in the backdrop
-    Animated.timing(cityBackdropOpacity, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    // Slide up the sheet
-    Animated.timing(citySheetTranslateY, {
-      toValue: 0,
-      duration: 300,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
+    cityTranslateY.value = withSpring(citySnapPoints.large, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+      overshootClamping: true,
+      restDisplacementThreshold: 0.01,
+      restSpeedThreshold: 0.01,
+    });
+    currentCityState.value = citySnapPoints.large;
+    setCurrentCitySnapPoint(citySnapPoints.large);
+    cityBackdropOpacityShared.value = withSpring(1, {
+      damping: 20,
+      stiffness: 300,
+    });
   };
 
   const hideCityModal = () => {
-    // Fade out the backdrop
-    Animated.timing(cityBackdropOpacity, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-    // Slide down the sheet
-    Animated.timing(citySheetTranslateY, {
-      toValue: 300,
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-      useNativeDriver: true,
-    }).start(() => {
-      setShowCityDrawer(false);
+    cityTranslateY.value = withSpring(citySnapPoints.dismissed, {
+      damping: 20,
+      stiffness: 300,
     });
+    cityBackdropOpacityShared.value = withSpring(0, {
+      damping: 20,
+      stiffness: 300,
+    });
+    setTimeout(() => {
+      setShowCityDrawer(false);
+    }, 300);
   };
 
   const showConnectionsModal = () => {
@@ -3130,31 +3218,51 @@ export function OnboardingInteractive({
           animationType="none"
           onRequestClose={hideCityModal}
         >
-          <Animated.View
+          <ReanimatedAnimated.View
             style={{
               flex: 1,
               backgroundColor: 'rgba(0,0,0,0.5)',
-              opacity: cityBackdropOpacity,
+              opacity: cityBackdropOpacityShared,
             }}
           >
-            <Pressable style={{ flex: 1 }} onPress={hideCityModal}>
-              <Animated.View
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  transform: [{ translateY: citySheetTranslateY }],
-                }}
+            <View style={{ flex: 1 }}>
+              <Pressable style={{ flex: 1 }} onPress={hideCityModal} />
+              <ReanimatedAnimated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: height,
+                    backgroundColor: backgroundColor,
+                    borderTopLeftRadius: 20,
+                    borderTopRightRadius: 20,
+                  },
+                  cityAnimatedStyle,
+                ]}
               >
-                <YStack
-                  backgroundColor={backgroundColor}
-                  padding="$4"
-                  paddingBottom={insets.bottom || 20}
-                  borderTopLeftRadius="$4"
-                  borderTopRightRadius="$4"
-                  gap="$4"
-                >
+                {/* Drag Handle */}
+                <GestureDetector gesture={cityPanGesture}>
+                  <View
+                    style={{
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      paddingBottom: 16,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                      }}
+                    />
+                  </View>
+                </GestureDetector>
+
+                <YStack gap="$4" paddingHorizontal="$4" paddingTop="$4" paddingBottom="$16" flex={1}>
                   <Text size="xl" weight="bold" color="$color" textAlign="center">
                     {t('onboarding.city.title') || 'Select Your City'}
                   </Text>
@@ -3168,7 +3276,7 @@ export function OnboardingInteractive({
                     onChangeText={handleCitySearch}
                   />
 
-                  <ScrollView style={{ maxHeight: 300 }}>
+                  <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
                     <YStack gap="$1">
                       {citySearchResults.length === 0 && citySearchQuery.length >= 2 && (
                         <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
@@ -3244,9 +3352,9 @@ export function OnboardingInteractive({
                     </YStack>
                   </ScrollView>
                 </YStack>
-              </Animated.View>
-            </Pressable>
-          </Animated.View>
+              </ReanimatedAnimated.View>
+            </View>
+          </ReanimatedAnimated.View>
         </Modal>
 
         {/* Connections Selection Modal */}
@@ -3405,7 +3513,7 @@ export function OnboardingInteractive({
                       {searchResults.map((user) => {
                         const isSelected = selectedConnections.some((conn) => conn.id === user.id);
                         return (
-                          <TouchableOpacity
+                          <RadioButton
                             key={user.id}
                             onPress={() => {
                               if (isSelected) {
@@ -3418,36 +3526,10 @@ export function OnboardingInteractive({
                                 setSelectedConnections((prev) => [...prev, user]);
                               }
                             }}
-                            style={[
-                              styles.selectButton,
-                              {
-                                borderWidth: isSelected ? 2 : 1,
-                                borderColor: isSelected ? focusBorderColor : borderColor,
-                                backgroundColor: isSelected ? focusBackgroundColor : 'transparent',
-                                marginVertical: 4,
-                              },
-                            ]}
-                          >
-                            <XStack gap={8} padding="$2" alignItems="center" width="100%">
-                              <YStack flex={1}>
-                                <Text
-                                  color={isSelected ? textColor : '$color'}
-                                  size="md"
-                                  weight="semibold"
-                                >
-                                  {user.full_name || 'Unknown User'}
-                                </Text>
-                                <Text size="sm" color="$gray11">
-                                  {user.email} • {user.role}
-                                </Text>
-                              </YStack>
-                              {isSelected ? (
-                                <Check size={16} color={focusBorderColor} />
-                              ) : (
-                                <Feather name="plus-circle" size={16} color={textColor} />
-                              )}
-                            </XStack>
-                          </TouchableOpacity>
+                            title={user.full_name || 'Unknown User'}
+                            isSelected={isSelected}
+                            size="lg"
+                          />
                         );
                       })}
                     </YStack>
@@ -3537,9 +3619,9 @@ export function OnboardingInteractive({
                   </Text>
 
                   <ScrollView style={{ maxHeight: 300 }}>
-                    <YStack gap="$1">
+                    <YStack gap="$2">
                       {vehicleTypes.map((type) => (
-                        <TouchableOpacity
+                        <RadioButton
                           key={type.id}
                           onPress={async () => {
                             setVehicleType(type.id);
@@ -3575,20 +3657,10 @@ export function OnboardingInteractive({
                               }
                             }
                           }}
-                          style={[
-                            styles.sheetOption,
-                            vehicleType === type.id && { backgroundColor: selectedBackgroundColor },
-                          ]}
-                        >
-                          <XStack gap={8} padding="$2" alignItems="center">
-                            <Text color={textColor} size="lg">
-                              {type.title}
-                            </Text>
-                            {vehicleType === type.id && (
-                              <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
-                            )}
-                          </XStack>
-                        </TouchableOpacity>
+                          title={type.title}
+                          isSelected={vehicleType === type.id}
+                          size="lg"
+                        />
                       ))}
                     </YStack>
                   </ScrollView>
@@ -3635,9 +3707,9 @@ export function OnboardingInteractive({
                   </Text>
 
                   <ScrollView style={{ maxHeight: 300 }}>
-                    <YStack gap="$1">
+                    <YStack gap="$2">
                       {transmissionTypes.map((type) => (
-                        <TouchableOpacity
+                        <RadioButton
                           key={type.id}
                           onPress={async () => {
                             setTransmissionType(type.id);
@@ -3673,22 +3745,10 @@ export function OnboardingInteractive({
                               }
                             }
                           }}
-                          style={[
-                            styles.sheetOption,
-                            transmissionType === type.id && {
-                              backgroundColor: selectedBackgroundColor,
-                            },
-                          ]}
-                        >
-                          <XStack gap={8} padding="$2" alignItems="center">
-                            <Text color={textColor} size="lg">
-                              {type.title}
-                            </Text>
-                            {transmissionType === type.id && (
-                              <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
-                            )}
-                          </XStack>
-                        </TouchableOpacity>
+                          title={type.title}
+                          isSelected={transmissionType === type.id}
+                          size="lg"
+                        />
                       ))}
                     </YStack>
                   </ScrollView>
@@ -3733,7 +3793,7 @@ export function OnboardingInteractive({
                   </Text>
 
                   <ScrollView style={{ maxHeight: 300 }}>
-                    <YStack gap="$1">
+                    <YStack gap="$2">
                       {(experienceLevels.length > 0
                         ? experienceLevels
                         : [
@@ -3788,7 +3848,7 @@ export function OnboardingInteractive({
                             },
                           ]
                       ).map((level: { id: string; title: string; description?: string }) => (
-                        <TouchableOpacity
+                        <RadioButton
                           key={level.id}
                           onPress={async () => {
                             setSelectedExperienceLevel(level.id);
@@ -3826,33 +3886,10 @@ export function OnboardingInteractive({
                               }
                             }
                           }}
-                          style={[
-                            styles.sheetOption,
-                            selectedExperienceLevel === level.id && {
-                              backgroundColor: selectedBackgroundColor,
-                            },
-                          ]}
-                        >
-                          <XStack gap={8} padding="$2" alignItems="center">
-                            <YStack flex={1}>
-                              <Text color={textColor} size="lg">
-                                {level.title}
-                              </Text>
-                              {level.description && (
-                                <Text color={handleColor} size="sm">
-                                  {level.description}
-                                </Text>
-                              )}
-                            </YStack>
-                            {selectedExperienceLevel === level.id && (
-                              <Check
-                                size={16}
-                                color={focusBorderColor}
-                                style={{ marginLeft: 'auto' }}
-                              />
-                            )}
-                          </XStack>
-                        </TouchableOpacity>
+                          title={level.title}
+                          isSelected={selectedExperienceLevel === level.id}
+                          size="lg"
+                        />
                       ))}
                     </YStack>
                   </ScrollView>
@@ -3899,9 +3936,9 @@ export function OnboardingInteractive({
                   </Text>
 
                   <ScrollView style={{ maxHeight: 300 }}>
-                    <YStack gap="$1">
+                    <YStack gap="$2">
                       {licenseTypes.map((type) => (
-                        <TouchableOpacity
+                        <RadioButton
                           key={type.id}
                           onPress={async () => {
                             setLicenseType(type.id);
@@ -3937,20 +3974,10 @@ export function OnboardingInteractive({
                               }
                             }
                           }}
-                          style={[
-                            styles.sheetOption,
-                            licenseType === type.id && { backgroundColor: selectedBackgroundColor },
-                          ]}
-                        >
-                          <XStack gap={8} padding="$2" alignItems="center">
-                            <Text color={textColor} size="lg">
-                              {type.title}
-                            </Text>
-                            {licenseType === type.id && (
-                              <Check size={16} color={textColor} style={{ marginLeft: 'auto' }} />
-                            )}
-                          </XStack>
-                        </TouchableOpacity>
+                          title={type.title}
+                          isSelected={licenseType === type.id}
+                          size="lg"
+                        />
                       ))}
                     </YStack>
                   </ScrollView>
