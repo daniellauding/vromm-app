@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: 'auto',
     paddingBottom: 20,
+    marginBottom: 40,
   },
   surveyButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
