@@ -1928,26 +1928,18 @@ export function OnboardingInteractive({
           ];
 
     return (
-      <ScrollView
-        style={{ width, flex: 1 }}
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: 16,
-          paddingTop: insets.top + 20,
-          paddingBottom: 120,
-        }}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
+      <View style={{ width, flex: 1 }}>
+        {/* Fixed Header */}
         <YStack
-          flex={1}
-          alignItems="center"
-          justifyContent="center"
-          minHeight={height - 300}
+          paddingTop={insets.top + 12}
           paddingHorizontal="$4"
+          paddingBottom="$3"
+          backgroundColor="$background"
+          borderBottomWidth={0}
+          borderBottomColor="$borderColor"
         >
-          {/* Navigation buttons - scrollable */}
-          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$4">
+          {/* Navigation buttons */}
+          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$3">
             {currentIndex > 0 && (
               <TouchableOpacity
                 onPress={() => {
@@ -1955,7 +1947,7 @@ export function OnboardingInteractive({
                 }}
                 style={{
                   padding: 12,
-                  marginLeft: -8,
+                  marginLeft: -12,
                 }}
               >
                 <Feather name="arrow-left" size={24} color={iconColor} />
@@ -1966,7 +1958,7 @@ export function OnboardingInteractive({
               onPress={completeOnboarding}
               style={{
                 padding: 12,
-                marginRight: -8,
+                marginRight: -12,
               }}
             >
               <Feather name="x" size={24} color={iconColor} />
@@ -1974,7 +1966,7 @@ export function OnboardingInteractive({
           </XStack>
 
           {/* Step Header */}
-          <YStack alignItems="center" marginBottom="$6" width="100%">
+          <YStack alignItems="center" width="100%">
             <Text
               size="3xl"
               fontWeight="800"
@@ -1995,9 +1987,21 @@ export function OnboardingInteractive({
                 : `Step ${currentIndex + 1} of ${steps.length}`}
             </Text>
           </YStack>
+        </YStack>
 
+        {/* Scrollable Content */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 20,
+            paddingBottom: 20,
+          }}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+        >
           {/* License Preferences */}
-          <YStack gap="$3" width="100%" marginTop="$4">
+          <YStack gap="$3" width="100%">
             {/* Experience Level */}
             <YStack gap="$2">
               <Text size="sm" fontWeight="400" color="$color">
@@ -2108,66 +2112,68 @@ export function OnboardingInteractive({
               />
             </YStack>
 
-            {/* Save Button */}
-            <Button
-              variant="primary"
-              size="lg"
-              onPress={() => {
-                handleSaveLicensePlan();
-              }}
-              marginTop="$4"
-            >
-              {t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
-            </Button>
-
-            {/* Skip Button */}
-            {item.skipButton && (
-              <Button
-                variant="link"
-                size="md"
-                onPress={() => {
-                  handleSkipStep(item);
-                }}
-                marginTop="$2"
-              >
-                {item.skipButton}
-              </Button>
-            )}
           </YStack>
+        </ScrollView>
+
+        {/* Fixed Footer */}
+        <YStack
+          paddingHorizontal="$4"
+          paddingTop="$3"
+          paddingBottom={insets.bottom + 12}
+          backgroundColor="$background"
+          borderTopWidth={0}
+          borderTopColor="$borderColor"
+          gap="$2"
+        >
+          {/* Save Button */}
+          <Button
+            variant="primary"
+            size="lg"
+            onPress={() => {
+              handleSaveLicensePlan();
+            }}
+          >
+            {t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
+          </Button>
+
+          {/* Skip Button */}
+          {item.skipButton && (
+            <Button
+              variant="link"
+              size="md"
+              onPress={() => {
+                handleSkipStep(item);
+              }}
+            >
+              {item.skipButton}
+            </Button>
+          )}
         </YStack>
-      </ScrollView>
+      </View>
     );
   };
 
   const renderLicenseDetailsStep = (item: OnboardingStep) => {
     return (
-      <ScrollView
-        style={{ width, flex: 1 }}
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: 16,
-          paddingTop: insets.top + 20,
-          paddingBottom: 120,
-        }}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
+      <View style={{ width, flex: 1 }}>
+        {/* Fixed Header */}
         <YStack
-          flex={1}
-          alignItems="center"
-          justifyContent="center"
-          minHeight={height - 300}
+          paddingTop={insets.top + 12}
           paddingHorizontal="$4"
+          paddingBottom="$3"
+          backgroundColor="$background"
+          borderBottomWidth={0}
+          borderBottomColor="$borderColor"
         >
-          {/* Navigation buttons - scrollable */}
-          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$4">
+          {/* Navigation buttons */}
+          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$3">
             <TouchableOpacity
               onPress={() => {
                 scrollTo(currentIndex - 1);
               }}
               style={{
                 padding: 12,
-                marginLeft: -8,
+                marginLeft: -12,
               }}
             >
               <Feather name="arrow-left" size={24} color={iconColor} />
@@ -2176,7 +2182,7 @@ export function OnboardingInteractive({
               onPress={completeOnboarding}
               style={{
                 padding: 12,
-                marginRight: -8,
+                marginRight: -12,
               }}
             >
               <Feather name="x" size={24} color={iconColor} />
@@ -2184,7 +2190,7 @@ export function OnboardingInteractive({
           </XStack>
 
           {/* Step Header */}
-          <YStack alignItems="center" marginBottom="$6" width="100%">
+          <YStack alignItems="center" width="100%">
             <Text
               size="3xl"
               fontWeight="800"
@@ -2207,9 +2213,21 @@ export function OnboardingInteractive({
                 : `Step ${currentIndex + 1} of ${steps.length}`}
             </Text>
           </YStack>
+        </YStack>
 
+        {/* Scrollable Content */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 20,
+            paddingBottom: 20,
+          }}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+        >
           {/* License Details Fields */}
-          <YStack gap="$3" width="100%" marginTop="$4">
+          <YStack gap="$3" width="100%">
             {/* Have passed theory test */}
             <YStack gap="$2">
               <Text size="sm" fontWeight="400" color="$color">
@@ -2318,81 +2336,91 @@ export function OnboardingInteractive({
               />
             </YStack>
 
-            {/* Save Button */}
-            <Button
-              variant="primary"
-              size="lg"
-              onPress={async () => {
-                // Save license details to profile
-                if (user) {
-                  try {
-                    const currentLicenseData = (profile?.license_plan_data as any) || {};
-                    const updatedLicenseData = {
-                      ...currentLicenseData,
-                      has_theory: hasTheory,
-                      has_practice: hasPractice,
-                      previous_experience: previousExperience,
-                      specific_goals: specificGoals,
-                    };
-
-                    const { error } = await supabase
-                      .from('profiles')
-                      .update({
-                        license_plan_data: updatedLicenseData,
-                      })
-                      .eq('id', user.id);
-
-                    if (!error) {
-                      console.log('✅ License details saved successfully');
-                      await refreshProfile();
-                      // Mark step as completed
-                      setCompletedSteps((prev) => new Set(prev).add(item.id));
-                      // Move to next step
-                      nextSlide();
-                    } else {
-                      console.error('Error saving license details:', error);
-                      showToast({
-                        title: t('errors.title') || (language === 'sv' ? 'Fel' : 'Error'),
-                        message:
-                          t('errors.saveFailed') ||
-                          (language === 'sv'
-                            ? 'Kunde inte spara detaljer'
-                            : 'Failed to save details'),
-                        type: 'error',
-                      });
-                    }
-                  } catch (error) {
-                    console.error('Error saving license details:', error);
-                  }
-                } else {
-                  // If no user, just move to next step
-                  nextSlide();
-                }
-              }}
-              marginTop="$4"
-            >
-              {getTranslation(
-                'onboarding.licenseDetails.save',
-                language === 'sv' ? 'Spara detaljer' : 'Save Details',
-              )}
-            </Button>
-
-            {/* Skip Button */}
-            {item.skipButton && (
-              <Button
-                variant="link"
-                size="md"
-                onPress={() => {
-                  handleSkipStep(item);
-                }}
-                marginTop="$2"
-              >
-                {item.skipButton}
-              </Button>
-            )}
           </YStack>
+        </ScrollView>
+
+        {/* Fixed Footer */}
+        <YStack
+          paddingHorizontal="$4"
+          paddingTop="$3"
+          paddingBottom={insets.bottom + 12}
+          backgroundColor="$background"
+          borderTopWidth={0}
+          borderTopColor="$borderColor"
+          gap="$2"
+        >
+          {/* Save Button */}
+          <Button
+            variant="primary"
+            size="lg"
+            onPress={async () => {
+              // Save license details to profile
+              if (user) {
+                try {
+                  const currentLicenseData = (profile?.license_plan_data as any) || {};
+                  const updatedLicenseData = {
+                    ...currentLicenseData,
+                    has_theory: hasTheory,
+                    has_practice: hasPractice,
+                    previous_experience: previousExperience,
+                    specific_goals: specificGoals,
+                  };
+
+                  const { error } = await supabase
+                    .from('profiles')
+                    .update({
+                      license_plan_data: updatedLicenseData,
+                    })
+                    .eq('id', user.id);
+
+                  if (!error) {
+                    console.log('✅ License details saved successfully');
+                    await refreshProfile();
+                    // Mark step as completed
+                    setCompletedSteps((prev) => new Set(prev).add(item.id));
+                    // Move to next step
+                    nextSlide();
+                  } else {
+                    console.error('Error saving license details:', error);
+                    showToast({
+                      title: t('errors.title') || (language === 'sv' ? 'Fel' : 'Error'),
+                      message:
+                        t('errors.saveFailed') ||
+                        (language === 'sv'
+                          ? 'Kunde inte spara detaljer'
+                          : 'Failed to save details'),
+                      type: 'error',
+                    });
+                  }
+                } catch (error) {
+                  console.error('Error saving license details:', error);
+                }
+              } else {
+                // If no user, just move to next step
+                nextSlide();
+              }
+            }}
+          >
+            {getTranslation(
+              'onboarding.licenseDetails.save',
+              language === 'sv' ? 'Spara detaljer' : 'Save Details',
+            )}
+          </Button>
+
+          {/* Skip Button */}
+          {item.skipButton && (
+            <Button
+              variant="link"
+              size="md"
+              onPress={() => {
+                handleSkipStep(item);
+              }}
+            >
+              {item.skipButton}
+            </Button>
+          )}
         </YStack>
-      </ScrollView>
+      </View>
     );
   };
 
@@ -2419,26 +2447,18 @@ export function OnboardingInteractive({
     ];
 
     return (
-      <ScrollView
-        style={{ width, flex: 1 }}
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: 16,
-          paddingTop: insets.top + 20,
-          paddingBottom: 120,
-        }}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
+      <View style={{ width, flex: 1 }}>
+        {/* Fixed Header */}
         <YStack
-          flex={1}
-          alignItems="center"
-          justifyContent="center"
-          minHeight={height - 300}
+          paddingTop={insets.top + 12}
           paddingHorizontal="$4"
+          paddingBottom="$3"
+          backgroundColor="$background"
+          borderBottomWidth={0}
+          borderBottomColor="$borderColor"
         >
-          {/* Navigation buttons - scrollable */}
-          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$4">
+          {/* Navigation buttons */}
+          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$3">
             {currentIndex > 0 && (
               <TouchableOpacity
                 onPress={() => {
@@ -2446,7 +2466,7 @@ export function OnboardingInteractive({
                 }}
                 style={{
                   padding: 12,
-                  marginLeft: -8,
+                  marginLeft: -12,
                 }}
               >
                 <Feather name="arrow-left" size={24} color={iconColor} />
@@ -2457,7 +2477,7 @@ export function OnboardingInteractive({
               onPress={completeOnboarding}
               style={{
                 padding: 12,
-                marginRight: -8,
+                marginRight: -12,
               }}
             >
               <Feather name="x" size={24} color={iconColor} />
@@ -2465,7 +2485,7 @@ export function OnboardingInteractive({
           </XStack>
 
           {/* Step Header */}
-          <YStack alignItems="center" marginBottom="$6" width="100%">
+          <YStack alignItems="center" width="100%">
             <Text
               size="3xl"
               fontWeight="800"
@@ -2486,7 +2506,19 @@ export function OnboardingInteractive({
                 : `Step ${currentIndex + 1} of ${steps.length}`}
             </Text>
           </YStack>
+        </YStack>
 
+        {/* Scrollable Content */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 20,
+            paddingBottom: 20,
+          }}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+        >
           {/* Role Options */}
           <YStack gap="$2" width="100%">
             {roles.map((role) => (
@@ -2499,45 +2531,46 @@ export function OnboardingInteractive({
               />
             ))}
           </YStack>
+        </ScrollView>
 
+        {/* Fixed Footer */}
+        <YStack
+          paddingHorizontal="$4"
+          paddingTop="$3"
+          paddingBottom={insets.bottom + 12}
+          backgroundColor="$background"
+          borderTopWidth={0}
+          borderTopColor="$borderColor"
+          gap="$2"
+        >
           {/* Save Button */}
-          <YStack width="100%" marginTop="$4" gap="$2">
-            <Button variant="primary" size="lg" onPress={handleSaveRole}>
-              {t('onboarding.role.saveRole') || 'Save Role & Continue'}
-            </Button>
+          <Button variant="primary" size="lg" onPress={handleSaveRole}>
+            {t('onboarding.role.saveRole') || 'Save Role & Continue'}
+          </Button>
 
-            {/* Always show skip button for role selection */}
-            <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-              {t('onboarding.skipForNow') || 'Skip for now'}
-            </Button>
-          </YStack>
+          {/* Always show skip button for role selection */}
+          <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
+            {t('onboarding.skipForNow') || 'Skip for now'}
+          </Button>
         </YStack>
-      </ScrollView>
+      </View>
     );
   };
 
   const renderSimpleStep = (item: OnboardingStep, isCompleted: boolean, isSkipped: boolean) => {
     return (
-      <ScrollView
-        style={{ width, flex: 1 }}
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: 16,
-          paddingTop: insets.top + 20,
-          paddingBottom: 120,
-        }}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
+      <View style={{ width, flex: 1 }}>
+        {/* Fixed Header */}
         <YStack
-          flex={1}
-          alignItems="center"
-          justifyContent="center"
-          minHeight={height - 300}
+          paddingTop={insets.top + 12}
           paddingHorizontal="$4"
+          paddingBottom="$3"
+          backgroundColor="$background"
+          borderBottomWidth={0}
+          borderBottomColor="$borderColor"
         >
-          {/* Navigation buttons - scrollable */}
-          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$4">
+          {/* Navigation buttons */}
+          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$3">
             {currentIndex > 0 && (
               <TouchableOpacity
                 onPress={() => {
@@ -2545,7 +2578,7 @@ export function OnboardingInteractive({
                 }}
                 style={{
                   padding: 12,
-                  marginLeft: -8,
+                  marginLeft: -12,
                 }}
               >
                 <Feather name="arrow-left" size={24} color={iconColor} />
@@ -2556,23 +2589,23 @@ export function OnboardingInteractive({
               onPress={completeOnboarding}
               style={{
                 padding: 12,
-                marginRight: -8,
+                marginRight: -12,
               }}
             >
               <Feather name="x" size={24} color={iconColor} />
             </TouchableOpacity>
           </XStack>
 
-          {/* Simplified Step Content */}
-          <YStack alignItems="center" gap="$4" width="100%">
+          {/* Step Header */}
+          <YStack alignItems="center" width="100%">
             {/* Show Vromm logo on complete step */}
             {item.id === 'complete' && (
               <Image
                 source={require('../../assets/images/vromm_symbol.png')}
                 style={{
-                  width: 120,
-                  height: 120,
-                  marginBottom: 16,
+                  width: 80,
+                  height: 80,
+                  marginBottom: 12,
                 }}
                 resizeMode="contain"
               />
@@ -2589,7 +2622,7 @@ export function OnboardingInteractive({
               {item.title}
             </Text>
 
-            <Text size="lg" textAlign="center" color="$color" opacity={0.9}>
+            <Text size="lg" textAlign="center" color="$color" opacity={0.9} marginTop="$2">
               {item.description}
             </Text>
 
@@ -2599,9 +2632,23 @@ export function OnboardingInteractive({
                 ? `Steg ${currentIndex + 1} av ${steps.length}`
                 : `Step ${currentIndex + 1} of ${steps.length}`}
             </Text>
+          </YStack>
+        </YStack>
 
-            {/* Removed status indicators - users can always interact */}
-
+        {/* Scrollable Content */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
+            paddingHorizontal: 16,
+            paddingTop: 20,
+            paddingBottom: 20,
+          }}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+        >
+          <YStack gap="$4" width="100%">
             {/* Location options - always available */}
             {item.id === 'location' && (
               <YStack gap="$4" marginTop="$6" width="100%">
@@ -2642,7 +2689,7 @@ export function OnboardingInteractive({
                   <Text size="sm" fontWeight="400" color="$color">
                     {getTranslation(
                       'onboarding.location.cityLabel',
-                      language === 'sv' ? 'Din stad' : 'Your City'
+                      language === 'sv' ? 'Din stad' : 'Your City',
                     )}
                   </Text>
                   <DropdownButton
@@ -2650,7 +2697,7 @@ export function OnboardingInteractive({
                     value={selectedCity}
                     placeholder={getTranslation(
                       'onboarding.location.selectCity',
-                      language === 'sv' ? 'Välj din stad' : 'Select Your City'
+                      language === 'sv' ? 'Välj din stad' : 'Select Your City',
                     )}
                     isActive={showCityDrawer}
                   />
@@ -2693,10 +2740,6 @@ export function OnboardingInteractive({
                     {t('onboarding.location.saveLocation') || 'Save Location & Continue'}
                   </Button>
                 )}
-
-                <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-                  {t('onboarding.skipForNow') || 'Skip for now'}
-                </Button>
               </YStack>
             )}
 
@@ -2954,17 +2997,11 @@ export function OnboardingInteractive({
                         <Button variant="secondary" size="lg" onPress={showConnectionsModal}>
                           {t('onboarding.relationships.addMore') || 'Add More Connections'}
                         </Button>
-                        <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-                          {t('onboarding.skipForNow') || 'Skip for now'}
-                        </Button>
                       </YStack>
                     ) : (
                       <YStack gap="$2" width="100%">
                         <Button variant="secondary" size="lg" onPress={showConnectionsModal}>
                           {t('onboarding.relationships.findConnections') || 'Find Connections'}
-                        </Button>
-                        <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
-                          {t('onboarding.skipForNow') || 'Skip for now'}
                         </Button>
                       </YStack>
                     )}
@@ -3006,8 +3043,25 @@ export function OnboardingInteractive({
               </YStack>
             )}
           </YStack>
-        </YStack>
-      </ScrollView>
+        </ScrollView>
+
+        {/* Fixed Footer - Show for location and relationships steps */}
+        {(item.id === 'location' || item.id === 'relationships') && (
+          <YStack
+            paddingHorizontal="$4"
+            paddingTop="$3"
+            paddingBottom={insets.bottom + 12}
+            backgroundColor="$background"
+            borderTopWidth={0}
+            borderTopColor="$borderColor"
+            gap="$2"
+          >
+            <Button variant="link" size="md" onPress={() => handleSkipStep(item)}>
+              {t('onboarding.skipForNow') || 'Skip for now'}
+            </Button>
+          </YStack>
+        )}
+      </View>
     );
   };
 

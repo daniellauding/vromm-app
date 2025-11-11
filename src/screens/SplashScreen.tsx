@@ -1016,6 +1016,7 @@ export function SplashScreen() {
               justifyContent="center"
               marginTop="$4"
               paddingBottom={insets.bottom || 20}
+              display="none"
             >
               <TouchableOpacity onPress={() => handleOpenSocialMedia('facebook')}>
                 <FontAwesome name="facebook-square" size={28} color="white" />
