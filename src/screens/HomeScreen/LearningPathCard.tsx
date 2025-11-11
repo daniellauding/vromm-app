@@ -290,20 +290,77 @@ export const LearningPathCard = ({
         }
 
         if (data && data.length > 0) {
-          // Apply filters (same logic as ProgressSection)
+          // Log first path's category values for debugging
+          console.log('🔍 [LearningPathCard] Sample path category values:', {
+            title: data[0].title,
+            vehicle_type: data[0].vehicle_type,
+            transmission_type: data[0].transmission_type,
+            license_type: data[0].license_type,
+            experience_level: data[0].experience_level,
+            purpose: data[0].purpose,
+            user_profile: data[0].user_profile,
+            platform: data[0].platform,
+            type: data[0].type,
+          });
+
+          // Apply filters (EXACT SAME logic as ProgressSection)
           const filtered = data.filter((path) => {
-            // Check each category filter
-            for (const [category, filterValue] of Object.entries(categoryFilters)) {
-              if (filterValue === 'all') continue; // Skip 'all' filters
+            // Handle variations in data values and allow null values
+            const matchesVehicleType =
+              categoryFilters.vehicle_type === 'all' ||
+              !path.vehicle_type ||
+              path.vehicle_type?.toLowerCase() === categoryFilters.vehicle_type?.toLowerCase();
 
-              const pathValue = path[category as keyof LearningPath];
+            const matchesTransmission =
+              categoryFilters.transmission_type === 'all' ||
+              !path.transmission_type ||
+              path.transmission_type?.toLowerCase() ===
+                categoryFilters.transmission_type?.toLowerCase();
 
-              // If path has a value for this category and it doesn't match the filter, exclude it
-              if (pathValue && pathValue !== filterValue) {
-                return false;
-              }
-            }
-            return true;
+            const matchesLicense =
+              categoryFilters.license_type === 'all' ||
+              !path.license_type ||
+              path.license_type?.toLowerCase() === categoryFilters.license_type?.toLowerCase();
+
+            const matchesExperience =
+              categoryFilters.experience_level === 'all' ||
+              !path.experience_level ||
+              path.experience_level?.toLowerCase() ===
+                categoryFilters.experience_level?.toLowerCase();
+
+            const matchesPurpose =
+              categoryFilters.purpose === 'all' ||
+              !path.purpose ||
+              path.purpose?.toLowerCase() === categoryFilters.purpose?.toLowerCase();
+
+            const matchesUserProfile =
+              categoryFilters.user_profile === 'all' ||
+              !path.user_profile ||
+              path.user_profile?.toLowerCase() === categoryFilters.user_profile?.toLowerCase() ||
+              path.user_profile === 'All'; // "All" user profile matches any filter
+
+            const matchesPlatform =
+              categoryFilters.platform === 'all' ||
+              !path.platform ||
+              path.platform === 'both' || // "both" platform matches any filter
+              path.platform?.toLowerCase() === categoryFilters.platform?.toLowerCase() ||
+              path.platform === 'mobile'; // Always show mobile content
+
+            const matchesType =
+              categoryFilters.type === 'all' ||
+              !path.type ||
+              path.type?.toLowerCase() === categoryFilters.type?.toLowerCase();
+
+            return (
+              matchesVehicleType &&
+              matchesTransmission &&
+              matchesLicense &&
+              matchesExperience &&
+              matchesPurpose &&
+              matchesUserProfile &&
+              matchesPlatform &&
+              matchesType
+            );
           });
 
           console.log('✅ [LearningPathCard] Filtered learning paths:', {
@@ -363,9 +420,28 @@ export const LearningPathCard = ({
     return completedCount / pathExerciseIds.length;
   };
 
+  // Find the first incomplete path (current focus)
+  const currentFocusPathId = learningPaths.find((path) => calculateProgress(path) < 1)?.id;
+
+  // Always show the component if we have learning paths, even if all are completed
   if (loading || learningPaths.length === 0) {
+    console.log('🎯 [LearningPathCard] Not rendering:', {
+      loading,
+      pathsCount: learningPaths.length,
+      filters: categoryFilters,
+    });
     return null;
   }
+
+  console.log('✅ [LearningPathCard] Rendering with paths:', {
+    pathsCount: learningPaths.length,
+    currentFocusPathId,
+    paths: learningPaths.map((p) => ({
+      id: p.id,
+      title: p.title,
+      progress: calculateProgress(p),
+    })),
+  });
 
   return (
     <YStack space="$4">
@@ -415,7 +491,13 @@ export const LearningPathCard = ({
                     backgroundColor: '#1a1a1a',
                     borderRadius: 20,
                     borderWidth: 3,
-                    borderColor: '#232323',
+                    // Highlight current focus path with green border
+                    borderColor:
+                      path.id === currentFocusPathId
+                        ? '#27febe'
+                        : pathProgress === 1
+                          ? '#333'
+                          : '#232323',
                     padding: 24,
                     shadowOpacity: 0,
                   }}
@@ -473,6 +555,28 @@ export const LearningPathCard = ({
 
                     {/* Title and Description - Centered */}
                     <YStack alignItems="center" gap={8} width="100%">
+                      {/* Current Focus Badge */}
+                      {path.id === currentFocusPathId && (
+                        <View
+                          style={{
+                            backgroundColor: '#27febe',
+                            paddingHorizontal: 12,
+                            paddingVertical: 4,
+                            borderRadius: 12,
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Text
+                            fontSize={12}
+                            fontWeight="bold"
+                            color="#000"
+                            textTransform="uppercase"
+                          >
+                            {language === 'sv' ? '🎯 Fokusera här' : '🎯 Focus Here'}
+                          </Text>
+                        </View>
+                      )}
+
                       {/* Title - Centered */}
                       <Text
                         fontSize={20}

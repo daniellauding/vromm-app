@@ -1250,7 +1250,8 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
       <Animated.View
         style={{
           flex: 1,
-          backgroundColor: 'transparent',
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          zIndex: 10000, // Higher z-index than UserListSheet
         }}
       >
         <View style={{ flex: 1 }}>

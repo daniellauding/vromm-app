@@ -9,10 +9,9 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   Image,
 } from 'react-native';
-import { YStack, XStack, Text, Card, Input, useTheme } from 'tamagui';
+import { YStack, XStack, Text, Card, Input } from 'tamagui';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
@@ -24,8 +23,6 @@ import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
 import { useColorScheme } from 'react-native';
 import { getTabContentPadding } from '../utils/layout';
-import { inviteNewUser } from '../services/invitationService';
-import { relLog } from '../utils/relationshipDebug';
 import { format } from 'date-fns';
 
 const { height } = Dimensions.get('window');
@@ -61,12 +58,11 @@ export function UserListSheet({
   filterByRole,
 }: UserListSheetProps) {
   const insets = useSafeAreaInsets();
-  const { user, profile: currentUserProfile } = useAuth();
+  const { user } = useAuth();
   const { t, language } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
-  const theme = useTheme();
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -87,8 +83,6 @@ export function UserListSheet({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [followLoading, setFollowLoading] = useState<{ [key: string]: boolean }>({});
-  const [relationshipLoading, setRelationshipLoading] = useState<{ [key: string]: boolean }>({});
-  
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [activeRoleFilter, setActiveRoleFilter] = useState<string>('all');
@@ -128,7 +122,9 @@ export function UserListSheet({
 
       // Apply search filter if specified
       if (searchQuery.trim()) {
-        query = query.or(`full_name.ilike.%${searchQuery.trim()}%,email.ilike.%${searchQuery.trim()}%`);
+        query = query.or(
+          `full_name.ilike.%${searchQuery.trim()}%,email.ilike.%${searchQuery.trim()}%`,
+        );
       }
 
       const { data, error } = await query;
@@ -224,8 +220,11 @@ export function UserListSheet({
 
   const navigateToProfile = (userId: string) => {
     if (onUserPress) {
+      // Use onUserPress callback - don't close the sheet
+      // This allows the parent to manage the sheet visibility
       onUserPress(userId);
     } else {
+      // Direct navigation - close the sheet
       navigation.navigate('PublicProfile', { userId });
       onClose();
     }
@@ -281,17 +280,17 @@ export function UserListSheet({
   // Debounced search handler
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
-    
+
     // Clear previous timeout
     if (searchTimeout) {
       clearTimeout(searchTimeout);
     }
-    
+
     // Set new timeout for debounced search
     const timeout = setTimeout(() => {
       // The search will be triggered by the useEffect dependency on searchQuery
     }, 300);
-    
+
     setSearchTimeout(timeout);
   };
 
@@ -397,45 +396,46 @@ export function UserListSheet({
             {!user.isCurrentUser && (
               <XStack gap="$2" flexWrap="wrap" justifyContent="flex-end">
                 {/* Follow/Unfollow Button */}
-                <Button
-                  size="sm"
-                  variant={user.isFollowing ? 'secondary' : 'primary'}
-                  backgroundColor={user.isFollowing ? '$red5' : '$blue10'}
-                  onPress={() => handleFollow(user.id, user.isFollowing || false)}
-                  disabled={followLoading[user.id]}
-                  minWidth={80}
-                >
-                  <XStack gap="$1" alignItems="center">
-                    {followLoading[user.id] ? (
-                      <Text color={user.isFollowing ? '$red11' : 'white'} fontSize="$2">
-                        ...
-                      </Text>
-                    ) : (
-                      <>
-                        <Feather
-                          name={user.isFollowing ? 'user-minus' : 'user-plus'}
-                          size={12}
-                          color={user.isFollowing ? '#EF4444' : 'white'}
-                        />
-                        <Text
-                          color={user.isFollowing ? '$red11' : 'white'}
-                          fontSize="$2"
-                          fontWeight="500"
-                        >
-                          {user.isFollowing
-                            ? getTranslation(
-                                'users.unfollow',
-                                language === 'sv' ? 'Sluta följa' : 'Unfollow'
-                              )
-                            : getTranslation(
-                                'users.follow',
-                                language === 'sv' ? 'Följ' : 'Follow'
-                              )}
+                <View style={{ minWidth: 80 }}>
+                  <Button
+                    size="sm"
+                    variant={user.isFollowing ? 'secondary' : 'primary'}
+                    backgroundColor={user.isFollowing ? '$red5' : '$blue10'}
+                    onPress={() => handleFollow(user.id, user.isFollowing || false)}
+                    disabled={followLoading[user.id]}
+                  >
+                    <XStack gap="$1" alignItems="center">
+                      {followLoading[user.id] ? (
+                        <Text color={user.isFollowing ? '$red11' : 'white'} fontSize="$2">
+                          ...
                         </Text>
-                      </>
-                    )}
-                  </XStack>
-                </Button>
+                      ) : (
+                        <>
+                          <Feather
+                            name={user.isFollowing ? 'user-minus' : 'user-plus'}
+                            size={12}
+                            color={user.isFollowing ? '#EF4444' : 'white'}
+                          />
+                          <Text
+                            color={user.isFollowing ? '$red11' : 'white'}
+                            fontSize="$2"
+                            fontWeight="500"
+                          >
+                            {user.isFollowing
+                              ? getTranslation(
+                                  'users.unfollow',
+                                  language === 'sv' ? 'Sluta följa' : 'Unfollow',
+                                )
+                              : getTranslation(
+                                  'users.follow',
+                                  language === 'sv' ? 'Följ' : 'Follow',
+                                )}
+                          </Text>
+                        </>
+                      )}
+                    </XStack>
+                  </Button>
+                </View>
               </XStack>
             )}
           </YStack>
@@ -481,7 +481,7 @@ export function UserListSheet({
                 <Text fontSize="$6" fontWeight="bold" color="$color">
                   {getTranslation(
                     'home.users.allUsers',
-                    language === 'sv' ? 'Alla användare' : title
+                    language === 'sv' ? 'Alla användare' : title,
                   )}
                 </Text>
                 <TouchableOpacity onPress={onClose}>
@@ -507,7 +507,7 @@ export function UserListSheet({
                       'userList.searchPlaceholder',
                       language === 'sv'
                         ? 'Sök användare efter namn eller e-post...'
-                        : 'Search users by name or email...'
+                        : 'Search users by name or email...',
                     )}
                     value={searchQuery}
                     onChangeText={handleSearchChange}
@@ -547,7 +547,7 @@ export function UserListSheet({
                     >
                       {getTranslation(
                         'userList.tabs.all',
-                        language === 'sv' ? 'Alla användare' : 'All Users'
+                        language === 'sv' ? 'Alla användare' : 'All Users',
                       )}
                     </Text>
                   </TouchableOpacity>
@@ -570,7 +570,7 @@ export function UserListSheet({
                     >
                       {getTranslation(
                         'userList.tabs.students',
-                        language === 'sv' ? 'Elever' : 'Students'
+                        language === 'sv' ? 'Elever' : 'Students',
                       )}
                     </Text>
                   </TouchableOpacity>
@@ -581,7 +581,8 @@ export function UserListSheet({
                       paddingHorizontal: 12,
                       paddingVertical: 8,
                       borderRadius: 20,
-                      backgroundColor: activeRoleFilter === 'supervisor' ? '#00E6C3' : 'transparent',
+                      backgroundColor:
+                        activeRoleFilter === 'supervisor' ? '#00E6C3' : 'transparent',
                       borderWidth: 1,
                       borderColor: activeRoleFilter === 'supervisor' ? '#00E6C3' : '#ccc',
                     }}
@@ -593,7 +594,7 @@ export function UserListSheet({
                     >
                       {getTranslation(
                         'userList.tabs.supervisors',
-                        language === 'sv' ? 'Handledare' : 'Supervisors'
+                        language === 'sv' ? 'Handledare' : 'Supervisors',
                       )}
                     </Text>
                   </TouchableOpacity>
@@ -612,7 +613,7 @@ export function UserListSheet({
                     <Text color="$gray11" textAlign="center">
                       {getTranslation(
                         'users.noUsers',
-                        language === 'sv' ? 'Inga användare hittades' : 'No users found'
+                        language === 'sv' ? 'Inga användare hittades' : 'No users found',
                       )}
                     </Text>
                   </YStack>

@@ -113,13 +113,13 @@ export default React.memo(function MyTab({
         onPressSeeAll={() => setShowLearningPathsSheet(true)}
       />
 
-      <ProgressSection activeUserId={effectiveUserId} />
+      {/* <ProgressSection activeUserId={effectiveUserId} /> */}
 
       {/* Featured Content */}
       <FeaturedContent />
 
       {/* Featured Content 2 - Card Layout */}
-      <FeaturedContent2 />
+      {/* <FeaturedContent2 /> */}
       <JumpBackInSection activeUserId={effectiveUserId || undefined} />
 
       <DraftRoutes onRoutePress={handleRoutePress} />

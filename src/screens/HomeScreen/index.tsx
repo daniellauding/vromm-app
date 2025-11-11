@@ -72,6 +72,9 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
 
   // State declarations
   const [showOnboarding, setShowOnboarding] = useState(false);
+  
+  // Track if UserListSheet was open when opening UserProfileSheet
+  const wasUserListSheetOpenRef = React.useRef(false);
 
   // Onboarding logic - unified with OnboardingInteractive's storage system
   useEffect(() => {
@@ -280,11 +283,14 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
 
       {/* User List Sheet */}
       <UserListSheet
-        visible={showUserListSheet}
+        visible={showUserListSheet && !showUserProfileSheet} // Hide when UserProfileSheet is showing
         onClose={() => setShowUserListSheet(false)}
         title={t('home.users.allUsers') || 'All Users'}
         onUserPress={(userId) => {
           setSelectedUserId(userId);
+          // Track that UserListSheet was open
+          wasUserListSheetOpenRef.current = true;
+          // Close UserListSheet when opening UserProfileSheet to avoid overlap
           setShowUserListSheet(false);
           setShowUserProfileSheet(true);
         }}
@@ -293,9 +299,16 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
       {/* User Profile Sheet */}
       <UserProfileSheet
         visible={showUserProfileSheet}
-        onClose={() => setShowUserProfileSheet(false)}
+        onClose={() => {
+          setShowUserProfileSheet(false);
+          // Only reopen UserListSheet if it was open before
+          if (wasUserListSheetOpenRef.current) {
+            setShowUserListSheet(true);
+            wasUserListSheetOpenRef.current = false; // Reset
+          }
+        }}
         userId={selectedUserId}
-        onViewAllRoutes={(userId) => {
+        onViewAllRoutes={(_userId) => {
           // Close profile sheet and navigate to RouteList
           setShowUserProfileSheet(false);
           navigation.navigate('RouteList', {
