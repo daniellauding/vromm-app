@@ -288,7 +288,7 @@ interface CategoryOption {
 export function ProgressScreen() {
   const navigation = useNavigation();
   const route = useRoute<RouteProp<TabParamList, 'ProgressTab'>>();
-  const { language: lang, t } = useTranslation(); // Get user's language preference and t function
+  const { language, t } = useTranslation(); // Get user's language preference and t function
   const { profile, user: authUser } = useAuth(); // Get user profile for auth context
   const { showToast } = useToast();
   const { activeStudentId, getEffectiveUserId } = useStudentSwitch();
@@ -2833,7 +2833,7 @@ export function ProgressScreen() {
                     fontSize={16}
                     color={categoryFilters[filterType] === option.value ? '#000' : '#fff'}
                   >
-                    {option.label[lang] || option.label.en}
+                    {option.label[language] || option.label.en}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -2926,11 +2926,16 @@ export function ProgressScreen() {
                   saveFilterPreferences(defaultFilters);
                 }}
               >
-                <Text color="#00E6C3">Reset</Text>
+                <Text color="#00E6C3">
+                  {getTranslation('filters.reset', language === 'sv' ? 'Återställ' : 'Reset')}
+                </Text>
               </TouchableOpacity>
 
               <Text fontWeight="600" fontSize="$5" color="white">
-                Filter Learning Paths
+                {getTranslation(
+                  'filters.title',
+                  language === 'sv' ? 'Filtrera inlärningsvägar' : 'Filter Learning Paths'
+                )}
               </Text>
 
               <TouchableOpacity onPress={() => setShowFilterDrawer(false)}>
@@ -2943,7 +2948,10 @@ export function ProgressScreen() {
               {categoryOptions.vehicle_type && categoryOptions.vehicle_type.length > 1 && (
                 <YStack marginBottom="$4">
                   <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
-                    {categoryLabels.vehicle_type}
+                    {getTranslation(
+                      'filters.vehicleType',
+                      language === 'sv' ? 'Fordonstyp' : categoryLabels.vehicle_type
+                    )}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
                     {categoryOptions.vehicle_type.map((option, optionIndex) => (
@@ -2963,7 +2971,7 @@ export function ProgressScreen() {
                           fontSize={14}
                           color={categoryFilters.vehicle_type === option.value ? '#000' : '#fff'}
                         >
-                          {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                          {option.label?.[language] || option.label?.en || option.value || 'Unknown'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -2976,7 +2984,10 @@ export function ProgressScreen() {
                 categoryOptions.transmission_type.length > 1 && (
                   <YStack marginBottom="$4">
                     <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
-                      {categoryLabels.transmission_type}
+                      {getTranslation(
+                        'filters.transmissionType',
+                        language === 'sv' ? 'Växellådstyp' : categoryLabels.transmission_type
+                      )}
                     </Text>
                     <XStack flexWrap="wrap" gap="$2">
                       {categoryOptions.transmission_type.map((option, optionIndex) => (
@@ -3000,7 +3011,7 @@ export function ProgressScreen() {
                               categoryFilters.transmission_type === option.value ? '#000' : '#fff'
                             }
                           >
-                            {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                            {option.label?.[language] || option.label?.en || option.value || 'Unknown'}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -3012,7 +3023,10 @@ export function ProgressScreen() {
               {categoryOptions.license_type && categoryOptions.license_type.length > 1 && (
                 <YStack marginBottom="$4">
                   <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
-                    {categoryLabels.license_type}
+                    {getTranslation(
+                      'filters.licenseType',
+                      language === 'sv' ? 'Körkortsklass' : categoryLabels.license_type
+                    )}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
                     {categoryOptions.license_type.map((option, optionIndex) => (
@@ -3032,7 +3046,7 @@ export function ProgressScreen() {
                           fontSize={14}
                           color={categoryFilters.license_type === option.value ? '#000' : '#fff'}
                         >
-                          {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                          {option.label?.[language] || option.label?.en || option.value || 'Unknown'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -3044,7 +3058,10 @@ export function ProgressScreen() {
               {categoryOptions.experience_level && categoryOptions.experience_level.length > 1 && (
                 <YStack marginBottom="$4">
                   <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
-                    {categoryLabels.experience_level}
+                    {getTranslation(
+                      'filters.experienceLevel',
+                      language === 'sv' ? 'Erfarenhetsnivå' : categoryLabels.experience_level
+                    )}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
                     {categoryOptions.experience_level.map((option, optionIndex) => (
@@ -3066,7 +3083,7 @@ export function ProgressScreen() {
                             categoryFilters.experience_level === option.value ? '#000' : '#fff'
                           }
                         >
-                          {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                          {option.label?.[language] || option.label?.en || option.value || 'Unknown'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -3078,7 +3095,10 @@ export function ProgressScreen() {
               {categoryOptions.purpose && categoryOptions.purpose.length > 1 && (
                 <YStack marginBottom="$4">
                   <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
-                    {categoryLabels.purpose}
+                    {getTranslation(
+                      'filters.purpose',
+                      language === 'sv' ? 'Syfte' : categoryLabels.purpose
+                    )}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
                     {categoryOptions.purpose.map((option, optionIndex) => (
@@ -3098,7 +3118,7 @@ export function ProgressScreen() {
                           fontSize={14}
                           color={categoryFilters.purpose === option.value ? '#000' : '#fff'}
                         >
-                          {option.label?.[lang] || option.label?.en || option.value || 'Unknown'}
+                          {option.label?.[language] || option.label?.en || option.value || 'Unknown'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -3120,7 +3140,10 @@ export function ProgressScreen() {
                 }}
               >
                 <Text fontSize={16} fontWeight="bold" color="#000">
-                  Save Filters & Apply
+                  {getTranslation(
+                    'filters.saveAndApply',
+                    language === 'sv' ? 'Spara filter & tillämpa' : 'Save Filters & Apply'
+                  )}
                 </Text>
               </TouchableOpacity>
             </YStack>
@@ -3956,7 +3979,7 @@ export function ProgressScreen() {
                   color="$color"
                   textAlign="center"
                 >
-                  {selectedExercise.title?.[lang] || selectedExercise.title?.en || 'Untitled'}
+                  {selectedExercise.title?.[language] || selectedExercise.title?.en || 'Untitled'}
                 </Text>
 
                 {/* Show repeat indicator if it's a repeat */}
@@ -4001,9 +4024,9 @@ export function ProgressScreen() {
             ) : null}
           </XStack>
 
-          {selectedExercise.description?.[lang] && (
+          {selectedExercise.description?.[language] && (
             <Text color="$gray11" marginBottom={16} textAlign="center" fontSize={16}>
-              {selectedExercise.description[lang]}
+              {selectedExercise.description[language]}
             </Text>
           )}
 
@@ -4145,7 +4168,7 @@ export function ProgressScreen() {
                         numberOfLines={1}
                         flex={1}
                       >
-                        {selectedExercise.title?.[lang] || selectedExercise.title?.en || 'Original'}
+                        {selectedExercise.title?.[language] || selectedExercise.title?.en || 'Original'}
                       </Text>
                     </XStack>
                     {/* <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
@@ -4286,7 +4309,7 @@ export function ProgressScreen() {
                               numberOfLines={1}
                               flex={1}
                             >
-                              {repeat.title?.[lang] ||
+                              {repeat.title?.[language] ||
                                 repeat.title?.en ||
                                 `Repetition ${repeat.repeatNumber}`}
                             </Text>
@@ -4605,7 +4628,7 @@ export function ProgressScreen() {
                 color="$color"
                 textAlign="center"
               >
-                {detailPath.title[lang]}
+                {detailPath.title[language]}
               </Text>
               {/* {pathCommentCount > 0 && (
                 <XStack
@@ -4633,7 +4656,7 @@ export function ProgressScreen() {
           </YStack>
 
           <Text color="$gray11" marginBottom={16} textAlign="center" fontSize={16}>
-            {detailPath.description[lang]}
+            {detailPath.description[language]}
           </Text>
 
           {/* <TouchableOpacity
@@ -4865,7 +4888,7 @@ export function ProgressScreen() {
                               color="$color"
                               numberOfLines={1}
                             >
-                              {displayIndex}. {main.title?.[lang] || main.title?.en || 'Untitled'}
+                              {displayIndex}. {main.title?.[language] || main.title?.en || 'Untitled'}
                             </Text>
                           </XStack>
 
@@ -4878,9 +4901,9 @@ export function ProgressScreen() {
                           ) : null}
                         </XStack>
 
-                        {main.description?.[lang] && (
+                        {main.description?.[language] && (
                           <Text color="$gray11" marginTop={12} fontSize={14}>
-                            {main.description[lang]}
+                            {main.description[language]}
                           </Text>
                         )}
                         {/* <TouchableOpacity
@@ -4993,7 +5016,7 @@ export function ProgressScreen() {
               ) : (
                 auditEntries.map((e, idx) => {
                   const info = exerciseInfoById[e.exercise_id];
-                  const title = info?.title?.[lang] || info?.title?.en || 'Untitled';
+                  const title = info?.title?.[language] || info?.title?.en || 'Untitled';
                   const totalRepeats = info?.repeat_count || 1;
                   const mainDone = completedIds.includes(e.exercise_id);
                   const isVirtual = !!e.repeat_number && e.repeat_number > 1;
@@ -5195,7 +5218,12 @@ export function ProgressScreen() {
               color={showAllExercises ? 'white' : '#888'}
             />
             <Text fontSize={12} fontWeight="600" color={showAllExercises ? 'white' : '#888'}>
-              {showAllExercises ? 'All Exercises' : 'Show All'}
+              {showAllExercises
+                ? getTranslation(
+                    'progress.allExercises',
+                    language === 'sv' ? 'Alla övningar' : 'All Exercises'
+                  )
+                : getTranslation('progress.showAll', language === 'sv' ? 'Visa alla' : 'Show All')}
             </Text>
           </TouchableOpacity>
         </XStack>
@@ -5264,7 +5292,7 @@ export function ProgressScreen() {
                         (navigation as any).navigate('RouteExercise', {
                           routeId: singleExerciseRouteId,
                           exercises: [exerciseForRoute],
-                          routeName: `${exercise.title[lang] || exercise.title.en} (Individual Exercise)`,
+                          routeName: `${exercise.title[language] || exercise.title.en} (Individual Exercise)`,
                           startIndex: 0,
                         });
                       } else {
@@ -5299,10 +5327,10 @@ export function ProgressScreen() {
                     <XStack alignItems="center" justifyContent="space-between">
                       <YStack flex={1}>
                         <Text fontSize={14} fontWeight="600" color="$color" numberOfLines={1}>
-                          {exercise.title[lang] || exercise.title.en || 'No title'}
+                          {exercise.title[language] || exercise.title.en || 'No title'}
                         </Text>
                         <Text fontSize={12} color="$gray11" numberOfLines={2} marginTop={2}>
-                          {exercise.description[lang] ||
+                          {exercise.description[language] ||
                             exercise.description.en ||
                             'No description'}
                         </Text>
@@ -5542,7 +5570,7 @@ export function ProgressScreen() {
                             textAlign="center"
                             numberOfLines={2}
                           >
-                            {idx + 1}. {path.title[lang]}
+                            {idx + 1}. {path.title[language]}
                           </Text>
 
                           {/* Description - Centered */}
@@ -5553,7 +5581,7 @@ export function ProgressScreen() {
                             numberOfLines={2}
                             paddingHorizontal={8}
                           >
-                            {path.description[lang]}
+                            {path.description[language]}
                           </Text>
                         </YStack>
                       </YStack>
@@ -5650,10 +5678,10 @@ export function ProgressScreen() {
                         fontWeight="bold"
                         color={colorScheme === 'dark' ? '#FFF' : '#000'}
                       >
-                        {paywallPath.title[lang] || paywallPath.title.en}
+                        {paywallPath.title[language] || paywallPath.title.en}
                       </Text>
                       <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                        {paywallPath.description[lang] || paywallPath.description.en}
+                        {paywallPath.description[language] || paywallPath.description.en}
                       </Text>
                     </YStack>
 
@@ -5797,7 +5825,7 @@ export function ProgressScreen() {
                                     metadata: {
                                       feature_key: `learning_path_${paywallPath.id}`,
                                       path_id: paywallPath.id,
-                                      path_title: paywallPath.title[lang] || paywallPath.title.en,
+                                      path_title: paywallPath.title[language] || paywallPath.title.en,
                                       user_id: effectiveUserId,
                                     },
                                   },
@@ -6011,11 +6039,11 @@ export function ProgressScreen() {
                                 payment_provider_id: paymentIntentId,
                                 status: 'completed',
                                 transaction_type: 'purchase',
-                                description: `Unlock "${paywallPath.title[lang] || paywallPath.title.en}" learning path`,
+                                description: `Unlock "${paywallPath.title[language] || paywallPath.title.en}" learning path`,
                                 metadata: {
                                   feature_key: `learning_path_${paywallPath.id}`,
                                   path_id: paywallPath.id,
-                                  path_title: paywallPath.title[lang] || paywallPath.title.en,
+                                  path_title: paywallPath.title[language] || paywallPath.title.en,
                                   unlock_type: 'one_time',
                                   customer_id: paymentData.customer,
                                 },
@@ -6130,7 +6158,7 @@ export function ProgressScreen() {
                       fontWeight="bold"
                       color={colorScheme === 'dark' ? '#FFF' : '#000'}
                     >
-                      {passwordPath.title[lang] || passwordPath.title.en}
+                      {passwordPath.title[language] || passwordPath.title.en}
                     </Text>
                     <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
                       This learning path is locked and requires a password to access.
@@ -6297,7 +6325,7 @@ export function ProgressScreen() {
                       fontWeight="bold"
                       color={colorScheme === 'dark' ? '#FFF' : '#000'}
                     >
-                      {passwordExercise.title[lang] || passwordExercise.title.en}
+                      {passwordExercise.title[language] || passwordExercise.title.en}
                     </Text>
                     <Text fontSize={16} color={colorScheme === 'dark' ? '#CCC' : '#666'}>
                       This exercise is locked and requires a password to access.

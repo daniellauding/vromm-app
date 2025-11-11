@@ -14,6 +14,8 @@ import { navigateDomain } from '@/src/utils/navigation';
 import { supabase } from '../../lib/supabase';
 import { EmptyState } from './EmptyState';
 import { Text } from '../../components/Text';
+import { useModal } from '@/src/contexts/ModalContext';
+import { CreateRouteSheet } from '@/src/components/CreateRouteSheet';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -32,6 +34,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
   const [createdRoutes, setCreatedRoutes] = React.useState<Route[]>([]);
   const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
   const colorScheme = useColorScheme();
+  const { showModal, hideModal } = useModal();
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -157,7 +160,18 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
                 {!isViewingAsStudent && (
                   <YStack gap="$2" width="100%">
                     <TouchableOpacity
-                      onPress={() => navigation.navigate('CreateRoute')}
+                      onPress={() => {
+                        showModal(
+                          <CreateRouteSheet
+                            visible={true}
+                            onClose={() => hideModal()}
+                            onRouteCreated={(routeId) => {
+                              console.log('✅ Route created with ID:', routeId);
+                              hideModal();
+                            }}
+                          />
+                        );
+                      }}
                       style={{
                         backgroundColor: '#00E6C3',
                         paddingHorizontal: 24,

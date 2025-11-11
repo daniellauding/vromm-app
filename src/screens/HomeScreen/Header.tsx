@@ -922,7 +922,10 @@ export const HomeHeader = React.memo(function HomeHeader() {
               }}
             >
               <Text color="#000" fontWeight="bold" fontSize="$4">
-                {t('common.gotIt') || 'Got it!'}
+                {getTranslation(
+                  'common.gotIt',
+                  language === 'sv' ? 'Jag förstår!' : 'Got it!'
+                )}
               </Text>
             </TouchableOpacity>
           </TouchableOpacity>

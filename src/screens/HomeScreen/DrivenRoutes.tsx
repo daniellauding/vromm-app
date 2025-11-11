@@ -16,6 +16,8 @@ import { Image, ImageSourcePropType, useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Text } from '@/src/components';
 import { EmptyState } from './EmptyState';
+import { useModal } from '@/src/contexts/ModalContext';
+import { CreateRouteSheet } from '@/src/components/CreateRouteSheet';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -76,6 +78,7 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
   const [drivenRoutes, setDrivenRoutes] = React.useState<Route[]>([]);
   const [showRouteListSheet, setShowRouteListSheet] = React.useState(false);
   const colorScheme = useColorScheme();
+  const { showModal, hideModal } = useModal();
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -292,7 +295,18 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    onPress={() => (navigation as any).navigate('CreateRoute')}
+                    onPress={() => {
+                      showModal(
+                        <CreateRouteSheet
+                          visible={true}
+                          onClose={() => hideModal()}
+                          onRouteCreated={(routeId) => {
+                            console.log('✅ Route created with ID:', routeId);
+                            hideModal();
+                          }}
+                        />
+                      );
+                    }}
                     style={{
                       backgroundColor: 'transparent',
                       paddingHorizontal: 24,

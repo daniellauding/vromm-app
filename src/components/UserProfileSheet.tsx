@@ -87,7 +87,7 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
   console.log('🔍 [UserProfileSheet] Component rendered with visible:', visible, 'userId:', userId);
   const insets = useSafeAreaInsets();
   const { user, profile: currentUserProfile } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { showToast } = useToast();
 
   // 🔧 Make navigation optional (for use in modals outside NavigationContainer)
@@ -1375,12 +1375,13 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
                           </Card>
                         )}
 
-                        {profile.location && (
-                          <XStack alignItems="center" gap="$1">
-                            <Feather name="map-pin" size={16} color={iconColor} />
-                            <Text>{profile.location}</Text>
-                          </XStack>
-                        )}
+                        <XStack alignItems="center" gap="$1">
+                          <Feather name="map-pin" size={16} color={iconColor} />
+                          <Text>
+                            {profile.location ||
+                              (language === 'sv' ? 'Inte specificerad' : 'Not specified')}
+                          </Text>
+                        </XStack>
 
                         {profile.role && (
                           <Card padding="$2" backgroundColor="$blue5" borderRadius="$4">

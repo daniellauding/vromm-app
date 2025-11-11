@@ -236,14 +236,14 @@ export function CreateRouteSheet({
     });
   }
 
-  const { t, language: lang } = useTranslation();
+  const { t, language } = useTranslation();
   
   // Helper to get translation with fallback - handles both full keys and simple values
   const getT = (key: string, fallbackKey?: string): string => {
     const translation = t(key);
     // If translation returns the key itself, use hardcoded fallback
     if (translation === key) {
-      const langKey = (lang === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
+      const langKey = (language === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
       const fbKey = (fallbackKey || key.split('.').pop() || key) as keyof typeof CREATE_ROUTE_FALLBACKS['en'];
       return CREATE_ROUTE_FALLBACKS[langKey][fbKey] || fallbackKey || key;
     }
@@ -2800,7 +2800,11 @@ export function CreateRouteSheet({
                                       fontWeight={drawingMode === 'pin' ? '700' : '500'}
                                       color={drawingMode === 'pin' ? '$primary' : '$gray11'}
                                     >
-                                      Pin
+                                      {getTranslation(
+                                        t,
+                                        'map.pin',
+                                        language === 'sv' ? 'Nål' : 'Pin'
+                                      )}
                                     </Text>
                                   </XStack>
                                 </TouchableOpacity>
@@ -2840,7 +2844,11 @@ export function CreateRouteSheet({
                                       fontWeight={drawingMode === 'waypoint' ? '700' : '500'}
                                       color={drawingMode === 'waypoint' ? '$primary' : '$gray11'}
                                     >
-                                      Waypoints
+                                      {getTranslation(
+                                        t,
+                                        'map.waypoints',
+                                        language === 'sv' ? 'Vägpunkter' : 'Waypoints'
+                                      )}
                                     </Text>
                                   </XStack>
                                 </TouchableOpacity>
@@ -2880,7 +2888,11 @@ export function CreateRouteSheet({
                                       fontWeight={drawingMode === 'pen' ? '700' : '500'}
                                       color={drawingMode === 'pen' ? '$primary' : '$gray11'}
                                     >
-                                      Draw
+                                      {getTranslation(
+                                        t,
+                                        'map.draw',
+                                        language === 'sv' ? 'Rita' : 'Draw'
+                                      )}
                                     </Text>
                                   </XStack>
                                 </TouchableOpacity>
@@ -2923,7 +2935,11 @@ export function CreateRouteSheet({
                                       fontWeight={drawingMode === 'record' ? '700' : '500'}
                                       color={drawingMode === 'record' ? '$primary' : '$gray11'}
                                     >
-                                      Record
+                                      {getTranslation(
+                                        t,
+                                        'map.record',
+                                        language === 'sv' ? 'Spela in' : 'Record'
+                                      )}
                                     </Text>
                                   </XStack>
                                 </TouchableOpacity>
@@ -2931,14 +2947,46 @@ export function CreateRouteSheet({
 
                               {/* Mode descriptions */}
                               <Text size="sm" color="$gray10">
-                                {drawingMode === 'pin' && 'Drop a single location marker'}
+                                {drawingMode === 'pin' &&
+                                  getTranslation(
+                                    t,
+                                    'map.pinDescription',
+                                    language === 'sv'
+                                      ? 'Släpp en enskild platsmargör'
+                                      : 'Drop a single location marker'
+                                  )}
                                 {drawingMode === 'waypoint' &&
-                                  'Create discrete waypoints connected by lines (minimum 2 required)'}
+                                  getTranslation(
+                                    t,
+                                    'map.waypointsDescription',
+                                    language === 'sv'
+                                      ? 'Skapa diskreta vägpunkter förbundna med linjer (minst 2 krävs)'
+                                      : 'Create discrete waypoints connected by lines (minimum 2 required)'
+                                  )}
                                 {drawingMode === 'pen' &&
-                                  'Freehand drawing: click and drag to draw continuous lines'}
-                                {drawingMode === 'record' && initialWaypoints?.length
-                                  ? 'Recorded route loaded • Click Record Again to start new recording'
-                                  : 'GPS-based live route recording with real-time stats'}
+                                  getTranslation(
+                                    t,
+                                    'map.drawDescription',
+                                    language === 'sv'
+                                      ? 'Frihandsritning: klicka och dra för att rita kontinuerliga linjer'
+                                      : 'Freehand drawing: click and drag to draw continuous lines'
+                                  )}
+                                {drawingMode === 'record' &&
+                                  (initialWaypoints?.length
+                                    ? getTranslation(
+                                        t,
+                                        'map.recordLoadedDescription',
+                                        language === 'sv'
+                                          ? 'Inspelad rutt laddad • Klicka på Spela in igen för att starta ny inspelning'
+                                          : 'Recorded route loaded • Click Record Again to start new recording'
+                                      )
+                                    : getTranslation(
+                                        t,
+                                        'map.recordDescription',
+                                        language === 'sv'
+                                          ? 'GPS-baserad live-ruttinspelning med realtidsstatistik'
+                                          : 'GPS-based live route recording with real-time stats'
+                                      ))}
                               </Text>
 
                               {/* Record Again Button when in record mode with existing route */}
@@ -2953,7 +3001,11 @@ export function CreateRouteSheet({
                                   <XStack gap="$2" alignItems="center">
                                     <Feather name="circle" size={20} color="white" />
                                     <Text color="white" weight="bold">
-                                      Record Again
+                                      {getTranslation(
+                                        t,
+                                        'map.recordAgain',
+                                        language === 'sv' ? 'Spela in igen' : 'Record Again'
+                                      )}
                                     </Text>
                                   </XStack>
                                 </Button>
@@ -4278,7 +4330,11 @@ export function CreateRouteSheet({
                             {/* Category */}
                             <YStack gap="$2">
                               <Text weight="medium" color="$color">
-                                {getT('filters.category', 'category')}
+                                {getTranslation(
+                                  t,
+                                  'filters.category',
+                                  language === 'sv' ? 'Kategori' : 'Category'
+                                )}
                               </Text>
                               <View
                                 style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
@@ -4326,7 +4382,11 @@ export function CreateRouteSheet({
                             {/* Transmission Type */}
                             <YStack gap="$2">
                               <Text weight="medium" color="$color">
-                                {getT('filters.transmissionType', 'transmissionType')}
+                                {getTranslation(
+                                  t,
+                                  'filters.transmissionType',
+                                  language === 'sv' ? 'Växellådstyp' : 'Transmission Type'
+                                )}
                               </Text>
                               <View
                                 style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
@@ -4374,7 +4434,11 @@ export function CreateRouteSheet({
                             {/* Activity Level */}
                             <YStack gap="$2">
                               <Text weight="medium" color="$color">
-                                {getT('filters.activityLevel', 'activityLevel')}
+                                {getTranslation(
+                                  t,
+                                  'filters.activityLevel',
+                                  language === 'sv' ? 'Aktivitetsnivå' : 'Activity Level'
+                                )}
                               </Text>
                               <View
                                 style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
@@ -4422,7 +4486,11 @@ export function CreateRouteSheet({
                             {/* Best Season */}
                             <YStack gap="$2">
                               <Text weight="medium" color="$color">
-                                {getT('filters.bestSeason', 'bestSeason')}
+                                {getTranslation(
+                                  t,
+                                  'filters.bestSeason',
+                                  language === 'sv' ? 'Bästa säsong' : 'Best Season'
+                                )}
                               </Text>
                               <View
                                 style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
@@ -4590,7 +4658,12 @@ export function CreateRouteSheet({
                   <XStack gap="$2" alignItems="center" justifyContent="center" paddingHorizontal="$2">
                     <Feather name="alert-circle" size={16} color="#EF4444" />
                     <Text size="sm" color="#EF4444" fontWeight="500">
-                      {drawingMode === 'pin' && getTranslation(t, 'createRoute.locationRequired', 'Please drop a pin on the map')}
+                      {drawingMode === 'pin' &&
+                        getTranslation(
+                          t,
+                          'map.dropPin',
+                          language === 'sv' ? 'Vänligen släpp en nål på kartan' : 'Please drop a pin on the map'
+                        )}
                       {drawingMode === 'waypoint' && getTranslation(t, 'createRoute.waypointsRequired', 'At least 2 waypoints required')}
                       {drawingMode === 'pen' && getTranslation(t, 'createRoute.drawingRequired', 'Please draw a route on the map')}
                       {drawingMode === 'record' && getTranslation(t, 'createRoute.recordingRequired', 'Please record a route first')}

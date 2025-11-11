@@ -22,6 +22,8 @@ import {
 } from 'react-native';
 import { useUserLocation } from '../explore/hooks';
 import { deg2rad } from '../explore/utils';
+import { useModal } from '@/src/contexts/ModalContext';
+import { CreateRouteSheet } from '@/src/components/CreateRouteSheet';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -98,6 +100,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
   const colorScheme = useColorScheme();
   const cityBackdropOpacity = React.useRef(new Animated.Value(0)).current;
   const citySheetTranslateY = React.useRef(new Animated.Value(300)).current;
+  const { showModal, hideModal } = useModal();
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -357,7 +360,18 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                 {/* Action Buttons */}
                 <YStack gap="$2" width="100%">
                   <TouchableOpacity
-                    onPress={() => navigation.navigate('CreateRoute')}
+                    onPress={() => {
+                      showModal(
+                        <CreateRouteSheet
+                          visible={true}
+                          onClose={() => hideModal()}
+                          onRouteCreated={(routeId) => {
+                            console.log('✅ Route created with ID:', routeId);
+                            hideModal();
+                          }}
+                        />
+                      );
+                    }}
                     style={{
                       backgroundColor: '#00E6C3',
                       paddingHorizontal: 24,
@@ -429,7 +443,6 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                backgroundColor: '#000',
                 borderTopLeftRadius: 16,
                 borderTopRightRadius: 16,
               },

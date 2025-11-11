@@ -479,7 +479,10 @@ export function UserListSheet({
               {/* Header */}
               <XStack justifyContent="space-between" alignItems="center">
                 <Text fontSize="$6" fontWeight="bold" color="$color">
-                  {title}
+                  {getTranslation(
+                    'home.users.allUsers',
+                    language === 'sv' ? 'Alla användare' : title
+                  )}
                 </Text>
                 <TouchableOpacity onPress={onClose}>
                   <Feather name="x" size={24} color={iconColor} />

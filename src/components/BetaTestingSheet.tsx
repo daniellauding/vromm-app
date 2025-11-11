@@ -116,14 +116,21 @@ export function BetaTestingSheet({
   onShareApp,
   onOpenAbout,
 }: BetaTestingSheetProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const theme = useTheme();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { showToast } = useToast();
   const backgroundColor = theme.background?.val || '#FFFFFF';
   const textColor = theme.color?.val || '#000000';
   const borderColor = theme.borderColor?.val || '#DDD';
   const primaryColor = theme.primary?.val || '#69e3c4';
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
 
   // Snap points for resizing (like RouteDetailSheet)
   const snapPoints = useMemo(() => {
@@ -1348,10 +1355,22 @@ export function BetaTestingSheet({
   // Render tabs
   const renderTabs = () => {
     const tabs = [
-      { key: 'checklist', label: 'Checklist' },
-      { key: 'feedback', label: 'Feedback' },
-      { key: 'pricing', label: 'Pricing' },
-      { key: 'video', label: 'Resources' },
+      {
+        key: 'checklist',
+        label: getTranslation('beta.checklist', language === 'sv' ? 'Checklista' : 'Checklist'),
+      },
+      {
+        key: 'feedback',
+        label: getTranslation('beta.feedback', language === 'sv' ? 'Återkoppling' : 'Feedback'),
+      },
+      {
+        key: 'pricing',
+        label: getTranslation('beta.pricing', language === 'sv' ? 'Prissättning' : 'Pricing'),
+      },
+      {
+        key: 'video',
+        label: getTranslation('beta.resources', language === 'sv' ? 'Resurser' : 'Resources'),
+      },
     ];
 
     return (
@@ -1391,17 +1410,28 @@ export function BetaTestingSheet({
     <YStack gap="$4">
       <YStack gap="$2">
         <Text fontSize="$6" fontWeight="700" color={textColor}>
-          Testing Checklist
+          {getTranslation(
+            'beta.testingChecklist',
+            language === 'sv' ? 'Testchecklista' : 'Testing Checklist'
+          )}
         </Text>
         <Text fontSize="$4" color={textColor} opacity={0.7}>
-          Complete these tasks to help us test Vromm effectively:
+          {getTranslation(
+            'beta.completeTasks',
+            language === 'sv'
+              ? 'Slutför dessa uppgifter för att hjälpa oss testa Vromm effektivt:'
+              : 'Complete these tasks to help us test Vromm effectively:'
+          )}
         </Text>
         
         {/* Role selector for checklist view */}
         <Card padding="$3" backgroundColor={`${primaryColor}10`} marginTop="$2">
           <YStack gap="$2">
             <Text fontSize="$3" fontWeight="600" color={textColor} opacity={0.8}>
-              Select checklist to view:
+              {getTranslation(
+                'beta.selectChecklist',
+                language === 'sv' ? 'Välj checklista att visa:' : 'Select checklist to view:'
+              )}
             </Text>
             <XStack gap="$2" flexWrap="wrap">
               <TouchableOpacity
@@ -1428,7 +1458,7 @@ export function BetaTestingSheet({
                   fontWeight={viewingRole === 'student' ? '600' : '500'}
                   color={viewingRole === 'student' ? '#000000' : textColor}
                 >
-                  Student
+                  {getTranslation('beta.student', language === 'sv' ? 'Elev' : 'Student')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1455,7 +1485,7 @@ export function BetaTestingSheet({
                   fontWeight={viewingRole === 'supervisor' ? '600' : '500'}
                   color={viewingRole === 'supervisor' ? '#000000' : textColor}
                 >
-                  Supervisor
+                  {getTranslation('beta.supervisor', language === 'sv' ? 'Handledare' : 'Supervisor')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1482,7 +1512,10 @@ export function BetaTestingSheet({
                   fontWeight={viewingRole === 'other' ? '600' : '500'}
                   color={viewingRole === 'other' ? '#000000' : textColor}
                 >
-                  Other / Stress Test
+                  {getTranslation(
+                    'beta.other',
+                    language === 'sv' ? 'Annat / Stresstest' : 'Other / Stress Test'
+                  )}
                 </Text>
               </TouchableOpacity>
             </XStack>
@@ -2384,10 +2417,16 @@ export function BetaTestingSheet({
                 <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
                   <YStack flex={1}>
                     <Text fontSize="$6" fontWeight="700" color={textColor}>
-                      Beta Testing
+                      {getTranslation(
+                        'beta.title',
+                        language === 'sv' ? 'Betatestning' : 'Beta Testing'
+                      )}
                     </Text>
                     <Text fontSize="$3" color={textColor} opacity={0.7}>
-                      Help us perfect Vromm
+                      {getTranslation(
+                        'beta.subtitle',
+                        language === 'sv' ? 'Hjälp oss att perfekta Vromm' : 'Help us perfect Vromm'
+                      )}
                     </Text>
                   </YStack>
                   <Button onPress={onClose} variant="outlined" size="sm">
