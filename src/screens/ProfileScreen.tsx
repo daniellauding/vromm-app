@@ -246,7 +246,6 @@ export function ProfileScreen() {
   const { language, setLanguage, t } = useTranslation();
   const { resetTour, startDatabaseTour } = useTour();
   const { setUserLocation } = useLocation();
-  const { checkForPromotionalContent } = usePromotionalModal();
   const { showToast } = useToast();
 
   // Helper function to get translation with fallback when t() returns the key itself
@@ -3280,7 +3279,7 @@ export function ProfileScreen() {
                   alignItems="center"
                   backgroundColor={formData.private_profile ? undefined : undefined}
                   borderColor={formData.private_profile ? '$borderColor' : '$borderColor'}
-                  borderWidth="1"
+                  borderWidth={1}
                   padding="$4"
                   paddingVertical="$3"
                   display="none"
@@ -5904,7 +5903,6 @@ export function ProfileScreen() {
                           hideDeveloperSheet();
                           setTimeout(async () => {
                             console.log('Testing promotional modal...');
-                            checkForPromotionalContent();
                             Alert.alert(
                               'Test',
                               'Promotional modal trigger sent - check console and UI.',
