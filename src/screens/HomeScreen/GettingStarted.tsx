@@ -2298,55 +2298,59 @@ export const GettingStarted = () => {
                         />
                       </YStack>
 
-                      {/* Theory Test Toggle */}
-                      <YStack
-                        gap="$2"
-                        padding="$3"
-                        backgroundColor="$backgroundHover"
-                        borderRadius="$3"
-                      >
-                        <Text size="md" weight="semibold" color="$color">
+                      {/* Theory Test - Yes/No Buttons */}
+                      <YStack gap="$2">
+                        <Text size="sm" fontWeight="400" color="$color">
                           {t('onboarding.licensePlan.hasTheory') ||
-                            'Have you passed the theory test?'}
+                            (language === 'sv'
+                              ? 'Har du klarat teoriprov?'
+                              : 'Have you passed the theory test?')}
                         </Text>
-                        <XStack alignItems="center" gap="$2">
-                          <Switch
-                            size="$4"
-                            checked={hasTheory}
-                            onCheckedChange={setHasTheory}
-                            backgroundColor={hasTheory ? '$blue8' : '$gray6'}
+                        <XStack gap="$3">
+                          <Button
+                            variant={hasTheory ? 'primary' : 'outlined'}
+                            size="md"
+                            flex={1}
+                            onPress={() => setHasTheory(true)}
                           >
-                            <Switch.Thumb />
-                          </Switch>
-                          <Text size="md" color="$color">
-                            {hasTheory ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
-                          </Text>
+                            {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
+                          </Button>
+                          <Button
+                            variant={!hasTheory ? 'primary' : 'outlined'}
+                            size="md"
+                            flex={1}
+                            onPress={() => setHasTheory(false)}
+                          >
+                            {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
+                          </Button>
                         </XStack>
                       </YStack>
 
-                      {/* Practice Test Toggle */}
-                      <YStack
-                        gap="$2"
-                        padding="$3"
-                        backgroundColor="$backgroundHover"
-                        borderRadius="$3"
-                      >
-                        <Text size="md" weight="semibold" color="$color">
+                      {/* Practice Test - Yes/No Buttons */}
+                      <YStack gap="$2">
+                        <Text size="sm" fontWeight="400" color="$color">
                           {t('onboarding.licensePlan.hasPractice') ||
-                            'Have you passed the practical test?'}
+                            (language === 'sv'
+                              ? 'Har du klarat körprov?'
+                              : 'Have you passed the practical test?')}
                         </Text>
-                        <XStack alignItems="center" gap="$2">
-                          <Switch
-                            size="$4"
-                            checked={hasPractice}
-                            onCheckedChange={setHasPractice}
-                            backgroundColor={hasPractice ? '$switchActive' : '$switchInactive'}
+                        <XStack gap="$3">
+                          <Button
+                            variant={hasPractice ? 'primary' : 'outlined'}
+                            size="md"
+                            flex={1}
+                            onPress={() => setHasPractice(true)}
                           >
-                            <Switch.Thumb backgroundColor="$switchThumb" />
-                          </Switch>
-                          <Text size="md" color="$color">
-                            {hasPractice ? t('common.yes') || 'Yes' : t('common.no') || 'No'}
-                          </Text>
+                            {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
+                          </Button>
+                          <Button
+                            variant={!hasPractice ? 'primary' : 'outlined'}
+                            size="md"
+                            flex={1}
+                            onPress={() => setHasPractice(false)}
+                          >
+                            {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
+                          </Button>
                         </XStack>
                       </YStack>
 

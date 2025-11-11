@@ -40,11 +40,11 @@ import { useColorScheme } from 'react-native';
 import { getTabContentPadding } from '../utils/layout';
 import { CommentsSection } from './CommentsSection';
 import { ReportDialog } from './report/ReportDialog';
-import WebView from 'react-native-webview';
 import { Image } from 'react-native';
 import { Linking } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import YoutubePlayer from 'react-native-youtube-iframe';
 
 const { height } = Dimensions.get('window');
 
@@ -83,6 +83,7 @@ interface LearningPath {
   description: { en: string; sv: string };
   icon?: string;
   image?: string;
+  youtube_url?: string;
   order_index: number;
   active: boolean;
   is_locked?: boolean;
@@ -802,11 +803,11 @@ export function ExerciseListSheet({
     );
   };
 
-  // Media rendering functions (exact copy from ProgressScreen)
+  // Media rendering functions - using react-native-youtube-iframe for proper playback
   const YouTubeEmbed = ({ videoId }: { videoId: string }) => {
     const screenWidth = Dimensions.get('window').width;
     const videoWidth = screenWidth - 48;
-    const videoHeight = videoWidth * 0.5625;
+    const videoHeight = videoWidth * 0.5625; // 16:9 aspect ratio
 
     return (
       <View
@@ -816,13 +817,16 @@ export function ExerciseListSheet({
           marginVertical: 12,
           borderRadius: 8,
           overflow: 'hidden',
+          backgroundColor: '#000',
         }}
       >
-        <WebView
-          source={{ uri: `https://www.youtube.com/embed/${videoId}` }}
-          style={{ flex: 1 }}
-          allowsFullscreenVideo
-          javaScriptEnabled
+        <YoutubePlayer
+          height={videoHeight}
+          videoId={videoId}
+          play={false}
+          webViewProps={{
+            androidLayerType: 'hardware',
+          }}
         />
       </View>
     );
@@ -830,9 +834,31 @@ export function ExerciseListSheet({
 
   const getYouTubeVideoId = (url: string | undefined): string | null => {
     if (!url) return null;
+
+    // Try standard regex first
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
     const match = url.match(regExp);
-    return match && match[7].length === 11 ? match[7] : null;
+    
+    if (match && match[7] && match[7].length === 11) {
+      return match[7];
+    }
+
+    // Try alternative extraction methods
+    try {
+      const urlObj = new URL(url);
+      const vParam = urlObj.searchParams.get('v');
+      if (vParam && vParam.length === 11) return vParam;
+
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) {
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart.length === 11) return lastPart;
+      }
+    } catch (e) {
+      // URL parsing failed
+    }
+
+    return null;
   };
 
   const renderExerciseMedia = (exercise: PathExercise) => {
@@ -866,6 +892,53 @@ export function ExerciseListSheet({
             </Text>
             <Image
               source={{ uri: exercise.image }}
+              style={{
+                width: '100%',
+                height: 200,
+                borderRadius: 8,
+                resizeMode: 'cover',
+              }}
+            />
+          </YStack>
+        )}
+      </YStack>
+    );
+  };
+
+  // Render media for a learning path
+  const renderLearningPathMedia = (path: LearningPath) => {
+    return (
+      <YStack gap={16}>
+        {/* YouTube Video */}
+        {path.youtube_url && (
+          <YStack>
+            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+              Video Tutorial
+            </Text>
+            {(() => {
+              const videoId = getYouTubeVideoId(path.youtube_url);
+              return videoId ? (
+                <YouTubeEmbed videoId={videoId} />
+              ) : (
+                <TouchableOpacity
+                  onPress={() => path.youtube_url && Linking.openURL(path.youtube_url)}
+                  style={{ padding: 8, backgroundColor: '#FF0000', borderRadius: 8 }}
+                >
+                  <Text color="white">Watch on YouTube</Text>
+                </TouchableOpacity>
+              );
+            })()}
+          </YStack>
+        )}
+
+        {/* Image */}
+        {path.image && (
+          <YStack>
+            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+              Reference Image
+            </Text>
+            <Image
+              source={{ uri: path.image }}
               style={{
                 width: '100%',
                 height: 200,
@@ -1737,6 +1810,22 @@ export function ExerciseListSheet({
                               )}
                             </View>
                           </XStack>
+                        )}
+
+                        {/* Learning Path Media (Video/Image) */}
+                        {detailPath && (detailPath.youtube_url || detailPath.image) && (
+                          <YStack marginTop={16}>
+                            {renderLearningPathMedia(detailPath)}
+                          </YStack>
+                        )}
+
+                        {/* Learning Path Description */}
+                        {detailPath?.description?.[lang] && (
+                          <YStack marginTop={16}>
+                            <Text fontSize={16} color="$gray11" lineHeight={24}>
+                              {detailPath.description[lang]}
+                            </Text>
+                          </YStack>
                         )}
                       </YStack>
 

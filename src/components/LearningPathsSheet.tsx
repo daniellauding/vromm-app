@@ -59,6 +59,7 @@ interface LearningPath {
   description: { en: string; sv: string };
   icon?: string;
   image?: string;
+  youtube_url?: string;
   order_index: number;
   active: boolean;
   is_locked?: boolean;

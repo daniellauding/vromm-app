@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   View,
+  Image,
+  Linking,
 } from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
@@ -23,6 +25,7 @@ import { useUnlock } from '../../contexts/UnlockContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useStripe } from '@stripe/stripe-react-native';
 import { FunctionsHttpError } from '@supabase/supabase-js';
+import YoutubePlayer from 'react-native-youtube-iframe';
 
 const { width: screenWidth } = Dimensions.get('window');
 const cardWidth = screenWidth * 0.7;
@@ -33,6 +36,7 @@ interface FeaturedLearningPath {
   description: { en: string; sv: string };
   icon?: string;
   image?: string;
+  youtube_url?: string;
   is_featured: boolean;
   // Access Control & Paywall
   is_locked?: boolean;
@@ -48,6 +52,7 @@ interface FeaturedExercise {
   description: { en: string; sv: string };
   icon?: string;
   image?: string;
+  youtube_url?: string;
   learning_path_id: string;
   is_featured: boolean;
   repeat_count?: number;
@@ -210,7 +215,7 @@ export function FeaturedContent() {
       const { data: pathsData, error: pathsError } = await supabase
         .from('learning_paths')
         .select(
-          'id, title, description, icon, image, is_featured, is_locked, lock_password, paywall_enabled, price_usd, price_sek',
+          'id, title, description, icon, image, youtube_url, is_featured, is_locked, lock_password, paywall_enabled, price_usd, price_sek',
         )
         .eq('is_featured', true)
         .eq('active', true)
@@ -229,7 +234,7 @@ export function FeaturedContent() {
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('learning_path_exercises')
         .select(
-          'id, title, description, icon, image, learning_path_id, is_featured, repeat_count',
+          'id, title, description, icon, image, youtube_url, learning_path_id, is_featured, repeat_count',
         )
         .eq('is_featured', true)
         .order('created_at', { ascending: false })
@@ -327,6 +332,111 @@ export function FeaturedContent() {
     setPasswordPath(path);
     setShowPasswordModal(true);
     return false;
+  };
+
+  // YouTube video ID extraction - improved
+  const getYouTubeVideoId = (url: string | undefined): string | null => {
+    if (!url) return null;
+
+    // Try standard regex first
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    
+    if (match && match[7] && match[7].length === 11) {
+      return match[7];
+    }
+
+    // Try alternative extraction methods
+    try {
+      const urlObj = new URL(url);
+      const vParam = urlObj.searchParams.get('v');
+      if (vParam && vParam.length === 11) return vParam;
+
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) {
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart.length === 11) return lastPart;
+      }
+    } catch (e) {
+      // URL parsing failed
+    }
+
+    return null;
+  };
+
+  // YouTube Embed Component - using react-native-youtube-iframe for proper playback
+  const YouTubeEmbed = ({ videoId, width }: { videoId: string; width?: number }) => {
+    const videoWidth = width || screenWidth - 48;
+    const videoHeight = videoWidth * 0.5625; // 16:9 aspect ratio
+
+    return (
+      <View
+        style={{
+          width: videoWidth,
+          height: videoHeight,
+          marginVertical: 8,
+          borderRadius: 8,
+          overflow: 'hidden',
+          backgroundColor: '#000',
+        }}
+      >
+        <YoutubePlayer
+          height={videoHeight}
+          videoId={videoId}
+          play={false}
+          webViewProps={{
+            androidLayerType: 'hardware',
+          }}
+        />
+      </View>
+    );
+  };
+
+  // Render media for featured content
+  const renderFeaturedMedia = (item: FeaturedLearningPath | FeaturedExercise) => {
+    const hasMedia = item.image || item.youtube_url;
+    if (!hasMedia) return null;
+
+    const cardContentWidth = cardWidth - 32; // Account for card padding
+
+    return (
+      <YStack gap={8} marginTop={8} marginBottom={8}>
+        {/* YouTube Video */}
+        {item.youtube_url && (() => {
+          const videoId = getYouTubeVideoId(item.youtube_url);
+          return videoId ? (
+            <YouTubeEmbed videoId={videoId} width={cardContentWidth} />
+          ) : (
+            <TouchableOpacity
+              onPress={() => item.youtube_url && Linking.openURL(item.youtube_url)}
+              style={{
+                padding: 12,
+                backgroundColor: '#FF0000',
+                borderRadius: 8,
+                alignItems: 'center',
+              }}
+            >
+              <Text color="white" fontWeight="600">
+                {t('common.watchOnYouTube') || 'Watch on YouTube'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })()}
+
+        {/* Image */}
+        {item.image && !item.youtube_url && (
+          <Image
+            source={{ uri: item.image }}
+            style={{
+              width: cardContentWidth,
+              height: cardContentWidth * 0.5625,
+              borderRadius: 8,
+              resizeMode: 'cover',
+            }}
+          />
+        )}
+      </YStack>
+    );
   };
 
   const handleFeaturedPathPress = async (path: FeaturedLearningPath) => {
@@ -533,6 +643,9 @@ export function FeaturedContent() {
                     {path.title?.[lang] || path.title?.en || 'Untitled'}
                   </Text>
 
+                  {/* Media (Video/Image) */}
+                  {renderFeaturedMedia(path)}
+
                   {path.description?.[lang] && (
                     <Text fontSize="$3" color="$gray11" numberOfLines={3}>
                       {path.description[lang]}
@@ -647,6 +760,9 @@ export function FeaturedContent() {
                   <Text fontSize="$5" fontWeight="bold" color="$color" numberOfLines={2}>
                     {exercise.title?.[lang] || exercise.title?.en || 'Untitled'}
                   </Text>
+
+                  {/* Media (Video/Image) */}
+                  {renderFeaturedMedia(exercise)}
 
                   {exercise.description?.[lang] && (
                     <Text fontSize="$3" color="$gray11" numberOfLines={3}>

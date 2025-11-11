@@ -116,7 +116,7 @@ export default React.memo(function MyTab({
       <ProgressSection activeUserId={effectiveUserId} />
 
       {/* Featured Content */}
-      {/* <FeaturedContent /> */}
+      <FeaturedContent />
 
       {/* Featured Content 2 - Card Layout */}
       <FeaturedContent2 />

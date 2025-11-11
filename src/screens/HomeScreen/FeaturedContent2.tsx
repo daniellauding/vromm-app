@@ -10,6 +10,7 @@ import {
   Animated,
   PanResponder,
   Image,
+  Linking,
 } from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
@@ -25,6 +26,7 @@ import { useUnlock } from '../../contexts/UnlockContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useStripe } from '@stripe/stripe-react-native';
 import { FunctionsHttpError } from '@supabase/supabase-js';
+import YoutubePlayer from 'react-native-youtube-iframe';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const CARD_HEIGHT = 160;
@@ -109,6 +111,68 @@ export function FeaturedContent2() {
   const getTranslation = (key: string, fallback: string): string => {
     const translated = t(key);
     return translated && translated !== key ? translated : fallback;
+  };
+
+  // YouTube video ID extraction - improved
+  const getYouTubeVideoId = (url: string | undefined): string | null => {
+    if (!url) return null;
+
+    // Try standard regex first
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = url.match(regExp);
+    
+    if (match && match[7] && match[7].length === 11) {
+      return match[7];
+    }
+
+    // Try alternative extraction methods
+    try {
+      const urlObj = new URL(url);
+      const vParam = urlObj.searchParams.get('v');
+      if (vParam && vParam.length === 11) return vParam;
+
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) {
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart.length === 11) return lastPart;
+      }
+    } catch (e) {
+      // URL parsing failed
+    }
+
+    return null;
+  };
+
+  // YouTube Embed Component - using react-native-youtube-iframe for proper playback
+  const YouTubeEmbed = ({
+    videoId,
+    width,
+    height,
+  }: {
+    videoId: string;
+    width: number;
+    height: number;
+  }) => {
+    return (
+      <View
+        style={{
+          width,
+          height,
+          borderRadius: 8,
+          overflow: 'hidden',
+          backgroundColor: '#000',
+        }}
+      >
+        <YoutubePlayer
+          height={height}
+          videoId={videoId}
+          play={false}
+          webViewProps={{
+            androidLayerType: 'hardware',
+          }}
+        />
+      </View>
+    );
   };
 
   // Completion check helper function
@@ -633,38 +697,49 @@ export function FeaturedContent2() {
                 {item.title?.[language] || item.title?.en || 'Untitled'}
               </Text>
 
-              {/* Media (Image or Video thumbnail) - below title, above description */}
-              {hasMedia && (
-                <View
-                  style={{
-                    width: '100%',
-                    height: 60,
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    backgroundColor: colorScheme === 'dark' ? '#222' : '#F5F5F5',
-                  }}
-                >
-                  {item.image ? (
-                    <Image
-                      source={{ uri: item.image }}
-                      style={{ width: '100%', height: '100%' }}
-                      resizeMode="cover"
-                    />
-                  ) : item.youtube_url ? (
-                    <View
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        backgroundColor: '#000',
-                      }}
-                    >
-                      <Feather name="play-circle" size={24} color="#FF0000" />
-                    </View>
-                  ) : null}
-                </View>
-              )}
+              {/* Media (Image or Video) - below title, above description */}
+              {hasMedia &&
+                (() => {
+                  const mediaWidth = screenWidth - CARD_MARGIN * 2 - 32; // Card width minus padding
+                  const mediaHeight = 80; // Fixed height for compact display
+
+                  if (item.youtube_url) {
+                    const videoId = getYouTubeVideoId(item.youtube_url);
+                    return videoId ? (
+                      <YouTubeEmbed videoId={videoId} width={mediaWidth} height={mediaHeight} />
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => item.youtube_url && Linking.openURL(item.youtube_url)}
+                        style={{
+                          width: mediaWidth,
+                          height: mediaHeight,
+                          borderRadius: 8,
+                          backgroundColor: '#FF0000',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Feather name="play-circle" size={32} color="white" />
+                        <Text color="white" fontSize={10} marginTop={4}>
+                          Watch on YouTube
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  } else if (item.image) {
+                    return (
+                      <Image
+                        source={{ uri: item.image }}
+                        style={{
+                          width: mediaWidth,
+                          height: mediaHeight,
+                          borderRadius: 8,
+                        }}
+                        resizeMode="cover"
+                      />
+                    );
+                  }
+                  return null;
+                })()}
 
               {item.description?.[language] && (
                 <Text fontSize="$3" color="$gray11" numberOfLines={hasMedia ? 1 : 2}>

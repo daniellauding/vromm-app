@@ -34,9 +34,9 @@ import type { RouteProp } from '@react-navigation/native';
 import type { TabParamList } from '../types/navigation';
 import { useAuth } from '../context/AuthContext';
 import Svg, { Circle } from 'react-native-svg';
-import WebView from 'react-native-webview';
 import { Image } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import YoutubePlayer from 'react-native-youtube-iframe';
 import { useCallback } from 'react';
 import { useScreenLogger } from '../hooks/useScreenLogger';
 import { getTabContentPadding } from '../utils/layout';
@@ -3174,6 +3174,8 @@ export function ProgressScreen() {
     const videoWidth = screenWidth - 48; // Account for padding
     const videoHeight = videoWidth * 0.5625; // 16:9 aspect ratio
 
+    console.log('🎥 [ProgressScreen] Rendering YouTube embed with video ID:', videoId);
+
     return (
       <View
         style={{
@@ -3182,13 +3184,16 @@ export function ProgressScreen() {
           marginVertical: 12,
           borderRadius: 8,
           overflow: 'hidden',
+          backgroundColor: '#000',
         }}
       >
-        <WebView
-          source={{ uri: `https://www.youtube.com/embed/${videoId}` }}
-          style={{ flex: 1 }}
-          allowsFullscreenVideo
-          javaScriptEnabled
+        <YoutubePlayer
+          height={videoHeight}
+          videoId={videoId}
+          play={false}
+          webViewProps={{
+            androidLayerType: 'hardware',
+          }}
         />
       </View>
     );
@@ -3265,9 +3270,50 @@ export function ProgressScreen() {
   const getYouTubeVideoId = (url: string | undefined): string | null => {
     if (!url) return null;
 
+    console.log('🎥 [ProgressScreen] Extracting video ID from URL:', url);
+
+    // Handle different YouTube URL formats
+    // 1. https://www.youtube.com/watch?v=VIDEO_ID
+    // 2. https://youtu.be/VIDEO_ID
+    // 3. https://www.youtube.com/embed/VIDEO_ID
+    // 4. https://www.youtube.com/v/VIDEO_ID
+    // 5. https://m.youtube.com/watch?v=VIDEO_ID
+
+    // Try standard regex first
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
     const match = url.match(regExp);
-    return match && match[7].length === 11 ? match[7] : null;
+    
+    if (match && match[7] && match[7].length === 11) {
+      console.log('✅ [ProgressScreen] Extracted video ID:', match[7]);
+      return match[7];
+    }
+
+    // Try alternative extraction methods
+    try {
+      const urlObj = new URL(url);
+      
+      // Check query parameter
+      const vParam = urlObj.searchParams.get('v');
+      if (vParam && vParam.length === 11) {
+        console.log('✅ [ProgressScreen] Extracted video ID from query param:', vParam);
+        return vParam;
+      }
+
+      // Check pathname for youtu.be or embed format
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) {
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart.length === 11) {
+          console.log('✅ [ProgressScreen] Extracted video ID from path:', lastPart);
+          return lastPart;
+        }
+      }
+    } catch (e) {
+      console.log('⚠️ [ProgressScreen] URL parsing failed:', e);
+    }
+
+    console.log('❌ [ProgressScreen] Could not extract video ID from URL');
+    return null;
   };
 
   // Extract TypeForm ID from embed code or URL
@@ -3308,16 +3354,24 @@ export function ProgressScreen() {
               Video Tutorial
             </Text>
             {(() => {
+              console.log('🎥 [ProgressScreen] Exercise youtube_url:', exercise.youtube_url);
               const videoId = getYouTubeVideoId(exercise.youtube_url);
+              console.log('🎥 [ProgressScreen] Extracted videoId:', videoId);
+              
               return videoId ? (
                 <YouTubeEmbed videoId={videoId} />
               ) : (
-                <TouchableOpacity
-                  onPress={() => exercise.youtube_url && Linking.openURL(exercise.youtube_url)}
-                  style={{ padding: 8, backgroundColor: '#FF0000', borderRadius: 8 }}
-                >
-                  <Text color="white">Watch on YouTube</Text>
-                </TouchableOpacity>
+                <YStack gap={8}>
+                  <Text color="$gray11" fontSize={12}>
+                    Could not load video. URL: {exercise.youtube_url}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => exercise.youtube_url && Linking.openURL(exercise.youtube_url)}
+                    style={{ padding: 12, backgroundColor: '#FF0000', borderRadius: 8, alignItems: 'center' }}
+                  >
+                    <Text color="white" fontWeight="600">Watch on YouTube</Text>
+                  </TouchableOpacity>
+                </YStack>
               );
             })()}
           </YStack>
@@ -3369,16 +3423,24 @@ export function ProgressScreen() {
               Video Tutorial
             </Text>
             {(() => {
+              console.log('🎥 [ProgressScreen] Learning Path youtube_url:', path.youtube_url);
               const videoId = getYouTubeVideoId(path.youtube_url);
+              console.log('🎥 [ProgressScreen] Extracted videoId:', videoId);
+              
               return videoId ? (
                 <YouTubeEmbed videoId={videoId} />
               ) : (
-                <TouchableOpacity
-                  onPress={() => path.youtube_url && Linking.openURL(path.youtube_url)}
-                  style={{ padding: 8, backgroundColor: '#FF0000', borderRadius: 8 }}
-                >
-                  <Text color="white">Watch on YouTube</Text>
-                </TouchableOpacity>
+                <YStack gap={8}>
+                  <Text color="$gray11" fontSize={12}>
+                    Could not load video. URL: {path.youtube_url}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => path.youtube_url && Linking.openURL(path.youtube_url)}
+                    style={{ padding: 12, backgroundColor: '#FF0000', borderRadius: 8, alignItems: 'center' }}
+                  >
+                    <Text color="white" fontWeight="600">Watch on YouTube</Text>
+                  </TouchableOpacity>
+                </YStack>
               );
             })()}
           </YStack>
