@@ -92,6 +92,13 @@ export const HomeHeader = React.memo(function HomeHeader() {
     return translation;
   };
 
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
+
   // Register profile avatar for instructor tour targeting
   const profileAvatarRef = useTourTarget('Header.ProfileAvatar');
 
@@ -830,10 +837,18 @@ export const HomeHeader = React.memo(function HomeHeader() {
                 </View>
                 <YStack flex={1}>
                   <Text fontSize="$5" fontWeight="bold" color={textColor}>
-                    {activeStudentId ? 'Student Progress' : 'Your Progress'}
+                    {activeStudentId 
+                      ? getTranslation('progression.studentProgress', language === 'sv' ? 'Elevens framsteg' : 'Student Progress')
+                      : getTranslation('progression.yourProgress', language === 'sv' ? 'Din framsteg' : 'Your Progress')
+                    }
                   </Text>
                   <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                    {Math.round(userProgress * 100)}% of all exercises completed
+                    {getTranslation(
+                      'progression.completedPercentage',
+                      language === 'sv' 
+                        ? `${Math.round(userProgress * 100)}% av alla övningar slutförda`
+                        : `${Math.round(userProgress * 100)}% of all exercises completed`
+                    )}
                   </Text>
                 </YStack>
               </XStack>
@@ -842,31 +857,55 @@ export const HomeHeader = React.memo(function HomeHeader() {
             {/* How Progression Works */}
             <YStack gap="$3" marginBottom="$4">
               <Text fontSize="$4" fontWeight="600" color={textColor}>
-                📊 How Progression Works
+                📊 {getTranslation(
+                  'progression.howItWorks',
+                  language === 'sv' ? 'Hur progression fungerar' : 'How Progression Works'
+                )}
               </Text>
               <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Complete exercises to increase your progress percentage
+                • {getTranslation(
+                  'progression.completeExercises',
+                  language === 'sv' ? 'Slutför övningar för att öka din framstegsprocent' : 'Complete exercises to increase your progress percentage'
+                )}
               </Text>
               <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Each exercise contributes to your overall learning progress
+                • {getTranslation(
+                  'progression.eachContributes',
+                  language === 'sv' ? 'Varje övning bidrar till din övergripande inlärningsframsteg' : 'Each exercise contributes to your overall learning progress'
+                )}
               </Text>
               <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • Progress is tracked across all learning paths
+                • {getTranslation(
+                  'progression.trackedAcross',
+                  language === 'sv' ? 'Framsteg spåras över alla inlärningsvägar' : 'Progress is tracked across all learning paths'
+                )}
               </Text>
               <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • The circle shows your completion percentage
+                • {getTranslation(
+                  'progression.circleShows',
+                  language === 'sv' ? 'Cirkeln visar din slutförandeprocent' : 'The circle shows your completion percentage'
+                )}
               </Text>
 
               {activeStudentId && (
                 <>
                   <Text fontSize="$4" fontWeight="600" color={textColor} marginTop="$2">
-                    👨‍🏫 Instructor View
+                    👨‍🏫 {getTranslation(
+                      'progression.instructorView',
+                      language === 'sv' ? 'Instruktörsvy' : 'Instructor View'
+                    )}
                   </Text>
                   <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                    • You're currently viewing a student's progress
+                    • {getTranslation(
+                      'progression.currentlyViewing',
+                      language === 'sv' ? 'Du tittar för närvarande på en elevs framsteg' : "You're currently viewing a student's progress"
+                    )}
                   </Text>
                   <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                    • Switch between students to see their individual progress
+                    • {getTranslation(
+                      'progression.switchStudents',
+                      language === 'sv' ? 'Växla mellan elever för att se deras individuella framsteg' : 'Switch between students to see their individual progress'
+                    )}
                   </Text>
                 </>
               )}

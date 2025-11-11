@@ -542,7 +542,10 @@ export function UserListSheet({
                       fontWeight={activeRoleFilter === 'all' ? 'bold' : 'normal'}
                       fontSize="$3"
                     >
-                      {t('userList.tabs.all') || 'All Users'}
+                      {getTranslation(
+                        'userList.tabs.all',
+                        language === 'sv' ? 'Alla användare' : 'All Users'
+                      )}
                     </Text>
                   </TouchableOpacity>
 
@@ -562,7 +565,10 @@ export function UserListSheet({
                       fontWeight={activeRoleFilter === 'student' ? 'bold' : 'normal'}
                       fontSize="$3"
                     >
-                      {t('userList.tabs.students') || 'Students'}
+                      {getTranslation(
+                        'userList.tabs.students',
+                        language === 'sv' ? 'Elever' : 'Students'
+                      )}
                     </Text>
                   </TouchableOpacity>
 
@@ -582,7 +588,10 @@ export function UserListSheet({
                       fontWeight={activeRoleFilter === 'supervisor' ? 'bold' : 'normal'}
                       fontSize="$3"
                     >
-                      {t('userList.tabs.supervisors') || 'Supervisors'}
+                      {getTranslation(
+                        'userList.tabs.supervisors',
+                        language === 'sv' ? 'Handledare' : 'Supervisors'
+                      )}
                     </Text>
                   </TouchableOpacity>
                 </XStack>

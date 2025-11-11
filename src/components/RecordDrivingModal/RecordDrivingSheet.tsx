@@ -33,8 +33,15 @@ interface RecordDrivingSheetProps {
 // Performance-optimized component
 export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) => {
   const { isVisible, onClose, onCreateRoute } = props;
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { hideModal, setModalPointerEvents } = useModal();
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
   const {
     recordingState,
     pauseRecording,
@@ -227,7 +234,10 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           <View style={styles.handleContainer}>
             <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
             <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
-              {t('map.recordDriving') || 'Record Route'}
+              {getTranslation(
+                'map.recordDriving',
+                language === 'sv' ? 'Spela in körning' : 'Record Route'
+              )}
             </Text>
             <XStack gap={8} alignItems="center">
               {/* Always show minimize button when recording - Debug added */}
@@ -270,7 +280,15 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
               >
                 <Feather name={showMap ? 'eye-off' : 'map'} size={16} color="white" />
                 <Text color="white" marginLeft={4} fontWeight="500">
-                  {showMap ? 'Hide Preview' : 'Show Route Preview'}
+                  {showMap
+                    ? getTranslation(
+                        'recording.hidePreview',
+                        language === 'sv' ? 'Dölj förhandsgranskning' : 'Hide Preview'
+                      )
+                    : getTranslation(
+                        'recording.showPreview',
+                        language === 'sv' ? 'Visa ruttförhandsgranskning' : 'Show Route Preview'
+                      )}
                 </Text>
               </TouchableOpacity>
             </XStack>
@@ -295,12 +313,24 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                   ]}
                 />
                 <Text color={DARK_THEME.text} fontSize={16} fontWeight="bold" marginLeft={8}>
-                  {recordingState.isPaused ? 'RECORDING PAUSED' : 'RECORDING ACTIVE'}
+                  {recordingState.isPaused
+                    ? getTranslation(
+                        'recording.pausedStatus',
+                        language === 'sv' ? 'INSPELNING PAUSAD' : 'RECORDING PAUSED'
+                      )
+                    : getTranslation(
+                        'recording.activeStatus',
+                        language === 'sv' ? 'INSPELNING AKTIV' : 'RECORDING ACTIVE'
+                      )}
                 </Text>
               </View>
               <Text color={DARK_THEME.text} marginTop={4}>
-                Recording {recordingState.waypoints.length} waypoints •{' '}
-                {recordingState.distance.toFixed(2)} km
+                {getTranslation(
+                  'recording.recordingInfo',
+                  language === 'sv'
+                    ? `Spelar in ${recordingState.waypoints.length} vägpunkter • ${recordingState.distance.toFixed(2)} km`
+                    : `Recording ${recordingState.waypoints.length} waypoints • ${recordingState.distance.toFixed(2)} km`
+                )}
               </Text>
               {recordingState.debugMessage && (
                 <Text color="#FF9500" fontSize={12} marginTop={4}>

@@ -211,14 +211,17 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
       <SectionHeader
         title={
           selectedCity ||
-          (() => {
-            const translated = t('home.cityRoutes.selectCity');
-            return translated === 'home.cityRoutes.selectCity' ? 'Select a city' : translated;
-          })()
+          getTranslation(
+            'home.cityRoutes.selectCity',
+            language === 'sv' ? 'Välj en stad' : 'Select a city'
+          )
         }
         variant="dropdown"
         onAction={showCityModal}
-        actionLabel={selectedCity || 'Select'}
+        actionLabel={selectedCity || getTranslation(
+          'home.cityRoutes.select',
+          language === 'sv' ? 'Välj' : 'Select'
+        )}
       />
       <YStack gap="$3" px="$4">
         {routes.length > 0 ? (
@@ -455,10 +458,10 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
               />
 
               <Text size="xl" weight="bold" color="white" textAlign="center">
-                {(() => {
-                  const translated = t('home.cityRoutes.selectCity');
-                  return translated === 'home.cityRoutes.selectCity' ? 'Select City' : translated;
-                })()}
+                {getTranslation(
+                  'home.cityRoutes.selectCityTitle',
+                  language === 'sv' ? 'Välj stad' : 'Select City'
+                )}
               </Text>
 
               <ScrollView style={{ maxHeight: '70%' }}>

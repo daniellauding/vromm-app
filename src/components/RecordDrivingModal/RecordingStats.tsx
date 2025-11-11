@@ -9,6 +9,7 @@ import { AppAnalytics } from '../../utils/analytics';
 import { RecordedRouteData } from './types';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import { useTranslation } from '../../contexts/TranslationContext';
 
 const MIN_SPEED_THRESHOLD = 0.5;
 
@@ -53,6 +54,14 @@ export default function RecordingStats({
     cancelRecording,
     updateRecordingState,
   } = useRecording();
+  const { t, language } = useTranslation();
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
 
   const handleStartRecording = React.useCallback(async () => {
     try {
@@ -146,38 +155,59 @@ export default function RecordingStats({
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-            DURATION
+            {getTranslation(
+              'recording.duration',
+              language === 'sv' ? 'VARAKTIGHET' : 'DURATION'
+            )}
           </Text>
           <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
             {formatTime(recordingState.totalElapsedTime)}
           </Text>
           <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-            Driving: {formatTime(recordingState.drivingTime)}
+            {getTranslation(
+              'recording.driving',
+              language === 'sv' ? 'Körning' : 'Driving'
+            )}: {formatTime(recordingState.drivingTime)}
           </Text>
         </View>
         <View style={styles.statItem}>
           <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-            DISTANCE
+            {getTranslation(
+              'recording.distance',
+              language === 'sv' ? 'DISTANS' : 'DISTANCE'
+            )}
           </Text>
           <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
             {recordingState.distance.toFixed(2)} km
           </Text>
           <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-            {recordingState.waypoints.length} waypoints
+            {recordingState.waypoints.length} {getTranslation(
+              'recording.waypoints',
+              language === 'sv' ? 'vägpunkter' : 'waypoints'
+            )}
           </Text>
         </View>
         <View style={styles.statItem}>
           <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-            SPEED
+            {getTranslation(
+              'recording.speed',
+              language === 'sv' ? 'HASTIGHET' : 'SPEED'
+            )}
           </Text>
           <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
             {formatSpeed(recordingState.currentSpeed)} km/h
           </Text>
           <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-            Max: {formatSpeed(recordingState.maxSpeed)} km/h
+            {getTranslation(
+              'recording.max',
+              language === 'sv' ? 'Max' : 'Max'
+            )}: {formatSpeed(recordingState.maxSpeed)} km/h
           </Text>
           <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-            Avg: {formatSpeed(recordingState.averageSpeed)} km/h
+            {getTranslation(
+              'recording.avg',
+              language === 'sv' ? 'Snitt' : 'Avg'
+            )}: {formatSpeed(recordingState.averageSpeed)} km/h
           </Text>
         </View>
       </View>
@@ -244,22 +274,44 @@ export default function RecordingStats({
           <Text color={DARK_THEME.text} marginTop={8}>
             {recordingState.isRecording
               ? recordingState.isPaused
-                ? 'Recording Paused'
-                : 'Recording...'
-              : 'Start Recording'}
+                ? getTranslation(
+                    'recording.paused',
+                    language === 'sv' ? 'Inspelning pausad' : 'Recording Paused'
+                  )
+                : getTranslation(
+                    'recording.recording',
+                    language === 'sv' ? 'Spelar in...' : 'Recording...'
+                  )
+              : getTranslation(
+                  'recording.startRecording',
+                  language === 'sv' ? 'Starta inspelning' : 'Start Recording'
+                )}
           </Text>
         </View>
       ) : (
         /* Summary view */
         <YStack space={16}>
           <Text color={DARK_THEME.text} fontSize={18} fontWeight="600" textAlign="center">
-            Recording Complete
+            {getTranslation(
+              'recording.complete',
+              language === 'sv' ? 'Inspelning slutförd' : 'Recording Complete'
+            )}
           </Text>
 
           <Text color={DARK_THEME.text} textAlign="center">
             {recordingState.waypoints.length > 0
-              ? `Your route has been recorded successfully with ${recordingState.waypoints.length} waypoints. You can now create a route, continue recording, or start over.`
-              : 'No movement was recorded. You can try recording again.'}
+              ? getTranslation(
+                  'recording.successMessage',
+                  language === 'sv'
+                    ? `Din rutt har spelats in med ${recordingState.waypoints.length} vägpunkter. Du kan nu skapa en rutt, fortsätta spela in eller börja om.`
+                    : `Your route has been recorded successfully with ${recordingState.waypoints.length} waypoints. You can now create a route, continue recording, or start over.`
+                )
+              : getTranslation(
+                  'recording.noMovement',
+                  language === 'sv'
+                    ? 'Ingen rörelse spelades in. Du kan försöka spela in igen.'
+                    : 'No movement was recorded. You can try recording again.'
+                )}
           </Text>
 
           {recordingState.waypoints.length > 0 && (
@@ -274,7 +326,10 @@ export default function RecordingStats({
               <XStack gap="$2" alignItems="center">
                 <Feather name="check" size={24} color="white" />
                 <Text color="white" fontWeight="600" fontSize={18}>
-                  Create Route
+                  {getTranslation(
+                    'recording.createRoute',
+                    language === 'sv' ? 'Skapa rutt' : 'Create Route'
+                  )}
                 </Text>
               </XStack>
             </Button>
@@ -292,7 +347,12 @@ export default function RecordingStats({
             >
               <XStack gap="$1" alignItems="center">
                 <Feather name="play" size={18} color="white" />
-                <Text color="white">Continue</Text>
+                <Text color="white">
+                  {getTranslation(
+                    'recording.continue',
+                    language === 'sv' ? 'Fortsätt' : 'Continue'
+                  )}
+                </Text>
               </XStack>
             </Button>
 
@@ -307,7 +367,12 @@ export default function RecordingStats({
             >
               <XStack gap="$1" alignItems="center">
                 <Feather name="refresh-cw" size={18} color="white" />
-                <Text color="white">Start Over</Text>
+                <Text color="white">
+                  {getTranslation(
+                    'recording.startOver',
+                    language === 'sv' ? 'Börja om' : 'Start Over'
+                  )}
+                </Text>
               </XStack>
             </Button>
           </XStack>
@@ -318,7 +383,12 @@ export default function RecordingStats({
             onPress={handleCancelRecording}
             marginBottom={8}
           >
-            <Text color="white">Dismiss</Text>
+            <Text color="white">
+              {getTranslation(
+                'recording.dismiss',
+                language === 'sv' ? 'Stäng' : 'Dismiss'
+              )}
+            </Text>
           </Button>
         </YStack>
       )}

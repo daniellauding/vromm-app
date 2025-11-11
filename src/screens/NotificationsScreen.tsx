@@ -30,6 +30,7 @@ import { supabase } from '../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
 import { getTabContentPadding } from '../utils/layout';
 import { useToast } from '../contexts/ToastContext';
+import { useTranslation } from '../contexts/TranslationContext';
 
 interface NotificationsScreenProps {
   showArchived?: boolean;
@@ -46,6 +47,14 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   const [showArchived, setShowArchived] = useState(propShowArchived || false);
   const navigation = useNavigation();
   const { showToast } = useToast();
+  const { t, language } = useTranslation();
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
   
   // Sheet modals
   const [showRouteSheet, setShowRouteSheet] = useState(false);
@@ -939,12 +948,28 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
             <Bell size={48} color="rgba(255, 255, 255, 0.3)" />
           )}
           <Text fontSize={18} color="$gray11" textAlign="center" marginTop={16}>
-            {showArchived ? 'No archived notifications' : 'No notifications yet'}
+            {showArchived 
+              ? getTranslation(
+                  'notifications.noArchived',
+                  language === 'sv' ? 'Inga arkiverade notiser' : 'No archived notifications'
+                )
+              : getTranslation(
+                  'notifications.noNotifications',
+                  language === 'sv' ? 'Inga notiser än' : 'No notifications yet'
+                )
+            }
           </Text>
           <Text fontSize={14} color="$gray11" textAlign="center" marginTop={8}>
             {showArchived
-              ? 'Archived notifications will appear here when you archive them'
-              : "You'll see notifications here when you receive them"}
+              ? getTranslation(
+                  'notifications.archivedWillAppear',
+                  language === 'sv' ? 'Arkiverade notiser visas här när du arkiverar dem' : 'Archived notifications will appear here when you archive them'
+                )
+              : getTranslation(
+                  'notifications.willAppearHere',
+                  language === 'sv' ? 'Du kommer att se notiser här när du får dem' : "You'll see notifications here when you receive them"
+                )
+            }
           </Text>
         </YStack>
       ) : (

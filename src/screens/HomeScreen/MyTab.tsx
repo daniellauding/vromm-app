@@ -42,11 +42,18 @@ export default React.memo(function MyTab({
   setShowUserProfileSheet: (show: boolean) => void;
   setShowUserListSheet: (show: boolean) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { getEffectiveUserId } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const effectiveUserId = activeUserId || getEffectiveUserId();
   const [selectedDailyStatusDate, setSelectedDailyStatusDate] = useState(new Date());
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
 
   const onDateSelected = React.useCallback(
     (date: Date) => {
@@ -113,7 +120,10 @@ export default React.memo(function MyTab({
       </YStack>
       <YStack gap="$4" marginTop="$6" marginBottom="$6">
         <SectionHeader
-          title="Users"
+          title={getTranslation(
+            'home.users.title',
+            language === 'sv' ? 'Användare' : 'Users'
+          )}
           variant="chevron"
           onAction={() => setShowUserListSheet(true)}
           actionLabel={t('common.seeAll')}

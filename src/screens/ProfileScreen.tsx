@@ -6358,161 +6358,120 @@ export function ProfileScreen() {
                 maxHeight="90%"
               >
                 <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
-                  Theme Settings
+                  {getTranslation(
+                    'profile.theme.title',
+                    language === 'sv' ? 'Temainställningar' : 'Theme Settings'
+                  )}
                 </Text>
 
-                <YStack gap="$4" flex={1}>
-                  {/* System Default - First and Default Option */}
-                  <XStack
-                    justifyContent="space-between"
-                    alignItems="center"
-                    backgroundColor={
-                      !profile?.theme_preference || profile?.theme_preference === 'system'
-                        ? '$blue4'
-                        : undefined
-                    }
-                    padding="$3"
-                    borderRadius="$3"
-                  >
-                    <YStack flex={1}>
-                      <Text
-                        color="$color"
-                        fontWeight={
-                          !profile?.theme_preference || profile?.theme_preference === 'system'
-                            ? '700'
-                            : '500'
-                        }
-                      >
-                        {t('profile.theme.system') || 'System Default'}
-                      </Text>
-                      <Text color="$gray11" fontSize="$3">
-                        {t('profile.theme.systemDescription') ||
-                          "Follow your device's theme setting"}
-                      </Text>
-                    </YStack>
-                    <RadioButton
-                      selected={
-                        !profile?.theme_preference || profile?.theme_preference === 'system'
+                <YStack gap="$2">
+                  {/* System Default */}
+                  <RadioButton
+                    onPress={async () => {
+                      try {
+                        await updateProfile({ theme_preference: 'system' });
+                        showToast({
+                          title: getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
+                          message: getTranslation(
+                            'profile.theme.updated',
+                            language === 'sv' ? 'Tema uppdaterat' : 'Theme updated'
+                          ),
+                          type: 'success',
+                        });
+                        hideThemeSheet();
+                      } catch (error) {
+                        showToast({
+                          title: getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+                          message: getTranslation(
+                            'profile.theme.updateFailed',
+                            language === 'sv' ? 'Kunde inte uppdatera tema' : 'Failed to update theme'
+                          ),
+                          type: 'error',
+                        });
                       }
-                      onPress={async () => {
-                        try {
-                          console.log('🎨 Theme switching to: system');
-                          await updateProfile({ theme_preference: 'system' });
-                          console.log('🎨 Theme updated successfully to system');
-                          showToast({
-                            title: 'Theme Updated',
-                            message: 'Theme updated to system default',
-                            type: 'success',
-                          });
-                          hideThemeSheet();
-                        } catch (error) {
-                          console.error('🎨 Theme update failed:', error);
-                          showToast({
-                            title: 'Error',
-                            message: 'Failed to update theme',
-                            type: 'error',
-                          });
-                        }
-                      }}
-                    />
-                  </XStack>
+                    }}
+                    title={getTranslation(
+                      'profile.theme.system',
+                      language === 'sv' ? 'Systemstandard' : 'System Default'
+                    )}
+                    subtitle={getTranslation(
+                      'profile.theme.systemDescription',
+                      language === 'sv' ? 'Följ enhetens tema' : "Follow device's theme"
+                    )}
+                    isSelected={!profile?.theme_preference || profile?.theme_preference === 'system'}
+                  />
 
-                  <XStack
-                    justifyContent="space-between"
-                    alignItems="center"
-                    backgroundColor={profile?.theme_preference === 'light' ? '$blue4' : undefined}
-                    padding="$3"
-                    borderRadius="$3"
-                  >
-                    <YStack flex={1}>
-                      <Text
-                        color="$color"
-                        fontWeight={profile?.theme_preference === 'light' ? '700' : '500'}
-                      >
-                        {t('profile.theme.light') || 'Light Mode'}
-                      </Text>
-                      <Text color="$gray11" fontSize="$3">
-                        {t('profile.theme.lightDescription') ||
-                          'Clean, bright interface for daytime use'}
-                      </Text>
-                    </YStack>
-                    <RadioButton
-                      selected={profile?.theme_preference === 'light'}
-                      onPress={async () => {
-                        try {
-                          console.log('🎨 Theme switching to: light');
-                          console.log(
-                            '🎨 Before update - profile theme:',
-                            profile?.theme_preference,
-                          );
-                          await updateProfile({ theme_preference: 'light' });
-                          console.log(
-                            '🎨 After update - profile theme:',
-                            profile?.theme_preference,
-                          );
-                          console.log('🎨 Theme updated successfully to light');
-                          console.log('🎨 Current color scheme:', systemColorScheme);
-                          showToast({
-                            title: 'Theme Updated',
-                            message: 'Theme updated to light mode',
-                            type: 'success',
-                          });
-                          hideThemeSheet();
-                        } catch (error) {
-                          console.error('🎨 Theme update failed:', error);
-                          showToast({
-                            title: 'Error',
-                            message: 'Failed to update theme',
-                            type: 'error',
-                          });
-                        }
-                      }}
-                    />
-                  </XStack>
+                  {/* Light Mode */}
+                  <RadioButton
+                    onPress={async () => {
+                      try {
+                        await updateProfile({ theme_preference: 'light' });
+                        showToast({
+                          title: getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
+                          message: getTranslation(
+                            'profile.theme.updated',
+                            language === 'sv' ? 'Tema uppdaterat' : 'Theme updated'
+                          ),
+                          type: 'success',
+                        });
+                        hideThemeSheet();
+                      } catch (error) {
+                        showToast({
+                          title: getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+                          message: getTranslation(
+                            'profile.theme.updateFailed',
+                            language === 'sv' ? 'Kunde inte uppdatera tema' : 'Failed to update theme'
+                          ),
+                          type: 'error',
+                        });
+                      }
+                    }}
+                    title={getTranslation(
+                      'profile.theme.light',
+                      language === 'sv' ? 'Ljust läge' : 'Light Mode'
+                    )}
+                    subtitle={getTranslation(
+                      'profile.theme.lightDescription',
+                      language === 'sv' ? 'Rent, ljust gränssnitt för dagtid' : 'Clean light interface for daytime'
+                    )}
+                    isSelected={profile?.theme_preference === 'light'}
+                  />
 
-                  <XStack
-                    justifyContent="space-between"
-                    alignItems="center"
-                    backgroundColor={profile?.theme_preference === 'dark' ? '$blue4' : undefined}
-                    padding="$3"
-                    borderRadius="$3"
-                  >
-                    <YStack flex={1}>
-                      <Text
-                        color="$color"
-                        fontWeight={profile?.theme_preference === 'dark' ? '700' : '500'}
-                      >
-                        {t('profile.theme.dark') || 'Dark Mode'}
-                      </Text>
-                      <Text color="$gray11" fontSize="$3">
-                        {t('profile.theme.darkDescription') ||
-                          'Easy on the eyes for low-light environments'}
-                      </Text>
-                    </YStack>
-                    <RadioButton
-                      selected={profile?.theme_preference === 'dark'}
-                      onPress={async () => {
-                        try {
-                          console.log('🎨 Theme switching to: dark');
-                          await updateProfile({ theme_preference: 'dark' });
-                          console.log('🎨 Theme updated successfully to dark');
-                          showToast({
-                            title: 'Theme Updated',
-                            message: 'Theme updated to dark mode',
-                            type: 'success',
-                          });
-                          hideThemeSheet();
-                        } catch (error) {
-                          console.error('🎨 Theme update failed:', error);
-                          showToast({
-                            title: 'Error',
-                            message: 'Failed to update theme',
-                            type: 'error',
-                          });
-                        }
-                      }}
-                    />
-                  </XStack>
+                  {/* Dark Mode */}
+                  <RadioButton
+                    onPress={async () => {
+                      try {
+                        await updateProfile({ theme_preference: 'dark' });
+                        showToast({
+                          title: getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
+                          message: getTranslation(
+                            'profile.theme.updated',
+                            language === 'sv' ? 'Tema uppdaterat' : 'Theme updated'
+                          ),
+                          type: 'success',
+                        });
+                        hideThemeSheet();
+                      } catch (error) {
+                        showToast({
+                          title: getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+                          message: getTranslation(
+                            'profile.theme.updateFailed',
+                            language === 'sv' ? 'Kunde inte uppdatera tema' : 'Failed to update theme'
+                          ),
+                          type: 'error',
+                        });
+                      }
+                    }}
+                    title={getTranslation(
+                      'profile.theme.dark',
+                      language === 'sv' ? 'Mörkt läge' : 'Dark Mode'
+                    )}
+                    subtitle={getTranslation(
+                      'profile.theme.darkDescription',
+                      language === 'sv' ? 'Elegant gränssnitt för svägt ljus på natten' : 'Elegant dark interface for low light'
+                    )}
+                    isSelected={profile?.theme_preference === 'dark'}
+                  />
                 </YStack>
               </YStack>
             </Animated.View>
