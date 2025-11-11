@@ -5564,11 +5564,8 @@ export function ProgressScreen() {
                     }}
                   >
                     <Card
-                      backgroundColor={
-                        // isActive ? '$blue5' : isPasswordLocked ? '#331800' : '$backgroundStrong'
-                        '#1a1a1a'
-                      }
-                      borderColor="#232323"
+                      backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
+                      borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
                       borderWidth={3}
                       width="70%"
                       padding={24}
@@ -5604,8 +5601,8 @@ export function ProgressScreen() {
                               <ProgressCircle
                                 percent={percent}
                                 size={90}
-                                color="#27febe"
-                                bg="#333"
+                                color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
+                                bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                               />
 
                               {/* Percentage Text Inside Circle */}
@@ -5621,7 +5618,15 @@ export function ProgressScreen() {
                                   lineHeight: 90,
                                 }}
                                 fontSize="$4"
-                                color={percent === 1 ? '#27febe' : '$gray10'}
+                                color={
+                                  percent === 1
+                                    ? colorScheme === 'dark'
+                                      ? '#27febe'
+                                      : '#00C9A7'
+                                    : colorScheme === 'dark'
+                                      ? '$gray10'
+                                      : '#666'
+                                }
                                 fontWeight="bold"
                               >
                                 {Math.round(percent * 100)}%
@@ -5637,7 +5642,8 @@ export function ProgressScreen() {
                                     width: 30,
                                     height: 30,
                                     borderRadius: 15,
-                                    backgroundColor: '#27febe',
+                                    backgroundColor:
+                                      colorScheme === 'dark' ? '#27febe' : '#00C9A7',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                   }}

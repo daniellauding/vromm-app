@@ -619,7 +619,7 @@ export function LearningPathsSheet({
                           setShowFilterDrawer(true);
                         }}
                         style={{
-                          backgroundColor: '#333',
+                          backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
                           width: 48,
                           height: 48,
                           borderRadius: 12,
@@ -628,7 +628,11 @@ export function LearningPathsSheet({
                           position: 'relative',
                         }}
                       >
-                        <Feather name="filter" size={20} color="#00E6C3" />
+                        <Feather
+                          name="filter"
+                          size={20}
+                          color={colorScheme === 'dark' ? '#00E6C3' : '#00C9A7'}
+                        />
                         {/* Show active filter count badge */}
                         {(() => {
                           const activeFilters = Object.values(categoryFilters).filter(
@@ -663,7 +667,11 @@ export function LearningPathsSheet({
                           setShowAllPaths(!showAllPaths);
                         }}
                         style={{
-                          backgroundColor: showAllPaths ? '#4B6BFF' : '#333',
+                          backgroundColor: showAllPaths
+                            ? '#4B6BFF'
+                            : colorScheme === 'dark'
+                              ? '#333'
+                              : '#E5E5E5',
                           paddingHorizontal: 12,
                           paddingVertical: 12,
                           borderRadius: 12,
@@ -675,12 +683,24 @@ export function LearningPathsSheet({
                         <Feather
                           name={showAllPaths ? 'list' : 'plus'}
                           size={14}
-                          color={showAllPaths ? 'white' : '#888'}
+                          color={
+                            showAllPaths
+                              ? 'white'
+                              : colorScheme === 'dark'
+                                ? '#888'
+                                : '#666'
+                          }
                         />
                         <Text
                           fontSize={12}
                           fontWeight="600"
-                          color={showAllPaths ? 'white' : '#888'}
+                          color={
+                            showAllPaths
+                              ? 'white'
+                              : colorScheme === 'dark'
+                                ? '#888'
+                                : '#666'
+                          }
                         >
                           {showAllPaths ? 'All Paths' : 'Show All'}
                         </Text>
@@ -752,8 +772,8 @@ export function LearningPathsSheet({
                                   }}
                                 >
                                   <Card
-                                    backgroundColor="#1a1a1a"
-                                    borderColor="#232323"
+                                    backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
+                                    borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
                                     borderWidth={3}
                                     width="70%"
                                     padding={24}
@@ -789,8 +809,8 @@ export function LearningPathsSheet({
                                             <ProgressCircle
                                               percent={progress}
                                               size={90}
-                                              color="#27febe"
-                                              bg="#333"
+                                              color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
+                                              bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                                             />
 
                                             {/* Percentage Text Inside Circle */}
@@ -806,7 +826,15 @@ export function LearningPathsSheet({
                                                 lineHeight: 90,
                                               }}
                                               fontSize={20}
-                                              color={progress === 1 ? '#27febe' : '$gray10'}
+                                              color={
+                                                progress === 1
+                                                  ? colorScheme === 'dark'
+                                                    ? '#27febe'
+                                                    : '#00C9A7'
+                                                  : colorScheme === 'dark'
+                                                    ? '$gray10'
+                                                    : '#666'
+                                              }
                                               fontWeight="bold"
                                             >
                                               {Math.round(progress * 100)}%
@@ -822,7 +850,8 @@ export function LearningPathsSheet({
                                                   width: 30,
                                                   height: 30,
                                                   borderRadius: 15,
-                                                  backgroundColor: '#27febe',
+                                                  backgroundColor:
+                                                    colorScheme === 'dark' ? '#27febe' : '#00C9A7',
                                                   alignItems: 'center',
                                                   justifyContent: 'center',
                                                 }}
@@ -938,7 +967,7 @@ export function LearningPathsSheet({
         >
           <Pressable style={{ flex: 1 }} onPress={() => setShowFilterDrawer(false)} />
           <YStack
-            backgroundColor="#1A1A1A"
+            backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
             borderTopLeftRadius={20}
             borderTopRightRadius={20}
             padding={20}
