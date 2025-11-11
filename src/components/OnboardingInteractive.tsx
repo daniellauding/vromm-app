@@ -161,7 +161,7 @@ export function OnboardingInteractive({
   const [locationStatus, setLocationStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set());
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
-  
+
   // Profile setup state (name and avatar)
   const [fullName, setFullName] = useState<string>(() => {
     return profile?.full_name || '';
@@ -313,7 +313,7 @@ export function OnboardingInteractive({
       setDotsCount(0);
     }
   }, [locationLoading, spinValue]);
-  
+
   // Use ref for citySearchTimeout to avoid re-render loops
   const citySearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -327,11 +327,11 @@ export function OnboardingInteractive({
 
   // Gesture handling for connections modal and city modal (like RouteDetailSheet)
   const { height } = Dimensions.get('window');
-  
+
   // City modal snap points and gesture handling
   const cityTranslateY = useSharedValue(height);
   const cityBackdropOpacityShared = useSharedValue(0);
-  
+
   const citySnapPoints = useMemo(() => {
     const points = {
       large: height * 0.1, // Top at 10% of screen (show 90% - largest)
@@ -1127,7 +1127,10 @@ export function OnboardingInteractive({
         longitude: location.coords.longitude,
       });
 
-      const cityName = [address.city, address.country].filter(Boolean).join(', ');
+      let cityName = [address.city, address.country].filter(Boolean).join(', ');
+      if (address.city === null && address.formattedAddress) {
+        cityName = address.formattedAddress;
+      }
       setSelectedCity(cityName);
 
       // Save to LocationContext
@@ -1505,7 +1508,7 @@ export function OnboardingInteractive({
       setShowAvatarModal(false);
     });
   };
-  
+
   // Close avatar modal immediately for camera/library (faster response)
   const closeAvatarSheetImmediately = () => {
     setShowAvatarModal(false);
@@ -1712,6 +1715,7 @@ export function OnboardingInteractive({
         // Try with original query first
         let results = await Location.geocodeAsync(query);
 
+        console.log(results);
         // If no results, try with more specific search terms
         if (results.length === 0) {
           const searchTerms = [
@@ -1735,6 +1739,8 @@ export function OnboardingInteractive({
                   latitude: result.latitude,
                   longitude: result.longitude,
                 });
+
+                console.log(address);
                 return {
                   ...address[0],
                   coords: {
@@ -1743,6 +1749,7 @@ export function OnboardingInteractive({
                   },
                 };
               } catch (err) {
+                console.error(err);
                 return null;
               }
             }),
@@ -2323,16 +2330,15 @@ export function OnboardingInteractive({
                     }
                   }
                 }}
-                placeholder={
-                  getTranslation(
-                    'profile.fullNamePlaceholder',
-                    language === 'sv' ? 'Ange ditt fullständiga namn' : 'Enter your full name',
-                  )
-                }
+                placeholder={getTranslation(
+                  'profile.fullNamePlaceholder',
+                  language === 'sv' ? 'Ange ditt fullständiga namn' : 'Enter your full name',
+                )}
                 autoCapitalize="words"
-                label={
-                  getTranslation('profile.fullName', language === 'sv' ? 'Fullständigt namn' : 'Full Name')
-                }
+                label={getTranslation(
+                  'profile.fullName',
+                  language === 'sv' ? 'Fullständigt namn' : 'Full Name',
+                )}
               />
             </YStack>
           </YStack>
@@ -2638,7 +2644,6 @@ export function OnboardingInteractive({
                 isActive={showLicenseDrawer}
               />
             </YStack>
-
           </YStack>
         </ScrollView>
 
@@ -2862,7 +2867,6 @@ export function OnboardingInteractive({
                 numberOfLines={4}
               />
             </YStack>
-
           </YStack>
         </ScrollView>
 
@@ -3706,7 +3710,13 @@ export function OnboardingInteractive({
                   </View>
                 </GestureDetector>
 
-                <YStack gap="$4" paddingHorizontal="$4" paddingTop="$4" paddingBottom="$16" flex={1}>
+                <YStack
+                  gap="$4"
+                  paddingHorizontal="$4"
+                  paddingTop="$4"
+                  paddingBottom="$16"
+                  flex={1}
+                >
                   <Text size="xl" weight="bold" color="$color" textAlign="center">
                     {t('onboarding.city.title') || 'Select Your City'}
                   </Text>
@@ -3739,6 +3749,9 @@ export function OnboardingInteractive({
                       {/* Show selected city first if it exists and matches search or is detected */}
                       {selectedCity &&
                         !citySearchResults.some((city) => {
+                          if (city.city === null && city.formattedAddress) {
+                            return city.formattedAddress;
+                          }
                           const cityName = [city.city, city.country].filter(Boolean).join(', ');
                           return cityName === selectedCity;
                         }) && (
@@ -3763,9 +3776,11 @@ export function OnboardingInteractive({
                         )}
 
                       {citySearchResults.map((cityData, index) => {
-                        const cityName = [cityData.city, cityData.country]
-                          .filter(Boolean)
-                          .join(', ');
+                        let cityName = [cityData.city, cityData.country].filter(Boolean).join(', ');
+
+                        if (cityData.city === null && cityData.formattedAddress) {
+                          cityName = cityData.formattedAddress;
+                        }
 
                         return (
                           <TouchableOpacity
@@ -5037,7 +5052,7 @@ export function OnboardingInteractive({
                 <Text size="xl" weight="bold" color={textColor} textAlign="center">
                   {getTranslation(
                     'profile.avatar.changeAvatar',
-                    language === 'sv' ? 'Ändra profilbild' : 'Change Avatar'
+                    language === 'sv' ? 'Ändra profilbild' : 'Change Avatar',
                   )}
                 </Text>
 
@@ -5046,7 +5061,7 @@ export function OnboardingInteractive({
                     onPress={async () => {
                       closeAvatarSheetImmediately();
                       // Small delay to allow modal to close
-                      await new Promise(resolve => setTimeout(resolve, 100));
+                      await new Promise((resolve) => setTimeout(resolve, 100));
                       handlePickAvatar(false);
                     }}
                     style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
@@ -5056,7 +5071,7 @@ export function OnboardingInteractive({
                       <Text color={textColor} size="lg">
                         {getTranslation(
                           'profile.avatar.chooseFromLibrary',
-                          language === 'sv' ? 'Välj från bibliotek' : 'Choose from Library'
+                          language === 'sv' ? 'Välj från bibliotek' : 'Choose from Library',
                         )}
                       </Text>
                     </XStack>
@@ -5066,7 +5081,7 @@ export function OnboardingInteractive({
                     onPress={async () => {
                       closeAvatarSheetImmediately();
                       // Small delay to allow modal to close
-                      await new Promise(resolve => setTimeout(resolve, 100));
+                      await new Promise((resolve) => setTimeout(resolve, 100));
                       handlePickAvatar(true);
                     }}
                     style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
@@ -5076,7 +5091,7 @@ export function OnboardingInteractive({
                       <Text color={textColor} size="lg">
                         {getTranslation(
                           'profile.avatar.takePhoto',
-                          language === 'sv' ? 'Ta foto' : 'Take Photo'
+                          language === 'sv' ? 'Ta foto' : 'Take Photo',
                         )}
                       </Text>
                     </XStack>
@@ -5087,7 +5102,7 @@ export function OnboardingInteractive({
                       onPress={async () => {
                         closeAvatarSheetImmediately();
                         // Small delay to allow modal to close
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                        await new Promise((resolve) => setTimeout(resolve, 100));
                         handleDeleteAvatar();
                       }}
                       style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
@@ -5097,7 +5112,7 @@ export function OnboardingInteractive({
                         <Text color="#EF4444" size="lg">
                           {getTranslation(
                             'profile.avatar.removeAvatar',
-                            language === 'sv' ? 'Ta bort profilbild' : 'Remove Avatar'
+                            language === 'sv' ? 'Ta bort profilbild' : 'Remove Avatar',
                           )}
                         </Text>
                       </XStack>

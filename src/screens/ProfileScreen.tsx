@@ -621,7 +621,10 @@ export function ProfileScreen() {
         longitude: location.coords.longitude,
       });
 
-      const locationString = [address.city, address.country].filter(Boolean).join(', ');
+      let locationString = [address.city, address.country].filter(Boolean).join(', ');
+      if (address.city === null && address.formattedAddress) {
+        locationString = address.formattedAddress;
+      }
 
       console.log(
         '📍 Location detected:',
