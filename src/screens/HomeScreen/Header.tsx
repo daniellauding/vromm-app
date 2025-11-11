@@ -717,12 +717,13 @@ export const HomeHeader = React.memo(function HomeHeader() {
       <ProfileSheet visible={showProfileSheet} onClose={() => setShowProfileSheet(false)} />
 
       {/* User Profile Sheet */}
-      {console.log(
+      {/* Disabled to prevent console flooding */}
+      {/* console.log(
         '🔍 [Header] Rendering UserProfileSheet with visible:',
         showUserProfileSheet,
         'userId:',
         profile?.id,
-      )}
+      ) */}
       <UserProfileSheet
         visible={showUserProfileSheet}
         onClose={() => {

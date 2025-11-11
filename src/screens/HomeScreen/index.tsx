@@ -132,7 +132,8 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [user?.id, shouldShowTour, startDatabaseTour]); // Re-enabled dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Only depend on data, not functions (functions should be stable from context)
 
   const handleRoutePress = React.useCallback((routeId: string) => {
     setSelectedRouteId(routeId);
@@ -157,7 +158,8 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
     }, [navigation]),
   );
 
-  console.log('🎯 [HomeScreen] Rendering');
+  // Disabled to prevent console flooding
+  // console.log('🎯 [HomeScreen] Rendering');
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
