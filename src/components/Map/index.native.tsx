@@ -123,12 +123,12 @@ const WaypointMarker = React.memo(
     const getMarkerColor = () => {
       if (drawingMode === 'pin') return PIN_COLORS.PRIMARY; // Brand color for pins
       if (drawingMode === 'waypoint') {
-        if (waypointIndex === 0) return '#22C55E'; // Green for start
+        if (waypointIndex === 0) return '#38fdbf'; // Green for start
         if (waypointIndex === (totalWaypoints || 1) - 1 && (totalWaypoints || 0) > 1)
-          return '#EF4444'; // Red for end
+          return '#38fdbf'; // Red for end
         return PIN_COLORS.PRIMARY; // Brand color for middle waypoints
       }
-      if (drawingMode === 'pen') return '#FF6B35'; // Orange for pen points
+      if (drawingMode === 'pen') return '#38fdbf'; // Orange for pen points
 
       // Check if this waypoint is in filtered results
       if (cluster.properties.isFiltered !== undefined) {

@@ -488,16 +488,22 @@ export const LearningPathCard = ({
                 <View
                   style={{
                     width: 280, // Fixed width like ProgressSection cards
-                    backgroundColor: '#1a1a1a',
+                    backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF',
                     borderRadius: 20,
                     borderWidth: 3,
                     // Highlight current focus path with green border
                     borderColor:
                       path.id === currentFocusPathId
-                        ? '#27febe'
+                        ? colorScheme === 'dark'
+                          ? '#27febe'
+                          : '#00C9A7'
                         : pathProgress === 1
-                          ? '#333'
-                          : '#232323',
+                          ? colorScheme === 'dark'
+                            ? '#333'
+                            : '#E5E5E5'
+                          : colorScheme === 'dark'
+                            ? '#232323'
+                            : '#E5E5E5',
                     padding: 24,
                     shadowOpacity: 0,
                   }}
@@ -512,7 +518,12 @@ export const LearningPathCard = ({
                       }}
                     >
                       {/* Large Progress Circle */}
-                      <ProgressCircle percent={pathProgress} size={90} color="#27febe" bg="#333" />
+                      <ProgressCircle
+                        percent={pathProgress}
+                        size={90}
+                        color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
+                        bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                      />
 
                       {/* Percentage Text Inside Circle */}
                       <Text
@@ -527,7 +538,15 @@ export const LearningPathCard = ({
                           lineHeight: 90,
                         }}
                         fontSize={20}
-                        color={pathProgress === 1 ? '#27febe' : '$gray10'}
+                        color={
+                          pathProgress === 1
+                            ? colorScheme === 'dark'
+                              ? '#27febe'
+                              : '#00C9A7'
+                            : colorScheme === 'dark'
+                              ? '$gray10'
+                              : '#666'
+                        }
                         fontWeight="bold"
                       >
                         {Math.round(pathProgress * 100)}%
@@ -543,7 +562,7 @@ export const LearningPathCard = ({
                             width: 30,
                             height: 30,
                             borderRadius: 15,
-                            backgroundColor: '#27febe',
+                            backgroundColor: colorScheme === 'dark' ? '#27febe' : '#00C9A7',
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
@@ -559,7 +578,7 @@ export const LearningPathCard = ({
                       {path.id === currentFocusPathId && (
                         <View
                           style={{
-                            backgroundColor: '#27febe',
+                            backgroundColor: colorScheme === 'dark' ? '#27febe' : '#00C9A7',
                             paddingHorizontal: 12,
                             paddingVertical: 4,
                             borderRadius: 12,
