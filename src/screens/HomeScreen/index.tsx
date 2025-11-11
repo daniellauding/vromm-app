@@ -16,7 +16,6 @@ import { supabase } from '../../lib/supabase';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useTour } from '../../contexts/TourContext';
 
-import { usePromotionalModal } from '../../components/PromotionalModal';
 import { UserListSheet } from '../../components/UserListSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
 import { RouteDetailSheet } from '../../components/RouteDetailSheet';
@@ -40,7 +39,6 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   const { t, language } = useTranslation();
   const tourContext = useTour();
   const { startDatabaseTour, shouldShowTour } = tourContext;
-  const { showModal } = usePromotionalModal();
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -108,14 +106,14 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
     let isMounted = true;
     const checkTour = async () => {
       // Only show tour if user exists and no promotional modal
-      if (user && !showModal && isMounted) {
+      if (user && isMounted) {
         const shouldShow = await shouldShowTour();
 
         if (shouldShow && isMounted) {
           // Start database tour after a delay to ensure UI is fully ready
           setTimeout(() => {
             // Double-check that no onboarding or promotional modal is showing and component is still mounted
-            if (!showModal && isMounted) {
+            if (isMounted) {
               startDatabaseTour('HomeScreen', profile?.role);
             }
           }, 2000);
@@ -135,7 +133,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, showModal]); // Only depend on data, not functions (functions should be stable from context)
+  }, [user?.id]); // Only depend on data, not functions (functions should be stable from context)
 
   const handleRoutePress = React.useCallback((routeId: string) => {
     setSelectedRouteId(routeId);

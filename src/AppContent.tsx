@@ -26,7 +26,6 @@ import { pushNotificationService } from './services/pushNotificationService';
 import { registerInvitationModalOpener } from './utils/invitationModalBridge';
 import { AppAnalytics } from './utils/analytics';
 import { TourOverlay } from './components/TourOverlay';
-import { PromotionalModal, usePromotionalModal } from './components/PromotionalModal';
 import { GlobalCelebrationModal } from './components/GlobalCelebrationModal';
 import type { NavigationContainerRef } from '@react-navigation/native';
 
@@ -472,15 +471,6 @@ function AppContent() {
 
   // Global unified invitation notification state
   const [showGlobalInvitationNotification, setShowGlobalInvitationNotification] = useState(false);
-
-  // Global promotional modal state
-  const {
-    showModal: showPromotionalModal,
-    modalContentType,
-    setShowModal: setShowPromotionalModal,
-    checkForPromotionalContent,
-  } = usePromotionalModal();
-
   // Global unified invitation checking function
   const checkForGlobalInvitations = React.useCallback(async () => {
     if (!user?.email || !user?.id) {
@@ -556,16 +546,11 @@ function AppContent() {
       if (totalInvitations > 0) {
         console.log('Set 1');
         setShowGlobalInvitationNotification(true);
-      } else if (totalInvitations === 0) {
-        // If no invitations, check for promotional content
-        setTimeout(async () => {
-          const result = await checkForPromotionalContent('modal');
-        }, 1000);
       }
     } catch (error) {
       console.error('🌍 Global invitation check error:', error);
     }
-  }, [user?.email, user?.id, checkForPromotionalContent]);
+  }, [user?.email, user?.id]);
 
   // Register opener so other parts can open modal instantly without prop drilling
   useEffect(() => {
@@ -1007,13 +992,6 @@ function AppContent() {
 
           {/* Tour overlay - rendered at app level */}
           <TourOverlay />
-
-          {/* Promotional modal - rendered at app level */}
-          <PromotionalModal
-            visible={showPromotionalModal}
-            onClose={() => setShowPromotionalModal(false)}
-            contentType={modalContentType}
-          />
 
           {/* Global Recording Widget - rendered at app level */}
           <GlobalRecordingWidget />

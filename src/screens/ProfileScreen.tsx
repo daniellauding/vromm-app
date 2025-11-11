@@ -37,7 +37,6 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useTour } from '../contexts/TourContext';
 import { useLocation } from '../context/LocationContext';
 import { useToast } from '../contexts/ToastContext';
-import { usePromotionalModal } from '../components/PromotionalModal';
 import { LockModal, useLockModal } from '../components/LockModal';
 import { Language } from '../contexts/TranslationContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -3161,7 +3160,7 @@ export function ProfileScreen() {
                       value={formData.location}
                       placeholder={getTranslation(
                         'profile.selectLocation',
-                        language === 'sv' ? 'Välj din plats' : 'Select Your Location'
+                        language === 'sv' ? 'Välj din plats' : 'Select Your Location',
                       )}
                       isActive={showLocationDrawer}
                     />
@@ -3190,7 +3189,7 @@ export function ProfileScreen() {
                   <Text size="sm" fontWeight="400" color="$color">
                     {getTranslation(
                       'profile.experienceLabel',
-                      language === 'sv' ? 'Erfarenhetsnivå' : 'Experience Level'
+                      language === 'sv' ? 'Erfarenhetsnivå' : 'Experience Level',
                     )}
                   </Text>
                   <DropdownButton
@@ -5339,7 +5338,7 @@ export function ProfileScreen() {
                           'profile.location.noLocationsFound',
                           language === 'sv'
                             ? 'Inga platser hittades. Fortsätt skriva för att söka globalt.'
-                            : 'No locations found. Keep typing to search worldwide.'
+                            : 'No locations found. Keep typing to search worldwide.',
                         )}
                       </Text>
                     )}
@@ -5438,7 +5437,7 @@ export function ProfileScreen() {
                 <Text size="xl" weight="bold" color="$color" textAlign="center">
                   {getTranslation(
                     'profile.avatar.changeAvatar',
-                    language === 'sv' ? 'Ändra profilbild' : 'Change Avatar'
+                    language === 'sv' ? 'Ändra profilbild' : 'Change Avatar',
                   )}
                 </Text>
 
@@ -5455,7 +5454,7 @@ export function ProfileScreen() {
                       <Text color="$color" size="lg">
                         {getTranslation(
                           'profile.avatar.chooseFromLibrary',
-                          language === 'sv' ? 'Välj från bibliotek' : 'Choose from Library'
+                          language === 'sv' ? 'Välj från bibliotek' : 'Choose from Library',
                         )}
                       </Text>
                     </XStack>
@@ -5473,7 +5472,7 @@ export function ProfileScreen() {
                       <Text color="$color" size="lg">
                         {getTranslation(
                           'profile.avatar.takePhoto',
-                          language === 'sv' ? 'Ta foto' : 'Take Photo'
+                          language === 'sv' ? 'Ta foto' : 'Take Photo',
                         )}
                       </Text>
                     </XStack>
@@ -5492,7 +5491,7 @@ export function ProfileScreen() {
                         <Text color="#EF4444" size="lg">
                           {getTranslation(
                             'profile.avatar.removeAvatar',
-                            language === 'sv' ? 'Ta bort profilbild' : 'Remove Avatar'
+                            language === 'sv' ? 'Ta bort profilbild' : 'Remove Avatar',
                           )}
                         </Text>
                       </XStack>
@@ -6360,7 +6359,7 @@ export function ProfileScreen() {
                 <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
                   {getTranslation(
                     'profile.theme.title',
-                    language === 'sv' ? 'Temainställningar' : 'Theme Settings'
+                    language === 'sv' ? 'Temainställningar' : 'Theme Settings',
                   )}
                 </Text>
 
@@ -6371,20 +6370,28 @@ export function ProfileScreen() {
                       try {
                         await updateProfile({ theme_preference: 'system' });
                         showToast({
-                          title: getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
+                          title: getTranslation(
+                            'common.success',
+                            language === 'sv' ? 'Lyckades' : 'Success',
+                          ),
                           message: getTranslation(
                             'profile.theme.updated',
-                            language === 'sv' ? 'Tema uppdaterat' : 'Theme updated'
+                            language === 'sv' ? 'Tema uppdaterat' : 'Theme updated',
                           ),
                           type: 'success',
                         });
                         hideThemeSheet();
                       } catch (error) {
                         showToast({
-                          title: getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+                          title: getTranslation(
+                            'common.error',
+                            language === 'sv' ? 'Fel' : 'Error',
+                          ),
                           message: getTranslation(
                             'profile.theme.updateFailed',
-                            language === 'sv' ? 'Kunde inte uppdatera tema' : 'Failed to update theme'
+                            language === 'sv'
+                              ? 'Kunde inte uppdatera tema'
+                              : 'Failed to update theme',
                           ),
                           type: 'error',
                         });
@@ -6392,13 +6399,15 @@ export function ProfileScreen() {
                     }}
                     title={getTranslation(
                       'profile.theme.system',
-                      language === 'sv' ? 'Systemstandard' : 'System Default'
+                      language === 'sv' ? 'Systemstandard' : 'System Default',
                     )}
                     subtitle={getTranslation(
                       'profile.theme.systemDescription',
-                      language === 'sv' ? 'Följ enhetens tema' : "Follow device's theme"
+                      language === 'sv' ? 'Följ enhetens tema' : "Follow device's theme",
                     )}
-                    isSelected={!profile?.theme_preference || profile?.theme_preference === 'system'}
+                    isSelected={
+                      !profile?.theme_preference || profile?.theme_preference === 'system'
+                    }
                   />
 
                   {/* Light Mode */}
@@ -6407,20 +6416,28 @@ export function ProfileScreen() {
                       try {
                         await updateProfile({ theme_preference: 'light' });
                         showToast({
-                          title: getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
+                          title: getTranslation(
+                            'common.success',
+                            language === 'sv' ? 'Lyckades' : 'Success',
+                          ),
                           message: getTranslation(
                             'profile.theme.updated',
-                            language === 'sv' ? 'Tema uppdaterat' : 'Theme updated'
+                            language === 'sv' ? 'Tema uppdaterat' : 'Theme updated',
                           ),
                           type: 'success',
                         });
                         hideThemeSheet();
                       } catch (error) {
                         showToast({
-                          title: getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+                          title: getTranslation(
+                            'common.error',
+                            language === 'sv' ? 'Fel' : 'Error',
+                          ),
                           message: getTranslation(
                             'profile.theme.updateFailed',
-                            language === 'sv' ? 'Kunde inte uppdatera tema' : 'Failed to update theme'
+                            language === 'sv'
+                              ? 'Kunde inte uppdatera tema'
+                              : 'Failed to update theme',
                           ),
                           type: 'error',
                         });
@@ -6428,11 +6445,13 @@ export function ProfileScreen() {
                     }}
                     title={getTranslation(
                       'profile.theme.light',
-                      language === 'sv' ? 'Ljust läge' : 'Light Mode'
+                      language === 'sv' ? 'Ljust läge' : 'Light Mode',
                     )}
                     subtitle={getTranslation(
                       'profile.theme.lightDescription',
-                      language === 'sv' ? 'Rent, ljust gränssnitt för dagtid' : 'Clean light interface for daytime'
+                      language === 'sv'
+                        ? 'Rent, ljust gränssnitt för dagtid'
+                        : 'Clean light interface for daytime',
                     )}
                     isSelected={profile?.theme_preference === 'light'}
                   />
@@ -6443,20 +6462,28 @@ export function ProfileScreen() {
                       try {
                         await updateProfile({ theme_preference: 'dark' });
                         showToast({
-                          title: getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
+                          title: getTranslation(
+                            'common.success',
+                            language === 'sv' ? 'Lyckades' : 'Success',
+                          ),
                           message: getTranslation(
                             'profile.theme.updated',
-                            language === 'sv' ? 'Tema uppdaterat' : 'Theme updated'
+                            language === 'sv' ? 'Tema uppdaterat' : 'Theme updated',
                           ),
                           type: 'success',
                         });
                         hideThemeSheet();
                       } catch (error) {
                         showToast({
-                          title: getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+                          title: getTranslation(
+                            'common.error',
+                            language === 'sv' ? 'Fel' : 'Error',
+                          ),
                           message: getTranslation(
                             'profile.theme.updateFailed',
-                            language === 'sv' ? 'Kunde inte uppdatera tema' : 'Failed to update theme'
+                            language === 'sv'
+                              ? 'Kunde inte uppdatera tema'
+                              : 'Failed to update theme',
                           ),
                           type: 'error',
                         });
@@ -6464,11 +6491,13 @@ export function ProfileScreen() {
                     }}
                     title={getTranslation(
                       'profile.theme.dark',
-                      language === 'sv' ? 'Mörkt läge' : 'Dark Mode'
+                      language === 'sv' ? 'Mörkt läge' : 'Dark Mode',
                     )}
                     subtitle={getTranslation(
                       'profile.theme.darkDescription',
-                      language === 'sv' ? 'Elegant gränssnitt för svägt ljus på natten' : 'Elegant dark interface for low light'
+                      language === 'sv'
+                        ? 'Elegant gränssnitt för svägt ljus på natten'
+                        : 'Elegant dark interface for low light',
                     )}
                     isSelected={profile?.theme_preference === 'dark'}
                   />
