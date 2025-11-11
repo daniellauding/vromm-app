@@ -2934,7 +2934,7 @@ export function ProgressScreen() {
               <Text fontWeight="600" fontSize="$5" color="white">
                 {getTranslation(
                   'filters.title',
-                  language === 'sv' ? 'Filtrera inlärningsvägar' : 'Filter Learning Paths'
+                  language === 'sv' ? 'Filtrera inlärningsvägar' : 'Filter Learning Paths',
                 )}
               </Text>
 
@@ -2950,7 +2950,7 @@ export function ProgressScreen() {
                   <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
                     {getTranslation(
                       'filters.vehicleType',
-                      language === 'sv' ? 'Fordonstyp' : categoryLabels.vehicle_type
+                      language === 'sv' ? 'Fordonstyp' : categoryLabels.vehicle_type,
                     )}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
@@ -2971,7 +2971,10 @@ export function ProgressScreen() {
                           fontSize={14}
                           color={categoryFilters.vehicle_type === option.value ? '#000' : '#fff'}
                         >
-                          {option.label?.[language] || option.label?.en || option.value || 'Unknown'}
+                          {option.label?.[language] ||
+                            option.label?.en ||
+                            option.value ||
+                            'Unknown'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -2986,7 +2989,7 @@ export function ProgressScreen() {
                     <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
                       {getTranslation(
                         'filters.transmissionType',
-                        language === 'sv' ? 'Växellådstyp' : categoryLabels.transmission_type
+                        language === 'sv' ? 'Växellådstyp' : categoryLabels.transmission_type,
                       )}
                     </Text>
                     <XStack flexWrap="wrap" gap="$2">
@@ -3011,7 +3014,10 @@ export function ProgressScreen() {
                               categoryFilters.transmission_type === option.value ? '#000' : '#fff'
                             }
                           >
-                            {option.label?.[language] || option.label?.en || option.value || 'Unknown'}
+                            {option.label?.[language] ||
+                              option.label?.en ||
+                              option.value ||
+                              'Unknown'}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -3025,7 +3031,7 @@ export function ProgressScreen() {
                   <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
                     {getTranslation(
                       'filters.licenseType',
-                      language === 'sv' ? 'Körkortsklass' : categoryLabels.license_type
+                      language === 'sv' ? 'Körkortsklass' : categoryLabels.license_type,
                     )}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
@@ -3046,7 +3052,10 @@ export function ProgressScreen() {
                           fontSize={14}
                           color={categoryFilters.license_type === option.value ? '#000' : '#fff'}
                         >
-                          {option.label?.[language] || option.label?.en || option.value || 'Unknown'}
+                          {option.label?.[language] ||
+                            option.label?.en ||
+                            option.value ||
+                            'Unknown'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -3060,7 +3069,7 @@ export function ProgressScreen() {
                   <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
                     {getTranslation(
                       'filters.experienceLevel',
-                      language === 'sv' ? 'Erfarenhetsnivå' : categoryLabels.experience_level
+                      language === 'sv' ? 'Erfarenhetsnivå' : categoryLabels.experience_level,
                     )}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
@@ -3083,7 +3092,10 @@ export function ProgressScreen() {
                             categoryFilters.experience_level === option.value ? '#000' : '#fff'
                           }
                         >
-                          {option.label?.[language] || option.label?.en || option.value || 'Unknown'}
+                          {option.label?.[language] ||
+                            option.label?.en ||
+                            option.value ||
+                            'Unknown'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -3097,7 +3109,7 @@ export function ProgressScreen() {
                   <Text fontWeight="600" fontSize="$4" color="white" marginBottom="$2">
                     {getTranslation(
                       'filters.purpose',
-                      language === 'sv' ? 'Syfte' : categoryLabels.purpose
+                      language === 'sv' ? 'Syfte' : categoryLabels.purpose,
                     )}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
@@ -3118,7 +3130,10 @@ export function ProgressScreen() {
                           fontSize={14}
                           color={categoryFilters.purpose === option.value ? '#000' : '#fff'}
                         >
-                          {option.label?.[language] || option.label?.en || option.value || 'Unknown'}
+                          {option.label?.[language] ||
+                            option.label?.en ||
+                            option.value ||
+                            'Unknown'}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -3142,7 +3157,7 @@ export function ProgressScreen() {
                 <Text fontSize={16} fontWeight="bold" color="#000">
                   {getTranslation(
                     'filters.saveAndApply',
-                    language === 'sv' ? 'Spara filter & tillämpa' : 'Save Filters & Apply'
+                    language === 'sv' ? 'Spara filter & tillämpa' : 'Save Filters & Apply',
                   )}
                 </Text>
               </TouchableOpacity>
@@ -3339,6 +3354,53 @@ export function ProgressScreen() {
               </YStack>
             ) : null;
           })()}
+      </YStack>
+    );
+  };
+
+  // Render media for a learning path
+  const renderLearningPathMedia = (path: LearningPath) => {
+    return (
+      <YStack gap={16}>
+        {/* YouTube Video */}
+        {path.youtube_url && (
+          <YStack>
+            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+              Video Tutorial
+            </Text>
+            {(() => {
+              const videoId = getYouTubeVideoId(path.youtube_url);
+              return videoId ? (
+                <YouTubeEmbed videoId={videoId} />
+              ) : (
+                <TouchableOpacity
+                  onPress={() => path.youtube_url && Linking.openURL(path.youtube_url)}
+                  style={{ padding: 8, backgroundColor: '#FF0000', borderRadius: 8 }}
+                >
+                  <Text color="white">Watch on YouTube</Text>
+                </TouchableOpacity>
+              );
+            })()}
+          </YStack>
+        )}
+
+        {/* Image */}
+        {path.image && (
+          <YStack>
+            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+              Reference Image
+            </Text>
+            <Image
+              source={{ uri: path.image }}
+              style={{
+                width: '100%',
+                height: 200,
+                borderRadius: 8,
+                resizeMode: 'cover',
+              }}
+            />
+          </YStack>
+        )}
       </YStack>
     );
   };
@@ -4168,7 +4230,9 @@ export function ProgressScreen() {
                         numberOfLines={1}
                         flex={1}
                       >
-                        {selectedExercise.title?.[language] || selectedExercise.title?.en || 'Original'}
+                        {selectedExercise.title?.[language] ||
+                          selectedExercise.title?.en ||
+                          'Original'}
                       </Text>
                     </XStack>
                     {/* <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
@@ -4656,6 +4720,10 @@ export function ProgressScreen() {
             ) : null}
           </YStack>
 
+          {(detailPath.image || detailPath.youtube_url) && (
+            <YStack marginTop="$4">{renderLearningPathMedia(detailPath)}</YStack>
+          )}
+
           <Text color="$gray11" marginBottom={16} textAlign="center" fontSize={16}>
             {detailPath.description[language]}
           </Text>
@@ -4889,7 +4957,8 @@ export function ProgressScreen() {
                               color="$color"
                               numberOfLines={1}
                             >
-                              {displayIndex}. {main.title?.[language] || main.title?.en || 'Untitled'}
+                              {displayIndex}.{' '}
+                              {main.title?.[language] || main.title?.en || 'Untitled'}
                             </Text>
                           </XStack>
 
@@ -5222,7 +5291,7 @@ export function ProgressScreen() {
               {showAllExercises
                 ? getTranslation(
                     'progress.allExercises',
-                    language === 'sv' ? 'Alla övningar' : 'All Exercises'
+                    language === 'sv' ? 'Alla övningar' : 'All Exercises',
                   )
                 : getTranslation('progress.showAll', language === 'sv' ? 'Visa alla' : 'Show All')}
             </Text>
@@ -5826,7 +5895,8 @@ export function ProgressScreen() {
                                     metadata: {
                                       feature_key: `learning_path_${paywallPath.id}`,
                                       path_id: paywallPath.id,
-                                      path_title: paywallPath.title[language] || paywallPath.title.en,
+                                      path_title:
+                                        paywallPath.title[language] || paywallPath.title.en,
                                       user_id: effectiveUserId,
                                     },
                                   },

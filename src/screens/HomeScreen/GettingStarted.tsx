@@ -27,7 +27,7 @@ import { BlurView } from 'expo-blur';
 import { supabase } from '../../lib/supabase';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Popover from 'react-native-popover-view';
-import { RadioButton } from '../../components/SelectButton';
+import { RadioButton, DropdownButton } from '../../components/SelectButton';
 import { Button } from '../../components/Button';
 import { FormField } from '../../components/FormField';
 import * as Haptics from 'expo-haptics';
@@ -126,6 +126,69 @@ export const GettingStarted = () => {
     return planData?.specific_goals || '';
   });
   const [loading, setLoading] = React.useState(false);
+
+  // New license details state (from OnboardingInteractive steps 2+3)
+  const [vehicleType, setVehicleType] = React.useState<string>(() => {
+    return (profile as any)?.vehicle_type || 'car';
+  });
+  const [transmissionType, setTransmissionType] = React.useState<string>(() => {
+    return (profile as any)?.transmission_type || 'manual';
+  });
+  const [licenseType, setLicenseType] = React.useState<string>(() => {
+    return (profile as any)?.license_type || 'b';
+  });
+  const [experienceLevel, setExperienceLevel] = React.useState<string>(() => {
+    return profile?.experience_level || 'beginner';
+  });
+
+  // Modal states for new dropdowns
+  const [showVehicleModal, setShowVehicleModal] = React.useState(false);
+  const [showTransmissionModal, setShowTransmissionModal] = React.useState(false);
+  const [showLicenseModal, setShowLicenseModal] = React.useState(false);
+  const [showExperienceModal, setShowExperienceModal] = React.useState(false);
+
+  // Options for dropdowns (matching OnboardingInteractive)
+  const vehicleTypeOptions = [
+    { id: 'car', title: language === 'sv' ? 'Bil' : 'Car' },
+    { id: 'motorcycle', title: language === 'sv' ? 'Motorcykel' : 'Motorcycle' },
+    { id: 'truck', title: language === 'sv' ? 'Lastbil' : 'Truck' },
+    { id: 'bus', title: language === 'sv' ? 'Buss' : 'Bus' },
+  ];
+
+  const transmissionTypeOptions = [
+    { id: 'manual', title: language === 'sv' ? 'Manuell' : 'Manual' },
+    { id: 'automatic', title: language === 'sv' ? 'Automat' : 'Automatic' },
+  ];
+
+  const licenseTypeOptions = [
+    { id: 'b', title: language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)' },
+    { id: 'a', title: language === 'sv' ? 'Motorcykel (A)' : 'Motorcycle (A)' },
+    { id: 'c', title: language === 'sv' ? 'Lastbil (C)' : 'Truck (C)' },
+    { id: 'd', title: language === 'sv' ? 'Buss (D)' : 'Bus (D)' },
+  ];
+
+  const experienceLevelOptions = [
+    {
+      id: 'beginner',
+      title: language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)',
+    },
+    {
+      id: 'intermediate',
+      title: language === 'sv' ? 'Medel (viss vägvana)' : 'Intermediate (some road experience)',
+    },
+    {
+      id: 'advanced',
+      title:
+        language === 'sv'
+          ? 'Avancerad (behöver förfinas / förberedas inför prov)'
+          : 'Advanced (needs refinement / preparing for test)',
+    },
+    {
+      id: 'refresher',
+      title: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)',
+    },
+    { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert' },
+  ];
 
   // Role selection modal state (copied from OnboardingInteractive)
   const [showRoleModal, setShowRoleModal] = React.useState(false);
@@ -498,12 +561,16 @@ export const GettingStarted = () => {
         specific_goals: specificGoals,
       };
 
-      // Update the profile
+      // Update the profile with all fields
       const { error } = await supabase
         .from('profiles')
         .update({
           license_plan_completed: true,
           license_plan_data: licenseData,
+          vehicle_type: vehicleType,
+          transmission_type: transmissionType,
+          license_type: licenseType,
+          experience_level: experienceLevel,
         })
         .eq('id', user.id);
 
@@ -2167,6 +2234,70 @@ export const GettingStarted = () => {
                         </Popover>
                       </YStack>
 
+                      {/* Experience Level */}
+                      <YStack gap="$2">
+                        <Text weight="bold" size="lg">
+                          {t('onboarding.licensePlan.experienceLevel') ||
+                            (language === 'sv' ? 'Erfarenhetsnivå' : 'Experience Level')}
+                        </Text>
+                        <DropdownButton
+                          onPress={() => setShowExperienceModal(true)}
+                          value={
+                            experienceLevelOptions.find((e) => e.id === experienceLevel)?.title ||
+                            (language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')
+                          }
+                          isActive={showExperienceModal}
+                        />
+                      </YStack>
+
+                      {/* Vehicle Type */}
+                      <YStack gap="$2">
+                        <Text weight="bold" size="lg">
+                          {t('onboarding.licensePlan.vehicleType') ||
+                            (language === 'sv' ? 'Fordonstyp' : 'Vehicle Type')}
+                        </Text>
+                        <DropdownButton
+                          onPress={() => setShowVehicleModal(true)}
+                          value={
+                            vehicleTypeOptions.find((v) => v.id === vehicleType)?.title ||
+                            (language === 'sv' ? 'Bil' : 'Car')
+                          }
+                          isActive={showVehicleModal}
+                        />
+                      </YStack>
+
+                      {/* Transmission Type */}
+                      <YStack gap="$2">
+                        <Text weight="bold" size="lg">
+                          {t('onboarding.licensePlan.transmissionType') ||
+                            (language === 'sv' ? 'Växellådstyp' : 'Transmission Type')}
+                        </Text>
+                        <DropdownButton
+                          onPress={() => setShowTransmissionModal(true)}
+                          value={
+                            transmissionTypeOptions.find((t) => t.id === transmissionType)?.title ||
+                            (language === 'sv' ? 'Manuell' : 'Manual')
+                          }
+                          isActive={showTransmissionModal}
+                        />
+                      </YStack>
+
+                      {/* License Type */}
+                      <YStack gap="$2">
+                        <Text weight="bold" size="lg">
+                          {t('onboarding.licensePlan.licenseType') ||
+                            (language === 'sv' ? 'Körkortstyp' : 'License Type')}
+                        </Text>
+                        <DropdownButton
+                          onPress={() => setShowLicenseModal(true)}
+                          value={
+                            licenseTypeOptions.find((l) => l.id === licenseType)?.title ||
+                            (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')
+                          }
+                          isActive={showLicenseModal}
+                        />
+                      </YStack>
+
                       {/* Theory Test Toggle */}
                       <YStack
                         gap="$2"
@@ -2279,6 +2410,174 @@ export const GettingStarted = () => {
             </GestureDetector>
           </View>
         </Animated.View>
+      </Modal>
+
+      {/* Experience Level Selection Modal */}
+      <Modal
+        visible={showExperienceModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowExperienceModal(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
+          onPress={() => setShowExperienceModal(false)}
+        >
+          <Pressable
+            style={{
+              width: '90%',
+              maxWidth: 400,
+              backgroundColor: backgroundColor,
+              borderRadius: 20,
+              padding: 20,
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$4">
+              {t('onboarding.experience.title') || 'Select Experience Level'}
+            </Text>
+            <YStack gap="$2">
+              {experienceLevelOptions.map((option) => (
+                <RadioButton
+                  key={option.id}
+                  onPress={() => {
+                    setExperienceLevel(option.id);
+                    setShowExperienceModal(false);
+                  }}
+                  title={option.title}
+                  isSelected={experienceLevel === option.id}
+                  size="lg"
+                />
+              ))}
+            </YStack>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Vehicle Type Selection Modal */}
+      <Modal
+        visible={showVehicleModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowVehicleModal(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
+          onPress={() => setShowVehicleModal(false)}
+        >
+          <Pressable
+            style={{
+              width: '90%',
+              maxWidth: 400,
+              backgroundColor: backgroundColor,
+              borderRadius: 20,
+              padding: 20,
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$4">
+              {t('onboarding.vehicle.title') || 'Select Vehicle Type'}
+            </Text>
+            <YStack gap="$2">
+              {vehicleTypeOptions.map((option) => (
+                <RadioButton
+                  key={option.id}
+                  onPress={() => {
+                    setVehicleType(option.id);
+                    setShowVehicleModal(false);
+                  }}
+                  title={option.title}
+                  isSelected={vehicleType === option.id}
+                  size="lg"
+                />
+              ))}
+            </YStack>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Transmission Type Selection Modal */}
+      <Modal
+        visible={showTransmissionModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTransmissionModal(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
+          onPress={() => setShowTransmissionModal(false)}
+        >
+          <Pressable
+            style={{
+              width: '90%',
+              maxWidth: 400,
+              backgroundColor: backgroundColor,
+              borderRadius: 20,
+              padding: 20,
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$4">
+              {t('onboarding.transmission.title') || 'Select Transmission Type'}
+            </Text>
+            <YStack gap="$2">
+              {transmissionTypeOptions.map((option) => (
+                <RadioButton
+                  key={option.id}
+                  onPress={() => {
+                    setTransmissionType(option.id);
+                    setShowTransmissionModal(false);
+                  }}
+                  title={option.title}
+                  isSelected={transmissionType === option.id}
+                  size="lg"
+                />
+              ))}
+            </YStack>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* License Type Selection Modal */}
+      <Modal
+        visible={showLicenseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLicenseModal(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
+          onPress={() => setShowLicenseModal(false)}
+        >
+          <Pressable
+            style={{
+              width: '90%',
+              maxWidth: 400,
+              backgroundColor: backgroundColor,
+              borderRadius: 20,
+              padding: 20,
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$4">
+              {t('onboarding.license.title') || 'Select License Type'}
+            </Text>
+            <YStack gap="$2">
+              {licenseTypeOptions.map((option) => (
+                <RadioButton
+                  key={option.id}
+                  onPress={() => {
+                    setLicenseType(option.id);
+                    setShowLicenseModal(false);
+                  }}
+                  title={option.title}
+                  isSelected={licenseType === option.id}
+                  size="lg"
+                />
+              ))}
+            </YStack>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Role Selection Modal - with BlurView background */}
