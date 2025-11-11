@@ -119,7 +119,7 @@ export function OnboardingInteractive({
   showAgainKey = 'interactive_onboarding',
   onCloseModal,
 }: OnboardingInteractiveProps) {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, updateProfile } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { setUserLocation } = useLocation();
@@ -1577,18 +1577,10 @@ export function OnboardingInteractive({
           // Get public URL
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
 
-          // Update profile
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({ avatar_url: urlData.publicUrl })
-            .eq('id', user.id);
-
-          if (updateError) {
-            throw updateError;
-          }
-
+          // Update profile using AuthContext's updateProfile (updates both DB and local state)
+          await updateProfile({ avatar_url: urlData.publicUrl });
+          
           setAvatarUrl(urlData.publicUrl);
-          await refreshProfile();
 
           showToast({
             title: t('common.success') || 'Success',
@@ -1619,18 +1611,10 @@ export function OnboardingInteractive({
       setAvatarUploading(true);
 
       if (user) {
-        // Update profile to remove avatar
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ avatar_url: null })
-          .eq('id', user.id);
-
-        if (updateError) {
-          throw updateError;
-        }
-
+        // Update profile to remove avatar using AuthContext's updateProfile
+        await updateProfile({ avatar_url: null });
+        
         setAvatarUrl('');
-        await refreshProfile();
 
         showToast({
           title: t('common.success') || 'Success',
