@@ -446,11 +446,17 @@ export const darkMapStyle = [
 // Pin color constants
 export const PIN_COLORS = {
   // Primary brand color for selected/active pins
-  PRIMARY: '#27febe',
+  PRIMARY: '#38fdbf',
   // Secondary color for unselected pins
   SECONDARY: '#155250',
   // White text for contrast
   TEXT: '#FFFFFF',
   // Route path color
-  ROUTE_PATH: '#27febe',
+  ROUTE_PATH: '#38fdbf',
+  // Start marker color (greenish primary)
+  START_MARKER: '#38fdbf',
+  // End/Current position marker color (greenish primary)
+  END_MARKER: '#38fdbf',
+  // Recording path color (paused state)
+  ROUTE_PAUSED: '#FF9500',
 } as const;

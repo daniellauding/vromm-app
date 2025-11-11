@@ -4542,7 +4542,8 @@ export function ProgressScreen() {
           {viewingUserName && (
             <YStack marginBottom={12} padding={10} backgroundColor="#162023" borderRadius={12}>
               <Text color="#00E6C3" fontSize={12}>
-                Viewing as: {viewingUserName}
+                {getTranslation('common.viewingAs', language === 'sv' ? 'Visar som' : 'Viewing as')}
+                : {viewingUserName}
               </Text>
             </YStack>
           )}

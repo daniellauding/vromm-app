@@ -5,6 +5,7 @@ import MapView, { Polyline, Marker } from '../MapView';
 import { styles } from './styles';
 import { useRecording } from '@/src/contexts/RecordingContext';
 import { useUserLocation } from '../../screens/explore/hooks';
+import { PIN_COLORS } from '@/src/styles/mapStyles';
 
 export default function MapPreview() {
   const { recordingState } = useRecording();
@@ -68,7 +69,7 @@ export default function MapPreview() {
           <Polyline
             coordinates={path}
             strokeWidth={3}
-            strokeColor={recordingState.isPaused ? '#FF9500' : '#69e3c4'}
+            strokeColor={recordingState.isPaused ? PIN_COLORS.ROUTE_PAUSED : PIN_COLORS.ROUTE_PATH}
             lineJoin="round"
             lineCap="round"
           />
@@ -83,7 +84,7 @@ export default function MapPreview() {
             }}
             title="Start"
             description="Recording started here"
-            pinColor="green"
+            pinColor={PIN_COLORS.START_MARKER}
           />
         )}
 
@@ -95,7 +96,7 @@ export default function MapPreview() {
             }}
             title="Current Position"
             description="Live recording position"
-            pinColor="red"
+            pinColor={PIN_COLORS.END_MARKER}
           />
         )}
       </MapView>

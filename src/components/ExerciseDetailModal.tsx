@@ -20,6 +20,7 @@ import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { supabase } from '../lib/supabase';
 import { ExerciseProgressService } from '../services/exerciseProgressService';
 import { CommentsSection } from './CommentsSection';
+import { useTranslation } from '../contexts/TranslationContext';
 
 // Helper function to extract text from multilingual fields
 const getDisplayText = (
@@ -83,6 +84,7 @@ export function ExerciseDetailModal({
 }: ExerciseDetailModalProps) {
   const { user } = useAuth();
   const { activeStudentId } = useStudentSwitch();
+  const { t, language } = useTranslation();
   const colorScheme = useColorScheme();
   const [isCompleted, setIsCompleted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -92,6 +94,13 @@ export function ExerciseDetailModal({
     action: string;
   } | null>(null);
   const [viewingUserName, setViewingUserName] = useState<string | null>(null);
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
 
   // Use activeStudentId if available (for instructor viewing student data)
   const effectiveUserId = activeStudentId || user?.id;
@@ -899,7 +908,12 @@ export function ExerciseDetailModal({
                 borderRadius={12}
               >
                 <Text color={colorScheme === 'dark' ? '#00E6C3' : '#0F766E'} fontSize={12}>
-                  Viewing as: {viewingUserName}
+                  {getTranslation(
+                    'common.viewingAs',
+                    language === 'sv' ? 'Visar som' : 'Viewing as'
+                  )}
+                  :{' '}
+                  {viewingUserName}
                 </Text>
               </YStack>
             )}

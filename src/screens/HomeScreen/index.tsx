@@ -37,11 +37,18 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   const { user, profile } = useAuth();
   const { isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const tourContext = useTour();
   const { startDatabaseTour, shouldShowTour } = tourContext;
   const { showModal } = usePromotionalModal();
-  
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
+
   // Bottom inset for safe area (same as FilterSheet)
   const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 
@@ -239,7 +246,13 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
                 borderRadius="$2"
               >
                 <Text color="$blue11" textAlign="center">
-                  Viewing as: {activeStudentName || 'Student'}
+                  {getTranslation(
+                    'common.viewingAs',
+                    language === 'sv' ? 'Visar som' : 'Viewing as'
+                  )}
+                  :{' '}
+                  {activeStudentName ||
+                    getTranslation('common.student', language === 'sv' ? 'Elev' : 'Student')}
                 </Text>
               </YStack>
             )}

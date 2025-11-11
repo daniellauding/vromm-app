@@ -7,17 +7,26 @@ import { Button } from './Button';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useModal } from '../contexts/ModalContext';
+import { CreateRouteSheet } from './CreateRouteSheet';
 
 interface RouteCreationBannerProps {
-  onPress: () => void;
   onDismiss: () => void;
 }
 
-export function RouteCreationBanner({ onPress, onDismiss }: RouteCreationBannerProps) {
-  const { t } = useTranslation();
+export function RouteCreationBanner({ onDismiss }: RouteCreationBannerProps) {
+  const { t, language } = useTranslation();
   const { user } = useAuth();
+  const { showModal, hideModal } = useModal();
   const [hasCreatedRoutes, setHasCreatedRoutes] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
 
   // Check if user has created routes
   useEffect(() => {
@@ -104,22 +113,44 @@ export function RouteCreationBanner({ onPress, onDismiss }: RouteCreationBannerP
         <XStack justifyContent="space-between" alignItems="flex-start" gap="$3">
           <YStack flex={1} gap="$2">
             <Text fontSize={16} fontWeight="bold" color="#000" style={{ fontStyle: 'italic' }}>
-              {t('banner.createRoute.title') || 'Upload your own route'}
+              {getTranslation(
+                'banner.createRoute.title',
+                language === 'sv' ? 'Ladda upp din egen rutt' : 'Upload your own route'
+              )}
             </Text>
             <Text fontSize={14} color="rgba(0, 0, 0, 0.8)" lineHeight={18}>
-              {t('banner.createRoute.description') ||
-                'Create and share your favorite driving routes'}
+              {getTranslation(
+                'banner.createRoute.description',
+                language === 'sv'
+                  ? 'Skapa och dela dina favoritrutter'
+                  : 'Create and share your favorite driving routes'
+              )}
             </Text>
             <Button
               variant="primary"
               size="sm"
-              onPress={onPress}
+              onPress={() => {
+                showModal(
+                  <CreateRouteSheet
+                    visible={true}
+                    onClose={() => hideModal()}
+                    onRouteCreated={(routeId) => {
+                      console.log('✅ Route created with ID:', routeId);
+                      hideModal();
+                      setHasCreatedRoutes(true);
+                    }}
+                  />
+                );
+              }}
               backgroundColor="rgba(0, 0, 0, 0.1)"
               marginTop="$2"
               pressStyle={{ opacity: 0.8 }}
             >
               <Text color="#000" fontWeight="600" fontSize={14}>
-                {t('banner.createRoute.button') || 'Create Route'}
+                {getTranslation(
+                  'banner.createRoute.button',
+                  language === 'sv' ? 'Skapa rutt' : 'Create Route'
+                )}
               </Text>
             </Button>
           </YStack>

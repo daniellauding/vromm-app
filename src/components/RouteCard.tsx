@@ -20,6 +20,7 @@ import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
 import { AppAnalytics } from '../utils/analytics';
 import { PIN_COLORS } from '../styles/mapStyles';
 import RouteDetailsCarousel from './RouteDetailSheet/RouteDetailsCarousel';
+import { useTranslation } from '../contexts/TranslationContext';
 
 type WaypointData = {
   lat: number;
@@ -67,6 +68,13 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const width = Dimensions.get('window').width - 32; // Account for padding
+  const { t, language } = useTranslation();
+
+  // Helper function to get translation with fallback
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
+  };
 
   // Animation values
   const scale = useSharedValue(1);
@@ -85,7 +93,7 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
     // Track route card interaction
     AppAnalytics.trackButtonPress('route_card', 'RouteCard', {
       route_id: route.id,
-      route_title: route.title,
+      route_title: route.name,
       route_type: route.spot_type,
       has_onpress_callback: !!onPress,
     }).catch(() => {
@@ -97,13 +105,13 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
       onPress();
     } else {
       // Default behavior: Open route detail under Map tab so Map tab remains active
-      // @ts-ignore
+      // @ts-expect-error - Navigation types don't match exactly but this works at runtime
       navigation.navigate('MainTabs', {
         screen: 'MapTab',
         params: { screen: 'RouteDetail', params: { routeId: route.id } },
       });
     }
-  }, [route.id, route.title, route.spot_type, onPress, navigation]);
+  }, [route.id, route.name, route.spot_type, onPress, navigation]);
 
   // Enhanced press handler with animations
   const handlePress = React.useCallback(() => {
@@ -152,7 +160,8 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
                 }}
                 pressStyle={{ opacity: 0.7 }}
               >
-                {route.creator?.full_name || 'Unknown'}
+                {route.creator?.full_name ||
+                  getTranslation('common.unknown', language === 'sv' ? 'Okänd' : 'Unknown')}
               </Text>
             </XStack>
 
@@ -176,7 +185,10 @@ export function RouteCard({ route, onPress }: RouteCardProps) {
                 </Text>
               </XStack>
               <Text color="$gray11">
-                {route.reviews?.length || 0} {route.reviews?.length === 1 ? 'review' : 'reviews'}
+                {route.reviews?.length || 0}{' '}
+                {route.reviews?.length === 1
+                  ? getTranslation('route.review', language === 'sv' ? 'recension' : 'review')
+                  : getTranslation('route.reviews', language === 'sv' ? 'recensioner' : 'reviews')}
               </Text>
             </XStack>
 

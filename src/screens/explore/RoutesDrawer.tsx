@@ -9,14 +9,19 @@ import {
   StyleSheet,
   View,
   useColorScheme,
+  TextInput,
+  TouchableOpacity,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Text, XStack, useTheme } from 'tamagui';
+import { Text, XStack, useTheme, YStack } from 'tamagui';
 import { EmptyFilterState } from '@/src/components/EmptyFilterState';
 
 const BOTTOM_NAV_HEIGHT = 80;
+const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 
 const styles = StyleSheet.create({
   searchContainer: {
@@ -69,6 +74,7 @@ const styles = StyleSheet.create({
   routeListContainer: {
     flex: 1,
     overflow: 'hidden',
+    paddingBottom: BOTTOM_NAV_HEIGHT + BOTTOM_INSET, // Add padding to prevent content going under bottom nav
   },
   contentContainer: {
     flex: 1,
@@ -121,6 +127,22 @@ const styles = StyleSheet.create({
   searchBackButton: {
     padding: 8,
   },
+  searchInputContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    height: 40,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    fontSize: 14,
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 28,
+    top: 16,
+    padding: 4,
+  },
 });
 
 import React from 'react';
@@ -148,11 +170,13 @@ export const RoutesDrawer = React.forwardRef<
     },
     ref,
   ) => {
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
     const scrollOffset = useRef(0);
     const colorScheme = useColorScheme();
     const theme = useTheme();
     const { height: screenHeight } = Dimensions.get('window');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
     const snapPoints = useMemo(
       () => ({
         expanded: screenHeight * 0.2, // Fully expanded
@@ -244,6 +268,36 @@ export const RoutesDrawer = React.forwardRef<
       transform: [{ translateY: translateY.value }],
     }));
 
+    // Filter routes based on search query
+    const searchFilteredRoutes = useMemo(() => {
+      if (!searchQuery.trim()) {
+        return filteredRoutes;
+      }
+
+      const query = searchQuery.toLowerCase().trim();
+      return filteredRoutes.filter((route) => {
+        // Search by route name (routes use 'name' not 'title')
+        const nameMatch = route.name?.toLowerCase().includes(query);
+
+        // Search by city if available (city may not be in base Route type)
+        const cityMatch = (route as Route & { city?: string }).city?.toLowerCase().includes(query);
+
+        // Search by description if available
+        const descriptionMatch = route.description?.toLowerCase().includes(query);
+
+        // Search by creator name if available (use full_name only)
+        const creatorMatch = route.creator?.full_name?.toLowerCase().includes(query);
+
+        return nameMatch || cityMatch || descriptionMatch || creatorMatch;
+      });
+    }, [filteredRoutes, searchQuery]);
+
+    const handleClearSearch = useCallback(() => {
+      setSearchQuery('');
+      Keyboard.dismiss();
+      setIsSearchFocused(false);
+    }, []);
+
     if (selectedRoute) {
       return null;
     }
@@ -266,24 +320,99 @@ export const RoutesDrawer = React.forwardRef<
             <XStack alignItems="center" gap="$2">
               <Feather name="map" size={16} color={theme.color?.val || '#000000'} />
               <Text fontSize="$4" fontWeight="600" color={theme.color?.val || '#000000'}>
-                {filteredRoutes.length}{' '}
-                {filteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
+                {searchFilteredRoutes.length}{' '}
+                {searchFilteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
               </Text>
             </XStack>
           </View>
+
+          {/* Search Input */}
+          <View style={styles.searchInputContainer}>
+            <TextInput
+              style={[
+                styles.searchInput,
+                {
+                  backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#F2F2F7',
+                  color: theme.color?.val || '#000000',
+                },
+              ]}
+              placeholder={language === 'sv' ? 'Sök rutter, städer...' : 'Search routes, cities...'}
+              placeholderTextColor={theme.gray10?.val || '#999'}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity style={styles.clearButton} onPress={handleClearSearch}>
+                <Feather name="x-circle" size={18} color={theme.gray10?.val || '#999'} />
+              </TouchableOpacity>
+            )}
+          </View>
+
           <View style={styles.routeListContainer}>
-            {filteredRoutes.length > 0 ? (
+            {searchFilteredRoutes.length > 0 ? (
               <RouteList
-                routes={filteredRoutes}
+                routes={searchFilteredRoutes}
                 onScroll={handleScroll}
                 onRoutePress={onRoutePress}
               />
             ) : (
-              <EmptyFilterState
-                hasActiveFilters={hasActiveFilters}
-                onClearFilters={onClearFilters}
-                onExpandSearch={onExpandSearch}
-              />
+              <YStack flex={1} alignItems="center" justifyContent="center" padding="$4">
+                <Feather
+                  name="search"
+                  size={48}
+                  color={theme.gray10?.val || '#999'}
+                  style={{ marginBottom: 16 }}
+                />
+                <Text fontSize="$5" fontWeight="600" color={theme.color?.val || '#000000'}>
+                  {language === 'sv' ? 'Inga rutter hittades' : 'No routes found'}
+                </Text>
+                <Text
+                  fontSize="$3"
+                  color={theme.gray11?.val || '#666'}
+                  textAlign="center"
+                  marginTop="$2"
+                >
+                  {searchQuery.trim()
+                    ? language === 'sv'
+                      ? `Inga rutter matchar "${searchQuery}"`
+                      : `No routes match "${searchQuery}"`
+                    : hasActiveFilters
+                      ? language === 'sv'
+                        ? 'Försök justera dina filter'
+                        : 'Try adjusting your filters'
+                      : language === 'sv'
+                        ? 'Inga rutter tillgängliga'
+                        : 'No routes available'}
+                </Text>
+                {(searchQuery.trim() || hasActiveFilters) && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (searchQuery.trim()) {
+                        handleClearSearch();
+                      }
+                      if (hasActiveFilters && onClearFilters) {
+                        onClearFilters();
+                      }
+                    }}
+                    style={{
+                      marginTop: 16,
+                      paddingVertical: 8,
+                      paddingHorizontal: 16,
+                      backgroundColor: theme.blue9?.val || '#007AFF',
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text fontSize="$3" fontWeight="600" color="#FFFFFF">
+                      {language === 'sv' ? 'Rensa sök & filter' : 'Clear search & filters'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </YStack>
             )}
           </View>
         </Animated.View>

@@ -12,6 +12,7 @@ import { BlurView } from 'expo-blur';
 import { Button } from '../Button';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../contexts/TranslationContext';
 import type { Database } from '../../lib/database.types';
 
 type ReportType = Database['public']['Enums']['report_type'];
@@ -49,35 +50,69 @@ const styles = StyleSheet.create({
   },
 });
 
-const REPORT_TYPES: { value: ReportType; label: string; description: string }[] = [
-  {
-    value: 'spam',
-    label: 'Spam',
-    description: 'Repetitive, unwanted, or commercial content',
-  },
-  {
-    value: 'harmful_content',
-    label: 'Harmful Content',
-    description: 'Content that may be harmful, offensive, or inappropriate',
-  },
-  {
-    value: 'privacy_issue',
-    label: 'Privacy Issue',
-    description: 'Content that violates privacy or shares personal information',
-  },
-  {
-    value: 'other',
-    label: 'Other',
-    description: 'Please provide details about your report',
-  },
-];
-
 export function ReportDialog({ reportableId, reportableType, onClose }: ReportDialogProps) {
   const { user } = useAuth();
+  const { t, language } = useTranslation();
   const colorScheme = useColorScheme();
   const [loading, setLoading] = useState(false);
   const [reportType, setReportType] = useState<ReportType>('spam');
   const [content, setContent] = useState('');
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallback: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    return translated && translated !== key ? translated : fallback;
+  };
+
+  const REPORT_TYPES: { value: ReportType; label: string; description: string }[] = [
+    {
+      value: 'spam',
+      label: getTranslation('report.spam', language === 'sv' ? 'Spam' : 'Spam'),
+      description: getTranslation(
+        'report.spamDescription',
+        language === 'sv'
+          ? 'Repetitivt, oönskat eller kommersiellt innehåll'
+          : 'Repetitive, unwanted, or commercial content'
+      ),
+    },
+    {
+      value: 'harmful_content',
+      label: getTranslation(
+        'report.harmfulContent',
+        language === 'sv' ? 'Skadligt innehåll' : 'Harmful Content'
+      ),
+      description: getTranslation(
+        'report.harmfulDescription',
+        language === 'sv'
+          ? 'Innehåll som kan vara skadligt, stötande eller olämpligt'
+          : 'Content that may be harmful, offensive, or inappropriate'
+      ),
+    },
+    {
+      value: 'privacy_issue',
+      label: getTranslation(
+        'report.privacyIssue',
+        language === 'sv' ? 'Integritetsproblem' : 'Privacy Issue'
+      ),
+      description: getTranslation(
+        'report.privacyDescription',
+        language === 'sv'
+          ? 'Innehåll som bryter mot integriteten eller delar personlig information'
+          : 'Content that violates privacy or shares personal information'
+      ),
+    },
+    {
+      value: 'other',
+      label: getTranslation('report.other', language === 'sv' ? 'Annat' : 'Other'),
+      description: getTranslation(
+        'report.otherDescription',
+        language === 'sv'
+          ? 'Vänligen ge detaljer om din rapport'
+          : 'Please provide details about your report'
+      ),
+    },
+  ];
 
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
   const textColor = colorScheme === 'dark' ? 'white' : 'black';
@@ -85,12 +120,24 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
 
   const handleSubmit = async () => {
     if (!user) {
-      Alert.alert('Error', 'You must be logged in to report content');
+      Alert.alert(
+        getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+        getTranslation(
+          'report.mustBeLoggedIn',
+          language === 'sv' ? 'Du måste vara inloggad för att rapportera innehåll' : 'You must be logged in to report content'
+        )
+      );
       return;
     }
 
     if (reportType === 'other' && !content.trim()) {
-      Alert.alert('Error', 'Please provide details for your report');
+      Alert.alert(
+        getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+        getTranslation(
+          'report.provideDetails',
+          language === 'sv' ? 'Vänligen ge detaljer för din rapport' : 'Please provide details for your report'
+        )
+      );
       return;
     }
 
@@ -178,7 +225,13 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
         .single();
 
       if (existingReport) {
-        Alert.alert('Error', 'You have already reported this item');
+        Alert.alert(
+          getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+          getTranslation(
+            'report.alreadyReported',
+            language === 'sv' ? 'Du har redan rapporterat detta' : 'You have already reported this item'
+          )
+        );
         return;
       }
 
@@ -197,11 +250,23 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
 
       if (reportError) throw reportError;
 
-      Alert.alert('Success', 'Report submitted successfully');
+      Alert.alert(
+        getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
+        getTranslation(
+          'report.submitted',
+          language === 'sv' ? 'Rapport skickad' : 'Report submitted successfully'
+        )
+      );
       onClose();
     } catch (error) {
       console.error('Error submitting report:', error);
-      Alert.alert('Error', 'Failed to submit report. Please try again.');
+      Alert.alert(
+        getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+        getTranslation(
+          'report.failed',
+          language === 'sv' ? 'Misslyckades att skicka rapport. Försök igen.' : 'Failed to submit report. Please try again.'
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -261,12 +326,18 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
                   color={textColor}
                   textAlign="center"
                 >
-                  Report Content
+                  {getTranslation(
+                    'report.title',
+                    language === 'sv' ? 'Rapportera innehåll' : 'Report Content'
+                  )}
                 </Text>
 
                 <YStack gap="$3">
                   <Text fontSize={18} fontWeight="600" color={textColor}>
-                    What's wrong with this content?
+                    {getTranslation(
+                      'report.question',
+                      language === 'sv' ? 'Vad är fel med detta innehåll?' : "What's wrong with this content?"
+                    )}
                   </Text>
                   <XStack flexWrap="wrap" gap="$2">
                     {REPORT_TYPES.map((type) => (
@@ -306,10 +377,18 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
                 {(reportType === 'other' || content) && (
                   <YStack gap="$2">
                     <Text fontSize={16} fontWeight="600" color={textColor}>
-                      Additional Details
+                      {getTranslation(
+                        'report.additionalDetails',
+                        language === 'sv' ? 'Ytterligare detaljer' : 'Additional Details'
+                      )}
                     </Text>
                     <TextArea
-                      placeholder="Please provide more information about your report..."
+                      placeholder={getTranslation(
+                        'report.placeholder',
+                        language === 'sv'
+                          ? 'Vänligen ge mer information om din rapport...'
+                          : 'Please provide more information about your report...'
+                      )}
                       value={content}
                       onChangeText={setContent}
                       autoCapitalize="sentences"
@@ -336,11 +415,19 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
                   onPress={handleSubmit}
                   disabled={loading || (reportType === 'other' && !content.trim())}
                 >
-                  {loading ? 'Submitting...' : 'Submit Report'}
+                  {loading
+                    ? getTranslation(
+                        'report.submitting',
+                        language === 'sv' ? 'Skickar...' : 'Submitting...'
+                      )
+                    : getTranslation(
+                        'report.submitButton',
+                        language === 'sv' ? 'Skicka rapport' : 'Submit Report'
+                      )}
                 </Button>
 
                 <Button size="sm" variant="link" onPress={onClose} disabled={loading}>
-                  {'Cancel'}
+                  {getTranslation('common.cancel', language === 'sv' ? 'Avbryt' : 'Cancel')}
                 </Button>
               </YStack>
             </YStack>
