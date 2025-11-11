@@ -66,7 +66,7 @@ const RouterDrawing = ({
               style={{
                 width: 20,
                 height: 20,
-                backgroundColor: '#22C55E',
+                backgroundColor: '#38fdbf',
                 borderRadius: 10,
                 borderWidth: 2,
                 borderColor: 'white',
@@ -85,7 +85,7 @@ const RouterDrawing = ({
               style={{
                 width: 20,
                 height: 20,
-                backgroundColor: '#EF4444',
+                backgroundColor: '#38fdbf',
                 borderRadius: 10,
                 borderWidth: 2,
                 borderColor: 'white',
