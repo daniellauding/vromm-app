@@ -48,6 +48,7 @@ import { StyleSheet } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Popover from 'react-native-popover-view';
 import { AppAnalytics } from '../utils/analytics';
+import { decode } from 'base64-arraybuffer';
 
 const { width, height } = Dimensions.get('window');
 
@@ -119,7 +120,7 @@ export function OnboardingInteractive({
   showAgainKey = 'interactive_onboarding',
   onCloseModal,
 }: OnboardingInteractiveProps) {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, updateProfile } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const insets = useSafeAreaInsets();
   const { setUserLocation } = useLocation();
@@ -1514,10 +1515,11 @@ export function OnboardingInteractive({
     setShowAvatarModal(false);
   };
 
-  // Avatar picker function (copied from ProfileScreen.tsx)
+  // Avatar picker function (matching ProfileScreen.tsx implementation)
   const handlePickAvatar = async (useCamera = false) => {
     try {
       setAvatarUploading(true);
+      console.log('🖼️ [OnboardingInteractive] Starting avatar upload, useCamera:', useCamera);
 
       // Request permissions
       const { status } = useCamera
@@ -1525,6 +1527,7 @@ export function OnboardingInteractive({
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== 'granted') {
+        console.log('❌ [OnboardingInteractive] Permission denied');
         showToast({
           title: t('common.error') || 'Error',
           message:
@@ -1537,6 +1540,8 @@ export function OnboardingInteractive({
         setAvatarUploading(false);
         return;
       }
+
+      console.log('✅ [OnboardingInteractive] Permission granted, launching picker');
 
       // Launch picker
       const result = useCamera
@@ -1553,54 +1558,87 @@ export function OnboardingInteractive({
             quality: 0.5,
           });
 
-      if (!result.canceled && result.assets[0]) {
-        const imageUri = result.assets[0].uri;
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        console.log('🖼️ [OnboardingInteractive] Image picked, uri:', asset.uri);
 
-        // Upload to Supabase storage
+        if (!asset.uri) {
+          throw new Error('No image URI found');
+        }
+
+        // Upload to Supabase storage (matching ProfileScreen.tsx method)
         if (user) {
-          const fileExt = imageUri.split('.').pop();
-          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-          const filePath = `avatars/${fileName}`;
-
-          // Convert to blob
-          const response = await fetch(imageUri);
+          // Convert image to base64 (same method as ProfileScreen.tsx)
+          console.log('🖼️ [OnboardingInteractive] Converting image to base64...');
+          const response = await fetch(asset.uri);
           const blob = await response.blob();
+          const reader = new FileReader();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            reader.onloadend = () => {
+              const base64data = reader.result as string;
+              resolve(base64data.split(',')[1]); // Remove data URL prefix
+            };
+            reader.onerror = () => reject(new Error('Failed to process image'));
+            reader.readAsDataURL(blob);
+          });
 
+          console.log('✅ [OnboardingInteractive] Image converted to base64');
+
+          // Determine file extension
+          const ext = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
+          const userId = user.id;
+          const fileName = `avatars/${userId}/${Date.now()}.${ext}`;
+
+          console.log('🖼️ [OnboardingInteractive] Uploading to storage bucket:', fileName);
+
+          // Upload to Supabase storage with base64 decode
           const { error: uploadError } = await supabase.storage
             .from('avatars')
-            .upload(filePath, blob, {
-              contentType: `image/${fileExt}`,
+            .upload(fileName, decode(base64), {
+              contentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
               upsert: true,
             });
 
           if (uploadError) {
+            console.error('❌ [OnboardingInteractive] Upload error:', uploadError);
             throw uploadError;
           }
 
-          // Get public URL
-          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          console.log('✅ [OnboardingInteractive] Upload successful');
 
-          // Update profile
+          // Get public URL
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from('avatars').getPublicUrl(fileName);
+
+          console.log('🖼️ [OnboardingInteractive] Public URL:', publicUrl);
+
+          // Update profile directly in database
           const { error: updateError } = await supabase
             .from('profiles')
-            .update({ avatar_url: urlData.publicUrl })
+            .update({ avatar_url: publicUrl })
             .eq('id', user.id);
 
           if (updateError) {
+            console.error('❌ [OnboardingInteractive] Profile update error:', updateError);
             throw updateError;
           }
 
-          setAvatarUrl(urlData.publicUrl);
+          console.log('✅ [OnboardingInteractive] Profile updated successfully');
+
+          setAvatarUrl(publicUrl);
           await refreshProfile();
 
           showToast({
-            title: t('common.success') || 'Success',
+            title: t('common.success') || (language === 'sv' ? 'Framgång' : 'Success'),
             message:
               t('profile.avatar.uploadSuccess') ||
               (language === 'sv' ? 'Profilbild uppdaterad' : 'Avatar updated'),
             type: 'success',
           });
         }
+      } else {
+        console.log('ℹ️ [OnboardingInteractive] Image selection cancelled');
       }
     } catch (error) {
       console.error('Error picking avatar:', error);
@@ -1622,18 +1660,10 @@ export function OnboardingInteractive({
       setAvatarUploading(true);
 
       if (user) {
-        // Update profile to remove avatar
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ avatar_url: null })
-          .eq('id', user.id);
-
-        if (updateError) {
-          throw updateError;
-        }
-
+        // Update profile to remove avatar using AuthContext's updateProfile
+        await updateProfile({ avatar_url: null });
+        
         setAvatarUrl('');
-        await refreshProfile();
 
         showToast({
           title: t('common.success') || 'Success',
