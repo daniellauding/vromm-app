@@ -35,6 +35,7 @@ import { useAuth } from '../context/AuthContext';
 import { NavigationProp } from '../types/navigation';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { Database } from '../lib/database.types';
 import { useLocation } from '../context/LocationContext';
@@ -160,6 +161,16 @@ export function OnboardingInteractive({
   const [locationStatus, setLocationStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set());
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  
+  // Profile setup state (name and avatar)
+  const [fullName, setFullName] = useState<string>(() => {
+    return profile?.full_name || '';
+  });
+  const [avatarUrl, setAvatarUrl] = useState<string>(() => {
+    return profile?.avatar_url || '';
+  });
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [vehicleType, setVehicleType] = useState<string>('Car'); // Match database default (is_default=true)
   const [transmissionType, setTransmissionType] = useState<string>('Manual'); // Match database default (is_default=true)
   const [licenseType, setLicenseType] = useState<string>('Standard Driving License (B)'); // Match database default (is_default=true)
@@ -302,9 +313,9 @@ export function OnboardingInteractive({
       setDotsCount(0);
     }
   }, [locationLoading, spinValue]);
-  const [citySearchTimeout, setCitySearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  
+  // Use ref for citySearchTimeout to avoid re-render loops
+  const citySearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList>(null);
 
@@ -543,6 +554,10 @@ export function OnboardingInteractive({
   const languageBackdropOpacity = useRef(new Animated.Value(0)).current;
   const languageSheetTranslateY = useRef(new Animated.Value(300)).current;
 
+  // Avatar modal animation refs (copied from ProfileScreen.tsx)
+  const avatarBackdropOpacity = useRef(new Animated.Value(0)).current;
+  const avatarSheetTranslateY = useRef(new Animated.Value(300)).current;
+
   // Dynamic category options from database
   const [vehicleTypes, setVehicleTypes] = useState<Array<{ id: string; title: string }>>([]);
   const [transmissionTypes, setTransmissionTypes] = useState<Array<{ id: string; title: string }>>(
@@ -552,6 +567,26 @@ export function OnboardingInteractive({
 
   // Simplified onboarding steps - clear and focused
   const steps: OnboardingStep[] = [
+    {
+      id: 'profile_setup',
+      title: getTranslation(
+        'onboarding.profile.title',
+        language === 'sv' ? 'Skapa din profil' : 'Create Your Profile',
+      ),
+      description: getTranslation(
+        'onboarding.profile.description',
+        language === 'sv'
+          ? 'Lägg till ditt namn och profilbild'
+          : 'Add your name and profile picture',
+      ),
+      icon: 'user',
+      type: 'selection',
+      actionButton: getTranslation(
+        'onboarding.profile.continue',
+        language === 'sv' ? 'Fortsätt' : 'Continue',
+      ),
+      skipButton: t('onboarding.skipForNow') || 'Skip for now',
+    },
     {
       id: 'location',
       title: t('onboarding.location.title') || 'Enable Location Access',
@@ -899,11 +934,11 @@ export function OnboardingInteractive({
   // Clean up search timeout on unmount
   useEffect(() => {
     return () => {
-      if (citySearchTimeout) {
-        clearTimeout(citySearchTimeout);
+      if (citySearchTimeoutRef.current) {
+        clearTimeout(citySearchTimeoutRef.current);
       }
     };
-  }, [citySearchTimeout]);
+  }, []); // Empty dependency array - cleanup only on unmount
 
   // Load existing relationships and pending invitations when relationships step is active
   useEffect(() => {
@@ -1439,6 +1474,186 @@ export function OnboardingInteractive({
     });
   };
 
+  // Avatar modal show/hide functions (copied from ProfileScreen.tsx)
+  const showAvatarSheet = () => {
+    setShowAvatarModal(true);
+    Animated.timing(avatarBackdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(avatarSheetTranslateY, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideAvatarSheet = () => {
+    Animated.timing(avatarBackdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(avatarSheetTranslateY, {
+      toValue: 300,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start(() => {
+      setShowAvatarModal(false);
+    });
+  };
+  
+  // Close avatar modal immediately for camera/library (faster response)
+  const closeAvatarSheetImmediately = () => {
+    setShowAvatarModal(false);
+  };
+
+  // Avatar picker function (copied from ProfileScreen.tsx)
+  const handlePickAvatar = async (useCamera = false) => {
+    try {
+      setAvatarUploading(true);
+
+      // Request permissions
+      const { status } = useCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== 'granted') {
+        showToast({
+          title: t('common.error') || 'Error',
+          message:
+            t('profile.avatar.permissionDenied') ||
+            (language === 'sv'
+              ? 'Behörighet krävs för att välja bild'
+              : 'Permission required to pick image'),
+          type: 'error',
+        });
+        setAvatarUploading(false);
+        return;
+      }
+
+      // Launch picker
+      const result = useCamera
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
+          });
+
+      if (!result.canceled && result.assets[0]) {
+        const imageUri = result.assets[0].uri;
+
+        // Upload to Supabase storage
+        if (user) {
+          const fileExt = imageUri.split('.').pop();
+          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+          const filePath = `avatars/${fileName}`;
+
+          // Convert to blob
+          const response = await fetch(imageUri);
+          const blob = await response.blob();
+
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(filePath, blob, {
+              contentType: `image/${fileExt}`,
+              upsert: true,
+            });
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          // Get public URL
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
+          // Update profile
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ avatar_url: urlData.publicUrl })
+            .eq('id', user.id);
+
+          if (updateError) {
+            throw updateError;
+          }
+
+          setAvatarUrl(urlData.publicUrl);
+          await refreshProfile();
+
+          showToast({
+            title: t('common.success') || 'Success',
+            message:
+              t('profile.avatar.uploadSuccess') ||
+              (language === 'sv' ? 'Profilbild uppdaterad' : 'Avatar updated'),
+            type: 'success',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error picking avatar:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message:
+          t('profile.avatar.uploadError') ||
+          (language === 'sv' ? 'Kunde inte uppdatera profilbild' : 'Failed to update avatar'),
+        type: 'error',
+      });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  // Delete avatar function (copied from ProfileScreen.tsx)
+  const handleDeleteAvatar = async () => {
+    try {
+      setAvatarUploading(true);
+
+      if (user) {
+        // Update profile to remove avatar
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ avatar_url: null })
+          .eq('id', user.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        setAvatarUrl('');
+        await refreshProfile();
+
+        showToast({
+          title: t('common.success') || 'Success',
+          message:
+            t('profile.avatar.deleteSuccess') ||
+            (language === 'sv' ? 'Profilbild borttagen' : 'Avatar removed'),
+          type: 'success',
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting avatar:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message:
+          t('profile.avatar.deleteError') ||
+          (language === 'sv' ? 'Kunde inte ta bort profilbild' : 'Failed to remove avatar'),
+        type: 'error',
+      });
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
   const handleCitySelect = async (cityData: any) => {
     // Format city name as "City, SE" instead of full address
     const cityName = [cityData.city, cityData.country].filter(Boolean).join(', ');
@@ -1482,8 +1697,8 @@ export function OnboardingInteractive({
     setCitySearchQuery(query);
 
     // Clear previous timeout
-    if (citySearchTimeout) {
-      clearTimeout(citySearchTimeout);
+    if (citySearchTimeoutRef.current) {
+      clearTimeout(citySearchTimeoutRef.current);
     }
 
     if (!query.trim()) {
@@ -1556,7 +1771,7 @@ export function OnboardingInteractive({
       }
     }, 300);
 
-    setCitySearchTimeout(timeout);
+    citySearchTimeoutRef.current = timeout;
   };
 
   const handleSaveLicensePlan = async () => {
@@ -1964,6 +2179,230 @@ export function OnboardingInteractive({
       }, 0);
       handleSkipStep(steps.find((s) => s.id === 'relationships')!);
     }
+  };
+
+  const renderProfileSetupStep = (item: OnboardingStep) => {
+    return (
+      <View style={{ width, flex: 1 }}>
+        {/* Fixed Header */}
+        <YStack
+          paddingTop={insets.top + 12}
+          paddingHorizontal="$4"
+          paddingBottom="$3"
+          backgroundColor="$background"
+          borderBottomWidth={0}
+          borderBottomColor="$borderColor"
+        >
+          {/* Navigation buttons */}
+          <XStack width="100%" justifyContent="space-between" alignItems="center" marginBottom="$3">
+            <View style={{ width: 48 }} />
+            <TouchableOpacity
+              onPress={completeOnboarding}
+              style={{
+                padding: 12,
+                marginRight: -12,
+              }}
+            >
+              <Feather name="x" size={24} color={iconColor} />
+            </TouchableOpacity>
+          </XStack>
+
+          {/* Step Header */}
+          <YStack alignItems="center" width="100%">
+            <Text
+              size="3xl"
+              fontWeight="800"
+              fontStyle="italic"
+              textAlign="center"
+              fontFamily="$heading"
+              color="$color"
+            >
+              {item.title}
+            </Text>
+            <Text size="lg" textAlign="center" color="$color" opacity={0.9} marginTop="$2">
+              {item.description}
+            </Text>
+            {/* Step counter */}
+            <Text size="md" textAlign="center" color="$color" opacity={0.6} marginTop="$2">
+              {language === 'sv'
+                ? `Steg ${currentIndex + 1} av ${steps.length}`
+                : `Step ${currentIndex + 1} of ${steps.length}`}
+            </Text>
+          </YStack>
+        </YStack>
+
+        {/* Scrollable Content */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingTop: 20,
+            paddingBottom: 20,
+          }}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+        >
+          <YStack gap="$4" width="100%" alignItems="center">
+            {/* Avatar Section - copied from ProfileScreen.tsx */}
+            <TouchableOpacity onPress={showAvatarSheet} disabled={avatarUploading}>
+              <View style={{ position: 'relative' }}>
+                {avatarUrl ? (
+                  <Image
+                    source={{ uri: avatarUrl }}
+                    style={{
+                      width: 96,
+                      height: 96,
+                      borderRadius: 48,
+                      borderWidth: 2,
+                      borderColor: '#ccc',
+                    }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 96,
+                      height: 96,
+                      borderRadius: 48,
+                      backgroundColor: '#eee',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      borderWidth: 2,
+                      borderColor: '#ccc',
+                    }}
+                  >
+                    <Feather name="user" size={48} color="#bbb" />
+                  </View>
+                )}
+                {/* Edit indicator overlay */}
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    backgroundColor: '#00E6C3',
+                    borderRadius: 12,
+                    width: 24,
+                    height: 24,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 2,
+                    borderColor: 'white',
+                  }}
+                >
+                  <Feather name="edit-2" size={12} color="white" />
+                </View>
+              </View>
+            </TouchableOpacity>
+            <Text size="sm" color="$gray11" textAlign="center">
+              {getTranslation(
+                'profile.avatar.tapToChange',
+                language === 'sv' ? 'Tryck för att ändra profilbild' : 'Tap to change avatar',
+              )}
+            </Text>
+
+            {/* Name Input - copied from ProfileScreen.tsx */}
+            <YStack gap="$2" width="100%" marginTop="$4">
+              <FormField
+                value={fullName}
+                onChangeText={(text) => setFullName(text)}
+                onBlur={async () => {
+                  // Save name when field loses focus
+                  if (user && fullName !== profile?.full_name) {
+                    try {
+                      const { error } = await supabase
+                        .from('profiles')
+                        .update({ full_name: fullName })
+                        .eq('id', user.id);
+
+                      if (!error) {
+                        console.log('✅ Name updated:', fullName);
+                        await refreshProfile();
+                      }
+                    } catch (error) {
+                      console.error('Error saving name:', error);
+                    }
+                  }
+                }}
+                placeholder={
+                  getTranslation(
+                    'profile.fullNamePlaceholder',
+                    language === 'sv' ? 'Ange ditt fullständiga namn' : 'Enter your full name',
+                  )
+                }
+                autoCapitalize="words"
+                label={
+                  getTranslation('profile.fullName', language === 'sv' ? 'Fullständigt namn' : 'Full Name')
+                }
+              />
+            </YStack>
+          </YStack>
+        </ScrollView>
+
+        {/* Fixed Footer */}
+        <YStack
+          paddingHorizontal="$4"
+          paddingTop="$3"
+          paddingBottom={insets.bottom + 12}
+          backgroundColor="$background"
+          borderTopWidth={0}
+          borderTopColor="$borderColor"
+          gap="$2"
+        >
+          {/* Continue Button */}
+          <Button
+            variant="primary"
+            size="lg"
+            onPress={async () => {
+              // Save profile data if changed
+              if (user) {
+                const updates: any = {};
+                let needsUpdate = false;
+
+                if (fullName && fullName !== profile?.full_name) {
+                  updates.full_name = fullName;
+                  needsUpdate = true;
+                }
+
+                if (needsUpdate) {
+                  try {
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update(updates)
+                      .eq('id', user.id);
+
+                    if (!error) {
+                      await refreshProfile();
+                      console.log('✅ Profile setup saved');
+                    }
+                  } catch (error) {
+                    console.error('Error saving profile setup:', error);
+                  }
+                }
+              }
+
+              // Mark step as completed and continue
+              setCompletedSteps((prev) => new Set(prev).add('profile_setup'));
+              nextSlide();
+            }}
+          >
+            {item.actionButton || (language === 'sv' ? 'Fortsätt' : 'Continue')}
+          </Button>
+
+          {/* Skip Button */}
+          {item.skipButton && (
+            <Button
+              variant="link"
+              size="md"
+              onPress={() => {
+                handleSkipStep(item);
+              }}
+            >
+              {item.skipButton}
+            </Button>
+          )}
+        </YStack>
+      </View>
+    );
   };
 
   const renderLicensePlanStep = (item: OnboardingStep) => {
@@ -3157,6 +3596,11 @@ export function OnboardingInteractive({
     // Render step without excessive logging to prevent console flooding
     const isCompleted = completedSteps.has(item.id);
     const isSkipped = skippedSteps.has(item.id);
+
+    // Special rendering for profile setup step (always editable)
+    if (item.id === 'profile_setup') {
+      return renderProfileSetupStep(item);
+    }
 
     // Special rendering for license plan step (always editable)
     if (item.id === 'license_plan') {
@@ -4555,6 +4999,114 @@ export function OnboardingInteractive({
               </YStack>
             </Animated.View>
           </View>
+        </Animated.View>
+      </Modal>
+
+      {/* Avatar Selection Modal (copied from ProfileScreen.tsx) */}
+      <Modal
+        visible={showAvatarModal}
+        transparent
+        animationType="none"
+        onRequestClose={hideAvatarSheet}
+      >
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            opacity: avatarBackdropOpacity,
+          }}
+        >
+          <Pressable style={{ flex: 1 }} onPress={hideAvatarSheet}>
+            <Animated.View
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                transform: [{ translateY: avatarSheetTranslateY }],
+              }}
+            >
+              <YStack
+                backgroundColor={backgroundColor}
+                padding="$4"
+                paddingBottom={insets.bottom || 24}
+                borderTopLeftRadius="$4"
+                borderTopRightRadius="$4"
+                gap="$4"
+              >
+                <Text size="xl" weight="bold" color={textColor} textAlign="center">
+                  {getTranslation(
+                    'profile.avatar.changeAvatar',
+                    language === 'sv' ? 'Ändra profilbild' : 'Change Avatar'
+                  )}
+                </Text>
+
+                <YStack gap="$1">
+                  <TouchableOpacity
+                    onPress={async () => {
+                      closeAvatarSheetImmediately();
+                      // Small delay to allow modal to close
+                      await new Promise(resolve => setTimeout(resolve, 100));
+                      handlePickAvatar(false);
+                    }}
+                    style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
+                  >
+                    <XStack gap={12} padding="$2" alignItems="center">
+                      <Feather name="image" size={20} color="#00E6C3" />
+                      <Text color={textColor} size="lg">
+                        {getTranslation(
+                          'profile.avatar.chooseFromLibrary',
+                          language === 'sv' ? 'Välj från bibliotek' : 'Choose from Library'
+                        )}
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={async () => {
+                      closeAvatarSheetImmediately();
+                      // Small delay to allow modal to close
+                      await new Promise(resolve => setTimeout(resolve, 100));
+                      handlePickAvatar(true);
+                    }}
+                    style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
+                  >
+                    <XStack gap={12} padding="$2" alignItems="center">
+                      <Feather name="camera" size={20} color="#00E6C3" />
+                      <Text color={textColor} size="lg">
+                        {getTranslation(
+                          'profile.avatar.takePhoto',
+                          language === 'sv' ? 'Ta foto' : 'Take Photo'
+                        )}
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+
+                  {avatarUrl && (
+                    <TouchableOpacity
+                      onPress={async () => {
+                        closeAvatarSheetImmediately();
+                        // Small delay to allow modal to close
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        handleDeleteAvatar();
+                      }}
+                      style={[styles.sheetOption, { backgroundColor: 'transparent' }]}
+                    >
+                      <XStack gap={12} padding="$2" alignItems="center">
+                        <Feather name="trash-2" size={20} color="#EF4444" />
+                        <Text color="#EF4444" size="lg">
+                          {getTranslation(
+                            'profile.avatar.removeAvatar',
+                            language === 'sv' ? 'Ta bort profilbild' : 'Remove Avatar'
+                          )}
+                        </Text>
+                      </XStack>
+                    </TouchableOpacity>
+                  )}
+                </YStack>
+              </YStack>
+            </Animated.View>
+          </Pressable>
         </Animated.View>
       </Modal>
     </View>

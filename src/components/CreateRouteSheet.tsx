@@ -211,22 +211,23 @@ export function CreateRouteSheet({
   const finalInitialStartPoint = recordedRouteData?.startPoint || initialStartPoint;
   const finalInitialEndPoint = recordedRouteData?.endPoint || initialEndPoint;
 
-  console.log('🏗️ ==================== CREATE ROUTE SHEET INIT ====================');
-  console.log('🏗️ CreateRouteSheet initialized with props:', {
-    visible,
-    routeId,
-    hasRecordedRouteData: !!recordedRouteData,
-    hasInitialWaypoints: !!finalInitialWaypoints,
-    waypointCount: finalInitialWaypoints?.length || 0,
-    initialName: finalInitialName,
-    hasInitialDescription: !!finalInitialDescription,
-    hasInitialSearchCoordinates: !!finalInitialSearchCoordinates,
-    hasInitialRoutePath: !!finalInitialRoutePath,
-    routePathLength: finalInitialRoutePath?.length || 0,
-    hasInitialStartPoint: !!finalInitialStartPoint,
-    hasInitialEndPoint: !!finalInitialEndPoint,
-    hasOnRouteCreated: !!onRouteCreated,
-  });
+  // Disabled to prevent console flooding
+  // console.log('🏗️ ==================== CREATE ROUTE SHEET INIT ====================');
+  // console.log('🏗️ CreateRouteSheet initialized with props:', {
+  //   visible,
+  //   routeId,
+  //   hasRecordedRouteData: !!recordedRouteData,
+  //   hasInitialWaypoints: !!finalInitialWaypoints,
+  //   waypointCount: finalInitialWaypoints?.length || 0,
+  //   initialName: finalInitialName,
+  //   hasInitialDescription: !!finalInitialDescription,
+  //   hasInitialSearchCoordinates: !!finalInitialSearchCoordinates,
+  //   hasInitialRoutePath: !!finalInitialRoutePath,
+  //   routePathLength: finalInitialRoutePath?.length || 0,
+  //   hasInitialStartPoint: !!finalInitialStartPoint,
+  //   hasInitialEndPoint: !!finalInitialEndPoint,
+  //   hasOnRouteCreated: !!onRouteCreated,
+  // });
 
   if (initialWaypoints) {
     console.log('🏗️ Initial waypoints details:', {
@@ -255,13 +256,14 @@ export function CreateRouteSheet({
   const createRouteContext = useCreateRoute();
   const isEditing = !!routeId;
 
-  console.log('🏗️ Extracted params:', {
-    routeId,
-    initialWaypointsCount: initialWaypoints?.length || 0,
-    initialName,
-    isEditing,
-    hasOnRouteCreated: !!onRouteCreated,
-  });
+  // Disabled to prevent console flooding
+  // console.log('🏗️ Extracted params:', {
+  //   routeId,
+  //   initialWaypointsCount: initialWaypoints?.length || 0,
+  //   initialName,
+  //   isEditing,
+  //   hasOnRouteCreated: !!onRouteCreated,
+  // });
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const searchInputRef = useRef<any>(null);
@@ -496,18 +498,19 @@ export function CreateRouteSheet({
 
   // Initialize search query with coordinates if provided
   useEffect(() => {
-    console.log('🏗️ ==================== USE EFFECT - SEARCH COORDINATES ====================');
-    console.log('🏗️ Search coordinates effect triggered:', {
-      hasInitialSearchCoordinates: !!finalInitialSearchCoordinates,
-      finalInitialSearchCoordinates,
-      currentSearchQuery: searchQuery,
-      shouldSet: finalInitialSearchCoordinates && searchQuery === '',
-    });
+    // Disabled to prevent console flooding
+    // console.log('🏗️ ==================== USE EFFECT - SEARCH COORDINATES ====================');
+    // console.log('🏗️ Search coordinates effect triggered:', {
+    //   hasInitialSearchCoordinates: !!finalInitialSearchCoordinates,
+    //   finalInitialSearchCoordinates,
+    //   currentSearchQuery: searchQuery,
+    //   shouldSet: finalInitialSearchCoordinates && searchQuery === '',
+    // });
 
     if (finalInitialSearchCoordinates && searchQuery === '') {
-      console.log('🏗️ Setting initial search coordinates:', finalInitialSearchCoordinates);
+      // console.log('🏗️ Setting initial search coordinates:', finalInitialSearchCoordinates);
       setSearchQuery(finalInitialSearchCoordinates);
-      console.log('🏗️ ✅ Search coordinates set successfully');
+      // console.log('🏗️ ✅ Search coordinates set successfully');
     }
   }, [finalInitialSearchCoordinates, searchQuery]);
 
@@ -583,15 +586,16 @@ export function CreateRouteSheet({
     }
 
     // If we have initial waypoints, set up the region based on them
-    console.log('🏗️ ==================== USE EFFECT - INITIAL WAYPOINTS ====================');
-    console.log('🏗️ Checking initial waypoints:', {
-      hasInitialWaypoints: !!initialWaypoints?.length,
-      count: initialWaypoints?.length || 0,
-      waypoints: finalInitialWaypoints,
-    });
+    // Disabled to prevent console flooding
+    // console.log('🏗️ ==================== USE EFFECT - INITIAL WAYPOINTS ====================');
+    // console.log('🏗️ Checking initial waypoints:', {
+    //   hasInitialWaypoints: !!initialWaypoints?.length,
+    //   count: initialWaypoints?.length || 0,
+    //   waypoints: finalInitialWaypoints,
+    // });
 
     if (finalInitialWaypoints?.length) {
-      console.log('🏗️ Setting up region from initial waypoints...');
+      // console.log('🏗️ Setting up region from initial waypoints...');
 
       const latitudes = finalInitialWaypoints.map((wp) => wp.latitude);
       const longitudes = finalInitialWaypoints.map((wp) => wp.longitude);
@@ -608,7 +612,7 @@ export function CreateRouteSheet({
         longitudeDelta: Math.max((maxLng - minLng) * 1.2, 0.02),
       };
 
-      console.log('🏗️ Calculated region:', newRegion);
+      // console.log('🏗️ Calculated region:', newRegion);
 
       // Create a region that contains all waypoints
       setRegion(newRegion);
@@ -616,7 +620,7 @@ export function CreateRouteSheet({
       // Set active section to basic to allow naming the route
       setActiveSection('basic');
 
-      console.log('🏗️ ✅ Region and active section set for recorded route');
+      // console.log('🏗️ ✅ Region and active section set for recorded route');
     }
   }, [isEditing, locationPermission, finalInitialWaypoints]);
 
