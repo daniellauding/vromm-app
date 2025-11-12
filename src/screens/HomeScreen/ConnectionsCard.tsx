@@ -403,17 +403,17 @@ export const ConnectionsCard = () => {
           {/* Completion badge - absolutely positioned */}
           {hasConnections && (
             <View
-              style={{
-                position: 'absolute',
-                top: 12,
-                right: 12,
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
                 backgroundColor: '#00E6C3',
                 borderRadius: 10,
                 paddingHorizontal: 6,
                 paddingVertical: 3,
                 zIndex: 1,
-              }}
-            >
+            }}
+          >
               <Text fontSize={9} color="#000" fontWeight="bold">
                 {getTranslation('home.gettingStarted.status.completed', language === 'sv' ? 'KLART' : 'DONE')}
               </Text>

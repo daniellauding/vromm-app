@@ -207,9 +207,10 @@ export function FeaturedContent() {
   }, [authUser?.id]);
 
   const fetchFeaturedContent = async () => {
+    const startTime = Date.now();
     try {
       setLoading(true);
-      console.log('🎯 [FeaturedContent] Fetching featured content...');
+      console.log('⚡ [FeaturedContent] Fetching featured content...');
 
       // Fetch featured learning paths
       const { data: pathsData, error: pathsError } = await supabase
@@ -251,6 +252,7 @@ export function FeaturedContent() {
         setFeaturedExercises(exercisesData || []);
       }
 
+      console.log('⚡ [FeaturedContent] Featured content loaded in:', Date.now() - startTime, 'ms');
       console.log('🎯 [FeaturedContent] Final state:', {
         featuredPaths: pathsData?.length || 0,
         featuredExercises: exercisesData?.length || 0,

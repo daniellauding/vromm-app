@@ -14,7 +14,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { supabase } from '../../lib/supabase';
 import { Route, SavedRoute, SavedRouteFromDB } from '@/src/types/route';
-import RouteDetailsCarousel from '@/src/components/RouteDetailSheet/RouteDetailsCarousel';
+import { RouteCard } from '../../components/RouteCard';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -75,6 +75,8 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
   const loadSavedRoutes = React.useCallback(async () => {
     if (!effectiveUserId) return;
 
+    const startTime = Date.now();
+    console.log('⚡ [SavedRoutes] Loading saved routes...');
     try {
       const { data: savedData, error: savedError } = await supabase
         .from('saved_routes')
@@ -108,6 +110,7 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
 
       console.log('💾 [SavedRoutes] Loaded saved routes:', transformedRoutes.length);
       setSavedRoutes(transformedRoutes);
+      console.log('⚡ [SavedRoutes] Saved routes loaded in:', Date.now() - startTime, 'ms');
     } catch (err) {
       console.error('❌ [SavedRoutes] Error loading saved routes:', err);
     }
@@ -220,15 +223,27 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
           }}
           actionLabel={t('common.seeAll')}
         />
-        <XStack paddingHorizontal="$4">
-          <SavedRoutesGrid
-            routes={savedRoutes}
-            getImageUrl={getRouteImage}
-            onRoutePress={
-              onRoutePress ? (route: { id: string }) => onRoutePress(route.id) : undefined
-            }
-          />
-        </XStack>
+        <FlatList
+          horizontal
+          data={savedRoutes}
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingVertical: 8 }}
+          renderItem={({ item: route }) => (
+            <XStack marginRight="$3">
+              <RouteCard 
+                route={route} 
+                onPress={() => {
+                  if (onRoutePress) {
+                    onRoutePress(route.id);
+                  } else {
+                    navigation.navigate('RouteDetail', { routeId: route.id });
+                  }
+                }}
+              />
+            </XStack>
+          )}
+        />
       </YStack>
 
       {/* Route List Sheet */}
@@ -244,84 +259,5 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
         type="saved"
       />
     </>
-  );
-};
-
-// Grid component for saved routes
-interface SavedRoutesGridProps {
-  routes: SavedRoute[];
-  getImageUrl: (route: Route) => string | null;
-  onRoutePress?: (routeId: string) => void;
-}
-
-const SavedRoutesGrid = ({ routes, getImageUrl, onRoutePress }: SavedRoutesGridProps) => {
-  const colorScheme = useColorScheme();
-  const { width: screenWidth } = Dimensions.get('window');
-
-  // Calculate item dimensions for 3x3 grid
-  const itemWidth = (screenWidth - 32 - 16) / 3; // 32 for padding, 16 for gaps
-  const itemHeight = itemWidth * 1.2; // Slightly taller for text
-
-  const renderGridItem = ({ item }: { item: SavedRoute }) => {
-    const imageUrl = getImageUrl(item);
-
-    return (
-      <TouchableOpacity
-        onPress={() => onRoutePress?.(item.id)}
-        style={{
-          width: itemWidth,
-          height: itemHeight,
-          marginRight: 8,
-          marginBottom: 8,
-        }}
-      >
-        <Card
-          backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF'}
-          bordered
-          padding="$2"
-          height="100%"
-          borderRadius="$3"
-        >
-          <YStack gap="$2" height="100%">
-            {/* Carousel for map/media */}
-            <View
-              style={{
-                width: '100%',
-                height: itemWidth * 0.6,
-                borderRadius: 8,
-                overflow: 'hidden',
-              }}
-            >
-              <RouteDetailsCarousel routeData={item} />
-            </View>
-
-            {/* Route Info */}
-            <YStack gap="$1" flex={1}>
-              <Text fontSize="$3" fontWeight="600" color="$color" numberOfLines={2} lineHeight={16}>
-                {item.name}
-              </Text>
-              <Text fontSize="$2" color="$gray11" numberOfLines={1}>
-                {item.difficulty || item.category || 'Route'}
-              </Text>
-            </YStack>
-          </YStack>
-        </Card>
-      </TouchableOpacity>
-    );
-  };
-
-  return (
-    <FlatList
-      data={routes}
-      renderItem={renderGridItem}
-      keyExtractor={(item) => item.id}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{
-        paddingRight: 16, // Extra padding to show partial item
-      }}
-      snapToInterval={itemWidth + 8} // Snap to each item
-      decelerationRate="fast"
-    />
   );
 };

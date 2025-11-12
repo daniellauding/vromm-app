@@ -2,9 +2,6 @@ import React from 'react';
 import { useState } from 'react';
 import { YStack } from 'tamagui';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
-import { useNavigation } from '@react-navigation/native';
-import { NavigationProp } from '../../types/navigation';
-import { Button } from '../../components/Button';
 
 import { useTranslation } from '../../contexts/TranslationContext';
 import { ProgressSection } from '../../components/ProgressSection';
@@ -14,10 +11,9 @@ import { UsersList } from '../../components/UsersList';
 
 import { WeeklyGoal } from './WeeklyGoal';
 import { DailyStatus } from './DailyStatus';
-import { JumpBackInSection } from '../../components/JumpBackInSection';
+// import { JumpBackInSection } from '../../components/JumpBackInSection';
 import { GettingStarted } from './GettingStarted';
-import { FeaturedContent } from './FeaturedContent';
-import { FeaturedContent2 } from './FeaturedContent2';
+// import { FeaturedContent } from './FeaturedContent';
 import { SavedRoutes } from './SavedRoutes';
 // import { QuickFilters } from './QuickFilters';
 import { CityRoutes } from './CityRoutes';
@@ -25,31 +21,27 @@ import { CreatedRoutes } from './CreatedRoutes';
 import { NearByRoutes } from './NearByRoutes';
 import { DrivenRoutes } from './DrivenRoutes';
 import { DraftRoutes } from './DraftRoutes';
-import { CommunityFeed } from './CommunityFeed';
 import { LearningPathsSheet } from '../../components/LearningPathsSheet';
 import { ExerciseListSheet } from '../../components/ExerciseListSheet';
-import { LearningPathCard } from './LearningPathCard';
+// import { LearningPathCard } from './LearningPathCard';
 import { RoleSelectionCard } from './RoleSelectionCard';
 import { ConnectionsCard } from './ConnectionsCard';
 
 export default React.memo(function MyTab({
   activeUserId,
   handleRoutePress,
-  setShowCommunityFeedSheet,
   setSelectedUserId,
   setShowUserProfileSheet,
   setShowUserListSheet,
 }: {
   activeUserId: string | undefined;
   handleRoutePress: (routeId: string) => void;
-  setShowCommunityFeedSheet: (show: boolean) => void;
   setSelectedUserId: (userId: string) => void;
   setShowUserProfileSheet: (show: boolean) => void;
   setShowUserListSheet: (show: boolean) => void;
 }) {
   const { t, language } = useTranslation();
   const { getEffectiveUserId } = useStudentSwitch();
-  const navigation = useNavigation<NavigationProp>();
   const effectiveUserId = activeUserId || getEffectiveUserId();
   const [selectedDailyStatusDate, setSelectedDailyStatusDate] = useState(new Date());
   const [showLearningPathsSheet, setShowLearningPathsSheet] = useState(false);
@@ -85,6 +77,15 @@ export default React.memo(function MyTab({
 
   console.log('🗓️ [MyTab] Render');
 
+  // Performance monitoring
+  React.useEffect(() => {
+    console.log('⚡ [MyTab] Mounted at:', new Date().toISOString());
+    const startTime = Date.now();
+    return () => {
+      console.log('⚡ [MyTab] Unmounted after:', Date.now() - startTime, 'ms');
+    };
+  }, []);
+
   return (
     <YStack>
       {/* Weekly Goal Section */}
@@ -99,40 +100,31 @@ export default React.memo(function MyTab({
         onDateChange={onDateSelected}
       />
 
-      {/* Jump Back In Section */}
-
+      {/* Getting Started Section */}
       <GettingStarted />
 
-      {/* Learning Path Card */}
-      <LearningPathCard
+      {/* Learning Path Card - COMMENTED OUT FOR PERFORMANCE TESTING */}
+      {/* <LearningPathCard
         activeUserId={effectiveUserId || undefined}
         onPress={(path) => {
           setSelectedLearningPath(path);
           setShowExerciseListSheet(true);
         }}
         onPressSeeAll={() => setShowLearningPathsSheet(true)}
-      />
+      /> */}
 
-      {/* <ProgressSection activeUserId={effectiveUserId} /> */}
+      {/* Progress Section - RE-ENABLED FOR PERFORMANCE TESTING */}
+      <ProgressSection activeUserId={effectiveUserId} />
 
-      {/* Featured Content */}
-      <FeaturedContent />
+      {/* Featured Content - COMMENTED OUT FOR PERFORMANCE TESTING */}
+      {/* <FeaturedContent /> */}
 
-      {/* Featured Content 2 - Card Layout */}
-      {/* <FeaturedContent2 /> */}
-      <JumpBackInSection activeUserId={effectiveUserId || undefined} />
+      {/* Jump Back In Section - COMMENTED OUT FOR PERFORMANCE TESTING */}
+      {/* <JumpBackInSection activeUserId={effectiveUserId || undefined} /> */}
 
       <DraftRoutes onRoutePress={handleRoutePress} />
       <SavedRoutes onRoutePress={handleRoutePress} />
-      {/* <CommunityFeed
-        onOpenFeedSheet={() => setShowCommunityFeedSheet(true)}
-        onUserPress={onShowUser}
-        onRoutePress={handleRoutePress}
-      /> */}
-      {/* <QuickFilters handleFilterPress={handleFilterPress} /> */}
-      {/* <Button onPress={() => navigation.navigate('CreateRoute', {})} variant="primary" size="lg">
-        {t('home.createNewRoute')}
-      </Button> */}
+
       <YStack gap="$4">
         <CityRoutes onRoutePress={handleRoutePress} />
         <CreatedRoutes onRoutePress={handleRoutePress} />

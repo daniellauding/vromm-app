@@ -71,6 +71,15 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   // State declarations
   const [showOnboarding, setShowOnboarding] = useState(false);
   
+  // Performance monitoring
+  React.useEffect(() => {
+    console.log('⚡ [HomeScreen] Component mounted at:', new Date().toISOString());
+    const startTime = Date.now();
+    return () => {
+      console.log('⚡ [HomeScreen] Component unmounted after:', Date.now() - startTime, 'ms');
+    };
+  }, []);
+  
   // Track if UserListSheet was open when opening UserProfileSheet
   const wasUserListSheetOpenRef = React.useRef(false);
 

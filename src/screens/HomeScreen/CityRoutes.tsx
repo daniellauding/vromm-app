@@ -24,7 +24,7 @@ import { useUserLocation } from '../explore/hooks';
 import { deg2rad } from '../explore/utils';
 import { useModal } from '@/src/contexts/ModalContext';
 import { CreateRouteSheet } from '@/src/components/CreateRouteSheet';
-import RouteDetailsCarousel from '@/src/components/RouteDetailSheet/RouteDetailsCarousel';
+import { RouteCard } from '../../components/RouteCard';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -230,13 +230,9 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
       <YStack gap="$3" px="$4">
         {routes.length > 0 ? (
           routes.slice(0, 3).map((route) => (
-            <Card
+            <RouteCard
               key={route.id}
-              bordered
-              elevate
-              backgroundColor="$backgroundStrong"
-              width="100%"
-              height={280}
+              route={route}
               onPress={() => {
                 if (onRoutePress) {
                   onRoutePress(route.id);
@@ -244,62 +240,7 @@ export const CityRoutes = ({ onRoutePress }: CityRoutesProps = {}) => {
                   navigation.navigate('RouteDetail', { routeId: route.id });
                 }
               }}
-            >
-              <YStack f={1}>
-                {/* Carousel for map/media */}
-                <RouteDetailsCarousel routeData={route} />
-
-                <YStack padding="$3" gap="$2">
-                  <XStack justifyContent="space-between" alignItems="center">
-                    <YStack>
-                      <Text size="lg" weight="bold" numberOfLines={1} ellipsizeMode="tail">
-                        {route.name}
-                      </Text>
-                      <XStack space="$1" alignItems="center" marginTop="$1">
-                        <Feather
-                          name="user"
-                          size={14}
-                          color={colorScheme === 'dark' ? 'white' : 'black'}
-                        />
-                        <Text
-                          color="$gray11"
-                          size="xs"
-                          onPress={() => {
-                            if ((route.creator as any)?.id) {
-                              navigation.navigate('PublicProfile', {
-                                userId: (route.creator as any).id,
-                              });
-                            }
-                          }}
-                          pressStyle={{ opacity: 0.7 }}
-                        >
-                          {route.creator?.full_name || 'Unknown'}
-                        </Text>
-                      </XStack>
-                      <Text size="sm" color="$gray11">
-                        {route.difficulty?.toUpperCase()}
-                      </Text>
-                    </YStack>
-                    {userLocation && route.waypoint_details?.[0] && (
-                      <Text size="sm" color="$gray11">
-                        {calculateDistance(
-                          userLocation.coords.latitude,
-                          userLocation.coords.longitude,
-                          route.waypoint_details[0].lat,
-                          route.waypoint_details[0].lng,
-                        ).toFixed(1)}{' '}
-                        {t('common.kmAway') || 'km away'}
-                      </Text>
-                    )}
-                  </XStack>
-                  {route.description && (
-                    <Text size="sm" color="$gray11" numberOfLines={2} ellipsizeMode="tail">
-                      {route.description}
-                    </Text>
-                  )}
-                </YStack>
-              </YStack>
-            </Card>
+            />
           ))
         ) : (
           <YStack px="$4">

@@ -166,8 +166,11 @@ export const LearningPathCard = ({
   // Load filters (same logic as ProgressSection)
   useEffect(() => {
     const loadFilters = async () => {
+      const startTime = Date.now();
+      console.log('⚡ [LearningPathCard] Loading filters...');
       try {
         const savedFilters = await loadFilterPreferences();
+        console.log('⚡ [LearningPathCard] Filters loaded in:', Date.now() - startTime, 'ms');
 
         if (savedFilters) {
           setCategoryFilters(savedFilters);
@@ -277,6 +280,8 @@ export const LearningPathCard = ({
   // Fetch learning paths with filtering (same as ProgressSection)
   useEffect(() => {
     const fetchLearningPaths = async () => {
+      const startTime = Date.now();
+      console.log('⚡ [LearningPathCard] Fetching learning paths...');
       try {
         const { data, error } = await supabase
           .from('learning_paths')
@@ -371,6 +376,7 @@ export const LearningPathCard = ({
 
           setLearningPaths(filtered);
         }
+        console.log('⚡ [LearningPathCard] Learning paths fetched in:', Date.now() - startTime, 'ms');
       } catch (err) {
         console.error('[LearningPathCard] Error fetching learning paths:', err);
       } finally {

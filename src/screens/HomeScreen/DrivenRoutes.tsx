@@ -18,7 +18,6 @@ import { Text } from '@/src/components';
 import { EmptyState } from './EmptyState';
 import { useModal } from '@/src/contexts/ModalContext';
 import { CreateRouteSheet } from '@/src/components/CreateRouteSheet';
-import RouteDetailsCarousel from '@/src/components/RouteDetailSheet/RouteDetailsCarousel';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -94,7 +93,8 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
     if (!effectiveUserId) return;
 
     const loadDrivenRoutes = async () => {
-      console.log('🚗 [DrivenRoutes] Loading driven routes for user:', effectiveUserId);
+      const startTime = Date.now();
+      console.log('⚡ [DrivenRoutes] Loading driven routes for user:', effectiveUserId);
       console.log('🚗 [DrivenRoutes] Is viewing as student:', isViewingAsStudent);
 
       try {
@@ -130,6 +130,7 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
           }) as DrivenRoute[];
 
         setDrivenRoutes(transformedRoutes);
+        console.log('⚡ [DrivenRoutes] Driven routes loaded in:', Date.now() - startTime, 'ms');
       } catch (err) {
         console.error('Error loading driven routes:', err);
       }
@@ -161,69 +162,20 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingVertical: 8 }}
-          renderItem={({ item: route }) => {
-            const imageUrl = getRouteImage(route);
-            return (
-              <XStack marginRight="$3">
-                <Card
-                  bordered
-                  elevate
-                  backgroundColor="$backgroundStrong"
-                  width={200}
-                  height={240}
-                  onPress={() => {
-                    if (onRoutePress) {
-                      onRoutePress(route.id);
-                    } else {
-                      navigation.navigate('RouteDetail', { routeId: route.id });
-                    }
-                  }}
-                >
-                  <YStack f={1}>
-                    {/* Carousel for map/media */}
-                    <View style={{ height: 120 }}>
-                      <RouteDetailsCarousel routeData={route} />
-                    </View>
-
-                    <YStack padding="$3" gap="$1" flex={1}>
-                      <Text size="md" weight="bold" numberOfLines={1} ellipsizeMode="tail">
-                        {route.name}
-                      </Text>
-                      <XStack space="$1" alignItems="center" marginTop="$1">
-                        <Feather
-                          name="user"
-                          size={14}
-                          color={colorScheme === 'dark' ? 'white' : 'black'}
-                        />
-                        <Text
-                          color="$gray11"
-                          size="xs"
-                          onPress={() => {
-                            if ((route.creator as any)?.id) {
-                              navigation.navigate('PublicProfile', {
-                                userId: (route.creator as any).id,
-                              });
-                            }
-                          }}
-                          pressStyle={{ opacity: 0.7 }}
-                        >
-                          {route.creator?.full_name || 'Unknown'}
-                        </Text>
-                      </XStack>
-                      <Text size="sm" color="$gray11">
-                        {route.difficulty?.toUpperCase()}
-                      </Text>
-                      {route.description && (
-                        <Text size="sm" color="$gray11" numberOfLines={2} ellipsizeMode="tail">
-                          {route.description}
-                        </Text>
-                      )}
-                    </YStack>
-                  </YStack>
-                </Card>
-              </XStack>
-            );
-          }}
+          renderItem={({ item: route }) => (
+            <XStack marginRight="$3">
+              <RouteCard 
+                route={route} 
+                onPress={() => {
+                  if (onRoutePress) {
+                    onRoutePress(route.id);
+                  } else {
+                    navigation.navigate('RouteDetail', { routeId: route.id });
+                  }
+                }}
+              />
+            </XStack>
+          )}
         />
       ) : (
         <YStack px="$4">
