@@ -132,6 +132,22 @@ export function BetaTestingSheet({
     return translated && translated !== key ? translated : fallback;
   };
 
+  // Helper function to get translated checklist item text
+  const getChecklistItemTranslation = (item: any, field: 'title' | 'description'): string => {
+    // Try to parse assignment_id to get role and id
+    // Format: {role}_{id}_{timestamp}
+    const assignmentIdParts = item.assignmentId?.split('_') || [];
+    if (assignmentIdParts.length >= 2) {
+      const role = assignmentIdParts[0];
+      const id = assignmentIdParts.slice(1, -1).join('_'); // Everything except first and last (timestamp)
+      const translationKey = `beta.checklist.${role}.${id}.${field}`;
+      const translated = getTranslation(translationKey, field === 'title' ? item.label : item.description);
+      return translated;
+    }
+    // Fallback to original text if parsing fails
+    return field === 'title' ? item.label : item.description;
+  };
+
   // Snap points for resizing (like RouteDetailSheet)
   const snapPoints = useMemo(() => {
     const points = {
@@ -1569,7 +1585,7 @@ export function BetaTestingSheet({
                         item.completed ? { textDecorationLine: 'line-through', opacity: 0.8 } : {}
                       }
                     >
-                      {item.label}
+                      {getChecklistItemTranslation(item, 'title')}
                     </Text>
                     {item.description && (
                       <Text
@@ -1580,12 +1596,12 @@ export function BetaTestingSheet({
                           item.completed ? { textDecorationLine: 'line-through', opacity: 0.6 } : {}
                         }
                       >
-                        {item.description}
+                        {getChecklistItemTranslation(item, 'description')}
                       </Text>
                     )}
                     {item.completed && item.completedAt && (
                       <Text fontSize="$2" color={primaryColor} opacity={0.8}>
-                        Completed: {new Date(item.completedAt).toLocaleDateString()}
+                        {getTranslation('beta.completed', language === 'sv' ? 'Slutförd' : 'Completed')}: {new Date(item.completedAt).toLocaleDateString()}
                       </Text>
                     )}
                   </YStack>

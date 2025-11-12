@@ -1165,7 +1165,7 @@ export function MapScreen({
             setSelectedRouteId(routeId);
             setShowRouteDetailSheet(true);
           }}
-          isRouteSelected={!!selectedRouteId}
+          isRouteSelected={!!selectedRouteId || !!selectedPin}
         />
 
         {/* Clear Filters Button */}
