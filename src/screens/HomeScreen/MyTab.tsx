@@ -7,7 +7,7 @@ import { useTranslation } from '../../contexts/TranslationContext';
 import { ProgressSection } from '../../components/ProgressSection';
 
 import { SectionHeader } from '../../components/SectionHeader';
-import { UsersList } from '../../components/UsersList';
+// import { UsersList } from '../../components/UsersList';
 
 import { WeeklyGoal } from './WeeklyGoal';
 import { DailyStatus } from './DailyStatus';
@@ -24,8 +24,8 @@ import { DraftRoutes } from './DraftRoutes';
 import { LearningPathsSheet } from '../../components/LearningPathsSheet';
 import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 // import { LearningPathCard } from './LearningPathCard';
-import { RoleSelectionCard } from './RoleSelectionCard';
-import { ConnectionsCard } from './ConnectionsCard';
+// import { RoleSelectionCard } from './RoleSelectionCard';
+// import { ConnectionsCard } from './ConnectionsCard';
 
 export default React.memo(function MyTab({
   activeUserId,
@@ -103,6 +103,12 @@ export default React.memo(function MyTab({
       {/* Getting Started Section */}
       <GettingStarted />
 
+      {/* Role Selection Card - COMMENTED OUT FOR PERFORMANCE TESTING */}
+      {/* <RoleSelectionCard /> */}
+
+      {/* Connections Card - COMMENTED OUT FOR PERFORMANCE TESTING */}
+      {/* <ConnectionsCard /> */}
+
       {/* Learning Path Card - COMMENTED OUT FOR PERFORMANCE TESTING */}
       {/* <LearningPathCard
         activeUserId={effectiveUserId || undefined}
@@ -133,12 +139,12 @@ export default React.memo(function MyTab({
       </YStack>
 
       {/* Role Selection and Connections Cards */}
-      <YStack gap="$4" marginTop="$6">
+      {/* <YStack gap="$4" marginTop="$6">
         <RoleSelectionCard />
         <ConnectionsCard />
-      </YStack>
+      </YStack> */}
 
-      <YStack gap="$4" marginTop="$6" marginBottom="$6">
+      {/* <YStack gap="$4" marginTop="$6" marginBottom="$6">
         <SectionHeader
           title={getTranslation('home.users.title', language === 'sv' ? 'Användare' : 'Users')}
           variant="chevron"
@@ -146,7 +152,7 @@ export default React.memo(function MyTab({
           actionLabel={t('common.seeAll')}
         />
         <UsersList onUserPress={onShowUser} />
-      </YStack>
+      </YStack> */}
 
       {/* Exercise List Sheet for Selected Path */}
       {selectedLearningPath && (
