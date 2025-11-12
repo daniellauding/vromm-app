@@ -141,10 +141,21 @@ export function BetaTestingSheet({
       const role = assignmentIdParts[0];
       const id = assignmentIdParts.slice(1, -1).join('_'); // Everything except first and last (timestamp)
       const translationKey = `beta.checklist.${role}.${id}.${field}`;
+      console.log('🌍 [BetaTestingSheet] Translation lookup:', {
+        assignmentId: item.assignmentId,
+        role,
+        id,
+        field,
+        translationKey,
+        language,
+        fallback: field === 'title' ? item.label : item.description
+      });
       const translated = getTranslation(translationKey, field === 'title' ? item.label : item.description);
+      console.log('🌍 [BetaTestingSheet] Translation result:', translated);
       return translated;
     }
     // Fallback to original text if parsing fails
+    console.log('🌍 [BetaTestingSheet] Translation parsing failed, using fallback:', field === 'title' ? item.label : item.description);
     return field === 'title' ? item.label : item.description;
   };
 

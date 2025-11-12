@@ -4875,12 +4875,21 @@ export function ProgressScreen() {
                 <YStack
                   key={`exercise-detail-${main.id}-${exerciseIndex}`}
                   marginBottom={8}
-                  marginTop={32}
+                  marginTop={16}
                 >
                   {/* Main Exercise */}
                   <TouchableOpacity
                     // ref={exerciseIndex === 0 ? exerciseItemRef : undefined} // DISABLED
                     onPress={() => handleExerciseSelect(main)}
+
+                    style={{
+                      paddingVertical: 16,
+                      paddingHorizontal: 16,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                      borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                    }}
                   >
                     <XStack alignItems="flex-start" gap={8}>
                       <YStack alignItems="center" justifyContent="center" gap={8}>
@@ -5008,9 +5017,10 @@ export function ProgressScreen() {
                         paddingRight={16}
                         // borderRadius={16}
                         // backgroundColor="$backgroundStrong"
+                        backgroundColor="transparent"
                         flex={1}
                       >
-                        <XStack justifyContent="space-between" alignItems="center" gap={8}>
+                        <XStack justifyContent="space-between" alignItems="center" gap={4}>
                           <XStack alignItems="center" gap={8} flex={1}>
                             <Text
                               fontSize={18}
@@ -5118,6 +5128,7 @@ export function ProgressScreen() {
                           </Text>
                         )}
                       </Card>
+                      <Feather name="chevron-right" size={18} color={colorScheme === 'dark' ? '#1a1a1a' : '#666'} />
                     </XStack>
                   </TouchableOpacity>
                 </YStack>
