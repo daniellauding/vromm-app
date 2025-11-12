@@ -14,23 +14,28 @@ import { NavigationProp } from '../types/navigation';
 
 const { width } = Dimensions.get('window');
 const SLIDE_WIDTH = width - 32; // 16px padding on each side
+const AUTO_SLIDE_INTERVAL = 5000; // 5 seconds
 
 interface RouteCreationBannerProps {
   onDismiss: () => void;
+  onRoutePress?: (routeId: string) => void;
+  isRouteSelected?: boolean; // Hide banner when a route is selected
 }
 
-export function RouteCreationBanner({ onDismiss }: RouteCreationBannerProps) {
+export function RouteCreationBanner({ onDismiss, onRoutePress, isRouteSelected }: RouteCreationBannerProps) {
   const { t, language } = useTranslation();
   const { user } = useAuth();
   const { showModal, hideModal } = useModal();
   const navigation = useNavigation<NavigationProp>();
   const scrollViewRef = useRef<ScrollView>(null);
+  const autoSlideTimer = useRef<NodeJS.Timeout | null>(null);
   
   const [hasCreatedRoutes, setHasCreatedRoutes] = useState(false);
   const [hasSavedRoutes, setHasSavedRoutes] = useState(false);
   const [hasDrivenRoutes, setHasDrivenRoutes] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [nearbyRoutes, setNearbyRoutes] = useState<any[]>([]);
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -224,10 +229,16 @@ export function RouteCreationBanner({ onDismiss }: RouteCreationBannerProps) {
         language === 'sv' ? 'Utforska rutter' : 'Explore Routes'
       ),
       onPress: () => {
-        navigation.navigate('MainTabs', {
-          screen: 'MapTab',
-          params: { screen: 'MapScreen' },
-        } as any);
+        // If we have nearby routes, open one; otherwise go to map
+        if (nearbyRoutes.length > 0 && onRoutePress) {
+          const randomRoute = nearbyRoutes[Math.floor(Math.random() * nearbyRoutes.length)];
+          onRoutePress(randomRoute.id);
+        } else {
+          navigation.navigate('MainTabs', {
+            screen: 'MapTab',
+            params: { screen: 'MapScreen' },
+          } as any);
+        }
       },
     });
   }
@@ -249,22 +260,95 @@ export function RouteCreationBanner({ onDismiss }: RouteCreationBannerProps) {
         language === 'sv' ? 'Hitta rutter' : 'Find Routes'
       ),
       onPress: () => {
-        navigation.navigate('MainTabs', {
-          screen: 'MapTab',
-          params: { screen: 'MapScreen' },
-        } as any);
+        // If we have nearby routes, open one; otherwise go to map
+        if (nearbyRoutes.length > 0 && onRoutePress) {
+          const randomRoute = nearbyRoutes[Math.floor(Math.random() * nearbyRoutes.length)];
+          onRoutePress(randomRoute.id);
+        } else {
+          navigation.navigate('MainTabs', {
+            screen: 'MapTab',
+            params: { screen: 'MapScreen' },
+          } as any);
+        }
       },
     });
   }
 
-  // Don't show banner if all actions completed or if dismissed
-  if (slides.length === 0 || isDismissed) {
+  // Load nearby routes for save/drive CTAs
+  useEffect(() => {
+    const loadNearbyRoutes = async () => {
+      if (!user) return;
+      try {
+        const { data, error } = await supabase
+          .from('routes')
+          .select('id, name, creator_id')
+          .neq('creator_id', user.id)
+          .limit(10)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          setNearbyRoutes(data);
+        }
+      } catch (err) {
+        console.error('Error loading nearby routes:', err);
+      }
+    };
+
+    loadNearbyRoutes();
+  }, [user]);
+
+  // Auto-slide functionality
+  useEffect(() => {
+    if (slides.length <= 1) return; // No need to auto-slide if only one slide
+
+    // Clear existing timer
+    if (autoSlideTimer.current) {
+      clearInterval(autoSlideTimer.current);
+    }
+
+    // Start auto-slide timer
+    autoSlideTimer.current = setInterval(() => {
+      setCurrentSlide((prev) => {
+        const nextSlide = (prev + 1) % slides.length;
+        scrollViewRef.current?.scrollTo({
+          x: nextSlide * width,
+          animated: true,
+        });
+        return nextSlide;
+      });
+    }, AUTO_SLIDE_INTERVAL);
+
+    // Cleanup on unmount
+    return () => {
+      if (autoSlideTimer.current) {
+        clearInterval(autoSlideTimer.current);
+      }
+    };
+  }, [slides.length]);
+
+  // Don't show banner if all actions completed, dismissed, or route is selected
+  if (slides.length === 0 || isDismissed || isRouteSelected) {
     return null;
   }
 
   const handleScroll = (event: any) => {
-    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / SLIDE_WIDTH);
+    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
     setCurrentSlide(slideIndex);
+    
+    // Reset auto-slide timer when user manually scrolls
+    if (autoSlideTimer.current) {
+      clearInterval(autoSlideTimer.current);
+    }
+    autoSlideTimer.current = setInterval(() => {
+      setCurrentSlide((prev) => {
+        const nextSlide = (prev + 1) % slides.length;
+        scrollViewRef.current?.scrollTo({
+          x: nextSlide * width,
+          animated: true,
+        });
+        return nextSlide;
+      });
+    }, AUTO_SLIDE_INTERVAL);
   };
 
   return (
@@ -279,25 +363,26 @@ export function RouteCreationBanner({ onDismiss }: RouteCreationBannerProps) {
     >
       <YStack gap="$2">
         {/* Carousel Container */}
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          contentContainerStyle={{ paddingHorizontal: 16 }}
-          snapToInterval={SLIDE_WIDTH}
-          decelerationRate="fast"
-        >
-          {slides.map((slide, index) => (
-            <View
-              key={slide.id}
-              style={{
-                width: SLIDE_WIDTH,
-                marginRight: index < slides.length - 1 ? 0 : 0,
-              }}
-            >
+        <View style={{ width: width, overflow: 'hidden' }}>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            snapToInterval={width}
+            decelerationRate="fast"
+            style={{ width: width }}
+          >
+            {slides.map((slide, index) => (
+              <View
+                key={slide.id}
+                style={{
+                  width: width,
+                  paddingHorizontal: 16,
+                }}
+              >
               <View
                 style={{
                   backgroundColor: 'rgba(0, 230, 195, 0.95)',
@@ -353,9 +438,10 @@ export function RouteCreationBanner({ onDismiss }: RouteCreationBannerProps) {
                   )}
                 </XStack>
               </View>
-            </View>
-          ))}
-        </ScrollView>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* Pagination Dots - only show if more than one slide */}
         {slides.length > 1 && (

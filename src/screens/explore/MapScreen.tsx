@@ -1158,12 +1158,14 @@ export function MapScreen({
 
         {/* Route Creation Banner */}
         <RouteCreationBanner
-          onPress={() => {
-            navigation.navigate('CreateRoute', {});
-          }}
           onDismiss={() => {
             // Banner will handle its own dismissal state
           }}
+          onRoutePress={(routeId) => {
+            setSelectedRouteId(routeId);
+            setShowRouteDetailSheet(true);
+          }}
+          isRouteSelected={!!selectedRouteId}
         />
 
         {/* Clear Filters Button */}
