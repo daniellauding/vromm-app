@@ -456,9 +456,9 @@ export const HomeHeader = React.memo(function HomeHeader() {
 
         <XStack gap={12} alignItems="center">
           {/* <MessageBell onPress={() => setShowMessagesSheet(true)} /> */}
-          
-          {/* 🏆 Achievements Button */}
-          <TouchableOpacity
+
+          {/* 🏆 Achievements Button - HIDDEN (uncomment to restore) */}
+          {/* <TouchableOpacity
             onPress={() => setShowAchievementsSheet(true)}
             style={{
               width: 48,
@@ -470,7 +470,7 @@ export const HomeHeader = React.memo(function HomeHeader() {
             }}
           >
             <Feather name="award" size={20} color="#FFD700" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <NotificationBell onPress={() => setShowNotificationsSheet(true)} />
           {/* <EventsBell onPress={() => setShowEventsSheet(true)} /> */}

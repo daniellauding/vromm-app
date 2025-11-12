@@ -90,8 +90,11 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
     } catch (error) {
       console.error('Error marking all as read:', error);
       showToast({
-        title: 'Error',
-        message: 'Failed to clear notifications',
+        title: getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+        message: getTranslation(
+          'notifications.clearError',
+          language === 'sv' ? 'Misslyckades att rensa notiser' : 'Failed to clear notifications'
+        ),
         type: 'error',
       });
     } finally {
@@ -111,8 +114,11 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
       setIsProcessing(true);
       await notificationService.archiveAllNotifications();
       showToast({
-        title: 'Success',
-        message: 'All notifications archived',
+        title: getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
+        message: getTranslation(
+          'notifications.allArchived',
+          language === 'sv' ? 'Alla notiser arkiverade' : 'All notifications archived'
+        ),
         type: 'success',
       });
       setShowArchiveConfirm(false);
@@ -121,8 +127,11 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
     } catch (error) {
       console.error('Error archiving all notifications:', error);
       showToast({
-        title: 'Error',
-        message: 'Failed to archive all notifications',
+        title: getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
+        message: getTranslation(
+          'notifications.archiveError',
+          language === 'sv' ? 'Misslyckades att arkivera alla notiser' : 'Failed to archive all notifications'
+        ),
         type: 'error',
       });
     } finally {
@@ -356,7 +365,12 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                       onPress={handleMarkAllAsRead}
                       disabled={isProcessing}
                     >
-                      <Text>Clear All</Text>
+                      <Text>
+                        {getTranslation(
+                          'notifications.clearAll',
+                          language === 'sv' ? 'Rensa alla' : 'Clear All'
+                        )}
+                      </Text>
                     </Button>
 
                     <Button
@@ -365,14 +379,22 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                       onPress={handleArchiveAll}
                       disabled={isProcessing}
                     >
-                      <Text>Archive All</Text>
+                      <Text>
+                        {getTranslation(
+                          'notifications.archiveAll',
+                          language === 'sv' ? 'Arkivera alla' : 'Archive All'
+                        )}
+                      </Text>
                     </Button>
 
                     {isProcessing && (
                       <XStack alignItems="center" gap="$2" padding="$2">
                         <Spinner size="small" color="#00FFBC" />
                         <Text fontSize="$2" color="$gray11">
-                          Processing...
+                          {getTranslation(
+                            'common.processing',
+                            language === 'sv' ? 'Bearbetar...' : 'Processing...'
+                          )}
                         </Text>
                       </XStack>
                     )}
@@ -441,7 +463,12 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                 flex={1}
                 size="md"
               >
-                <Text color="$color">Cancel</Text>
+                <Text color="$color">
+                  {getTranslation(
+                    'common.cancel',
+                    language === 'sv' ? 'Avbryt' : 'Cancel'
+                  )}
+                </Text>
               </Button>
 
               <Button
@@ -454,11 +481,19 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                 {isProcessing ? (
                   <XStack alignItems="center" gap="$2">
                     <Spinner size="small" color="white" />
-                    <Text color="white">Archiving...</Text>
+                    <Text color="white">
+                      {getTranslation(
+                        'notifications.archiving',
+                        language === 'sv' ? 'Arkiverar...' : 'Archiving...'
+                      )}
+                    </Text>
                   </XStack>
                 ) : (
                   <Text color="white" fontWeight="600">
-                    Archive All
+                    {getTranslation(
+                      'notifications.archiveAll',
+                      language === 'sv' ? 'Arkivera alla' : 'Archive All'
+                    )}
                   </Text>
                 )}
               </Button>
