@@ -782,6 +782,16 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
         recorded_routes_created: recordedRoutesCount,
       };
 
+      console.log('🗺️ [UserProfileSheet] Profile loaded - Location data:', {
+        userId: profileWithCounts.id,
+        userName: profileWithCounts.full_name,
+        location: profileWithCounts.location || 'NOT SET',
+        location_lat: profileWithCounts.location_lat || 'NOT SET',
+        location_lng: profileWithCounts.location_lng || 'NOT SET',
+        hasLocation: !!profileWithCounts.location,
+        source: 'Profile fetched from database',
+      });
+
       setProfile(profileWithCounts);
       setRecentRoutes(counts[5].data || []);
       setRecentReviews(counts[6].data || []);
@@ -817,6 +827,31 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
       setIsCurrentUser(user.id === profile.id);
     }
   }, [user, profile]);
+
+  // Track location state changes
+  useEffect(() => {
+    if (profile) {
+      console.log('🗺️ [UserProfileSheet] Profile location state updated:', {
+        userId: profile.id,
+        userName: profile.full_name,
+        hasLocation: !!profile.location,
+        location: profile.location || 'NOT SET',
+        location_lat: profile.location_lat || 'NOT SET',
+        location_lng: profile.location_lng || 'NOT SET',
+        willDisplayLocationUI: !!profile.location,
+      });
+
+      if (!profile.location) {
+        console.log(
+          '⚠️ [UserProfileSheet] WARNING: Profile loaded but location is NOT SET for user:',
+          profile.full_name,
+          '(ID:',
+          profile.id,
+          ')',
+        );
+      }
+    }
+  }, [profile, profile?.location, profile?.location_lat, profile?.location_lng]);
 
   // Fetch learning path data when profile loads
   useEffect(() => {
@@ -1376,7 +1411,20 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
                           </Card>
                         )}
 
-                        <XStack alignItems="center" gap="$1">
+                        <XStack
+                          alignItems="center"
+                          gap="$1"
+                          onLayout={() => {
+                            console.log('🗺️ [UserProfileSheet] Location UI rendered:', {
+                              userId: profile.id,
+                              location: profile.location || 'NOT SET',
+                              coordinates: {
+                                lat: profile.location_lat || 'NOT SET',
+                                lng: profile.location_lng || 'NOT SET',
+                              },
+                            });
+                          }}
+                        >
                           <Feather name="map-pin" size={16} color={iconColor} />
                           <Text>
                             {profile.location ||

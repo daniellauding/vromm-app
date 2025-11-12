@@ -129,6 +129,29 @@ export function PublicProfileScreen() {
     }
   }, [user, profile]);
 
+  // Track location state changes
+  useEffect(() => {
+    if (profile) {
+      console.log('🗺️ [PublicProfileScreen] Profile location state updated:', {
+        userId: profile.id,
+        userName: profile.full_name,
+        hasLocation: !!profile.location,
+        location: profile.location || 'NOT SET',
+        location_lat: profile.location_lat || 'NOT SET',
+        location_lng: profile.location_lng || 'NOT SET',
+        willDisplayLocationUI: !!profile.location,
+      });
+
+      if (!profile.location) {
+        console.log(
+          '⚠️ [PublicProfileScreen] No location set for user:',
+          profile.id,
+          '- This user has not set a location yet',
+        );
+      }
+    }
+  }, [profile?.location, profile?.id]);
+
   // Fetch learning path data when profile loads
   useEffect(() => {
     if (profile?.id) {
@@ -387,6 +410,14 @@ export function PublicProfileScreen() {
         total_duration_driven: totalDurationDriven,
         recorded_routes_created: recordedRoutesCount,
       };
+
+      console.log('🗺️ [PublicProfileScreen] loadProfile - Location data loaded:', {
+        userId,
+        location: profileWithCounts.location || 'NOT SET',
+        location_lat: profileWithCounts.location_lat || 'NOT SET',
+        location_lng: profileWithCounts.location_lng || 'NOT SET',
+        hasLocation: !!profileWithCounts.location,
+      });
 
       setProfile(profileWithCounts);
       setRecentRoutes(counts[5].data || []);
@@ -1201,7 +1232,20 @@ export function PublicProfileScreen() {
           )}
 
           {profile.location && (
-            <XStack alignItems="center" gap="$1">
+            <XStack
+              alignItems="center"
+              gap="$1"
+              onLayout={() => {
+                console.log('🗺️ [PublicProfileScreen] Location UI rendered:', {
+                  userId: profile.id,
+                  location: profile.location,
+                  coordinates: {
+                    lat: profile.location_lat || 'NOT SET',
+                    lng: profile.location_lng || 'NOT SET',
+                  },
+                });
+              }}
+            >
               <Feather name="map-pin" size={16} color={iconColor} />
               <Text>{profile.location}</Text>
             </XStack>

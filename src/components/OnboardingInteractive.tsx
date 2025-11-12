@@ -1132,6 +1132,15 @@ export function OnboardingInteractive({
       if (address.city === null && address.formattedAddress) {
         cityName = address.formattedAddress;
       }
+      console.log('🗺️ [OnboardingInteractive] Location detected - START SAVE:', {
+        cityName,
+        coords: {
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+        },
+        userId: user?.id,
+      });
+
       setSelectedCity(cityName);
 
       // Save to LocationContext
@@ -1143,9 +1152,12 @@ export function OnboardingInteractive({
         timestamp: new Date().toISOString(),
       });
 
+      console.log('🗺️ [OnboardingInteractive] LocationContext updated');
+
       // 🔥 CRITICAL FIX: Also save to profiles table for cross-screen sync
       if (user) {
         try {
+          console.log('🗺️ [OnboardingInteractive] Saving to profiles table...');
           const { error } = await supabase
             .from('profiles')
             .update({
@@ -1161,13 +1173,20 @@ export function OnboardingInteractive({
             .eq('id', user.id);
 
           if (error) {
-            console.error('Error saving detected location to profile:', error);
+            console.error('🗺️ [OnboardingInteractive] Error saving detected location to profile:', error);
           } else {
-            console.log('✅ Detected location saved to profile:', cityName);
+            console.log('✅ [OnboardingInteractive] Detected location saved to profile:', {
+              cityName,
+              location: cityName,
+              location_lat: location.coords.latitude,
+              location_lng: location.coords.longitude,
+            });
           }
         } catch (error) {
-          console.error('Error saving detected location:', error);
+          console.error('🗺️ [OnboardingInteractive] Error saving detected location:', error);
         }
+      } else {
+        console.log('⚠️ [OnboardingInteractive] No user found, cannot save to profile');
       }
 
       // Location detected and set
@@ -1691,6 +1710,12 @@ export function OnboardingInteractive({
     // Format city name as "City, SE" instead of full address
     const cityName = [cityData.city, cityData.country].filter(Boolean).join(', ');
 
+    console.log('🗺️ [OnboardingInteractive] City selected - START SAVE:', {
+      cityName,
+      cityData,
+      userId: user?.id,
+    });
+
     setSelectedCity(cityName);
     hideCityModal();
     setCitySearchQuery('');
@@ -1699,15 +1724,26 @@ export function OnboardingInteractive({
     // Save city selection to profile and LocationContext
     if (user) {
       try {
+        console.log('🗺️ [OnboardingInteractive] Saving selected city to profiles table...');
         const { error } = await supabase
           .from('profiles')
           .update({
             preferred_city: cityName,
             preferred_city_coords: cityData.coords,
+            location: cityName, // Also update main location field
+            location_lat: cityData.coords?.latitude || null,
+            location_lng: cityData.coords?.longitude || null,
           })
           .eq('id', user.id);
 
         if (!error) {
+          console.log('✅ [OnboardingInteractive] Selected city saved to profile:', {
+            cityName,
+            location: cityName,
+            location_lat: cityData.coords?.latitude,
+            location_lng: cityData.coords?.longitude,
+          });
+
           // Update LocationContext with selected location
           await setUserLocation({
             name: cityName,
@@ -1717,12 +1753,18 @@ export function OnboardingInteractive({
             timestamp: new Date().toISOString(),
           });
 
+          console.log('🗺️ [OnboardingInteractive] LocationContext updated with selected city');
+
           // Don't auto-advance - let user click save button
           // City saved successfully, waiting for user to save
+        } else {
+          console.error('🗺️ [OnboardingInteractive] Error saving selected city:', error);
         }
       } catch (err) {
-        console.error('Error saving city:', err);
+        console.error('🗺️ [OnboardingInteractive] Error saving city:', err);
       }
+    } else {
+      console.log('⚠️ [OnboardingInteractive] No user found, cannot save selected city');
     }
   };
 

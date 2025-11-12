@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { YStack, XStack, Switch, useTheme, Card, Input, TextArea } from 'tamagui';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
@@ -18,6 +18,14 @@ import {
   Easing,
   StyleSheet,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import { Screen } from '../components/Screen';
 import { FormField } from '../components/FormField';
 import { Button } from '../components/Button';
@@ -247,6 +255,10 @@ export function ProfileScreen() {
   const { resetTour, startDatabaseTour } = useTour();
   const { setUserLocation } = useLocation();
   const { showToast } = useToast();
+  const colorScheme = useColorScheme();
+  
+  // Get screen dimensions for snap points
+  const { height } = Dimensions.get('window');
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -294,6 +306,7 @@ export function ProfileScreen() {
   const [locationSearchTimeout, setLocationSearchTimeout] = useState<ReturnType<
     typeof setTimeout
   > | null>(null);
+  const [selectedLocationData, setSelectedLocationData] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'stats' | 'relationships' | 'billing'>(
     'overview',
   );
@@ -361,6 +374,112 @@ export function ProfileScreen() {
   // Location selection modal animation refs
   const locationBackdropOpacity = useRef(new Animated.Value(0)).current;
   const locationSheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Location modal snap points and gesture handling (like OnboardingInteractive city modal)
+  const locationTranslateY = useSharedValue(height);
+  const locationBackdropOpacityShared = useSharedValue(0);
+
+  const locationSnapPoints = useMemo(() => {
+    const points = {
+      large: height * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: height * 0.7, // Top at 70% of screen (show 30% - small)
+      mini: height * 0.85, // Top at 85% of screen (show 15% - just title)
+      dismissed: height, // Completely off-screen
+    };
+    return points;
+  }, [height]);
+
+  const [currentLocationSnapPoint, setCurrentLocationSnapPoint] = useState(
+    locationSnapPoints.large,
+  );
+  const currentLocationState = useSharedValue(locationSnapPoints.large);
+
+  // Location modal pan gesture handler (like OnboardingInteractive city modal)
+  const locationPanGesture = Gesture.Pan()
+    .onStart(() => {
+      console.log('🗺️ [ProfileScreen] Location modal - DRAG HANDLE GESTURE START');
+      currentLocationState.value = locationTranslateY.value;
+    })
+    .onUpdate((event) => {
+      try {
+        const { translationY } = event;
+        const newPosition = currentLocationState.value + translationY;
+
+        // Constrain to snap points range (large is smallest Y, allow dragging past mini for dismissal)
+        const minPosition = locationSnapPoints.large; // Smallest Y (show most)
+        const maxPosition = locationSnapPoints.mini + 100; // Allow dragging past mini for dismissal
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+
+        // Set translateY directly
+        locationTranslateY.value = boundedPosition;
+      } catch (error) {
+        console.error('🗺️ [ProfileScreen] Location pan gesture error:', error);
+      }
+    })
+    .onEnd((event) => {
+      const { translationY, velocityY } = event;
+      console.log(
+        '🗺️ [ProfileScreen] Location modal - DRAG HANDLE GESTURE END - translationY:',
+        translationY,
+        'velocityY:',
+        velocityY,
+      );
+
+      const currentPosition = currentLocationState.value + translationY;
+
+      // Only dismiss if dragged down past the mini snap point with reasonable velocity
+      if (currentPosition > locationSnapPoints.mini + 30 && velocityY > 200) {
+        console.log('🗺️ [ProfileScreen] Location modal - DISMISSING');
+        runOnJS(hideLocationSheet)();
+        return;
+      }
+
+      // Determine target snap point based on position and velocity
+      let targetSnapPoint;
+      if (velocityY < -500) {
+        // Fast upward swipe - go to larger size (smaller Y)
+        targetSnapPoint = locationSnapPoints.large;
+        console.log('🗺️ [ProfileScreen] Location modal - FAST UPWARD SWIPE - going to LARGE');
+      } else if (velocityY > 500) {
+        // Fast downward swipe - go to smaller size (larger Y)
+        targetSnapPoint = locationSnapPoints.mini;
+        console.log('🗺️ [ProfileScreen] Location modal - FAST DOWNWARD SWIPE - going to MINI');
+      } else {
+        // Find closest snap point
+        const positions = [
+          locationSnapPoints.large,
+          locationSnapPoints.medium,
+          locationSnapPoints.small,
+          locationSnapPoints.mini,
+        ];
+        targetSnapPoint = positions.reduce((prev, curr) =>
+          Math.abs(curr - currentPosition) < Math.abs(prev - currentPosition) ? curr : prev,
+        );
+        console.log('🗺️ [ProfileScreen] Location modal - SNAP TO CLOSEST:', targetSnapPoint);
+      }
+
+      // Constrain target to valid range
+      const boundedTarget = Math.min(
+        Math.max(targetSnapPoint, locationSnapPoints.large),
+        locationSnapPoints.mini,
+      );
+
+      console.log('🗺️ [ProfileScreen] Location modal - ANIMATING TO:', boundedTarget);
+
+      // Animate to target position
+      locationTranslateY.value = withSpring(boundedTarget, {
+        damping: 20,
+        mass: 1,
+        stiffness: 100,
+        overshootClamping: true,
+        restDisplacementThreshold: 0.01,
+        restSpeedThreshold: 0.01,
+      });
+
+      currentLocationState.value = boundedTarget;
+      runOnJS(setCurrentLocationSnapPoint)(boundedTarget);
+    });
 
   // Developer options modal state
   const [showDeveloperModal, setShowDeveloperModal] = useState(false);
@@ -474,18 +593,44 @@ export function ProfileScreen() {
   // Update form data when profile changes (e.g., after onboarding completion)
   useEffect(() => {
     if (profile) {
-      setFormData({
-        full_name: profile?.full_name || '',
+      const locationData = {
         location: (profile as any)?.preferred_city || profile?.location || '',
-        role: profile?.role || ('student' as UserRole),
-        experience_level: profile?.experience_level || ('beginner' as ExperienceLevel),
-        private_profile: profile?.private_profile || false,
         location_lat:
           (profile as any)?.preferred_city_coords?.latitude || profile?.location_lat || null,
         location_lng:
           (profile as any)?.preferred_city_coords?.longitude || profile?.location_lng || null,
+      };
+
+      console.log('🗺️ [ProfileScreen] Profile loaded - Location data:', {
+        userId: profile.id,
+        userName: profile.full_name,
+        location: locationData.location || 'NOT SET',
+        location_lat: locationData.location_lat || 'NOT SET',
+        location_lng: locationData.location_lng || 'NOT SET',
+        hasLocation: !!locationData.location,
+        source: 'Profile loaded from AuthContext/Database',
+        preferred_city: (profile as any)?.preferred_city || 'NOT SET',
+        profile_location: profile?.location || 'NOT SET',
+      });
+
+      if (!locationData.location) {
+        console.log(
+          '⚠️ [ProfileScreen] No location in profile - User needs to set location via ProfileScreen or Onboarding',
+        );
+      }
+
+      setFormData({
+        full_name: profile?.full_name || '',
+        location: locationData.location,
+        role: profile?.role || ('student' as UserRole),
+        experience_level: profile?.experience_level || ('beginner' as ExperienceLevel),
+        private_profile: profile?.private_profile || false,
+        location_lat: locationData.location_lat,
+        location_lng: locationData.location_lng,
         avatar_url: profile?.avatar_url || null,
       });
+
+      console.log('🗺️ [ProfileScreen] ✅ setFormData called - formData.location set to:', locationData.location);
 
       // Update license plan form data when profile changes
       const planData = profile.license_plan_data as any;
@@ -577,24 +722,30 @@ export function ProfileScreen() {
   };
 
   const detectLocation = useCallback(async () => {
+    console.log('🗺️ [ProfileScreen] detectLocation - START');
     let dotsInterval: NodeJS.Timeout | null = null;
     try {
       setLocationLoading(true);
 
       // Always try to detect location, even if city is already selected (allow override)
+      console.log('🗺️ [ProfileScreen] detectLocation - current formData.location:', formData.location);
 
       // Start dots animation
       dotsInterval = setInterval(() => {
         setDotsCount((prev) => (prev + 1) % 4); // 0, 1, 2, 3, then back to 0
       }, 500);
 
+      console.log('🗺️ [ProfileScreen] detectLocation - requesting location permission...');
       const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('🗺️ [ProfileScreen] detectLocation - permission status:', status);
+
       if (status !== 'granted') {
+        console.log('🗺️ [ProfileScreen] detectLocation - permission DENIED');
         showToast({
-          title: t('errors.permissionDenied') || 'Permission denied',
+          title: t('errors.permissionDenied') || (language === 'sv' ? 'Tillstånd nekat' : 'Permission denied'),
           message:
             t('errors.enableLocationServices') ||
-            'Please enable location services to use this feature',
+            (language === 'sv' ? 'Aktivera platstjänster för att använda denna funktion' : 'Please enable location services to use this feature'),
           type: 'error',
         });
         setLocationLoading(false);
@@ -603,9 +754,11 @@ export function ProfileScreen() {
 
       let location;
       try {
+        console.log('🗺️ [ProfileScreen] detectLocation - getting current position...');
         location = await Location.getCurrentPositionAsync({});
+        console.log('🗺️ [ProfileScreen] detectLocation - got position:', location.coords);
       } catch (locationError) {
-        console.log('📍 Location failed, using Lund, Sweden fallback');
+        console.log('📍 [ProfileScreen] Location detection failed, using Lund, Sweden fallback:', locationError);
         // Fallback location for simulator - Lund, Sweden (same as OnboardingInteractive)
         location = {
           coords: {
@@ -616,64 +769,48 @@ export function ProfileScreen() {
       }
 
       // Get address from coordinates
+      console.log('🗺️ [ProfileScreen] detectLocation - reverse geocoding...');
       const [address] = await Location.reverseGeocodeAsync({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
+      console.log('🗺️ [ProfileScreen] detectLocation - reverse geocode result:', address);
 
       let locationString = [address.city, address.country].filter(Boolean).join(', ');
       if (address.city === null && address.formattedAddress) {
         locationString = address.formattedAddress;
       }
 
-      console.log(
-        '📍 Location detected:',
-        locationString,
-        'overriding existing:',
-        formData.location,
-      );
+      console.log('🗺️ [ProfileScreen] detectLocation - detected location string:', locationString);
 
-      setFormData((prev) => ({
-        ...prev,
-        location: locationString, // This should override existing location
-        location_lat: location.coords.latitude,
-        location_lng: location.coords.longitude,
-      }));
-
-      // Auto-save detected location (save to both location and preferred_city fields)
-      if (user) {
-        try {
-          await updateProfile({
-            location: locationString,
-            location_lat: location.coords.latitude,
-            location_lng: location.coords.longitude,
-          });
-          console.log('✅ Location saved to profile:', locationString);
-        } catch (error) {
-          console.error('Error saving detected location:', error);
-        }
-      }
-
-      // Update LocationContext as well
-      await setUserLocation({
-        name: locationString,
+      const locationData = {
+        city: address.city,
+        region: address.region,
+        country: address.country,
+        coords: {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-        source: 'gps',
-        timestamp: new Date().toISOString(),
-      });
+        },
+      };
 
-      // Close location sheet and show success
-      hideLocationSheet();
+      // Set as selected location for user to confirm with Save button
+      console.log('🗺️ [ProfileScreen] detectLocation - setting selectedLocationData:', locationData);
+      setSelectedLocationData(locationData);
+
+      // Add to search results so user can see it
+      console.log('🗺️ [ProfileScreen] detectLocation - adding to search results');
+      setLocationSearchResults([locationData]);
+
       showToast({
-        title: t('common.success') || 'Success',
-        message: `Location detected: ${locationString}`,
+        title: t('common.success') || (language === 'sv' ? 'Framgång' : 'Success'),
+        message: `${t('profile.location.locationDetected') || (language === 'sv' ? 'Plats upptäckt' : 'Location detected')}: ${locationString}. ${t('profile.location.clickSaveToConfirm') || (language === 'sv' ? 'Klicka Spara för att bekräfta' : 'Click Save to confirm')}.`,
         type: 'success',
       });
     } catch (err) {
+      console.error('❌ [ProfileScreen] detectLocation - error:', err);
       showToast({
-        title: t('errors.title') || 'Error',
-        message: t('errors.locationDetectionFailed') || 'Failed to detect location',
+        title: t('errors.title') || (language === 'sv' ? 'Fel' : 'Error'),
+        message: t('errors.locationDetectionFailed') || (language === 'sv' ? 'Misslyckades med att hitta plats' : 'Failed to detect location'),
         type: 'error',
       });
     } finally {
@@ -683,13 +820,29 @@ export function ProfileScreen() {
       if (dotsInterval) {
         clearInterval(dotsInterval);
       }
+      console.log('🗺️ [ProfileScreen] detectLocation - END');
     }
-  }, [user, updateProfile, setUserLocation, showToast, t]);
+  }, [user, updateProfile, setUserLocation, showToast, t, formData.location, language]);
 
   // Location search function similar to OnboardingInteractive
   const handleLocationSearch = async (query: string) => {
+    console.log(
+      '🗺️ [ProfileScreen] handleLocationSearch - query:',
+      query,
+      'current location:',
+      formData.location,
+    );
+
     // Update form data as user types
-    setFormData((prev) => ({ ...prev, location: query }));
+    setFormData((prev) => {
+      console.log(
+        '🗺️ [ProfileScreen] handleLocationSearch - updating formData.location from:',
+        prev.location,
+        'to:',
+        query,
+      );
+      return { ...prev, location: query };
+    });
 
     // Clear previous timeout
     if (locationSearchTimeout) {
@@ -697,6 +850,7 @@ export function ProfileScreen() {
     }
 
     if (!query.trim() || query.length < 2) {
+      console.log('🗺️ [ProfileScreen] handleLocationSearch - query too short, clearing results');
       setLocationSearchResults([]);
       return;
     }
@@ -772,35 +926,59 @@ export function ProfileScreen() {
     setLocationSearchTimeout(timeout);
   };
 
-  // Handle location selection from autocomplete
+  // Handle location selection from autocomplete - NOW SAVES TO DATABASE
   const handleLocationSelect = async (locationData: any) => {
+    console.log('🗺️ [ProfileScreen] handleLocationSelect - START - SAVING locationData:', locationData);
     const locationName = [locationData.city, locationData.region, locationData.country]
       .filter(Boolean)
       .join(', ');
+    console.log('🗺️ [ProfileScreen] handleLocationSelect - Location name:', locationName);
 
-    setFormData((prev) => ({
+    // Update formData immediately
+    setFormData((prev) => {
+      const updated = {
       ...prev,
       location: locationName,
       location_lat: locationData.coords?.latitude || null,
       location_lng: locationData.coords?.longitude || null,
-    }));
+      };
+      console.log(
+        '🗺️ [ProfileScreen] handleLocationSelect - formData updated from:',
+        prev.location,
+        'to:',
+        updated.location,
+      );
+      return updated;
+    });
 
     // Save to database profile (both location and preferred_city fields)
     if (user && locationData.coords?.latitude && locationData.coords?.longitude) {
       try {
+        console.log('🗺️ [ProfileScreen] handleLocationSelect - Saving to database (location + preferred_city)...');
         await updateProfile({
           location: locationName,
           location_lat: locationData.coords.latitude,
           location_lng: locationData.coords.longitude,
-        });
-        console.log('✅ Location saved to profile:', locationName);
+          preferred_city: locationName, // 🔥 CRITICAL: Also update preferred_city so dropdown shows correct value
+          preferred_city_coords: {
+            latitude: locationData.coords.latitude,
+            longitude: locationData.coords.longitude,
+          },
+        } as any);
+        console.log('✅ [ProfileScreen] Location saved to database (both location AND preferred_city):', locationName);
+
+        // Refresh profile to ensure dropdown button updates
+        console.log('🗺️ [ProfileScreen] handleLocationSelect - Refreshing profile...');
+        await refreshProfile();
+        console.log('✅ [ProfileScreen] Profile refreshed after location save');
       } catch (error) {
-        console.error('Error saving selected location:', error);
+        console.error('❌ [ProfileScreen] Error saving selected location:', error);
       }
     }
 
     // Update LocationContext with selected location
     if (locationData.coords?.latitude && locationData.coords?.longitude) {
+      console.log('🗺️ [ProfileScreen] handleLocationSelect - Updating LocationContext...');
       await setUserLocation({
         name: locationName,
         latitude: locationData.coords.latitude,
@@ -808,10 +986,16 @@ export function ProfileScreen() {
         source: 'profile',
         timestamp: new Date().toISOString(),
       });
+      console.log('✅ [ProfileScreen] LocationContext updated');
     }
+
+    // Clear selected location data
+    setSelectedLocationData(null);
+    console.log('🗺️ [ProfileScreen] handleLocationSelect - Cleared selectedLocationData');
 
     hideLocationSheet();
     setLocationSearchResults([]);
+    console.log('🗺️ [ProfileScreen] handleLocationSelect - END');
   };
 
   const handleShowOnboarding = async () => {
@@ -1054,14 +1238,29 @@ export function ProfileScreen() {
 
   // Location modal show/hide functions
   const showLocationSheet = () => {
+    console.log(
+      '🗺️ [ProfileScreen] showLocationSheet - Opening location modal at LARGE snap point',
+    );
+    console.log('🗺️ [ProfileScreen] showLocationSheet - current formData.location:', formData.location);
     setShowLocationDrawer(true);
-    // Fade in the backdrop
+    setSelectedLocationData(null); // Reset selected location when opening
+
+    // Use the new reanimated shared values for gesture-based modal
+    locationTranslateY.value = withSpring(locationSnapPoints.large, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+    });
+    locationBackdropOpacityShared.value = withTiming(1, { duration: 300 });
+    currentLocationState.value = locationSnapPoints.large;
+    setCurrentLocationSnapPoint(locationSnapPoints.large);
+    
+    // Also update old animation refs for compatibility
     Animated.timing(locationBackdropOpacity, {
       toValue: 1,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    // Slide up the sheet
     Animated.timing(locationSheetTranslateY, {
       toValue: 0,
       duration: 300,
@@ -1071,13 +1270,24 @@ export function ProfileScreen() {
   };
 
   const hideLocationSheet = () => {
-    // Fade out the backdrop
+    console.log('🗺️ [ProfileScreen] hideLocationSheet - Closing location modal');
+    console.log('🗺️ [ProfileScreen] hideLocationSheet - final formData.location:', formData.location);
+    setSelectedLocationData(null); // Reset selected location when closing
+
+    // Use the new reanimated shared values
+    locationTranslateY.value = withSpring(locationSnapPoints.dismissed, {
+      damping: 20,
+      mass: 1,
+      stiffness: 100,
+    });
+    locationBackdropOpacityShared.value = withTiming(0, { duration: 300 });
+    
+    // Also update old animation refs for compatibility
     Animated.timing(locationBackdropOpacity, {
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    // Slide down the sheet
     Animated.timing(locationSheetTranslateY, {
       toValue: 300,
       duration: 300,
@@ -3153,9 +3363,20 @@ export function ProfileScreen() {
                     </Text>
                     <DropdownButton
                       onPress={() => {
-                        // Search for nearby locations first, then show sheet
+                        console.log(
+                          '🗺️ [ProfileScreen] DropdownButton pressed - current location:',
+                          formData.location,
+                        );
+                        console.log('🗺️ [ProfileScreen] DropdownButton - profile.preferred_city:', (profile as any)?.preferred_city);
+                        console.log('🗺️ [ProfileScreen] DropdownButton - profile.location:', profile?.location);
+                        // Don't search if we already have a location - just open the sheet
+                        // Only search for nearby locations if no location is set
                         if (!formData.location) {
-                          handleLocationSearch('');
+                          console.log(
+                            '🗺️ [ProfileScreen] DropdownButton - No location set, NOT searching to avoid resetting',
+                          );
+                          // Don't call handleLocationSearch('') as it clears the formData
+                          // Just open the sheet - user can type to search
                         }
                         showLocationSheet();
                       }}
@@ -5218,43 +5439,94 @@ export function ProfileScreen() {
         animationType="none"
         onRequestClose={hideLocationSheet}
       >
-        <Animated.View
-          style={{
-            flex: 1,
+        <ReanimatedAnimated.View
+          style={[
+            {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
             backgroundColor: 'rgba(0,0,0,0.5)',
-            opacity: locationBackdropOpacity,
-          }}
+            },
+            useAnimatedStyle(() => ({
+              opacity: locationBackdropOpacityShared.value,
+            })),
+          ]}
         >
-          <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-            <Pressable style={{ flex: 1 }} onPress={hideLocationSheet} />
-            <Animated.View
-              style={{
-                transform: [{ translateY: locationSheetTranslateY }],
-              }}
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => {
+              console.log('🗺️ [ProfileScreen] Backdrop pressed - closing location sheet');
+              hideLocationSheet();
+            }}
+          />
+        </ReanimatedAnimated.View>
+
+        <ReanimatedAnimated.View
+          style={[
+            {
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: height,
+              backgroundColor: 'transparent',
+            },
+            useAnimatedStyle(() => ({
+              transform: [{ translateY: locationTranslateY.value }],
+            })),
+          ]}
+          pointerEvents="box-none"
             >
               <YStack
                 backgroundColor="$background"
-                padding="$4"
-                paddingBottom={24}
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
-                gap="$4"
-              >
-                <Text size="xl" weight="bold" color="$color" textAlign="center">
-                  {t('profile.location.selectLocation') || 'Select Your Location'}
+            height="100%"
+            flex={1}
+          >
+            {/* Fixed Header */}
+            <YStack padding="$4" paddingBottom="$2">
+              {/* Drag Handle */}
+              <GestureDetector gesture={locationPanGesture}>
+                <View
+                  style={{
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                    }}
+                  />
+                </View>
+              </GestureDetector>
+
+              <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$3">
+                {t('profile.location.selectLocation') ||
+                  (language === 'sv' ? 'Välj din plats' : 'Select Your Location')}
                 </Text>
 
                 {/* Detect My Location Button - always allow override */}
                 <Button
                   variant="secondary"
                   size="lg"
-                  onPress={detectLocation}
+                onPress={() => {
+                  console.log('🗺️ [ProfileScreen] Detect Location button pressed');
+                  detectLocation();
+                }}
                   disabled={locationLoading}
-                  marginBottom="$3"
                 >
                   {locationLoading
-                    ? `${(t('profile.location.detectingLocation') || 'Detecting Location').replace('...', '')}${'.'.repeat(dotsCount)}`
-                    : t('profile.location.detectLocation') || 'Detect My Location'}
+                  ? `${(t('profile.location.detectingLocation') || (language === 'sv' ? 'Letar plats' : 'Detecting Location')).replace('...', '')}${'.'.repeat(dotsCount)}`
+                  : t('profile.location.detectLocation') ||
+                    (language === 'sv' ? 'Hitta min plats' : 'Detect My Location')}
                 </Button>
 
                 {/* Clear location chip - Only show if location is set */}
@@ -5262,6 +5534,7 @@ export function ProfileScreen() {
                   <TouchableOpacity
                     onPress={async () => {
                       try {
+                      console.log('🗺️ [ProfileScreen] Clear Location pressed - clearing:', formData.location);
                         // Immediately clear form data
                         setFormData((prev) => ({
                           ...prev,
@@ -5270,13 +5543,27 @@ export function ProfileScreen() {
                           location_lng: null,
                         }));
 
-                        // Immediately clear from database profile (all location fields)
+                        // Immediately clear from database profile (ALL location fields including preferred_city)
                         if (user) {
-                          await updateProfile({
-                            location: '',
-                            location_lat: null,
-                            location_lng: null,
-                          });
+                          console.log('🗺️ [ProfileScreen] Clearing ALL location fields from database...');
+                          const { error } = await supabase
+                            .from('profiles')
+                            .update({
+                              location: null,
+                              location_lat: null,
+                              location_lng: null,
+                              preferred_city: null,
+                              preferred_city_coords: null,
+                            })
+                            .eq('id', user.id);
+
+                          if (error) {
+                            console.error('🗺️ [ProfileScreen] Error clearing location:', error);
+                          } else {
+                            console.log('🗺️ [ProfileScreen] ✅ All location fields cleared from database');
+                            // Refresh profile to get updated data
+                            await refreshProfile();
+                          }
                         }
 
                         // Clear from LocationContext
@@ -5288,19 +5575,25 @@ export function ProfileScreen() {
                           timestamp: new Date().toISOString(),
                         });
 
-                        // Clear search results and close sheet
+                      // Clear search results and selected location
                         setLocationSearchResults([]);
-                        hideLocationSheet();
+                      setSelectedLocationData(null);
+                      
+                      console.log('🗺️ [ProfileScreen] Location cleared successfully');
 
                         showToast({
-                          title: t('common.success') || 'Success',
-                          message: t('profile.location.locationCleared') || 'Location cleared',
+                        title: t('common.success') || (language === 'sv' ? 'Framgång' : 'Success'),
+                        message:
+                          t('profile.location.locationCleared') ||
+                          (language === 'sv' ? 'Plats rensad' : 'Location cleared'),
                           type: 'success',
                         });
+                      
+                      hideLocationSheet();
                       } catch (error) {
-                        console.error('Error clearing location:', error);
+                      console.error('🗺️ [ProfileScreen] Error clearing location:', error);
                         showToast({
-                          title: t('common.error') || 'Error',
+                        title: t('common.error') || (language === 'sv' ? 'Fel' : 'Error'),
                           message: 'Failed to clear location',
                           type: 'error',
                         });
@@ -5309,30 +5602,43 @@ export function ProfileScreen() {
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
-                      backgroundColor: '$backgroundHover',
+                    backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
                       borderRadius: 20,
                       paddingHorizontal: 12,
                       paddingVertical: 6,
                       alignSelf: 'center',
-                      marginBottom: 12,
+                    marginTop: 12,
                     }}
                   >
                     <Text color="$gray11" size="sm">
-                      {t('profile.location.clearLocation') || 'Clear Location'}
+                    {t('profile.location.clearLocation') ||
+                      (language === 'sv' ? 'Rensa plats' : 'Clear Location')}
                     </Text>
                   </TouchableOpacity>
                 )}
+            </YStack>
 
+            {/* Scrollable Body */}
+            <ScrollView 
+              style={{ 
+                flex: 1,
+                maxHeight: selectedLocationData ? height * 0.5 : height * 0.7 
+              }} 
+              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+              showsVerticalScrollIndicator={true}
+            >
+              <YStack gap="$3">
                 <FormField
                   placeholder={
                     t('profile.location.searchPlaceholder') ||
-                    "Search cities... (try 'Stockholm', 'New York', etc.)"
+                    (language === 'sv'
+                      ? "Sök städer... (prova 'Stockholm', 'Göteborg', etc.)"
+                      : "Search cities... (try 'Stockholm', 'New York', etc.)")
                   }
                   value={formData.location}
                   onChangeText={handleLocationSearch}
                 />
 
-                <ScrollView style={{ maxHeight: 300 }}>
                   <YStack gap="$1">
                     {locationSearchResults.length === 0 && (
                       <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
@@ -5354,20 +5660,31 @@ export function ProfileScreen() {
                         .filter(Boolean)
                         .join(', ');
 
+                    const isSelected =
+                      selectedLocationData &&
+                      selectedLocationData.coords?.latitude === locationData.coords?.latitude &&
+                      selectedLocationData.coords?.longitude === locationData.coords?.longitude;
+
                       return (
                         <TouchableOpacity
                           key={index}
-                          onPress={() => handleLocationSelect(locationData)}
+                        onPress={() => {
+                          console.log(
+                            '🗺️ [ProfileScreen] Location item clicked:',
+                            locationName,
+                            'coords:',
+                            locationData.coords,
+                          );
+                          setSelectedLocationData(locationData);
+                          console.log('🗺️ [ProfileScreen] Selected location data set to:', locationData);
+                          console.log('🗺️ [ProfileScreen] ✅ Save button should NOW BE VISIBLE at the bottom!');
+                        }}
                           style={[
                             styles.sheetOption,
                             {
-                              backgroundColor:
-                                formData.location === locationName
-                                  ? 'rgba(52, 211, 153, 0.1)'
-                                  : 'transparent',
-                              borderWidth: formData.location === locationName ? 1 : 0,
-                              borderColor:
-                                formData.location === locationName ? '#34D399' : 'transparent',
+                            backgroundColor: isSelected ? 'rgba(52, 211, 153, 0.1)' : 'transparent',
+                            borderWidth: isSelected ? 1 : 0,
+                            borderColor: isSelected ? '#34D399' : 'transparent',
                             },
                           ]}
                         >
@@ -5375,13 +5692,10 @@ export function ProfileScreen() {
                             <Feather
                               name="map-pin"
                               size={16}
-                              color={formData.location === locationName ? '#34D399' : '#666'}
+                            color={isSelected ? '#34D399' : '#666'}
                             />
                             <YStack flex={1}>
-                              <Text
-                                color={formData.location === locationName ? '#34D399' : '$color'}
-                                size="lg"
-                              >
+                            <Text color={isSelected ? '#34D399' : '$color'} size="lg">
                                 {locationName}
                               </Text>
                               <Text size="sm" color="$gray11">
@@ -5389,19 +5703,53 @@ export function ProfileScreen() {
                                 {locationData.coords?.longitude.toFixed(4)}
                               </Text>
                             </YStack>
-                            {formData.location === locationName && (
-                              <Feather name="check" size={16} color="#34D399" />
-                            )}
+                          {isSelected && <Feather name="check" size={16} color="#34D399" />}
                           </XStack>
                         </TouchableOpacity>
                       );
                     })}
+                </YStack>
                   </YStack>
                 </ScrollView>
+
+            {/* Fixed Footer - Save Button */}
+            {selectedLocationData ? (
+              <YStack
+                padding="$4"
+                paddingBottom={24}
+                borderTopWidth={1}
+                borderTopColor="$borderColor"
+                backgroundColor="$background"
+                onLayout={() => {
+                  console.log('🗺️ [ProfileScreen] ✅ Save button FOOTER RENDERED!');
+                }}
+              >
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onPress={async () => {
+                    console.log(
+                      '🗺️ [ProfileScreen] 💾 Save button PRESSED - saving location:',
+                      selectedLocationData,
+                    );
+                    await handleLocationSelect(selectedLocationData);
+                  }}
+                  backgroundColor="$green10"
+                >
+                  <XStack gap="$2" alignItems="center">
+                    <Feather name="check" size={18} color="white" />
+                    <Text color="white" fontWeight="600" size="md">
+                      {t('profile.location.saveLocation') ||
+                        (language === 'sv' ? 'Spara plats' : 'Save Location')}
+                    </Text>
+                  </XStack>
+                </Button>
               </YStack>
-            </Animated.View>
-          </View>
-        </Animated.View>
+            ) : (
+              <View onLayout={() => console.log('🗺️ [ProfileScreen] ⚠️ NO selectedLocationData - button NOT rendered')} />
+            )}
+          </YStack>
+        </ReanimatedAnimated.View>
       </Modal>
 
       {/* Avatar Selection Modal */}
