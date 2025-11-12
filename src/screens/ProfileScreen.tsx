@@ -5550,8 +5550,8 @@ export function ProfileScreen() {
                             .from('profiles')
                             .update({
                               location: null,
-                              location_lat: null,
-                              location_lng: null,
+                            location_lat: null,
+                            location_lng: null,
                               preferred_city: null,
                               preferred_city_coords: null,
                             })
