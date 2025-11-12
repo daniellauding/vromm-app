@@ -608,7 +608,7 @@ export function ExerciseListSheet({
         totalExercises += repeatCount;
 
         // Check if base exercise is completed
-        const idsToCheck = currentCompletedIds || completedIds;
+      const idsToCheck = currentCompletedIds || completedIds;
         const isBaseCompleted = idsToCheck.includes(exercise.id);
 
         if (isBaseCompleted) {

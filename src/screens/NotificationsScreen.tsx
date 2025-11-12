@@ -55,17 +55,133 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     // If translation is missing, t() returns the key itself - use fallback instead
     return translated && translated !== key ? translated : fallback;
   };
+
+  // Helper function to safely get data from notification
+  const getNotificationData = (notification: Notification): Record<string, unknown> => {
+    return (notification as any).data || (notification.metadata as Record<string, unknown>) || {};
+  };
+
+  // Helper function to translate notification messages
+  const translateNotificationMessage = (notification: Notification): string => {
+    const message = notification.message;
+    if (!message) return '';
+
+    // If Swedish is selected, translate common English patterns to Swedish
+    if (language === 'sv') {
+      const notificationData = getNotificationData(notification);
+      const actorName = notification.actor?.full_name || 'Someone';
+      
+      // Extract route/collection/event name from message (usually in quotes)
+      const nameMatch = message.match(/"([^"]+)"/);
+      const itemName = nameMatch ? nameMatch[1] : '';
+
+      // Route notifications
+      if (message.includes('created a new route')) {
+        return itemName 
+          ? `${actorName} skapade en ny rutt "${itemName}"`
+          : `${actorName} skapade en ny rutt`;
+      }
+      if (message.includes('saved your route')) {
+        return itemName
+          ? `${actorName} sparade din rutt "${itemName}"`
+          : `${actorName} sparade din rutt`;
+      }
+      if (message.includes('drove your route')) {
+        return itemName
+          ? `${actorName} körde din rutt "${itemName}"`
+          : `${actorName} körde din rutt`;
+      }
+      if (message.includes('reviewed your route')) {
+        return itemName
+          ? `${actorName} recenserade din rutt "${itemName}"`
+          : `${actorName} recenserade din rutt`;
+      }
+      if (message.includes('liked your route')) {
+        return itemName
+          ? `${actorName} gillade din rutt "${itemName}"`
+          : `${actorName} gillade din rutt`;
+      }
+      if (message.includes('commented on your route')) {
+        return `${actorName} kommenterade din rutt`;
+      }
+
+      // Follower notifications
+      if (message.includes('started following you')) {
+        return `${actorName} började följa dig`;
+      }
+
+      // Message notifications
+      if (message.includes('sent you a message')) {
+        return `${actorName} skickade ett meddelande till dig`;
+      }
+
+      // Invitation notifications
+      if (message.includes('wants you to be their supervisor')) {
+        return `${actorName} vill att du ska vara deras handledare`;
+      }
+      if (message.includes('wants you to be their student')) {
+        return `${actorName} vill att du ska vara deras elev`;
+      }
+      if (message.includes('invited you to be their supervisor')) {
+        return `${actorName} bjöd in dig att vara deras handledare`;
+      }
+      if (message.includes('invited you to be their student')) {
+        return `${actorName} bjöd in dig att vara deras elev`;
+      }
+      if (message.includes('accepted your invitation')) {
+        return `${actorName} accepterade din inbjudan`;
+      }
+
+      // Collection notifications
+      if (message.includes('invited you to collection')) {
+        return itemName
+          ? `${actorName} bjöd in dig till samlingen "${itemName}"`
+          : `${actorName} bjöd in dig till en samling`;
+      }
+
+      // Event notifications
+      if (message.includes('invited you to event')) {
+        return itemName
+          ? `${actorName} bjöd in dig till eventet "${itemName}"`
+          : `${actorName} bjöd in dig till ett event`;
+      }
+      if (message.includes('Reminder: Event')) {
+        return itemName
+          ? `Påminnelse: Eventet "${itemName}" börjar snart`
+          : 'Påminnelse: Ett event börjar snart';
+      }
+      if (message.includes('has been updated')) {
+        return itemName
+          ? `Eventet "${itemName}" har uppdaterats`
+          : 'Ett event har uppdaterats';
+      }
+
+      // Exercise/Learning notifications
+      if (message.includes('You completed an exercise')) {
+        return 'Du slutförde en övning!';
+      }
+      if (message.includes('You completed a learning path')) {
+        return 'Du slutförde en lärbana!';
+      }
+      if (message.includes('You completed a quiz')) {
+        return 'Du slutförde ett quiz!';
+      }
+
+      // Relationship review
+      if (message.includes('left a review for you')) {
+        return `${actorName} lämnade en recension om dig`;
+      }
+    }
+
+    // Return original message if no translation found
+    return message;
+  };
   
   // Sheet modals
   const [showRouteSheet, setShowRouteSheet] = useState(false);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-
-  // Helper function to safely get data from notification
-  const getNotificationData = (notification: Notification): Record<string, unknown> => {
-    return (notification as any).data || (notification.metadata as Record<string, unknown>) || {};
-  };
 
   useEffect(() => {
     loadNotifications();
@@ -789,7 +905,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           <YStack flex={1} gap={4}>
             <XStack alignItems="center" gap={8}>
               <Text fontSize={14} fontWeight="bold" color="$color" flex={1}>
-                {item.message}
+                {translateNotificationMessage(item)}
               </Text>
 
               <XStack alignItems="center" gap={8}>
@@ -854,7 +970,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                   }}
                   // icon={<Check size={14} />}
                 >
-                  Accept
+                  {getTranslation('common.accept', language === 'sv' ? 'Acceptera' : 'Accept')}
                 </Button>
 
                 <Button
@@ -866,7 +982,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                   }}
                   // icon={<X size={14} />}
                 >
-                  Decline
+                  {getTranslation('common.decline', language === 'sv' ? 'Avböj' : 'Decline')}
                 </Button>
               </XStack>
             )}

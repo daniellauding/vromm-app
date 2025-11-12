@@ -200,7 +200,7 @@ export const RoleSelectionCard = () => {
     <>
       <YStack paddingHorizontal="$4">
         <Card
-          backgroundColor="$backgroundStrong"
+          backgroundColor={profile?.role_confirmed ? '$green5' : '$backgroundStrong'}
           borderRadius="$4"
           overflow="hidden"
           borderWidth={1}
@@ -224,6 +224,43 @@ export const RoleSelectionCard = () => {
           >
             <Feather name="x" size={18} color="#FFF" />
           </TouchableOpacity>
+
+          {/* Percentage badge - absolutely positioned */}
+          {profile?.role_confirmed ? (
+            <View
+              style={{
+                position: 'absolute',
+                top: 12,
+                right: 12,
+                backgroundColor: '#00E6C3',
+                borderRadius: 10,
+                paddingHorizontal: 6,
+                paddingVertical: 3,
+                zIndex: 1,
+              }}
+            >
+              <Text fontSize={9} color="#000" fontWeight="bold">
+                100%
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={{
+                position: 'absolute',
+                top: 12,
+                right: 12,
+                backgroundColor: '#4B6BFF',
+                borderRadius: 10,
+                paddingHorizontal: 6,
+                paddingVertical: 3,
+                zIndex: 1,
+              }}
+            >
+              <Text fontSize={9} color="#fff" fontWeight="bold">
+                0%
+              </Text>
+            </View>
+          )}
 
           <Image
             source={GETTING_STARTED_IMAGES.chooseRole}

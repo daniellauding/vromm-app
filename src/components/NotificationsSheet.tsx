@@ -80,7 +80,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
         title: getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
         message: getTranslation(
           'notifications.allCleared',
-          language === 'sv' ? 'Alla notiser rensade' : 'All notifications cleared'
+          language === 'sv' ? 'Alla notifikationer rensade' : 'All notifications cleared'
         ),
         type: 'success',
       });
@@ -93,7 +93,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
         title: getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
         message: getTranslation(
           'notifications.clearError',
-          language === 'sv' ? 'Misslyckades att rensa notiser' : 'Failed to clear notifications'
+          language === 'sv' ? 'Misslyckades att rensa notifikationer' : 'Failed to clear notifications'
         ),
         type: 'error',
       });
@@ -117,7 +117,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
         title: getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
         message: getTranslation(
           'notifications.allArchived',
-          language === 'sv' ? 'Alla notiser arkiverade' : 'All notifications archived'
+          language === 'sv' ? 'Alla notifikationer arkiverade' : 'All notifications archived'
         ),
         type: 'success',
       });
@@ -130,7 +130,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
         title: getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
         message: getTranslation(
           'notifications.archiveError',
-          language === 'sv' ? 'Misslyckades att arkivera alla notiser' : 'Failed to archive all notifications'
+          language === 'sv' ? 'Misslyckades att arkivera alla notifikationer' : 'Failed to archive all notifications'
         ),
         type: 'error',
       });
@@ -298,11 +298,11 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
                     {showArchived
                       ? getTranslation(
                           'notifications.archived',
-                          language === 'sv' ? 'Arkiverade notiser' : 'Archived Notifications'
+                          language === 'sv' ? 'Arkiverade notifikationer' : 'Archived Notifications'
                         )
                       : getTranslation(
                           'notifications.title',
-                          language === 'sv' ? 'Notiser' : 'Notifications'
+                          language === 'sv' ? 'Notifikationer' : 'Notifications'
                         )}
                   </Text>
 
@@ -442,7 +442,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
             <Text fontSize="$5" fontWeight="bold" color="$color" textAlign="center">
               {getTranslation(
                 'notifications.archiveAllConfirm',
-                language === 'sv' ? 'Arkivera alla notiser?' : 'Archive All Notifications?'
+                language === 'sv' ? 'Arkivera alla notifikationer?' : 'Archive All Notifications?'
               )}
             </Text>
 
@@ -450,7 +450,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
               {getTranslation(
                 'notifications.archiveAllDescription',
                 language === 'sv'
-                  ? 'Detta kommer att arkivera alla dina notiser. Du kan visa arkiverade notiser senare.'
+                  ? 'Detta kommer att arkivera alla dina notifikationer. Du kan visa arkiverade notifikationer senare.'
                   : 'This will archive all your notifications. You can view archived notifications later.'
               )}
             </Text>
