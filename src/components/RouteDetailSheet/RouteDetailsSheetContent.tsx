@@ -223,7 +223,7 @@ export default function RouteDetailsSheetContent({
       ) : (
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={true}
           refreshControl={
             <RefreshControl

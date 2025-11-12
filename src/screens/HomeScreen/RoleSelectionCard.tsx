@@ -206,25 +206,6 @@ export const RoleSelectionCard = () => {
           borderWidth={1}
           borderColor="$borderColor"
         >
-          {/* X button to hide card */}
-          <TouchableOpacity
-            onPress={() => setIsCardHidden(true)}
-            style={{
-              position: 'absolute',
-              top: 12,
-              right: 12,
-              zIndex: 10,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              borderRadius: 20,
-              width: 32,
-              height: 32,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Feather name="x" size={18} color="#FFF" />
-          </TouchableOpacity>
-
           {/* Percentage badge - absolutely positioned */}
           {profile?.role_confirmed ? (
             <View
@@ -274,18 +255,26 @@ export const RoleSelectionCard = () => {
           <YStack alignItems="center" gap="$4" padding="$6">
             <YStack alignItems="center" gap="$2">
               <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                {getTranslation(
-                  'home.gettingStarted.chooseRole.title',
-                  language === 'sv' ? 'Välj din roll' : 'Choose Your Role',
-                )}
+                {profile?.role_confirmed && profile?.role
+                  ? profile.role === 'student'
+                    ? getTranslation('onboarding.role.student', language === 'sv' ? 'Elev' : 'Student')
+                    : getTranslation('onboarding.role.instructor', language === 'sv' ? 'Handledare' : 'Instructor')
+                  : getTranslation(
+                      'home.gettingStarted.chooseRole.title',
+                      language === 'sv' ? 'Välj din roll' : 'Choose Your Role',
+                    )}
               </Text>
               <Text fontSize="$4" color="$gray11" textAlign="center">
-                {getTranslation(
-                  'home.gettingStarted.chooseRole.description',
-                  language === 'sv'
-                    ? 'Elev, handledare eller körskola?'
-                    : 'Student, instructor, or driving school?',
-                )}
+                {profile?.role_confirmed && profile?.role
+                  ? profile.role === 'student'
+                    ? getTranslation('onboarding.role.studentDescription', language === 'sv' ? 'Du lär dig köra' : 'I want to learn to drive')
+                    : getTranslation('onboarding.role.instructorDescription', language === 'sv' ? 'Du lär andra att köra' : 'I teach others to drive')
+                  : getTranslation(
+                      'home.gettingStarted.chooseRole.description',
+                      language === 'sv'
+                        ? 'Elev, handledare eller körskola?'
+                        : 'Student, instructor, or driving school?',
+                    )}
               </Text>
             </YStack>
 

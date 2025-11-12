@@ -55,7 +55,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     // If translation is missing, t() returns the key itself - use fallback instead
     return translated && translated !== key ? translated : fallback;
   };
-
+  
   // Helper function to safely get data from notification
   const getNotificationData = (notification: Notification): Record<string, unknown> => {
     return (notification as any).data || (notification.metadata as Record<string, unknown>) || {};

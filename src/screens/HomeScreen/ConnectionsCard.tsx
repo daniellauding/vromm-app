@@ -400,25 +400,6 @@ export const ConnectionsCard = () => {
           borderWidth={1}
           borderColor="$borderColor"
         >
-          {/* X button to hide card */}
-          <TouchableOpacity
-            onPress={() => setIsCardHidden(true)}
-            style={{
-              position: 'absolute',
-              top: 12,
-              right: 12,
-              zIndex: 10,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              borderRadius: 20,
-              width: 32,
-              height: 32,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Feather name="x" size={18} color="#FFF" />
-          </TouchableOpacity>
-
           {/* Completion badge - absolutely positioned */}
           {hasConnections && (
             <View
@@ -451,30 +432,28 @@ export const ConnectionsCard = () => {
           <YStack alignItems="center" gap="$4" padding="$6">
             <YStack alignItems="center" gap="$2">
               <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                {profile?.role === 'student'
-                  ? getTranslation(
-                      'home.gettingStarted.connectStudent.title',
-                      language === 'sv' ? 'Lägg till handledare' : 'Add Supervisor',
-                    )
-                  : getTranslation(
-                      'home.gettingStarted.connectInstructor.title',
-                      language === 'sv' ? 'Lägg till elever' : 'Add Students',
-                    )}
+                {hasConnections
+                  ? profile?.role === 'student'
+                    ? existingRelationships.length > 0
+                      ? `${existingRelationships.length} ${getTranslation('connections.existing', language === 'sv' ? 'Handledare' : 'Supervisor')}${existingRelationships.length > 1 ? (language === 'sv' ? '' : 's') : ''}`
+                      : getTranslation('home.gettingStarted.connectStudent.title', language === 'sv' ? 'Handledare' : 'Supervisor')
+                    : existingRelationships.length > 0
+                      ? `${existingRelationships.length} ${getTranslation('connections.existing', language === 'sv' ? 'Elever' : 'Student')}${existingRelationships.length > 1 ? (language === 'sv' ? '' : 's') : ''}`
+                      : getTranslation('home.gettingStarted.connectInstructor.title', language === 'sv' ? 'Elever' : 'Students')
+                  : profile?.role === 'student'
+                    ? getTranslation('home.gettingStarted.connectStudent.title', language === 'sv' ? 'Lägg till handledare' : 'Add Supervisor')
+                    : getTranslation('home.gettingStarted.connectInstructor.title', language === 'sv' ? 'Lägg till elever' : 'Add Students')}
               </Text>
               <Text fontSize="$4" color="$gray11" textAlign="center">
-                {profile?.role === 'student'
-                  ? getTranslation(
-                      'home.gettingStarted.connectStudent.description',
-                      language === 'sv'
-                        ? 'Anslut med handledare och instruktörer'
-                        : 'Connect with instructors and supervisors',
-                    )
-                  : getTranslation(
-                      'home.gettingStarted.connectInstructor.description',
-                      language === 'sv'
-                        ? 'Anslut med elever att handleda'
-                        : 'Connect with students to supervise',
-                    )}
+                {pendingInvitations.length > 0
+                  ? `${pendingInvitations.length} ${getTranslation('connections.pending', language === 'sv' ? 'väntande inbjudan' : 'pending invitation')}${pendingInvitations.length > 1 ? (language === 'sv' ? 'ar' : 's') : ''}`
+                  : hasConnections
+                    ? profile?.role === 'student'
+                      ? getTranslation('home.gettingStarted.connectStudent.description', language === 'sv' ? 'Ansluten med handledare' : 'Connected with supervisor')
+                      : getTranslation('home.gettingStarted.connectInstructor.description', language === 'sv' ? 'Ansluten med elever' : 'Connected with students')
+                    : profile?.role === 'student'
+                      ? getTranslation('home.gettingStarted.connectStudent.description', language === 'sv' ? 'Anslut med handledare och instruktörer' : 'Connect with instructors and supervisors')
+                      : getTranslation('home.gettingStarted.connectInstructor.description', language === 'sv' ? 'Anslut med elever att handleda' : 'Connect with students to supervise')}
               </Text>
             </YStack>
 
