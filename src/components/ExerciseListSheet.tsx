@@ -45,6 +45,7 @@ import { Linking } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import YoutubePlayer from 'react-native-youtube-iframe';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { height } = Dimensions.get('window');
 
@@ -593,23 +594,47 @@ export function ExerciseListSheet({
     if (!effectiveUserId) return;
 
     try {
-      // Get all exercises for this learning path
+      // Get all exercises for this learning path (BASE exercises only)
       const pathExercises = exercises.filter((ex) => ex.learning_path_id === learningPath.id);
-      const totalExercises = pathExercises.length;
 
-      if (totalExercises === 0) return;
+      if (pathExercises.length === 0) return;
 
-      // Count completed exercises for this path (use provided IDs or current state)
-      const idsToCheck = currentCompletedIds || completedIds;
-      const completedExercises = pathExercises.filter((ex) => idsToCheck.includes(ex.id)).length;
+      // 🐛 FIX: Count TOTAL exercises including ALL repeats
+      let totalExercises = 0;
+      let completedExercises = 0;
+
+      pathExercises.forEach((exercise) => {
+        const repeatCount = exercise.repeat_count || 1;
+        totalExercises += repeatCount;
+
+        // Check if base exercise is completed
+        const idsToCheck = currentCompletedIds || completedIds;
+        const isBaseCompleted = idsToCheck.includes(exercise.id);
+
+        if (isBaseCompleted) {
+          // Base is done, now count virtual repeats
+          if (repeatCount > 1) {
+            // Count completed virtual repeats
+            let completedRepeats = 0;
+            for (let i = 2; i <= repeatCount; i++) {
+              const virtualId = `${exercise.id}-virtual-${i}`;
+              if (virtualRepeatCompletions.includes(virtualId)) {
+                completedRepeats++;
+              }
+            }
+            // Total for this exercise = 1 (base) + completed virtual repeats
+            completedExercises += 1 + completedRepeats;
+          } else {
+            // No repeats, just count the base
+            completedExercises += 1;
+          }
+        }
+      });
+
       const completionPercentage = Math.round((completedExercises / totalExercises) * 100);
 
-      // Trigger celebration for significant milestones
-      const shouldCelebrate =
-        completionPercentage === 100 || // Path completed
-        completionPercentage === 75 || // 75% milestone
-        completionPercentage === 50 || // 50% milestone
-        completionPercentage === 25; // 25% milestone
+      // 🎯 ONLY celebrate at 100% (removed spam milestones 25/50/75%)
+      const shouldCelebrate = completionPercentage === 100;
 
       if (shouldCelebrate) {
         console.log('🎉 [ExerciseListSheet] Triggering celebration:', {
@@ -625,7 +650,7 @@ export function ExerciseListSheet({
         let streakDays: number | undefined;
 
         try {
-          // Calculate time spent (simplified - could be enhanced with actual time tracking)
+          // Calculate time spent
           const { data: timeData } = await supabase
             .from('learning_path_exercise_completions')
             .select('completed_at')
@@ -639,12 +664,12 @@ export function ExerciseListSheet({
             timeSpent = Math.round((endTime - startTime) / (1000 * 60)); // minutes
           }
 
-          // Calculate streak (simplified - could be enhanced with actual streak tracking)
+          // Calculate streak
           const { data: streakData } = await supabase
             .from('learning_path_exercise_completions')
             .select('completed_at')
             .eq('user_id', effectiveUserId)
-            .gte('completed_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Last 7 days
+            .gte('completed_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
             .order('completed_at', { ascending: false });
 
           streakDays = streakData ? Math.min(streakData.length, 7) : 0;
@@ -660,9 +685,112 @@ export function ExerciseListSheet({
           timeSpent,
           streakDays,
         });
+
+        // 🏆 Check if ALL paths are now complete
+        setTimeout(() => {
+          checkForAllPathsComplete();
+        }, 5000); // Show after 5 seconds
       }
     } catch (error) {
       console.error('🎉 [ExerciseListSheet] Error checking for celebration:', error);
+    }
+  };
+
+  // 🏆 Check if ALL learning paths are complete
+  const checkForAllPathsComplete = async () => {
+    if (!effectiveUserId) return;
+
+    try {
+      // Get all active learning paths
+      const { data: allPaths, error: pathsError } = await supabase
+        .from('learning_paths')
+        .select('id, title')
+        .eq('active', true)
+        .order('order_index');
+
+      if (pathsError || !allPaths || allPaths.length === 0) return;
+
+      // Get all exercises
+      const { data: allExercises, error: exercisesError } = await supabase
+        .from('exercises')
+        .select('id, learning_path_id, repeat_count')
+        .in('learning_path_id', allPaths.map(p => p.id));
+
+      if (exercisesError || !allExercises) return;
+
+      // Get all completions
+      const { data: allCompletions, error: completionsError } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('exercise_id')
+        .eq('user_id', effectiveUserId);
+
+      if (completionsError) return;
+
+      const completedExerciseIds = new Set(allCompletions?.map(c => c.exercise_id) || []);
+
+      // Get all virtual repeat completions
+      const { data: allVirtualCompletions, error: virtualError } = await supabase
+        .from('virtual_repeat_completions')
+        .select('exercise_id, repeat_number')
+        .eq('user_id', effectiveUserId);
+
+      if (virtualError) return;
+
+      // Calculate total required and total completed
+      let totalRequired = 0;
+      let totalCompleted = 0;
+
+      allExercises.forEach((exercise) => {
+        const repeatCount = exercise.repeat_count || 1;
+        totalRequired += repeatCount;
+
+        if (completedExerciseIds.has(exercise.id)) {
+          // Base is done
+          totalCompleted += 1;
+
+          // Count virtual repeats
+          if (repeatCount > 1) {
+            const virtualCompletions = allVirtualCompletions?.filter(
+              vc => vc.exercise_id === exercise.id
+            ) || [];
+            totalCompleted += virtualCompletions.length;
+          }
+        }
+      });
+
+      console.log('🏆 [ExerciseListSheet] All paths check:', {
+        totalRequired,
+        totalCompleted,
+        pathsCount: allPaths.length,
+      });
+
+      // Check if everything is 100% complete
+      if (totalCompleted === totalRequired && totalRequired > 0) {
+        // Check if we've already shown this celebration (don't spam it)
+        const lastShown = await AsyncStorage.getItem('all_paths_complete_shown');
+        if (lastShown) {
+          console.log('🏆 [ExerciseListSheet] All paths celebration already shown');
+          return;
+        }
+
+        // Mark as shown
+        await AsyncStorage.setItem('all_paths_complete_shown', new Date().toISOString());
+
+        // Show special "All Complete" celebration
+        console.log('🏆 [ExerciseListSheet] 🎉 ALL PATHS COMPLETE! Showing grand celebration!');
+        
+        showCelebration({
+          learningPathTitle: {
+            en: '🏆 ALL LESSONS COMPLETE! 🏆',
+            sv: '🏆 ALLA LEKTIONER KLARA! 🏆',
+          },
+          completedExercises: totalCompleted,
+          totalExercises: totalRequired,
+          isAllPathsComplete: true,
+        });
+      }
+    } catch (error) {
+      console.error('🏆 [ExerciseListSheet] Error checking all paths complete:', error);
     }
   };
 

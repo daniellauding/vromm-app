@@ -21,6 +21,7 @@ import { NotificationBell } from '../../components/NotificationBell';
 import { MessagesSheet } from '../../components/MessagesSheet';
 import { NotificationsSheet } from '../../components/NotificationsSheet';
 import { EventsSheet } from '../../components/EventsSheet';
+import { AchievementsSheet } from '../../components/AchievementsSheet';
 
 import { useAuth } from '@/src/context/AuthContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
@@ -115,7 +116,7 @@ export const HomeHeader = React.memo(function HomeHeader() {
   const [showAvatarModal, setShowAvatarModal] = React.useState(false);
   const [showProfileSheet, setShowProfileSheet] = React.useState(false);
   const [showUserProfileSheet, setShowUserProfileSheet] = React.useState(false);
-  const [showProgressionModal, setShowProgressionModal] = React.useState(false);
+  const [showAchievementsSheet, setShowAchievementsSheet] = React.useState(false);
 
   // Progress state for avatar circle
   const [userProgress, setUserProgress] = useState(0);
@@ -139,10 +140,10 @@ export const HomeHeader = React.memo(function HomeHeader() {
     }
 
     try {
-      // Get all learning paths
+      // Get all learning paths with exercises (using relationship)
       const { data: paths, error: pathsError } = await supabase
         .from('learning_paths')
-        .select('id, learning_path_exercises(id)')
+        .select('id, learning_path_exercises(id, repeat_count, learning_path_id)') // Fetch exercises with repeat_count and learning_path_id
         .eq('active', true);
 
       if (pathsError || !paths) {
@@ -151,7 +152,7 @@ export const HomeHeader = React.memo(function HomeHeader() {
         return;
       }
 
-      // Get user's completed exercises
+      // Get user's completed exercises (base completions)
       const { data: completions, error: completionsError } = await supabase
         .from('learning_path_exercise_completions')
         .select('exercise_id')
@@ -163,17 +164,40 @@ export const HomeHeader = React.memo(function HomeHeader() {
         return;
       }
 
+      // Get user's virtual repeat completions
+      const { data: virtualCompletions, error: virtualCompletionsError } = await supabase
+        .from('virtual_repeat_completions')
+        .select('exercise_id, repeat_number')
+        .eq('user_id', effectiveUserId);
+
+      if (virtualCompletionsError) {
+        console.log('🔍 [Header] Error loading virtual completions:', virtualCompletionsError);
+        setUserProgress(0);
+        return;
+      }
+
       // Calculate overall progress
-      const completedIds = completions?.map((c) => c.exercise_id) || [];
-      const totalExercises = paths.reduce(
-        (total, path) => total + path.learning_path_exercises.length,
-        0,
-      );
-      const completedExercises = paths.reduce((total, path) => {
-        return (
-          total + path.learning_path_exercises.filter((ex) => completedIds.includes(ex.id)).length
-        );
-      }, 0);
+      const completedExerciseIds = new Set(completions?.map((c) => c.exercise_id) || []);
+      let totalExercises = 0;
+      let completedExercises = 0;
+
+      paths.forEach((path) => {
+        path.learning_path_exercises.forEach((ex) => {
+          const repeatCount = ex.repeat_count || 1;
+          totalExercises += repeatCount;
+
+          if (completedExerciseIds.has(ex.id)) {
+            // Base exercise is completed
+            completedExercises += 1;
+            if (repeatCount > 1) {
+              // Add completed virtual repeats
+              const virtualDone =
+                virtualCompletions?.filter((vc) => vc.exercise_id === ex.id).length || 0;
+              completedExercises += virtualDone;
+            }
+          }
+        });
+      });
 
       const progress = totalExercises > 0 ? completedExercises / totalExercises : 0;
       setUserProgress(progress);
@@ -366,7 +390,7 @@ export const HomeHeader = React.memo(function HomeHeader() {
 
   const handleMyProgression = () => {
     setShowAvatarModal(false);
-    setShowProgressionModal(true);
+    setShowAchievementsSheet(true); // Open AchievementsSheet instead of ProgressionModal
   };
 
   const handleLogout = () => {
@@ -432,6 +456,22 @@ export const HomeHeader = React.memo(function HomeHeader() {
 
         <XStack gap={12} alignItems="center">
           {/* <MessageBell onPress={() => setShowMessagesSheet(true)} /> */}
+          
+          {/* 🏆 Achievements Button */}
+          <TouchableOpacity
+            onPress={() => setShowAchievementsSheet(true)}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5',
+            }}
+          >
+            <Feather name="award" size={20} color="#FFD700" />
+          </TouchableOpacity>
+
           <NotificationBell onPress={() => setShowNotificationsSheet(true)} />
           {/* <EventsBell onPress={() => setShowEventsSheet(true)} /> */}
         </XStack>
@@ -756,182 +796,11 @@ export const HomeHeader = React.memo(function HomeHeader() {
       {/* Events Sheet */}
       <EventsSheet visible={showEventsSheet} onClose={() => setShowEventsSheet(false)} />
 
-      {/* Progression Modal */}
-      <Modal
-        visible={showProgressionModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowProgressionModal(false)}
-      >
-        <BlurView
-          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
-          intensity={10}
-          tint={colorScheme === 'dark' ? 'dark' : 'light'}
-          pointerEvents="none"
-        />
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setShowProgressionModal(false)}
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.3)',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-        >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#fff',
-              borderRadius: 16,
-              maxHeight: '80%',
-              padding: 24,
-              borderWidth: 1,
-              borderColor: colorScheme === 'dark' ? '#333' : '#E0E0E0',
-            }}
-          >
-            {/* Header */}
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-              <Text fontSize="$6" fontWeight="bold" color={textColor}>
-                {(() => {
-                  const translated = t('profile.myProgression');
-                  return translated === 'profile.myProgression'
-                    ? language === 'sv'
-                      ? 'Min Progression'
-                      : 'My Progression'
-                    : translated;
-                })()}
-              </Text>
-              <TouchableOpacity onPress={() => setShowProgressionModal(false)}>
-                <Feather name="x" size={24} color={textColor} />
-              </TouchableOpacity>
-            </XStack>
-
-            {/* Progress Overview */}
-            <YStack gap="$4" marginBottom="$4">
-              <XStack alignItems="center" gap="$3">
-                <View style={{ position: 'relative' }}>
-                  <ProgressCircle
-                    percent={userProgress}
-                    size={60}
-                    color="#00E6C3"
-                    bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                  />
-                  <Text
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: 60,
-                      height: 60,
-                      textAlign: 'center',
-                      textAlignVertical: 'center',
-                      lineHeight: 60,
-                      fontSize: 12,
-                      fontWeight: 'bold',
-                      color: textColor,
-                    }}
-                  >
-                    {Math.round(userProgress * 100)}%
-                  </Text>
-                </View>
-                <YStack flex={1}>
-                  <Text fontSize="$5" fontWeight="bold" color={textColor}>
-                    {activeStudentId 
-                      ? getTranslation('progression.studentProgress', language === 'sv' ? 'Elevens framsteg' : 'Student Progress')
-                      : getTranslation('progression.yourProgress', language === 'sv' ? 'Din framsteg' : 'Your Progress')
-                    }
-                  </Text>
-                  <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                    {getTranslation(
-                      'progression.completedPercentage',
-                      language === 'sv' 
-                        ? `${Math.round(userProgress * 100)}% av alla övningar slutförda`
-                        : `${Math.round(userProgress * 100)}% of all exercises completed`
-                    )}
-                  </Text>
-                </YStack>
-              </XStack>
-            </YStack>
-
-            {/* How Progression Works */}
-            <YStack gap="$3" marginBottom="$4">
-              <Text fontSize="$4" fontWeight="600" color={textColor}>
-                📊 {getTranslation(
-                  'progression.howItWorks',
-                  language === 'sv' ? 'Hur progression fungerar' : 'How Progression Works'
-                )}
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • {getTranslation(
-                  'progression.completeExercises',
-                  language === 'sv' ? 'Slutför övningar för att öka din framstegsprocent' : 'Complete exercises to increase your progress percentage'
-                )}
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • {getTranslation(
-                  'progression.eachContributes',
-                  language === 'sv' ? 'Varje övning bidrar till din övergripande inlärningsframsteg' : 'Each exercise contributes to your overall learning progress'
-                )}
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • {getTranslation(
-                  'progression.trackedAcross',
-                  language === 'sv' ? 'Framsteg spåras över alla inlärningsvägar' : 'Progress is tracked across all learning paths'
-                )}
-              </Text>
-              <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                • {getTranslation(
-                  'progression.circleShows',
-                  language === 'sv' ? 'Cirkeln visar din slutförandeprocent' : 'The circle shows your completion percentage'
-                )}
-              </Text>
-
-              {activeStudentId && (
-                <>
-                  <Text fontSize="$4" fontWeight="600" color={textColor} marginTop="$2">
-                    👨‍🏫 {getTranslation(
-                      'progression.instructorView',
-                      language === 'sv' ? 'Instruktörsvy' : 'Instructor View'
-                    )}
-                  </Text>
-                  <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                    • {getTranslation(
-                      'progression.currentlyViewing',
-                      language === 'sv' ? 'Du tittar för närvarande på en elevs framsteg' : "You're currently viewing a student's progress"
-                    )}
-                  </Text>
-                  <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
-                    • {getTranslation(
-                      'progression.switchStudents',
-                      language === 'sv' ? 'Växla mellan elever för att se deras individuella framsteg' : 'Switch between students to see their individual progress'
-                    )}
-                  </Text>
-                </>
-              )}
-            </YStack>
-
-            {/* Close Button */}
-            <TouchableOpacity
-              onPress={() => setShowProgressionModal(false)}
-              style={{
-                backgroundColor: '#00E6C3',
-                padding: 16,
-                borderRadius: 12,
-                alignItems: 'center',
-              }}
-            >
-              <Text color="#000" fontWeight="bold" fontSize="$4">
-                {getTranslation(
-                  'common.gotIt',
-                  language === 'sv' ? 'Jag förstår!' : 'Got it!'
-                )}
-              </Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
+      {/* 🏆 Achievements Sheet */}
+      <AchievementsSheet
+        visible={showAchievementsSheet}
+        onClose={() => setShowAchievementsSheet(false)}
+      />
     </YStack>
   );
 });

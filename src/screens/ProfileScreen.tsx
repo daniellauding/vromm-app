@@ -3139,6 +3139,24 @@ export function ProfileScreen() {
                 {t('profile.avatar.tapToChange') || 'Tap to change avatar'}
               </Text>
 
+              {/* Joined date and email */}
+              <YStack alignItems="center" gap={4} marginTop={12}>
+                {profile?.created_at && (
+                  <Text size="xs" color="$gray10" textAlign="center">
+                    {language === 'sv' ? 'Medlem sedan' : 'Joined'}{' '}
+                    {new Date(profile.created_at).toLocaleDateString(
+                      language === 'sv' ? 'sv-SE' : 'en-US',
+                      { year: 'numeric', month: 'long', day: 'numeric' }
+                    )}
+                  </Text>
+                )}
+                {profile?.email && (
+                  <Text size="xs" color="$gray10" textAlign="center">
+                    {profile.email}
+                  </Text>
+                )}
+              </YStack>
+
               {/* Display rating badge if user has reviews */}
               {userRating.reviewCount > 0 && (
                 <YStack alignItems="center" marginTop="$3">

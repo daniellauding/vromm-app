@@ -19,6 +19,7 @@ interface CelebrationModalProps {
   timeSpent?: number; // in minutes
   streakDays?: number;
   onNavigateToLesson?: () => void; // Optional callback to navigate back to lesson
+  isAllPathsComplete?: boolean; // 🏆 NEW: Show special "all complete" celebration
 }
 
 // Hardcoded fallback translations for celebration modal
@@ -48,6 +49,7 @@ export function CelebrationModal({
   timeSpent,
   streakDays,
   onNavigateToLesson,
+  isAllPathsComplete = false,
 }: CelebrationModalProps) {
   const { t, language: lang } = useTranslation();
   const colorScheme = useColorScheme();
@@ -291,20 +293,26 @@ export function CelebrationModal({
                     fadeDuration={0}
                   />
 
-                  {/* 100% Badge */}
+                  {/* 100% Badge or Trophy for All Complete */}
                   <View
                     style={{
                       position: 'absolute',
                       top: 16,
                       left: 16,
-                      backgroundColor: '#00E6C3',
+                      backgroundColor: isAllPathsComplete ? '#FFD700' : '#00E6C3',
                       paddingHorizontal: 16,
                       paddingVertical: 8,
                       borderRadius: 20,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
                     }}
                   >
+                    {isAllPathsComplete && (
+                      <Feather name="award" size={16} color="#000" />
+                    )}
                     <Text fontSize={16} fontWeight="bold" color="#000">
-                      100%
+                      {isAllPathsComplete ? '🏆' : '100%'}
                     </Text>
                   </View>
 

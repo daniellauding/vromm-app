@@ -6,6 +6,7 @@ interface CelebrationData {
   totalExercises: number;
   timeSpent?: number;
   streakDays?: number;
+  isAllPathsComplete?: boolean; // 🏆 NEW: For "all paths complete" grand celebration
 }
 
 interface CelebrationContextType {
