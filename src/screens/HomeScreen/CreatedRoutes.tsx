@@ -1,4 +1,3 @@
-import { HeroCarousel } from '@/src/components/HeroCarousel';
 import { SectionHeader } from '@/src/components/SectionHeader';
 import { RouteListSheet } from '@/src/components/RouteListSheet';
 import { useAuth } from '@/src/context/AuthContext';
@@ -16,7 +15,7 @@ import { EmptyState } from './EmptyState';
 import { Text } from '../../components/Text';
 import { useModal } from '@/src/contexts/ModalContext';
 import { CreateRouteSheet } from '@/src/components/CreateRouteSheet';
-import RouteDetailsCarousel from '@/src/components/RouteDetailSheet/RouteDetailsCarousel';
+import { RouteCard } from '../../components/RouteCard';
 
 // Import getting started images
 const GETTING_STARTED_IMAGES = {
@@ -51,7 +50,8 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
     if (!effectiveUserId) return;
 
     const loadCreatedRoutes = async () => {
-      console.log('🗺️ [CreatedRoutes] Loading created routes for user:', effectiveUserId);
+      const startTime = Date.now();
+      console.log('⚡ [CreatedRoutes] Loading created routes for user:', effectiveUserId);
       console.log('🗺️ [CreatedRoutes] Is viewing as student:', isViewingAsStudent);
 
       try {
@@ -65,6 +65,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
 
         console.log('🗺️ [CreatedRoutes] Loaded created routes:', createdData?.length || 0);
         setCreatedRoutes(createdData as Route[]);
+        console.log('⚡ [CreatedRoutes] Created routes loaded in:', Date.now() - startTime, 'ms');
       } catch (err) {
         console.error('❌ [CreatedRoutes] Error loading created routes:', err);
       }
@@ -217,16 +218,27 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
             </Card>
           </YStack>
         ) : (
-          <XStack paddingHorizontal="$4">
-            <HeroCarousel
-              title={t('home.createdRoutes')}
-              items={createdRoutes}
-              getImageUrl={getRouteImage}
-              showTitle={false}
-              showMapPreview={true}
-              onItemPress={onRoutePress ? (route) => onRoutePress(route.id) : undefined}
-            />
-          </XStack>
+          <FlatList
+            horizontal
+            data={createdRoutes}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 8 }}
+            renderItem={({ item: route }) => (
+              <XStack marginRight="$3">
+                <RouteCard 
+                  route={route} 
+                  onPress={() => {
+                    if (onRoutePress) {
+                      onRoutePress(route.id);
+                    } else {
+                      navigation.navigate('RouteDetail', { routeId: route.id });
+                    }
+                  }}
+                />
+              </XStack>
+            )}
+          />
         )}
       </YStack>
 

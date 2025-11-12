@@ -226,17 +226,17 @@ export const RoleSelectionCard = () => {
             </View>
           ) : (
             <View
-              style={{
-                position: 'absolute',
-                top: 12,
-                right: 12,
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
                 backgroundColor: '#4B6BFF',
                 borderRadius: 10,
                 paddingHorizontal: 6,
                 paddingVertical: 3,
                 zIndex: 1,
-              }}
-            >
+            }}
+          >
               <Text fontSize={9} color="#fff" fontWeight="bold">
                 0%
               </Text>
@@ -260,9 +260,9 @@ export const RoleSelectionCard = () => {
                     ? getTranslation('onboarding.role.student', language === 'sv' ? 'Elev' : 'Student')
                     : getTranslation('onboarding.role.instructor', language === 'sv' ? 'Handledare' : 'Instructor')
                   : getTranslation(
-                      'home.gettingStarted.chooseRole.title',
-                      language === 'sv' ? 'Välj din roll' : 'Choose Your Role',
-                    )}
+                  'home.gettingStarted.chooseRole.title',
+                  language === 'sv' ? 'Välj din roll' : 'Choose Your Role',
+                )}
               </Text>
               <Text fontSize="$4" color="$gray11" textAlign="center">
                 {profile?.role_confirmed && profile?.role
@@ -270,11 +270,11 @@ export const RoleSelectionCard = () => {
                     ? getTranslation('onboarding.role.studentDescription', language === 'sv' ? 'Du lär dig köra' : 'I want to learn to drive')
                     : getTranslation('onboarding.role.instructorDescription', language === 'sv' ? 'Du lär andra att köra' : 'I teach others to drive')
                   : getTranslation(
-                      'home.gettingStarted.chooseRole.description',
-                      language === 'sv'
-                        ? 'Elev, handledare eller körskola?'
-                        : 'Student, instructor, or driving school?',
-                    )}
+                  'home.gettingStarted.chooseRole.description',
+                  language === 'sv'
+                    ? 'Elev, handledare eller körskola?'
+                    : 'Student, instructor, or driving school?',
+                )}
               </Text>
             </YStack>
 

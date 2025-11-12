@@ -57,6 +57,8 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
   const loadRecentExercises = useCallback(async () => {
     if (!effectiveUserId) return;
 
+    const startTime = Date.now();
+    console.log('⚡ [JumpBackIn] Loading recent exercises...');
     try {
       setLoading(true);
 
@@ -165,6 +167,7 @@ export function JumpBackInSection({ activeUserId }: JumpBackInSectionProps) {
         .slice(0, 3); // Show top 3 most recent
 
       setRecentExercises(recentExercisesArray);
+      console.log('⚡ [JumpBackIn] Recent exercises loaded in:', Date.now() - startTime, 'ms');
     } catch (error) {
       console.error('Error loading recent exercises:', error);
     } finally {
