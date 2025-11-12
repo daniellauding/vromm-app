@@ -28,7 +28,7 @@ import { AppAnalytics } from './utils/analytics';
 import { TourOverlay } from './components/TourOverlay';
 import { GlobalCelebrationModal } from './components/GlobalCelebrationModal';
 import type { NavigationContainerRef } from '@react-navigation/native';
-import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LoadingScreen } from './components/LoadingScreen';
 
@@ -48,6 +48,7 @@ interface AnalyticsModuleFactory {
 let analyticsModule: AnalyticsModuleFactory;
 try {
   if (NativeModules.RNFBAnalyticsModule) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     analyticsModule = require('@react-native-firebase/analytics').default;
   } else {
     analyticsModule = () => ({
@@ -55,7 +56,6 @@ try {
       logScreenView: async () => {},
       app: null,
     });
-    console.log('[Firebase] Using mock analytics in App.tsx');
   }
 } catch (error) {
   analyticsModule = () => ({
@@ -63,7 +63,6 @@ try {
     logScreenView: async () => {},
     app: null,
   });
-  console.log('[Firebase] Error initializing analytics in App.tsx:', error);
 }
 
 const analytics = analyticsModule;
@@ -264,14 +263,13 @@ function AuthenticatedAppContent() {
   useEffect(() => {
     const loadTranslations = async () => {
       try {
-        console.log('🌍 [AppContent] Refreshing translations on mount');
         await refreshTranslations();
-        console.log('✅ [AppContent] Translations refreshed successfully');
       } catch (error) {
         console.error('❌ [AppContent] Error refreshing translations:', error);
       }
     };
     loadTranslations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   console.log('🎯 [AuthenticatedAppContent] Rendering');
@@ -283,9 +281,7 @@ function AuthenticatedAppContent() {
       style={{
         flex: 1,
         paddingBottom: Platform.OS === 'android' ? insets.bottom : 0,
-        // backgroundColor: '#fff',
       }}
-      // edges={['bottom', 'left', 'right']}
     >
       <Stack.Navigator
         initialRouteName="MainTabs"
@@ -550,17 +546,7 @@ function AppContent() {
         (collectionInvitations?.length || 0) +
         (notificationInvitations?.length || 0);
 
-      console.log(
-        relationshipInvitations,
-        notificationRelationshipInvitations,
-        collectionInvitations,
-        notificationInvitations,
-      );
-
-      console.log('Total invitations:', totalInvitations);
-
       if (totalInvitations > 0) {
-        console.log('Set 1');
         setShowGlobalInvitationNotification(true);
       }
     } catch (error) {
@@ -592,15 +578,12 @@ function AppContent() {
           schema: 'public',
           table: 'pending_invitations',
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (payload: any) => {
-          try {
-            const row = payload?.new;
-            const targetEmail = (row?.email || '').toLowerCase();
-            if (targetEmail === (user.email || '').toLowerCase() && row?.status === 'pending') {
-              setTimeout(() => setShowGlobalInvitationNotification(true), 150);
-            }
-          } catch (e) {
-            console.log('🌍 Global: INSERT handler error', e);
+          const row = payload?.new;
+          const targetEmail = (row?.email || '').toLowerCase();
+          if (targetEmail === (user.email || '').toLowerCase() && row?.status === 'pending') {
+            setTimeout(() => setShowGlobalInvitationNotification(true), 150);
           }
         },
       )
@@ -611,15 +594,12 @@ function AppContent() {
           schema: 'public',
           table: 'pending_invitations',
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (payload: any) => {
-          try {
-            const row = payload?.new;
-            const targetEmail = (row?.email || '').toLowerCase();
-            if (targetEmail === (user.email || '').toLowerCase()) {
-              setTimeout(() => checkForGlobalInvitations(), 250);
-            }
-          } catch (e) {
-            console.log('🌍 Global: UPDATE handler error', e);
+          const row = payload?.new;
+          const targetEmail = (row?.email || '').toLowerCase();
+          if (targetEmail === (user?.email || '').toLowerCase()) {
+            setTimeout(() => checkForGlobalInvitations(), 250);
           }
         },
       )
@@ -636,17 +616,14 @@ function AppContent() {
           table: 'notifications',
           filter: `user_id=eq.${user.id}`,
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (payload: any) => {
-          try {
-            const row = payload?.new;
-            if (row?.type === 'supervisor_invitation' || row?.type === 'student_invitation') {
-              console.log('Set 2');
-              setShowGlobalInvitationNotification(true);
-            } else if (row?.type === 'collection_invitation') {
-              console.log('Set 3');
-              setShowGlobalInvitationNotification(true);
-            }
-          } catch {}
+          const row = payload?.new;
+          if (row?.type === 'supervisor_invitation' || row?.type === 'student_invitation') {
+            setShowGlobalInvitationNotification(true);
+          } else if (row?.type === 'collection_invitation') {
+            setShowGlobalInvitationNotification(true);
+          }
         },
       )
       .subscribe();
@@ -662,15 +639,11 @@ function AppContent() {
           table: 'collection_invitations',
           filter: `invited_user_id=eq.${user.id}`,
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (payload: any) => {
-          try {
-            const row = payload?.new;
-            if (row?.status === 'pending') {
-              console.log('Set 4');
-              setTimeout(() => setShowGlobalInvitationNotification(true), 150);
-            }
-          } catch (e) {
-            console.log('📁 Collection invitation INSERT handler error', e);
+          const row = payload?.new;
+          if (row?.status === 'pending') {
+            setTimeout(() => setShowGlobalInvitationNotification(true), 150);
           }
         },
       )
@@ -857,7 +830,7 @@ function AppContent() {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event) => {
       if (_event === 'SIGNED_IN') {
         // Dismiss any auth browser just in case
         (async () => {
@@ -903,7 +876,7 @@ function AppContent() {
     const handleAppTermination = async () => {
       try {
         await AppAnalytics.endSession();
-      } catch (error) {
+      } catch {
         // Silently fail session end tracking
       }
     };
