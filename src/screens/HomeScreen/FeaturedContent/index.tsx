@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase';
 import { useTranslation } from '../../../contexts/TranslationContext';
 import { SectionHeader } from '../../../components/SectionHeader';
 import { ExerciseListSheet } from '../../../components/ExerciseListSheet';
+import { LearningPathsSheet } from '../../../components/LearningPathsSheet';
 import { useAuth } from '../../../context/AuthContext';
 import { useUnlock } from '../../../contexts/UnlockContext';
 import { LearningPath } from './LearningPath';
@@ -24,8 +25,9 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
   const [completedExerciseIds, setCompletedExerciseIds] = useState<string[]>([]);
   const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
 
-  // Modal state for ExerciseListSheet
+  // Modal state for ExerciseListSheet and LearningPathsSheet
   const [showExerciseSheet, setShowExerciseSheet] = useState(false);
+  const [showLearningPathsSheet, setShowLearningPathsSheet] = useState(false);
   const [selectedPathId, setSelectedPathId] = useState<string | undefined>();
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | undefined>();
   const [selectedTitle, setSelectedTitle] = useState<string>('');
@@ -361,6 +363,28 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
         learningPathId={selectedPathId}
         initialExerciseId={selectedExerciseId}
         fromFeaturedContent={true}
+        onBackToAllPaths={() => {
+          console.log('🎯 [FeaturedContent] Back to all paths pressed');
+          setShowExerciseSheet(false);
+          setShowLearningPathsSheet(true);
+        }}
+      />
+
+      <LearningPathsSheet
+        visible={showLearningPathsSheet}
+        onClose={() => {
+          console.log('🎯 [FeaturedContent] LearningPathsSheet onClose called');
+          setShowLearningPathsSheet(false);
+        }}
+        onPathSelected={(path) => {
+          console.log('🎯 [FeaturedContent] Path selected from LearningPathsSheet:', path.title);
+          setShowLearningPathsSheet(false);
+          setSelectedPathId(path.id);
+          setSelectedExerciseId(undefined);
+          setSelectedTitle(path.title[lang] || path.title.en);
+          setShowExerciseSheet(true);
+        }}
+        title={t('progressScreen.learningPaths') || 'Learning Paths'}
       />
 
       <PayWall

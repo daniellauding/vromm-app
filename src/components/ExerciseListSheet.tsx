@@ -1436,11 +1436,9 @@ export function ExerciseListSheet({
                           alignItems="center"
                           marginBottom={24}
                         >
-                          {!fromFeaturedContent && (
                           <TouchableOpacity onPress={() => setSelectedExercise(null)}>
                             <Feather name="arrow-left" size={28} color={iconColor} />
                           </TouchableOpacity>
-                          )}
 
                           {!shouldShowQuiz && totalRepeats > 1 && (
                             <XStack gap={8} alignItems="center">
@@ -2384,7 +2382,7 @@ export function ExerciseListSheet({
                       {/* Header with Progress Circle */}
                       <YStack gap={16} marginBottom={16}>
                         <XStack justifyContent="space-between" alignItems="center">
-                          {onBackToAllPaths && !fromFeaturedContent ? (
+                          {onBackToAllPaths ? (
                             <TouchableOpacity onPress={onBackToAllPaths}>
                               <Feather
                                 name="arrow-left"
