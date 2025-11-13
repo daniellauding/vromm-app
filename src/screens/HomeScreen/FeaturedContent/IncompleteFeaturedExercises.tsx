@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dimensions, Pressable, TouchableOpacity } from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
@@ -8,6 +8,8 @@ import { FeaturedExercise, FeaturedLearningPath } from './types';
 import { FeaturedMedia } from './FeaturedMedia';
 import { QuizModal } from '../../../components/QuizModal';
 import { useQuiz } from '../../../hooks/useQuiz';
+import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../context/AuthContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 const cardWidth = screenWidth * 0.7;
@@ -21,17 +23,22 @@ export const IncompleteFeaturedExercises = React.memo(function IncompleteFeature
 }) {
   const { t, language: lang } = useTranslation();
   const { isPathUnlocked, hasPathPayment } = useUnlock();
+  const { profile } = useAuth();
+  const [quizPassed, setQuizPassed] = useState(false);
 
-  // Quiz integration
+  // Quiz integration - only show if both has_quiz and show_quiz are true
+  const shouldShowQuiz = exercise.has_quiz && (exercise.show_quiz !== false); // show_quiz defaults to true if not set
   const quiz = useQuiz({
     exerciseId: exercise.id || '',
     exerciseTitle: exercise.title || { en: '', sv: '' },
-    hasQuiz: exercise.has_quiz || false,
+    hasQuiz: shouldShowQuiz,
     quizRequired: exercise.quiz_required || false,
     quizPassScore: exercise.quiz_pass_score || 70,
     onQuizComplete: async (passed, score) => {
       console.log('Featured exercise quiz completed:', { passed, score });
-      // Could refresh featured exercises here if needed
+      if (passed) {
+        setQuizPassed(true); // Update the badge immediately
+      }
     },
   });
 
@@ -52,6 +59,27 @@ export const IncompleteFeaturedExercises = React.memo(function IncompleteFeature
 
   const isPasswordLocked = isPathPasswordLocked(exercise);
   const isPaywallLocked = isPathPaywallLocked(exercise);
+
+  // Check if user has passed the quiz
+  useEffect(() => {
+    const checkQuizStatus = async () => {
+      if (!shouldShowQuiz || !profile?.id || !exercise.id) return;
+      
+      const { data } = await supabase
+        .from('quiz_attempts')
+        .select('passed')
+        .eq('user_id', profile.id)
+        .eq('exercise_id', exercise.id)
+        .eq('passed', true)
+        .limit(1);
+      
+      if (data && data.length > 0) {
+        setQuizPassed(true);
+      }
+    };
+    
+    checkQuizStatus();
+  }, [shouldShowQuiz, profile?.id, exercise.id]);
 
   return (
     <Pressable
@@ -79,7 +107,7 @@ export const IncompleteFeaturedExercises = React.memo(function IncompleteFeature
       >
         <YStack gap="$3" position="relative">
           {/* Lock/Payment/Quiz indicator badges (top-right corner) */}
-          {(isPasswordLocked || isPaywallLocked || exercise.has_quiz) && (
+          {(isPasswordLocked || isPaywallLocked || shouldShowQuiz) && (
             <XStack position="absolute" top={0} right={0} zIndex={10} gap="$1">
               {isPasswordLocked && (
                 <YStack
@@ -103,14 +131,14 @@ export const IncompleteFeaturedExercises = React.memo(function IncompleteFeature
                   <Feather name="credit-card" size={10} color="black" />
                 </YStack>
               )}
-              {exercise.has_quiz && (
+              {shouldShowQuiz && (
                 <TouchableOpacity
                   onPress={(e) => {
                     e.stopPropagation();
                     quiz.openQuiz();
                   }}
                   style={{
-                    backgroundColor: exercise.quiz_required ? '#4B6BFF' : '#00E6C3',
+                    backgroundColor: quizPassed ? '#00E6C3' : (exercise.quiz_required ? '#145251' : '#00E6C3'),
                     borderRadius: 8,
                     paddingHorizontal: 8,
                     paddingVertical: 4,
@@ -119,9 +147,9 @@ export const IncompleteFeaturedExercises = React.memo(function IncompleteFeature
                     gap: 4,
                   }}
                 >
-                  <Feather name="clipboard" size={12} color="white" />
-                  <Text fontSize={10} color="white" fontWeight="bold">
-                    {exercise.quiz_required ? 'QUIZ' : 'QUIZ'}
+                  <Feather name={quizPassed ? 'check-circle' : 'clipboard'} size={12} color={quizPassed ? '#000' : 'white'} />
+                  <Text fontSize={10} color={quizPassed ? '#000' : 'white'} fontWeight="bold">
+                    {quizPassed ? 'PASSED' : 'QUIZ'}
                   </Text>
                 </TouchableOpacity>
               )}

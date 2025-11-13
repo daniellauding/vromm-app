@@ -1501,7 +1501,7 @@ export function ProfileScreen() {
   // Theme modal show/hide functions
   const showThemeSheet = () => {
     console.log('🎨 Opening theme settings modal');
-    console.log('🎨 Current theme preference:', profile?.theme_preference || 'system');
+    console.log('🎨 Current theme preference:', profile?.theme_preference || 'dark');
     console.log('🎨 Profile data:', {
       theme_preference: profile?.theme_preference,
       hasProfile: !!profile,
@@ -1509,7 +1509,7 @@ export function ProfileScreen() {
     console.log('🎨 System color scheme:', systemColorScheme);
     console.log(
       '🎨 Current effective theme:',
-      profile?.theme_preference === 'system' ? systemColorScheme : profile?.theme_preference,
+      profile?.theme_preference === 'system' ? systemColorScheme : (profile?.theme_preference || 'dark'),
     );
     setShowThemeModal(true);
     Animated.timing(themeBackdropOpacity, {
@@ -6838,9 +6838,7 @@ export function ProfileScreen() {
                       'profile.theme.systemDescription',
                       language === 'sv' ? 'Följ enhetens tema' : "Follow device's theme",
                     )}
-                    isSelected={
-                      !profile?.theme_preference || profile?.theme_preference === 'system'
-                    }
+                    isSelected={profile?.theme_preference === 'system'}
                   />
 
                   {/* Light Mode */}
@@ -6932,7 +6930,9 @@ export function ProfileScreen() {
                         ? 'Elegant gränssnitt för svägt ljus på natten'
                         : 'Elegant dark interface for low light',
                     )}
-                    isSelected={profile?.theme_preference === 'dark'}
+                    isSelected={
+                      !profile?.theme_preference || profile?.theme_preference === 'dark'
+                    }
                   />
                 </YStack>
               </YStack>

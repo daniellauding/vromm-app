@@ -19,8 +19,8 @@ export function useThemePreference() {
   const systemColorScheme = useColorScheme();
   const { profile, updateProfile } = useAuth();
 
-  // Get user's theme preference from profile
-  const userPreference = (profile?.theme_preference as ThemePreference) || 'system';
+  // Get user's theme preference from profile (defaults to 'dark' if not set)
+  const userPreference = (profile?.theme_preference as ThemePreference) || 'dark';
 
   // Determine the effective theme that should be applied
   // For manual preferences, always use the user's choice regardless of system changes

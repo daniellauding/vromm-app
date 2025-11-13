@@ -28,6 +28,9 @@ export interface FeaturedExercise {
   has_quiz?: boolean;
   quiz_required?: boolean;
   quiz_pass_score?: number;
+  show_quiz?: boolean; // NEW: Control quiz visibility from admin
+  // Content visibility (for future use)
+  show_exercise_content?: boolean; // NEW: Control exercise content visibility
   // Access Control & Paywall
   is_locked?: boolean;
   lock_password?: string | null;
