@@ -363,11 +363,6 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
         learningPathId={selectedPathId}
         initialExerciseId={selectedExerciseId}
         fromFeaturedContent={true}
-        onBackToAllPaths={() => {
-          console.log('🎯 [FeaturedContent] Back to all paths pressed');
-          setShowExerciseSheet(false);
-          setShowLearningPathsSheet(true);
-        }}
       />
 
       <LearningPathsSheet
