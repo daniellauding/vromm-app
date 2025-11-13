@@ -23,7 +23,6 @@
           "fetch"
         ],
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to show nearby services.",
-        "NSUserTrackingUsageDescription": "This allows us to understand how you use the app and improve your experience.",
         "NSCameraUsageDescription": "This app needs access to your camera to take photos for routes and reviews.",
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select images for routes and reviews."
       },
