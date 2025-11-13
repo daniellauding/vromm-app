@@ -317,6 +317,12 @@ export default function RouteActions({
           routeData={routeData}
           onClose={() => setShowOptionsSheet(false)}
           visible={isShowOptionsSheet}
+          onRouteDeleted={() => {
+            console.log('🗑️ [RouteActions] Route deleted, closing detail sheet');
+            setShowOptionsSheet(false);
+            // Close the entire RouteDetailSheet
+            onClose();
+          }}
         />
       )}
     </YStack>

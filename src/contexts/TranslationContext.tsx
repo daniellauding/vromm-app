@@ -109,7 +109,12 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const currentPlatform = Platform.OS === 'web' ? 'web' : 'mobile';
 
-      console.log('🌐 [TranslationContext] Fetching translations from Supabase...');
+      console.log('🌐 [TranslationContext] Fetching translations from Supabase...', {
+        language: lang,
+        platform: currentPlatform,
+        devMode: __DEV__,
+        forceFresh: shouldForceFresh,
+      });
       const { data, error } = await supabase
         .from('translations')
         .select('key, value, platform, updated_at')
@@ -134,13 +139,15 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         fetchedTranslations[item.key] = item.value;
       });
       
-      // Log celebration keys specifically for debugging
+      // Log specific keys for debugging in dev mode
       if (__DEV__) {
-        console.log('🌐 [TranslationContext] Celebration keys:', {
-          lessonComplete: fetchedTranslations['celebration.lessonComplete'],
-          greatJob: fetchedTranslations['celebration.greatJob'],
-          exercisesCompleted: fetchedTranslations['celebration.exercisesCompleted'],
-        });
+        const betaKeys = Object.keys(fetchedTranslations).filter(k => k.startsWith('beta.checklist.'));
+        console.log('🌐 [TranslationContext] Beta checklist translations:', betaKeys.length);
+        if (betaKeys.length > 0) {
+          console.log('🌐 [TranslationContext] Sample beta keys:', betaKeys.slice(0, 3));
+        } else {
+          console.warn('⚠️ [TranslationContext] NO beta.checklist translations found!');
+        }
       }
 
       // Get local translations as fallback

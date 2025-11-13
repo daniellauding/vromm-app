@@ -13,10 +13,10 @@ import { WeeklyGoal } from './WeeklyGoal';
 import { DailyStatus } from './DailyStatus';
 // import { JumpBackInSection } from '../../components/JumpBackInSection';
 import { GettingStarted } from './GettingStarted';
-// import { FeaturedContent } from './FeaturedContent';
+import { FeaturedContent } from './FeaturedContent';
 import { SavedRoutes } from './SavedRoutes';
 // import { QuickFilters } from './QuickFilters';
-import { CityRoutes } from './CityRoutes';
+// import { CityRoutes } from './CityRoutes';
 import { CreatedRoutes } from './CreatedRoutes';
 import { NearByRoutes } from './NearByRoutes';
 import { DrivenRoutes } from './DrivenRoutes';
@@ -123,7 +123,7 @@ export default React.memo(function MyTab({
       <ProgressSection activeUserId={effectiveUserId} />
 
       {/* Featured Content - COMMENTED OUT FOR PERFORMANCE TESTING */}
-      {/* <FeaturedContent /> */}
+      <FeaturedContent />
 
       {/* Jump Back In Section - COMMENTED OUT FOR PERFORMANCE TESTING */}
       {/* <JumpBackInSection activeUserId={effectiveUserId || undefined} /> */}
@@ -132,7 +132,7 @@ export default React.memo(function MyTab({
       <SavedRoutes onRoutePress={handleRoutePress} />
 
       <YStack gap="$4">
-        <CityRoutes onRoutePress={handleRoutePress} />
+        {/* <CityRoutes onRoutePress={handleRoutePress} /> */}
         <CreatedRoutes onRoutePress={handleRoutePress} />
         <DrivenRoutes onRoutePress={handleRoutePress} />
         <NearByRoutes onRoutePress={handleRoutePress} />

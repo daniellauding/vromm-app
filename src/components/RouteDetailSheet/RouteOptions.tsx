@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Animated, Pressable, View, TouchableOpacity, Linking } from 'react-native';
 
-import { YStack, Text, useTheme } from 'tamagui';
+import { YStack, XStack, Text, useTheme } from 'tamagui';
 import { Button } from '../../components/Button';
 
 import { Feather } from '@expo/vector-icons';
@@ -10,24 +10,32 @@ import { useTranslation } from '@/src/contexts/TranslationContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { useToast } from '@/src/contexts/ToastContext';
 import { ReportDialog } from '../report/ReportDialog';
+import { supabase } from '@/src/lib/supabase';
+import { useNavigation } from '@react-navigation/native';
+import { useColorScheme } from 'react-native';
 
 export default function RouteOptions({
   routeData,
   visible,
   onClose,
+  onRouteDeleted,
 }: {
   routeData: any;
   visible: boolean;
   onClose: () => void;
+  onRouteDeleted?: () => void;
 }) {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const theme = useTheme();
   const { showToast } = useToast();
+  const navigation = useNavigation();
+  const colorScheme = useColorScheme();
   const iconColor = theme.color?.val || '#000000';
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
   const [isShowReportDialog, setShowReportDialog] = React.useState(false);
-  const [isShowDeleteConfirmSheet, setShowDeleteConfirmSheet] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
   const handleOpenInMaps = React.useCallback(() => {
     if (!routeData?.waypoint_details?.length) {
@@ -60,19 +68,52 @@ export default function RouteOptions({
     Linking.openURL(googleMapsUrl);
   }, [routeData, showToast, t]);
 
-  const handleDelete = React.useCallback(async () => {
-    if (!user || !routeData) {
+  const handleDeleteRoute = React.useCallback(async () => {
+    try {
+      setDeleting(true);
+      console.log('🗑️ [RouteOptions] Deleting route:', routeData.id);
+      
+      // Delete the route from database
+      const { error } = await supabase
+        .from('routes')
+        .delete()
+        .eq('id', routeData.id)
+        .eq('creator_id', user.id); // Extra safety check
+
+      if (error) {
+        console.error('🗑️ [RouteOptions] Delete error:', error);
+        throw error;
+      }
+
+      console.log('✅ [RouteOptions] Route deleted successfully');
+      
       showToast({
-        title: t('common.error') || 'Error',
-        message: t('routeDetail.unableToDelete') || 'Unable to delete route',
+        title: language === 'sv' ? 'Framgång' : 'Success',
+        message: language === 'sv' ? 'Rutt borttagen' : 'Route deleted successfully',
+        type: 'success',
+      });
+
+      // Close the confirmation sheet
+      setShowDeleteConfirm(false);
+      
+      // Close the options sheet
+      onClose();
+      
+      // Notify parent that route was deleted
+      if (onRouteDeleted) {
+        onRouteDeleted();
+      }
+    } catch (error) {
+      console.error('🗑️ [RouteOptions] Failed to delete route:', error);
+      showToast({
+        title: language === 'sv' ? 'Fel' : 'Error',
+        message: language === 'sv' ? 'Kunde inte ta bort rutt. Försök igen.' : 'Failed to delete route. Please try again.',
         type: 'error',
       });
-      return;
+    } finally {
+      setDeleting(false);
     }
-
-    // Show confirmation sheet instead of alert
-    setShowDeleteConfirmSheet(true);
-  }, [routeData, showToast, t, user]);
+  }, [routeData, showToast, language, user, onClose, onRouteDeleted]);
 
   if (isShowReportDialog) {
     return (
@@ -134,10 +175,8 @@ export default function RouteOptions({
 
                 {user?.id === routeData?.creator_id && (
                   <TouchableOpacity
-                    onPress={() => {
-                      onClose();
-                      handleDelete();
-                    }}
+                    onPress={confirmAndDelete}
+                    disabled={deleting}
                     style={{
                       padding: 16,
                       backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
@@ -145,11 +184,15 @@ export default function RouteOptions({
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 12,
+                      opacity: deleting ? 0.5 : 1,
                     }}
                   >
-                    <Feather name="trash-2" size={20} color={iconColor} />
-                    <Text fontSize="$4" color="$color">
-                      {t('routeDetail.deleteRoute') || 'Delete Route'}
+                    <Feather name="trash-2" size={20} color="#FF3B30" />
+                    <Text fontSize="$4" color="#FF3B30">
+                      {deleting 
+                        ? (t('common.deleting') || 'Deleting...')
+                        : (t('routeDetail.deleteRoute') || 'Delete Route')
+                      }
                     </Text>
                   </TouchableOpacity>
                 )}

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Animated,
@@ -7,8 +7,10 @@ import {
   View,
   Dimensions,
   TouchableOpacity,
+  TextInput,
+  Keyboard,
 } from 'react-native';
-import { YStack, XStack, Text } from 'tamagui';
+import { YStack, XStack, Text, useTheme } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { RouteList } from './RouteList';
 import { Button } from './Button';
@@ -18,6 +20,8 @@ import { useColorScheme } from 'react-native';
 import type { Route } from '../hooks/useRoutes';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { RouteDetailSheet } from './RouteDetailSheet';
+import { useTranslation } from '../contexts/TranslationContext';
 
 const { height } = Dimensions.get('window');
 
@@ -48,6 +52,8 @@ export function RouteListSheet({
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const colorScheme = useColorScheme();
+  const { language } = useTranslation();
+  const theme = useTheme();
 
   // Theme colors - matching OnboardingInteractive exactly
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
@@ -57,7 +63,53 @@ export function RouteListSheet({
   const sheetTranslateY = useRef(new Animated.Value(300)).current;
 
   // Route state
-  const [routes, setRoutes] = React.useState<Route[]>(initialRoutes);
+  const [routes, setRoutes] = useState<Route[]>(initialRoutes);
+  
+  // Route detail sheet state
+  const [showRouteDetailSheet, setShowRouteDetailSheet] = useState(false);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter routes based on search query
+  const filteredRoutes = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return routes;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    return routes.filter((route) => {
+      const nameMatch = route.name?.toLowerCase().includes(query);
+      const descriptionMatch = route.description?.toLowerCase().includes(query);
+      const cityMatch = (route as any).city?.toLowerCase().includes(query);
+      const waypointMatch = route.waypoint_details?.some(
+        (wp: any) =>
+          wp.title?.toLowerCase().includes(query) ||
+          wp.description?.toLowerCase().includes(query),
+      );
+      const creatorMatch = (route as any).creator?.full_name?.toLowerCase().includes(query);
+      const difficultyMatch = route.difficulty?.toLowerCase().includes(query);
+      const spotTypeMatch = route.spot_type?.toLowerCase().includes(query);
+      const categoryMatch = route.category?.toLowerCase().includes(query);
+
+      return (
+        nameMatch ||
+        descriptionMatch ||
+        cityMatch ||
+        waypointMatch ||
+        creatorMatch ||
+        difficultyMatch ||
+        spotTypeMatch ||
+        categoryMatch
+      );
+    });
+  }, [routes, searchQuery]);
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    Keyboard.dismiss();
+  };
 
   // Load routes based on type
   React.useEffect(() => {
@@ -74,14 +126,17 @@ export function RouteListSheet({
           console.log('📋 [RouteListSheet] Loading driven routes...');
           const { data, error } = await supabase
             .from('driven_routes')
-            .select('*')
-            .eq('user_id', user.id);
+            .select('*, routes(*)')
+            .eq('user_id', user.id)
+            .order('driven_at', { ascending: false });
           console.log('📋 [RouteListSheet] Driven routes result:', {
             data,
             error,
             count: data?.length,
           });
-          setRoutes((data as unknown as Route[]) || []);
+          // Extract the routes from the join
+          const routes = data?.map((item: any) => item.routes).filter(Boolean) || [];
+          setRoutes(routes as Route[]);
         } else if (type === 'drafts') {
           console.log('📋 [RouteListSheet] Loading draft routes...');
           const { data, error } = await supabase
@@ -283,25 +338,97 @@ export function RouteListSheet({
                 </XStack>
               )}
 
+              {/* Search Input */}
+              <View style={{ position: 'relative', width: '100%', paddingHorizontal: 0 }}>
+                <TextInput
+                  style={[
+                    {
+                      height: 40,
+                      borderRadius: 20,
+                      paddingHorizontal: 16,
+                      paddingRight: searchQuery.length > 0 ? 40 : 16,
+                      fontSize: 14,
+                      borderWidth: 1,
+                    },
+                    {
+                      backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#F2F2F7',
+                      color: theme.color?.val || '#000000',
+                      borderColor: colorScheme === 'dark' ? '#2C2C2E' : '#E5E5EA',
+                    },
+                  ]}
+                  placeholder={language === 'sv' ? 'Sök rutter, städer...' : 'Search routes, cities...'}
+                  placeholderTextColor={theme.gray10?.val || '#999'}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: 10,
+                    }}
+                    onPress={handleClearSearch}
+                  >
+                    <Feather name="x-circle" size={18} color={theme.gray10?.val || '#999'} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
               {/* Routes List */}
               <YStack flex={1}>
-                <RouteList
-                  routes={routes}
-                  onRoutePress={(routeId) => {
-                    console.log('📋 [RouteListSheet] Route pressed in RouteList:', routeId);
-                    if (onRoutePress) {
-                      onRoutePress(routeId);
-                    } else {
-                      // Fallback: just close the sheet
-                      onClose();
-                    }
-                  }}
-                />
+                {filteredRoutes.length === 0 ? (
+                  <YStack flex={1} justifyContent="center" alignItems="center" padding="$6" gap="$4">
+                    <Feather name="inbox" size={48} color={colorScheme === 'dark' ? '#666' : '#CCC'} />
+                    <YStack alignItems="center" gap="$2">
+                      <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                        {type === 'created' && 'No Routes Created'}
+                        {type === 'saved' && 'No Saved Routes'}
+                        {type === 'driven' && 'No Driven Routes'}
+                        {type === 'drafts' && 'No Draft Routes'}
+                        {!type && 'No Routes'}
+                      </Text>
+                      <Text fontSize="$4" color="$gray11" textAlign="center">
+                        {type === 'created' && 'Create your first route to get started'}
+                        {type === 'saved' && 'Save routes from the map to access them here'}
+                        {type === 'driven' && 'Mark routes as driven to track your progress'}
+                        {type === 'drafts' && 'Draft routes will appear here'}
+                        {!type && 'Routes will appear here when available'}
+                      </Text>
+                    </YStack>
+                  </YStack>
+                ) : (
+                  <RouteList
+                    routes={filteredRoutes}
+                    onRoutePress={(routeId) => {
+                      console.log('📋 [RouteListSheet] Route pressed, opening RouteDetailSheet:', routeId);
+                      setSelectedRouteId(routeId);
+                      setShowRouteDetailSheet(true);
+                    }}
+                  />
+                )}
               </YStack>
             </YStack>
           </Animated.View>
         </View>
       </Animated.View>
+      
+      {/* Route Detail Sheet - Shown on top of Route List Sheet */}
+      {selectedRouteId && (
+        <RouteDetailSheet
+          visible={showRouteDetailSheet}
+          routeId={selectedRouteId}
+          onClose={() => {
+            console.log('📋 [RouteListSheet] RouteDetailSheet closed, returning to RouteListSheet');
+            setShowRouteDetailSheet(false);
+            setSelectedRouteId(null);
+            // RouteListSheet stays open
+          }}
+        />
+      )}
     </Modal>
   );
 }
