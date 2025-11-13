@@ -444,18 +444,14 @@ export function FeaturedContent2() {
     };
   }, [authUser?.id]);
 
-  // Debug content changes
+  // Debug content changes - Only log when content lengths change, not on every card swipe
   useEffect(() => {
     console.log('🃏 [FeaturedContent2] Content updated:', {
       totalPaths: featuredPaths.length,
       totalExercises: featuredExercises.length,
       totalContent: allFeaturedContent.length,
-      currentIndex: currentCardIndex,
-      currentItem:
-        allFeaturedContent[currentCardIndex]?.title?.[language] ||
-        allFeaturedContent[currentCardIndex]?.title?.en,
     });
-  }, [featuredPaths.length, featuredExercises.length, currentCardIndex]);
+  }, [featuredPaths.length, featuredExercises.length]); // Removed currentCardIndex to prevent logging on every swipe
 
   // Safety check for empty content - SINGLE useEffect only
   useEffect(() => {

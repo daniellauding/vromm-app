@@ -46,32 +46,60 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
 
-  React.useEffect(() => {
+  const loadCreatedRoutes = React.useCallback(async () => {
     if (!effectiveUserId) return;
 
-    const loadCreatedRoutes = async () => {
-      const startTime = Date.now();
-      console.log('⚡ [CreatedRoutes] Loading created routes for user:', effectiveUserId);
-      console.log('🗺️ [CreatedRoutes] Is viewing as student:', isViewingAsStudent);
+    const startTime = Date.now();
+    console.log('⚡ [CreatedRoutes] Loading created routes for user:', effectiveUserId);
+    console.log('🗺️ [CreatedRoutes] Is viewing as student:', isViewingAsStudent);
 
-      try {
-        const { data: createdData, error: createdError } = await supabase
-          .from('routes')
-          .select('*')
-          .eq('creator_id', effectiveUserId)
-          .order('created_at', { ascending: false });
+    try {
+      const { data: createdData, error: createdError } = await supabase
+        .from('routes')
+        .select('*')
+        .eq('creator_id', effectiveUserId)
+        .order('created_at', { ascending: false });
 
-        if (createdError) throw createdError;
+      if (createdError) throw createdError;
 
-        console.log('🗺️ [CreatedRoutes] Loaded created routes:', createdData?.length || 0);
-        setCreatedRoutes(createdData as Route[]);
-        console.log('⚡ [CreatedRoutes] Created routes loaded in:', Date.now() - startTime, 'ms');
-      } catch (err) {
-        console.error('❌ [CreatedRoutes] Error loading created routes:', err);
-      }
-    };
+      console.log('🗺️ [CreatedRoutes] Loaded created routes:', createdData?.length || 0);
+      setCreatedRoutes(createdData as Route[]);
+      console.log('⚡ [CreatedRoutes] Created routes loaded in:', Date.now() - startTime, 'ms');
+    } catch (err) {
+      console.error('❌ [CreatedRoutes] Error loading created routes:', err);
+    }
+  }, [effectiveUserId, isViewingAsStudent]);
+
+  React.useEffect(() => {
+    if (!effectiveUserId) return;
+    
     loadCreatedRoutes();
-  }, [effectiveUserId]);
+
+    // Set up real-time subscription for route changes
+    console.log('📡 [CreatedRoutes] Setting up real-time subscription for user:', effectiveUserId);
+    const routesSubscription = supabase
+      .channel(`created_routes_changes_${effectiveUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'routes',
+          filter: `creator_id=eq.${effectiveUserId}`,
+        },
+        (payload) => {
+          console.log('📡 [CreatedRoutes] Route change detected:', payload.eventType);
+          // Reload routes when any change occurs
+          loadCreatedRoutes();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      console.log('📡 [CreatedRoutes] Cleaning up subscription');
+      routesSubscription.unsubscribe();
+    };
+  }, [effectiveUserId, loadCreatedRoutes]);
 
   const onNavigateToRouteList = React.useCallback(() => {
     const titleText = isViewingAsStudent

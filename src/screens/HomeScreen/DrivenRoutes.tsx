@@ -89,54 +89,83 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
 
   // Use effective user ID (student if viewing as student, otherwise current user)
   const effectiveUserId = getEffectiveUserId();
-  React.useEffect(() => {
+
+  const loadDrivenRoutes = React.useCallback(async () => {
     if (!effectiveUserId) return;
 
-    const loadDrivenRoutes = async () => {
-      const startTime = Date.now();
-      console.log('⚡ [DrivenRoutes] Loading driven routes for user:', effectiveUserId);
-      console.log('🚗 [DrivenRoutes] Is viewing as student:', isViewingAsStudent);
+    const startTime = Date.now();
+    console.log('⚡ [DrivenRoutes] Loading driven routes for user:', effectiveUserId);
+    console.log('🚗 [DrivenRoutes] Is viewing as student:', isViewingAsStudent);
 
-      try {
-        const { data: drivenData, error: drivenError } = await supabase
-          .from('driven_routes')
-          .select('*, routes(*, creator:creator_id(id, full_name))')
-          .eq('user_id', effectiveUserId)
-          .not('driven_at', 'is', null)
-          .order('driven_at', { ascending: false });
+    try {
+      const { data: drivenData, error: drivenError } = await supabase
+        .from('driven_routes')
+        .select('*, routes(*, creator:creator_id(id, full_name))')
+        .eq('user_id', effectiveUserId)
+        .not('driven_at', 'is', null)
+        .order('driven_at', { ascending: false });
 
-        if (drivenError) throw drivenError;
+      if (drivenError) throw drivenError;
 
-        const transformedRoutes = (drivenData as DrivenRouteFromDB[])
-          .filter((item) => item.driven_at && item.routes && isValidRoute(item.routes))
-          .map((item) => {
-            // We know routes is not null from the filter
-            const route = item.routes!;
-            return {
-              ...route,
-              driven_at: item.driven_at as string,
-              id: route.id,
-              name: route.name,
-              media_attachments: route.media_attachments || [],
-              difficulty: route.difficulty || null,
-              spot_type: route.spot_type || null,
-              category: route.category || null,
-              description: route.description || null,
-              waypoint_details: route.waypoint_details || [],
-              creator_id: route.creator_id,
-              created_at: route.created_at,
-              updated_at: route.updated_at,
-            };
-          }) as DrivenRoute[];
+      const transformedRoutes = (drivenData as DrivenRouteFromDB[])
+        .filter((item) => item.driven_at && item.routes && isValidRoute(item.routes))
+        .map((item) => {
+          // We know routes is not null from the filter
+          const route = item.routes!;
+          return {
+            ...route,
+            driven_at: item.driven_at as string,
+            id: route.id,
+            name: route.name,
+            media_attachments: route.media_attachments || [],
+            difficulty: route.difficulty || null,
+            spot_type: route.spot_type || null,
+            category: route.category || null,
+            description: route.description || null,
+            waypoint_details: route.waypoint_details || [],
+            creator_id: route.creator_id,
+            created_at: route.created_at,
+            updated_at: route.updated_at,
+          };
+        }) as DrivenRoute[];
 
-        setDrivenRoutes(transformedRoutes);
-        console.log('⚡ [DrivenRoutes] Driven routes loaded in:', Date.now() - startTime, 'ms');
-      } catch (err) {
-        console.error('Error loading driven routes:', err);
-      }
-    };
+      setDrivenRoutes(transformedRoutes);
+      console.log('⚡ [DrivenRoutes] Driven routes loaded in:', Date.now() - startTime, 'ms');
+    } catch (err) {
+      console.error('Error loading driven routes:', err);
+    }
+  }, [effectiveUserId, isViewingAsStudent]);
+
+  React.useEffect(() => {
+    if (!effectiveUserId) return;
+    
     loadDrivenRoutes();
-  }, [effectiveUserId]);
+
+    // Set up real-time subscription for driven routes changes
+    console.log('📡 [DrivenRoutes] Setting up real-time subscription for user:', effectiveUserId);
+    const drivenSubscription = supabase
+      .channel(`driven_routes_changes_${effectiveUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'driven_routes',
+          filter: `user_id=eq.${effectiveUserId}`,
+        },
+        (payload) => {
+          console.log('📡 [DrivenRoutes] Driven route change detected:', payload.eventType);
+          // Reload routes when any change occurs
+          loadDrivenRoutes();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      console.log('📡 [DrivenRoutes] Cleaning up subscription');
+      drivenSubscription.unsubscribe();
+    };
+  }, [effectiveUserId, loadDrivenRoutes]);
 
   const onNavigateToRouteList = React.useCallback(() => {
     console.log('[SHEET][HomeSection] DrivenRoutes → RouteListSheet');

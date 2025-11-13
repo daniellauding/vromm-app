@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Animated, Pressable, View, TouchableOpacity, Linking } from 'react-native';
+import { Modal, Animated, Pressable, View, TouchableOpacity, Linking, Alert } from 'react-native';
 
 import { YStack, Text, useTheme } from 'tamagui';
 import { Button } from '../../components/Button';
@@ -10,24 +10,29 @@ import { useTranslation } from '@/src/contexts/TranslationContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { useToast } from '@/src/contexts/ToastContext';
 import { ReportDialog } from '../report/ReportDialog';
+import { supabase } from '@/src/lib/supabase';
+import { useNavigation } from '@react-navigation/native';
 
 export default function RouteOptions({
   routeData,
   visible,
   onClose,
+  onRouteDeleted,
 }: {
   routeData: any;
   visible: boolean;
   onClose: () => void;
+  onRouteDeleted?: () => void;
 }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const theme = useTheme();
   const { showToast } = useToast();
+  const navigation = useNavigation();
   const iconColor = theme.color?.val || '#000000';
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
   const [isShowReportDialog, setShowReportDialog] = React.useState(false);
-  const [isShowDeleteConfirmSheet, setShowDeleteConfirmSheet] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
 
   const handleOpenInMaps = React.useCallback(() => {
     if (!routeData?.waypoint_details?.length) {
@@ -60,7 +65,7 @@ export default function RouteOptions({
     Linking.openURL(googleMapsUrl);
   }, [routeData, showToast, t]);
 
-  const handleDelete = React.useCallback(async () => {
+  const confirmAndDelete = React.useCallback(async () => {
     if (!user || !routeData) {
       showToast({
         title: t('common.error') || 'Error',
@@ -70,9 +75,66 @@ export default function RouteOptions({
       return;
     }
 
-    // Show confirmation sheet instead of alert
-    setShowDeleteConfirmSheet(true);
-  }, [routeData, showToast, t, user]);
+    // Show native confirmation dialog
+    Alert.alert(
+      t('routeDetail.deleteRoute') || 'Delete Route',
+      t('routeDetail.deleteConfirmation') || 'Are you sure you want to delete this route? This action cannot be undone.',
+      [
+        {
+          text: t('common.cancel') || 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: t('common.delete') || 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(true);
+              console.log('🗑️ [RouteOptions] Deleting route:', routeData.id);
+              
+              // Delete the route from database
+              const { error } = await supabase
+                .from('routes')
+                .delete()
+                .eq('id', routeData.id)
+                .eq('creator_id', user.id); // Extra safety check
+
+              if (error) {
+                console.error('🗑️ [RouteOptions] Delete error:', error);
+                throw error;
+              }
+
+              console.log('✅ [RouteOptions] Route deleted successfully');
+              
+              showToast({
+                title: t('common.success') || 'Success',
+                message: t('routeDetail.routeDeleted') || 'Route deleted successfully',
+                type: 'success',
+              });
+
+              // Close the options sheet
+              onClose();
+              
+              // Notify parent that route was deleted
+              if (onRouteDeleted) {
+                onRouteDeleted();
+              }
+            } catch (error) {
+              console.error('🗑️ [RouteOptions] Failed to delete route:', error);
+              showToast({
+                title: t('common.error') || 'Error',
+                message: t('routeDetail.deleteError') || 'Failed to delete route. Please try again.',
+                type: 'error',
+              });
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  }, [routeData, showToast, t, user, onClose, onRouteDeleted]);
 
   if (isShowReportDialog) {
     return (
@@ -134,10 +196,8 @@ export default function RouteOptions({
 
                 {user?.id === routeData?.creator_id && (
                   <TouchableOpacity
-                    onPress={() => {
-                      onClose();
-                      handleDelete();
-                    }}
+                    onPress={confirmAndDelete}
+                    disabled={deleting}
                     style={{
                       padding: 16,
                       backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
@@ -145,11 +205,15 @@ export default function RouteOptions({
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: 12,
+                      opacity: deleting ? 0.5 : 1,
                     }}
                   >
-                    <Feather name="trash-2" size={20} color={iconColor} />
-                    <Text fontSize="$4" color="$color">
-                      {t('routeDetail.deleteRoute') || 'Delete Route'}
+                    <Feather name="trash-2" size={20} color="#FF3B30" />
+                    <Text fontSize="$4" color="#FF3B30">
+                      {deleting 
+                        ? (t('common.deleting') || 'Deleting...')
+                        : (t('routeDetail.deleteRoute') || 'Delete Route')
+                      }
                     </Text>
                   </TouchableOpacity>
                 )}

@@ -18,6 +18,7 @@ import { useColorScheme } from 'react-native';
 import type { Route } from '../hooks/useRoutes';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { RouteDetailSheet } from './RouteDetailSheet';
 
 const { height } = Dimensions.get('window');
 
@@ -58,6 +59,10 @@ export function RouteListSheet({
 
   // Route state
   const [routes, setRoutes] = React.useState<Route[]>(initialRoutes);
+  
+  // Route detail sheet state
+  const [showRouteDetailSheet, setShowRouteDetailSheet] = React.useState(false);
+  const [selectedRouteId, setSelectedRouteId] = React.useState<string | null>(null);
 
   // Load routes based on type
   React.useEffect(() => {
@@ -285,23 +290,55 @@ export function RouteListSheet({
 
               {/* Routes List */}
               <YStack flex={1}>
-                <RouteList
-                  routes={routes}
-                  onRoutePress={(routeId) => {
-                    console.log('📋 [RouteListSheet] Route pressed in RouteList:', routeId);
-                    if (onRoutePress) {
-                      onRoutePress(routeId);
-                    } else {
-                      // Fallback: just close the sheet
-                      onClose();
-                    }
-                  }}
-                />
+                {routes.length === 0 ? (
+                  <YStack flex={1} justifyContent="center" alignItems="center" padding="$6" gap="$4">
+                    <Feather name="inbox" size={48} color={colorScheme === 'dark' ? '#666' : '#CCC'} />
+                    <YStack alignItems="center" gap="$2">
+                      <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                        {type === 'created' && 'No Routes Created'}
+                        {type === 'saved' && 'No Saved Routes'}
+                        {type === 'driven' && 'No Driven Routes'}
+                        {type === 'drafts' && 'No Draft Routes'}
+                        {!type && 'No Routes'}
+                      </Text>
+                      <Text fontSize="$4" color="$gray11" textAlign="center">
+                        {type === 'created' && 'Create your first route to get started'}
+                        {type === 'saved' && 'Save routes from the map to access them here'}
+                        {type === 'driven' && 'Mark routes as driven to track your progress'}
+                        {type === 'drafts' && 'Draft routes will appear here'}
+                        {!type && 'Routes will appear here when available'}
+                      </Text>
+                    </YStack>
+                  </YStack>
+                ) : (
+                  <RouteList
+                    routes={routes}
+                    onRoutePress={(routeId) => {
+                      console.log('📋 [RouteListSheet] Route pressed, opening RouteDetailSheet:', routeId);
+                      setSelectedRouteId(routeId);
+                      setShowRouteDetailSheet(true);
+                    }}
+                  />
+                )}
               </YStack>
             </YStack>
           </Animated.View>
         </View>
       </Animated.View>
+      
+      {/* Route Detail Sheet - Shown on top of Route List Sheet */}
+      {selectedRouteId && (
+        <RouteDetailSheet
+          visible={showRouteDetailSheet}
+          routeId={selectedRouteId}
+          onClose={() => {
+            console.log('📋 [RouteListSheet] RouteDetailSheet closed, returning to RouteListSheet');
+            setShowRouteDetailSheet(false);
+            setSelectedRouteId(null);
+            // RouteListSheet stays open
+          }}
+        />
+      )}
     </Modal>
   );
 }

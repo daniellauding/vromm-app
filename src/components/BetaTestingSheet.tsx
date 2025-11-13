@@ -116,7 +116,7 @@ export function BetaTestingSheet({
   onShareApp,
   onOpenAbout,
 }: BetaTestingSheetProps) {
-  const { t, language } = useTranslation();
+  const { t, language, refreshTranslations, translations } = useTranslation();
   const theme = useTheme();
   const { user, profile } = useAuth();
   const { showToast } = useToast();
@@ -131,6 +131,29 @@ export function BetaTestingSheet({
     // If translation is missing, t() returns the key itself - use fallback instead
     return translated && translated !== key ? translated : fallback;
   };
+
+  // Debug: Log available beta translations on mount (DEV only)
+  React.useEffect(() => {
+    if (__DEV__) {
+      const betaKeys = Object.keys(translations).filter(k => k.startsWith('beta.checklist.'));
+      console.log('🌍 [BetaTestingSheet] Available beta.checklist translations:', betaKeys.length);
+      console.log('🌍 [BetaTestingSheet] Sample keys:', betaKeys.slice(0, 5));
+      console.log('🌍 [BetaTestingSheet] Total translations loaded:', Object.keys(translations).length);
+    }
+  }, [translations]);
+
+  // Dev-only: Manual translation refresh
+  const handleRefreshTranslations = React.useCallback(async () => {
+    if (__DEV__) {
+      console.log('🔄 [BetaTestingSheet] Manually refreshing translations...');
+      await refreshTranslations();
+      showToast({
+        type: 'success',
+        title: 'Translations Refreshed',
+        message: 'Loaded ' + Object.keys(translations).length + ' translations',
+      });
+    }
+  }, [refreshTranslations, translations, showToast]);
 
   // Helper function to get translated checklist item text
   const getChecklistItemTranslation = (item: any, field: 'title' | 'description'): string => {
@@ -2456,9 +2479,20 @@ export function BetaTestingSheet({
                       )}
                     </Text>
                   </YStack>
-                  <Button onPress={onClose} variant="outlined" size="sm">
-                    <Feather name="x" size={16} />
-                  </Button>
+                  <XStack gap="$2">
+                    {/* Dev-only: Manual translation refresh button */}
+                    {__DEV__ && (
+                      <Button
+                        onPress={handleRefreshTranslations}
+                        variant="outlined"
+                        size="sm"
+                        icon={<Feather name="refresh-cw" size={16} color={textColor} />}
+                      />
+                    )}
+                    <Button onPress={onClose} variant="outlined" size="sm">
+                      <Feather name="x" size={16} />
+                    </Button>
+                  </XStack>
                 </XStack>
 
                 {/* Tabs */}

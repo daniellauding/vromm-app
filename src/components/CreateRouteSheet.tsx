@@ -4702,7 +4702,7 @@ export function CreateRouteSheet({
                   </YStack>
                 )}
 
-                {/* Create Route Button */}
+                {/* Create/Save Route Button */}
                 <Button
                   onPress={handleCreate}
                   disabled={loading || uploadProgress !== null || !formData.name.trim() || !isLocationComplete}
@@ -4718,6 +4718,80 @@ export function CreateRouteSheet({
                         ? getTranslation(t, 'createRoute.save', 'Save')
                         : getTranslation(t, 'createRoute.createTitle', 'Create Route')}
                 </Button>
+
+                {/* Delete Button - Only shown when editing */}
+                {isEditing && routeId && (
+                  <Button
+                    onPress={() => {
+                      Alert.alert(
+                        getTranslation(t, 'createRoute.deleteRoute', 'Delete Route'),
+                        getTranslation(t, 'createRoute.deleteConfirmation', 'Are you sure you want to delete this route? This action cannot be undone.'),
+                        [
+                          {
+                            text: getTranslation(t, 'common.cancel', 'Cancel'),
+                            style: 'cancel',
+                          },
+                          {
+                            text: getTranslation(t, 'common.delete', 'Delete'),
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                console.log('🗑️ [CreateRouteSheet] Deleting route:', routeId);
+                                setLoading(true);
+                                
+                                const { error } = await supabase
+                                  .from('routes')
+                                  .delete()
+                                  .eq('id', routeId)
+                                  .eq('creator_id', user?.id); // Extra safety check
+
+                                if (error) {
+                                  console.error('🗑️ [CreateRouteSheet] Delete error:', error);
+                                  throw error;
+                                }
+
+                                console.log('✅ [CreateRouteSheet] Route deleted successfully');
+                                
+                                showToast({
+                                  title: getTranslation(t, 'common.success', 'Success'),
+                                  message: getTranslation(t, 'createRoute.routeDeleted', 'Route deleted successfully'),
+                                  type: 'success',
+                                });
+
+                                // Close the sheet
+                                onClose();
+                              } catch (error) {
+                                console.error('🗑️ [CreateRouteSheet] Failed to delete route:', error);
+                                showToast({
+                                  title: getTranslation(t, 'common.error', 'Error'),
+                                  message: getTranslation(t, 'createRoute.deleteError', 'Failed to delete route. Please try again.'),
+                                  type: 'error',
+                                });
+                              } finally {
+                                setLoading(false);
+                              }
+                            },
+                          },
+                        ],
+                        { cancelable: true }
+                      );
+                    }}
+                    disabled={loading}
+                    variant="outlined"
+                    size="md"
+                    width="100%"
+                    style={{
+                      borderColor: '#FF3B30',
+                    }}
+                  >
+                    <XStack gap="$2" alignItems="center">
+                      <Feather name="trash-2" size={16} color="#FF3B30" />
+                      <Text color="#FF3B30" fontSize="$4" fontWeight="600">
+                        {getTranslation(t, 'createRoute.deleteRoute', 'Delete Route')}
+                      </Text>
+                    </XStack>
+                  </Button>
+                )}
 
                 {/* Cancel Button */}
                 <Button
