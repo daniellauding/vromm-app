@@ -155,8 +155,225 @@ export function BetaTestingSheet({
     }
   }, [refreshTranslations, translations, showToast]);
 
+  // Hardcoded Swedish translations as fallback (until database translations are added)
+  const HARDCODED_SWEDISH_TRANSLATIONS: Record<string, { title: string; description: string }> = {
+    // Student checklist
+    connect_supervisor: {
+      title: 'Anslut till en handledare',
+      description: 'Hitta och anslut till en handledare via appen',
+    },
+    browse_routes: {
+      title: 'Bläddra bland körrutter',
+      description: 'Utforska tillgängliga rutter i ditt område',
+    },
+    create_account: {
+      title: 'Skapa ditt elevkonto',
+      description: 'Slutför registreringsprocessen och ställ in din profil',
+    },
+    join_session: {
+      title: 'Gå med i en övningssession',
+      description: 'Delta i en gruppövning eller teoriprovshändelse',
+    },
+    complete_exercise: {
+      title: 'Genomför en övning',
+      description: 'Prova minst en interaktiv övning längs en rutt',
+    },
+    test_features: {
+      title: 'Testa huvudfunktioner',
+      description: 'Tillbringa 15-20 minuter med att utforska appens huvudfunktioner',
+    },
+    // Supervisor checklist
+    create_supervisor_account: {
+      title: 'Skapa handledarkonto',
+      description: 'Skapa ditt konto och verifiera behörighet',
+    },
+    guide_student_route: {
+      title: 'Vägleda elev genom rutt',
+      description: 'Använd appen för att vägleda en elev genom en övningsrutt',
+    },
+    provide_realtime_feedback: {
+      title: 'Ge feedback i realtid',
+      description: 'Ge feedback under en körsession med appens funktioner',
+    },
+    track_student_improvement: {
+      title: 'Spåra elevens förbättring',
+      description: 'Övervaka och logga elevens framsteg över flera sessioner',
+    },
+    coordinate_with_instructors: {
+      title: 'Samordna med instruktörer',
+      description: 'Kommunicera med trafikskolor eller instruktörer via appen',
+    },
+    use_safety_features: {
+      title: 'Använd säkerhetsfunktioner',
+      description: 'Testa nöd- och säkerhetsfunktioner under övningssessioner',
+    },
+    // Instructor checklist
+    setup_profile: {
+      title: 'Ställ in instruktörsprofil',
+      description: 'Slutför din instruktörsprofil och verifiering',
+    },
+    create_routes: {
+      title: 'Skapa körrutter',
+      description: 'Skapa minst 3 körrutter för dina elever',
+    },
+    invite_students: {
+      title: 'Bjud in elever',
+      description: 'Bjud in elever att gå med i din handledning',
+    },
+    test_supervision: {
+      title: 'Testa handledningsfunktioner',
+      description: 'Testa handlednings- och övervakningsfunktionerna',
+    },
+    provide_feedback: {
+      title: 'Ge elevfeedback',
+      description: 'Ge feedback till minst en elev',
+    },
+    test_analytics: {
+      title: 'Testa analysdashboard',
+      description: 'Utforska analys- och framgångsspårningsfunktionerna',
+    },
+    // Other/Stress Test checklist
+    browse_interface: {
+      title: 'Bläddra i appgränssnittet',
+      description: 'Navigera genom alla huvudsektioner och utforska appstrukturen',
+    },
+    test_navigation: {
+      title: 'Testa grundläggande navigationsflöden',
+      description: 'Testa att flytta mellan olika skärmar och funktioner',
+    },
+    check_performance: {
+      title: 'Kontrollera appens prestanda och laddning',
+      description: 'Övervaka laddningstider, responsivitet och övergripande apphastighet',
+    },
+    test_edge_cases: {
+      title: 'Testa kantfall och felhantering',
+      description: 'Prova ovanliga inmatningar, dåliga nätverksförhållanden och felscenarier',
+    },
+    stress_test: {
+      title: 'Stresstesta kärnfunktioner',
+      description: 'Använd funktioner intensivt för att hitta prestandaproblem och flaskhalsar',
+    },
+    document_usability: {
+      title: 'Dokumentera allmänna användbarhetsproblem',
+      description: 'Notera förvirrande UI-element, oklara instruktioner eller användbarhetsproblem',
+    },
+  };
+
+  // Hardcoded Swedish translations for UI text (tabs, labels, etc.)
+  const SWEDISH_UI_TEXT: Record<string, string> = {
+    // General
+    'Your name': 'Ditt namn',
+    'Email (optional)': 'E-post (valfritt)',
+    'Your detailed feedback': 'Din detaljerade feedback',
+    'Your detailed feedback...': 'Din detaljerade feedback...',
+    'Attach Media (optional)': 'Bifoga media (valfritt)',
+    'Add screenshots, videos, or photos to help explain your feedback':
+      'Lägg till skärmdumpar, videor eller foton för att förklara din feedback',
+    'Add Media': 'Lägg till media',
+    'Submit Feedback': 'Skicka feedback',
+    Submitting: 'Skickar',
+    'Loading checklist items...': 'Laddar checklisteobjekt...',
+    'No checklist items available for your role. Please contact support.':
+      'Inga checklisteobjekt tillgängliga för din roll. Kontakta support.',
+    'Check off items as you complete them. Your progress is saved automatically to the database!':
+      'Bocka av objekt när du slutför dem. Din framstång sparas automatiskt i databasen!',
+
+    // Feedback tab
+    'Share Your Feedback': 'Dela din feedback',
+    'Help us improve Vromm by sharing your experience:':
+      'Hjälp oss förbättra Vromm genom att dela din upplevelse:',
+    'Rate your experience (1-5 stars)': 'Betygsätt din upplevelse (1-5 stjärnor)',
+    'What areas would you like to give feedback on?': 'Vilka områden vill du ge feedback på?',
+    'User Experience': 'Användarupplevelse',
+    'Is the app intuitive? Are features easy to find?':
+      'Är appen intuitiv? Är funktioner lätta att hitta?',
+    Performance: 'Prestanda',
+    'How fast does the app load? Any crashes?': 'Hur snabbt laddar appen? Några krascher?',
+    'Navigation & GPS': 'Navigation & GPS',
+    'How accurate is route tracking?': 'Hur noggrann är ruttspårning?',
+    'Exercise Quality': 'Övningskvalitet',
+    'Are the driving exercises helpful?': 'Är körövningarna hjälpsamma?',
+    'Community Features': 'Community-funktioner',
+    'How engaging are social features?': 'Hur engagerande är sociala funktioner?',
+    'Overall Concept': 'Övergripande koncept',
+    'Does the app solve real problems?': 'Löser appen verkliga problem?',
+
+    // Pricing tab
+    'Help Us Price Vromm': 'Hjälp oss prissätta Vromm',
+    'Your input on pricing will help us make Vromm accessible to everyone:':
+      'Din input om prissättning hjälper oss göra Vromm tillgänglig för alla:',
+    'What do you currently pay for driving lessons? (e.g., 500 SEK/hour)':
+      'Vad betalar du för närvarande för körlektioner? (t.ex. 500 SEK/timme)',
+    'Suggested price for Vromm': 'Föreslagen pris för Vromm',
+    'What would you be willing to pay for Vromm? (e.g., 99 SEK/month)':
+      'Vad skulle du vara villig att betala för Vromm? (t.ex. 99 SEK/månad)',
+    'How likely are you to pay for Vromm? (1-5)': 'Hur sannolikt är det att du betalar för Vromm? (1-5)',
+    'Which premium features matter most to you?': 'Vilka premiumfunktioner är viktigast för dig?',
+    'Advanced Analytics': 'Avancerad analys',
+    'Detailed progress tracking and insights': 'Detaljerad framgångsspårning och insikter',
+    'Personalized Routes': 'Personliga rutter',
+    'AI-generated routes based on your needs': 'AI-genererade rutter baserade på dina behov',
+    'Instructor Access': 'Tillgång till instruktör',
+    'Connect with certified driving instructors': 'Anslut till certifierade körinstruktörer',
+    'Offline Mode': 'Offlineläge',
+    'Practice without internet connection': 'Öva utan internetanslutning',
+    'Priority Support': 'Prioriterad support',
+    '24/7 customer support': '24/7 kundsupport',
+    'Premium Exercises': 'Premiumövningar',
+    'Advanced driving exercises and scenarios': 'Avancerade körövningar och scenarier',
+    'Family Sharing': 'Familje delning',
+    'Share progress with family members': 'Dela framsteg med familjemedlemmar',
+    'Certification Tracking': 'Certifieringsspårning',
+    'Track driving license progress': 'Spåra körkortsutveckling',
+    'Add your own important features:': 'Lägg till dina egna viktiga funktioner:',
+    'Enter a feature that matters to you...': 'Ange en funktion som är viktig för dig...',
+    'Explain your reasoning': 'Förklara ditt resonemang',
+    'Explain your reasoning for the suggested price...':
+      'Förklara ditt resonemang för det föreslagna priset...',
+    'Submit Pricing Feedback': 'Skicka prisfeedback',
+
+    // Video/Resources tab
+    'Listen to Our Story': 'Lyssna på vår berättelse',
+    "Hear from Vromm's co-founder and explore additional resources:": 'Hör från Vromms medgrundare och utforska ytterligare resurser:',
+    'Welcome Message': 'Välkomstmeddelande',
+    'Listen to this personal message from our team about what makes Vromm special': 'Lyssna på detta personliga meddelande från vårt team om vad som gör Vromm speciellt',
+    'Visit Beta Website': 'Besök betawebbplatsen',
+    'Buy Me a Coffee': 'Bjud mig på en kaffe',
+    'Share Vromm': 'Dela Vromm',
+    'About Vromm': 'Om Vromm',
+
+    // Toast messages
+    'Thank You!': 'Tack!',
+    'Your feedback has been saved and will help us improve Vromm.':
+      'Din feedback har sparats och hjälper oss att förbättra Vromm.',
+    'Your pricing feedback has been saved and will help us set the right price for Vromm.':
+      'Din prisfeedback har sparats och hjälper oss att sätta rätt pris för Vromm.',
+    'Missing Information': 'Information saknas',
+    'Please provide your name, rating, and feedback.': 'Ange ditt namn, betyg och feedback.',
+    'Please provide your name, suggested price, and reasoning.':
+      'Ange ditt namn, föreslaget pris och resonemang.',
+    Error: 'Fel',
+    'Failed to pick media. Please try again.': 'Kunde inte välja media. Försök igen.',
+    'Failed to take photo. Please try again.': 'Kunde inte ta foto. Försök igen.',
+    'Failed to record video. Please try again.': 'Kunde inte spela in video. Försök igen.',
+    'Could not save feedback. Please try again.': 'Kunde inte spara feedback. Försök igen.',
+    'Could not save pricing feedback. Please try again.':
+      'Kunde inte spara prisfeedback. Försök igen.',
+  };
+
+  // Helper to get Swedish UI text
+  const getSwedishText = (englishText: string): string => {
+    if (language === 'sv' && SWEDISH_UI_TEXT[englishText]) {
+      return SWEDISH_UI_TEXT[englishText];
+    }
+    return englishText;
+  };
+
   // Helper function to get translated checklist item text
-  const getChecklistItemTranslation = (item: any, field: 'title' | 'description'): string => {
+  const getChecklistItemTranslation = (
+    item: { assignmentId?: string; label: string; description: string },
+    field: 'title' | 'description',
+  ): string => {
     // Try to parse assignment_id to get role and id
     // Format: {role}_{id}_{timestamp}
     const assignmentIdParts = item.assignmentId?.split('_') || [];
@@ -164,21 +381,23 @@ export function BetaTestingSheet({
       const role = assignmentIdParts[0];
       const id = assignmentIdParts.slice(1, -1).join('_'); // Everything except first and last (timestamp)
       const translationKey = `beta.checklist.${role}.${id}.${field}`;
-      console.log('🌍 [BetaTestingSheet] Translation lookup:', {
-        assignmentId: item.assignmentId,
-        role,
-        id,
-        field,
+
+      const translated = getTranslation(
         translationKey,
-        language,
-        fallback: field === 'title' ? item.label : item.description
-      });
-      const translated = getTranslation(translationKey, field === 'title' ? item.label : item.description);
-      console.log('🌍 [BetaTestingSheet] Translation result:', translated);
+        field === 'title' ? item.label : item.description,
+      );
+
+      // If translation from database returns the English fallback AND we're in Swedish, use hardcoded translation
+      if (language === 'sv' && translated === (field === 'title' ? item.label : item.description)) {
+        const hardcodedTranslation = HARDCODED_SWEDISH_TRANSLATIONS[id];
+        if (hardcodedTranslation) {
+          return hardcodedTranslation[field];
+        }
+      }
+
       return translated;
     }
     // Fallback to original text if parsing fails
-    console.log('🌍 [BetaTestingSheet] Translation parsing failed, using fallback:', field === 'title' ? item.label : item.description);
     return field === 'title' ? item.label : item.description;
   };
 
@@ -1578,7 +1797,7 @@ export function BetaTestingSheet({
           <XStack alignItems="center" gap="$3">
             <Feather name="loader" size={20} color={primaryColor} />
             <Text fontSize="$4" color={textColor}>
-              Loading checklist items...
+              {getSwedishText('Loading checklist items...')}
             </Text>
           </XStack>
         </Card>
@@ -1587,7 +1806,7 @@ export function BetaTestingSheet({
           {checklistItems.length === 0 ? (
             <Card padding="$4" backgroundColor={`${primaryColor}10`}>
               <Text fontSize="$4" color={textColor} opacity={0.7}>
-                No checklist items available for your role. Please contact support.
+                {getSwedishText('No checklist items available for your role. Please contact support.')}
               </Text>
             </Card>
           ) : (
@@ -1648,8 +1867,7 @@ export function BetaTestingSheet({
 
       <Card padding="$4" backgroundColor={`${primaryColor}10`}>
         <Text fontSize="$3" color={textColor} opacity={0.8}>
-          💡 Tip: Check off items as you complete them. Your progress is saved automatically to the
-          database!
+          💡 {language === 'sv' ? 'Tips' : 'Tip'}: {getSwedishText('Check off items as you complete them. Your progress is saved automatically to the database!')}
         </Text>
       </Card>
     </YStack>
@@ -1659,10 +1877,10 @@ export function BetaTestingSheet({
   const renderFeedbackTab = () => (
     <YStack gap="$4">
       <Text fontSize="$6" fontWeight="700" color={textColor}>
-        Share Your Feedback
+        {getSwedishText('Share Your Feedback')}
       </Text>
       <Text fontSize="$4" color={textColor} opacity={0.7}>
-        Help us improve Vromm by sharing your experience:
+        {getSwedishText('Help us improve Vromm by sharing your experience:')}
       </Text>
 
       <YStack gap="$3">
@@ -1698,12 +1916,12 @@ export function BetaTestingSheet({
           <YStack gap="$1">
             <XStack alignItems="center" gap="$1">
               <Text fontSize="$3" fontWeight="600" color={textColor}>
-                Your name
+                {getSwedishText('Your name')}
               </Text>
               <Text fontSize="$3" color="#EF4444">*</Text>
             </XStack>
             <FormField
-              placeholder="Your name"
+              placeholder={getSwedishText('Your name')}
               value={feedbackForm.name}
               onChangeText={(text) => {
                 const newForm = { ...feedbackForm, name: text };
@@ -1733,7 +1951,7 @@ export function BetaTestingSheet({
         </YStack>
 
         <FormField
-          placeholder="Email (optional)"
+          placeholder={getSwedishText('Email (optional)')}
           value={feedbackForm.email}
           onChangeText={(text) => {
             const newForm = { ...feedbackForm, email: text };
@@ -1748,7 +1966,7 @@ export function BetaTestingSheet({
         <YStack gap="$2" position="relative">
           <XStack alignItems="center" gap="$1">
             <Text fontSize="$4" fontWeight="600" color={textColor}>
-              Rate your experience (1-5 stars)
+              {getSwedishText('Rate your experience (1-5 stars)')}
             </Text>
             <Text fontSize="$4" color="#EF4444">*</Text>
           </XStack>
@@ -1791,7 +2009,7 @@ export function BetaTestingSheet({
 
         <YStack gap="$2">
           <Text fontSize="$4" fontWeight="600" color={textColor}>
-            What areas would you like to give feedback on?
+            {getSwedishText('What areas would you like to give feedback on?')}
           </Text>
           <YStack gap="$2">
             {FEEDBACK_AREAS.map((area, index) => (
@@ -1822,10 +2040,10 @@ export function BetaTestingSheet({
                   </View>
                   <YStack flex={1}>
                     <Text fontSize="$4" fontWeight="600" color={textColor}>
-                      {area.label}
+                      {getSwedishText(area.label)}
                     </Text>
                     <Text fontSize="$3" color={textColor} opacity={0.7}>
-                      {area.description}
+                      {getSwedishText(area.description)}
                     </Text>
                   </YStack>
                 </XStack>
@@ -1838,12 +2056,12 @@ export function BetaTestingSheet({
           <YStack gap="$1">
             <XStack alignItems="center" gap="$1">
               <Text fontSize="$3" fontWeight="600" color={textColor}>
-                Your detailed feedback
+                {getSwedishText('Your detailed feedback')}
               </Text>
               <Text fontSize="$3" color="#EF4444">*</Text>
             </XStack>
             <FormField
-              placeholder="Your detailed feedback..."
+              placeholder={getSwedishText('Your detailed feedback...')}
               value={feedbackForm.feedback}
               onChangeText={(text) => {
                 const newForm = { ...feedbackForm, feedback: text };
@@ -1878,10 +2096,10 @@ export function BetaTestingSheet({
         {/* Media Upload Section */}
         <YStack gap="$2">
           <Text fontSize="$4" fontWeight="600" color={textColor}>
-            Attach Media (optional)
+            {getSwedishText('Attach Media (optional)')}
           </Text>
           <Text fontSize="$3" color={textColor} opacity={0.7}>
-            Add screenshots, videos, or photos to help explain your feedback
+            {getSwedishText('Add screenshots, videos, or photos to help explain your feedback')}
           </Text>
 
           {/* Media Grid */}
@@ -1974,7 +2192,7 @@ export function BetaTestingSheet({
           onPress={submitFeedback}
           disabled={uploadingFeedback || uploadProgress !== null}
         >
-          {uploadingFeedback ? 'Submitting...' : 'Submit Feedback'}
+          {uploadingFeedback ? getSwedishText('Submitting') + '...' : getSwedishText('Submit Feedback')}
         </Button>
       </YStack>
     </YStack>
@@ -1984,10 +2202,10 @@ export function BetaTestingSheet({
   const renderPricingTab = () => (
     <YStack gap="$4">
       <Text fontSize="$6" fontWeight="700" color={textColor}>
-        Help Us Price Vromm
+        {getSwedishText('Help Us Price Vromm')}
       </Text>
       <Text fontSize="$4" color={textColor} opacity={0.7}>
-        Your input on pricing will help us make Vromm accessible to everyone:
+        {getSwedishText('Your input on pricing will help us make Vromm accessible to everyone:')}
       </Text>
 
       <YStack gap="$3">
@@ -2022,12 +2240,12 @@ export function BetaTestingSheet({
         <YStack gap="$1" position="relative">
           <XStack alignItems="center" gap="$1">
             <Text fontSize="$3" fontWeight="600" color={textColor}>
-              Your name
+              {getSwedishText('Your name')}
             </Text>
             <Text fontSize="$3" color="#EF4444">*</Text>
           </XStack>
           <FormField
-            placeholder="Your name"
+            placeholder={getSwedishText('Your name')}
             value={pricingForm.name}
             onChangeText={(text) => {
               const newForm = { ...pricingForm, name: text };
@@ -2056,7 +2274,7 @@ export function BetaTestingSheet({
         </YStack>
 
         <FormField
-          placeholder="Email (optional)"
+          placeholder={getSwedishText('Email (optional)')}
           value={pricingForm.email}
           onChangeText={(text) => {
             const newForm = { ...pricingForm, email: text };
@@ -2069,7 +2287,7 @@ export function BetaTestingSheet({
         />
 
         <FormField
-          placeholder="What do you currently pay for driving lessons? (e.g., 500 SEK/hour)"
+          placeholder={getSwedishText('What do you currently pay for driving lessons? (e.g., 500 SEK/hour)')}
           value={pricingForm.currentPrice}
           onChangeText={(text) => {
             const newForm = { ...pricingForm, currentPrice: text };
@@ -2082,12 +2300,12 @@ export function BetaTestingSheet({
         <YStack gap="$1" position="relative">
           <XStack alignItems="center" gap="$1">
             <Text fontSize="$3" fontWeight="600" color={textColor}>
-              Suggested price for Vromm
+              {getSwedishText('Suggested price for Vromm')}
             </Text>
             <Text fontSize="$3" color="#EF4444">*</Text>
           </XStack>
           <FormField
-            placeholder="What would you be willing to pay for Vromm? (e.g., 99 SEK/month)"
+            placeholder={getSwedishText('What would you be willing to pay for Vromm? (e.g., 99 SEK/month)')}
             value={pricingForm.suggestedPrice}
             onChangeText={(text) => {
               const newForm = { ...pricingForm, suggestedPrice: text };
@@ -2117,7 +2335,7 @@ export function BetaTestingSheet({
 
         <YStack gap="$2">
           <Text fontSize="$4" fontWeight="600" color={textColor}>
-            How likely are you to pay for Vromm? (1-5)
+            {getSwedishText('How likely are you to pay for Vromm? (1-5)')}
           </Text>
           <XStack gap="$2">
             {[1, 2, 3, 4, 5].map((num) => (
@@ -2148,7 +2366,7 @@ export function BetaTestingSheet({
 
         <YStack gap="$2">
           <Text fontSize="$4" fontWeight="600" color={textColor}>
-            Which premium features matter most to you?
+            {getSwedishText('Which premium features matter most to you?')}
           </Text>
           <YStack gap="$2">
             {PREMIUM_FEATURES.map((feature, index) => (
@@ -2183,10 +2401,10 @@ export function BetaTestingSheet({
                   </View>
                   <YStack flex={1}>
                     <Text fontSize="$4" fontWeight="600" color={textColor}>
-                      {feature.label}
+                      {getSwedishText(feature.label)}
                     </Text>
                     <Text fontSize="$3" color={textColor} opacity={0.7}>
-                      {feature.description}
+                      {getSwedishText(feature.description)}
                     </Text>
                   </YStack>
                 </XStack>
@@ -2197,12 +2415,12 @@ export function BetaTestingSheet({
           {/* Custom Features Section */}
           <YStack gap="$2" marginTop="$2">
             <Text fontSize="$4" fontWeight="600" color={textColor}>
-              Add your own important features:
+              {getSwedishText('Add your own important features:')}
             </Text>
             <XStack gap="$2" alignItems="center">
               <View style={{ flex: 1 }}>
                 <FormField
-                  placeholder="Enter a feature that matters to you..."
+                  placeholder={getSwedishText('Enter a feature that matters to you...')}
                   value={newCustomFeature}
                   onChangeText={setNewCustomFeature}
                   size="md"
@@ -2271,12 +2489,12 @@ export function BetaTestingSheet({
         <YStack gap="$1" position="relative">
           <XStack alignItems="center" gap="$1">
             <Text fontSize="$3" fontWeight="600" color={textColor}>
-              Explain your reasoning
+              {getSwedishText('Explain your reasoning')}
             </Text>
             <Text fontSize="$3" color="#EF4444">*</Text>
           </XStack>
           <FormField
-            placeholder="Explain your reasoning for the suggested price..."
+            placeholder={getSwedishText('Explain your reasoning for the suggested price...')}
             value={pricingForm.reasoning}
             onChangeText={(text) => {
               const newForm = { ...pricingForm, reasoning: text };
@@ -2308,7 +2526,7 @@ export function BetaTestingSheet({
         </YStack>
 
         <Button variant="primary" onPress={submitPricing}>
-          Submit Pricing Feedback
+          {getSwedishText('Submit Pricing Feedback')}
         </Button>
       </YStack>
     </YStack>
@@ -2318,10 +2536,10 @@ export function BetaTestingSheet({
   const renderVideoTab = () => (
     <YStack gap="$4">
       <Text fontSize="$6" fontWeight="700" color={textColor}>
-        Listen to Our Story
+        {getSwedishText('Listen to Our Story')}
       </Text>
       <Text fontSize="$4" color={textColor} opacity={0.7}>
-        Hear from Vromm's co-founder and explore additional resources:
+        {getSwedishText("Hear from Vromm's co-founder and explore additional resources:")}
       </Text>
 
       {/* Audio player */}
@@ -2342,10 +2560,10 @@ export function BetaTestingSheet({
           />
         </TouchableOpacity>
         <Text fontSize="$5" fontWeight="600" color={textColor} marginTop="$2">
-          Welcome Message
+          {getSwedishText('Welcome Message')}
         </Text>
         <Text fontSize="$3" color={textColor} opacity={0.7} textAlign="center" marginTop="$2">
-          Listen to this personal message from our team about what makes Vromm special
+          {getSwedishText('Listen to this personal message from our team about what makes Vromm special')}
         </Text>
       </Card>
 
@@ -2360,7 +2578,7 @@ export function BetaTestingSheet({
           }}
           icon={<Feather name="globe" size={20} color="#FFFFFF" />}
         >
-          Visit Beta Website
+          {getSwedishText('Visit Beta Website')}
         </Button>
 
         <Button
@@ -2372,7 +2590,7 @@ export function BetaTestingSheet({
           }}
           icon={<Feather name="coffee" size={20} color="#FFFFFF" />}
         >
-          Buy Me a Coffee
+          {getSwedishText('Buy Me a Coffee')}
         </Button>
 
         <Button
@@ -2384,7 +2602,7 @@ export function BetaTestingSheet({
           }}
           icon={<Feather name="share-2" size={20} color="#FFFFFF" />}
         >
-          Share Vromm
+          {getSwedishText('Share Vromm')}
         </Button>
 
         <Button
@@ -2396,7 +2614,7 @@ export function BetaTestingSheet({
           }}
           icon={<Feather name="info" size={20} />}
         >
-          About Vromm
+          {getSwedishText('About Vromm')}
         </Button>
       </YStack>
     </YStack>

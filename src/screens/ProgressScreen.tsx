@@ -4038,7 +4038,7 @@ export function ProgressScreen() {
     };
 
     return (
-      <YStack flex={1} backgroundColor="$background">
+      <YStack flex={1} backgroundColor="$background" paddingHorizontal={0} paddingVertical={40}>
         <ScrollView
           contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
           refreshControl={
@@ -4627,7 +4627,7 @@ export function ProgressScreen() {
     const hasPassword = pathHasPassword(detailPath);
 
     return (
-      <YStack flex={1} backgroundColor="$background">
+      <YStack flex={1} backgroundColor="$background" paddingHorizontal={0} paddingVertical={40}>
         <ScrollView
           contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
           refreshControl={
@@ -4665,7 +4665,7 @@ export function ProgressScreen() {
             </TouchableOpacity>
           </XStack>
 
-          {viewingUserName && (
+          {viewingUserName && user?.role === 'instructor' && (
             <YStack marginBottom={12} padding={10} backgroundColor="#162023" borderRadius={12}>
               <Text color="#00E6C3" fontSize={12}>
                 {getTranslation('common.viewingAs', language === 'sv' ? 'Visar som' : 'Viewing as')}
@@ -5274,7 +5274,7 @@ export function ProgressScreen() {
   }
 
   return (
-    <YStack flex={1} backgroundColor="$background" padding={0}>
+    <YStack flex={1} backgroundColor="$background" paddingHorizontal={0} paddingVertical={40}>
       <ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
         refreshControl={
@@ -5288,7 +5288,7 @@ export function ProgressScreen() {
         }
       >
         {/* Global History Button */}
-        <XStack justifyContent="flex-end" marginBottom={8}>
+        {/* <XStack justifyContent="flex-end" marginBottom={8}>
           <TouchableOpacity
             onPress={() => {
               setHistoryModalVisible(true);
@@ -5298,14 +5298,14 @@ export function ProgressScreen() {
           >
             <Feather name="clock" size={18} color="#fff" />
           </TouchableOpacity>
-        </XStack>
+        </XStack> */}
         {/* Filter and Show All Controls */}
         <XStack justifyContent="space-between" alignItems="center" marginBottom={24}>
           <TouchableOpacity
             // ref={filterButtonRef} // DISABLED
             onPress={() => setShowFilterDrawer(true)}
             style={{
-              backgroundColor: '#333',
+              // backgroundColor: '#333',
               width: 48,
               height: 48,
               borderRadius: 12,
@@ -5314,7 +5314,7 @@ export function ProgressScreen() {
               position: 'relative',
             }}
           >
-            <Feather name="filter" size={20} color="#00E6C3" />
+            <Feather name="filter" size={20} color={iconColor} />
             {/* Show active filter count badge */}
             {(() => {
               const activeFilters = Object.values(categoryFilters).filter(
@@ -5343,7 +5343,7 @@ export function ProgressScreen() {
             })()}
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             onPress={() => setShowAllExercises(!showAllExercises)}
             style={{
               backgroundColor: showAllExercises ? '#4B6BFF' : '#333',
@@ -5368,7 +5368,7 @@ export function ProgressScreen() {
                   )
                 : getTranslation('progress.showAll', language === 'sv' ? 'Visa alla' : 'Show All')}
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </XStack>
 
         {/* Render filter drawer */}

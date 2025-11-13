@@ -1,7 +1,7 @@
 import React from 'react';
-import { Modal, Animated, Pressable, View, TouchableOpacity, Linking, Alert } from 'react-native';
+import { Modal, Animated, Pressable, View, TouchableOpacity, Linking } from 'react-native';
 
-import { YStack, Text, useTheme } from 'tamagui';
+import { YStack, XStack, Text, useTheme } from 'tamagui';
 import { Button } from '../../components/Button';
 
 import { Feather } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { useToast } from '@/src/contexts/ToastContext';
 import { ReportDialog } from '../report/ReportDialog';
 import { supabase } from '@/src/lib/supabase';
 import { useNavigation } from '@react-navigation/native';
+import { useColorScheme } from 'react-native';
 
 export default function RouteOptions({
   routeData,
@@ -25,14 +26,16 @@ export default function RouteOptions({
   onRouteDeleted?: () => void;
 }) {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const theme = useTheme();
   const { showToast } = useToast();
   const navigation = useNavigation();
+  const colorScheme = useColorScheme();
   const iconColor = theme.color?.val || '#000000';
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
   const [isShowReportDialog, setShowReportDialog] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
   const handleOpenInMaps = React.useCallback(() => {
     if (!routeData?.waypoint_details?.length) {
@@ -65,76 +68,52 @@ export default function RouteOptions({
     Linking.openURL(googleMapsUrl);
   }, [routeData, showToast, t]);
 
-  const confirmAndDelete = React.useCallback(async () => {
-    if (!user || !routeData) {
+  const handleDeleteRoute = React.useCallback(async () => {
+    try {
+      setDeleting(true);
+      console.log('🗑️ [RouteOptions] Deleting route:', routeData.id);
+      
+      // Delete the route from database
+      const { error } = await supabase
+        .from('routes')
+        .delete()
+        .eq('id', routeData.id)
+        .eq('creator_id', user.id); // Extra safety check
+
+      if (error) {
+        console.error('🗑️ [RouteOptions] Delete error:', error);
+        throw error;
+      }
+
+      console.log('✅ [RouteOptions] Route deleted successfully');
+      
       showToast({
-        title: t('common.error') || 'Error',
-        message: t('routeDetail.unableToDelete') || 'Unable to delete route',
+        title: language === 'sv' ? 'Framgång' : 'Success',
+        message: language === 'sv' ? 'Rutt borttagen' : 'Route deleted successfully',
+        type: 'success',
+      });
+
+      // Close the confirmation sheet
+      setShowDeleteConfirm(false);
+      
+      // Close the options sheet
+      onClose();
+      
+      // Notify parent that route was deleted
+      if (onRouteDeleted) {
+        onRouteDeleted();
+      }
+    } catch (error) {
+      console.error('🗑️ [RouteOptions] Failed to delete route:', error);
+      showToast({
+        title: language === 'sv' ? 'Fel' : 'Error',
+        message: language === 'sv' ? 'Kunde inte ta bort rutt. Försök igen.' : 'Failed to delete route. Please try again.',
         type: 'error',
       });
-      return;
+    } finally {
+      setDeleting(false);
     }
-
-    // Show native confirmation dialog
-    Alert.alert(
-      t('routeDetail.deleteRoute') || 'Delete Route',
-      t('routeDetail.deleteConfirmation') || 'Are you sure you want to delete this route? This action cannot be undone.',
-      [
-        {
-          text: t('common.cancel') || 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: t('common.delete') || 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setDeleting(true);
-              console.log('🗑️ [RouteOptions] Deleting route:', routeData.id);
-              
-              // Delete the route from database
-              const { error } = await supabase
-                .from('routes')
-                .delete()
-                .eq('id', routeData.id)
-                .eq('creator_id', user.id); // Extra safety check
-
-              if (error) {
-                console.error('🗑️ [RouteOptions] Delete error:', error);
-                throw error;
-              }
-
-              console.log('✅ [RouteOptions] Route deleted successfully');
-              
-              showToast({
-                title: t('common.success') || 'Success',
-                message: t('routeDetail.routeDeleted') || 'Route deleted successfully',
-                type: 'success',
-              });
-
-              // Close the options sheet
-              onClose();
-              
-              // Notify parent that route was deleted
-              if (onRouteDeleted) {
-                onRouteDeleted();
-              }
-            } catch (error) {
-              console.error('🗑️ [RouteOptions] Failed to delete route:', error);
-              showToast({
-                title: t('common.error') || 'Error',
-                message: t('routeDetail.deleteError') || 'Failed to delete route. Please try again.',
-                type: 'error',
-              });
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ],
-      { cancelable: true }
-    );
-  }, [routeData, showToast, t, user, onClose, onRouteDeleted]);
+  }, [routeData, showToast, language, user, onClose, onRouteDeleted]);
 
   if (isShowReportDialog) {
     return (
