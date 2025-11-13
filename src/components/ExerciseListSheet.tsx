@@ -38,7 +38,7 @@ import { Feather, MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { useColorScheme } from 'react-native';
 import { getTabContentPadding } from '../utils/layout';
-import { CommentsSection } from './CommentsSection';
+// import { CommentsSection } from './CommentsSection';
 import { ReportDialog } from './report/ReportDialog';
 import { Image } from 'react-native';
 import { Linking } from 'react-native';
@@ -102,6 +102,7 @@ interface ExerciseListSheetProps {
   title: string;
   learningPathId?: string;
   showAllPaths?: boolean;
+  fromFeaturedContent?: boolean;
   initialExerciseId?: string; // New prop to open a specific exercise
   onBackToAllPaths?: () => void; // New prop to go back to learning paths overview
   onExerciseCompleted?: (exerciseId: string, exerciseTitle: string) => void; // Callback when exercise is completed
@@ -157,6 +158,7 @@ export function ExerciseListSheet({
   title,
   learningPathId,
   showAllPaths = false,
+  fromFeaturedContent = false,
   initialExerciseId,
   onBackToAllPaths,
   onExerciseCompleted,
@@ -313,6 +315,90 @@ export function ExerciseListSheet({
 
   // Get effective user ID (student switch support)
   const effectiveUserId = activeStudentId || user?.id;
+
+  // Quiz state for inline rendering
+  const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [selectedQuizAnswers, setSelectedQuizAnswers] = useState<string[]>([]);
+  const [quizScore, setQuizScore] = useState(0);
+  const [showQuizResults, setShowQuizResults] = useState(false);
+  const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
+  const [correctAnswerIds, setCorrectAnswerIds] = useState<string[]>([]);
+  const [quizAttempts, setQuizAttempts] = useState<any[]>([]);
+
+  // Load quiz when exercise with quiz is selected
+  useEffect(() => {
+    if (selectedExercise?.has_quiz && selectedExercise?.id) {
+      console.log('🎯 [ExerciseListSheet] Loading quiz for:', selectedExercise.title);
+      loadQuizQuestions();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedExercise?.id, selectedExercise?.has_quiz]);
+
+  const loadQuizQuestions = async () => {
+    if (!selectedExercise?.id) return;
+    
+    setQuizLoading(true);
+    try {
+      console.log('🎯 [ExerciseListSheet] Fetching quiz questions...');
+      const { data, error } = await supabase
+        .from('exercise_quiz_questions')
+        .select(`
+          *,
+          exercise_quiz_answers(*)
+        `)
+        .eq('exercise_id', selectedExercise.id)
+        .order('order_index');
+
+      console.log('🎯 [ExerciseListSheet] Quiz query result:', { data, error });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        Alert.alert('No Quiz', 'This exercise does not have any quiz questions yet.');
+        setSelectedExercise(null);
+        return;
+      }
+
+      const formatted = data.map((q: any) => ({
+        ...q,
+        difficulty: q.difficulty || 'Medium',
+        points: q.points || 10,
+        answers: (q.exercise_quiz_answers || [])
+          .sort((a: any, b: any) => a.order_index - b.order_index)
+          .map((a: any, idx: number) => ({
+            ...a,
+            answer_label: String.fromCharCode(65 + idx),
+          })),
+      }));
+
+      console.log('✅ [ExerciseListSheet] Loaded', formatted.length, 'quiz questions');
+      setQuizQuestions(formatted);
+      
+      // Fetch previous quiz attempts
+      if (effectiveUserId) {
+        const { data: attempts } = await supabase
+          .from('quiz_attempts')
+          .select('*')
+          .eq('user_id', effectiveUserId)
+          .eq('exercise_id', selectedExercise.id)
+          .order('completed_at', { ascending: false })
+          .limit(5);
+        
+        if (attempts && attempts.length > 0) {
+          console.log(`📊 [ExerciseListSheet] Found ${attempts.length} previous quiz attempts`);
+          setQuizAttempts(attempts);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [ExerciseListSheet] Error loading quiz:', error);
+      Alert.alert('Error', 'Failed to load quiz questions');
+      setSelectedExercise(null);
+    } finally {
+      setQuizLoading(false);
+    }
+  };
 
   // Sound helper function with haptic feedback (like ProgressScreen)
   const playDoneSound = async () => {
@@ -1334,7 +1420,7 @@ export function ExerciseListSheet({
                           />
                         }
                       >
-                        {/* Header with back button and repetition indicators */}
+                        {/* Header with back button */}
                         <XStack
                           justifyContent="space-between"
                           alignItems="center"
@@ -1344,7 +1430,7 @@ export function ExerciseListSheet({
                             <Feather name="arrow-left" size={28} color={iconColor} />
                           </TouchableOpacity>
 
-                          {totalRepeats > 1 && (
+                          {!selectedExercise?.has_quiz && totalRepeats > 1 && (
                             <XStack gap={8} alignItems="center">
                               {Array.from({ length: totalRepeats }).map((_, i) => (
                                 <View
@@ -1362,29 +1448,372 @@ export function ExerciseListSheet({
                           )}
                         </XStack>
 
-                        {/* Exercise header with icon (exact copy from ProgressScreen) */}
-                        <XStack alignItems="center" gap={12} marginBottom={16}>
-                          {selectedExercise.icon && (
-                            <View style={{ marginRight: 8 }}>
-                              <Feather
-                                name={selectedExercise.icon as keyof typeof Feather.glyphMap}
-                                size={28}
-                                color={isPasswordLocked ? '#FF9500' : '#00E6C3'}
-                              />
-                            </View>
-                          )}
-                          <YStack flex={1}>
-                            <XStack alignItems="center" gap={8}>
-                              <Text
-                                fontSize={28}
-                                fontWeight="bold"
-                                color="$color"
-                                numberOfLines={1}
-                              >
-                                {selectedExercise.title?.[lang] ||
-                                  selectedExercise.title?.en ||
-                                  'Untitled'}
+                        {/* QUIZ UI - Show if exercise has quiz */}
+                        {selectedExercise?.has_quiz ? (
+                          quizLoading ? (
+                            <YStack padding={24} alignItems="center">
+                              <Text color="$color">Loading quiz...</Text>
+                            </YStack>
+                          ) : showQuizResults ? (
+                            <YStack gap={20} padding={24}>
+                              <Text fontSize={24} fontWeight="bold" color="$color" textAlign="center">
+                                Quiz Complete!
                               </Text>
+                              <YStack alignItems="center" gap={12} padding={24}>
+                                <View
+                                  style={{
+                                    width: 120,
+                                    height: 120,
+                                    borderRadius: 60,
+                                    borderWidth: 8,
+                                    borderColor: quizScore >= (selectedExercise.quiz_pass_score || 70) ? '#00E6C3' : '#EF4444',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
+                                  <Text fontSize={32} fontWeight="bold" color="$color">
+                                    {Math.round(quizScore)}%
+                                  </Text>
+                                </View>
+                                <Text fontSize={20} fontWeight="bold" color="$color">
+                                  {quizScore >= (selectedExercise.quiz_pass_score || 70) ? '🎉 You Passed!' : '📚 Keep Practicing'}
+                                </Text>
+                              </YStack>
+                              {/* Points Summary */}
+                              <YStack gap={12} padding={16} backgroundColor="#222" borderRadius={12}>
+                                <XStack justifyContent="space-between">
+                                  <Text color="$gray11">{lang === 'sv' ? 'Frågor:' : 'Questions:'}</Text>
+                                  <Text color="$color" fontWeight="bold">{quizQuestions.length}</Text>
+                                </XStack>
+                                <XStack justifyContent="space-between">
+                                  <Text color="$gray11">{lang === 'sv' ? 'Godkänt Poäng:' : 'Pass Score:'}</Text>
+                                  <Text color="$color" fontWeight="bold">{selectedExercise?.quiz_pass_score || 70}%</Text>
+                                </XStack>
+                                <XStack justifyContent="space-between">
+                                  <Text color="$gray11">{lang === 'sv' ? 'Ditt Resultat:' : 'Your Score:'}</Text>
+                                  <Text
+                                    color={quizScore >= (selectedExercise?.quiz_pass_score || 70) ? '#00E6C3' : '#EF4444'}
+                                    fontWeight="bold"
+                                  >
+                                    {Math.round(quizScore)}%
+                                  </Text>
+                                </XStack>
+                              </YStack>
+                              
+                              {/* Action Buttons */}
+                              <XStack gap={12}>
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    setCurrentQuizIndex(0);
+                                    setSelectedQuizAnswers([]);
+                                    setQuizScore(0);
+                                    setShowQuizResults(false);
+                                    setHasSubmittedAnswer(false);
+                                    setCorrectAnswerIds([]);
+                                    setSelectedExercise(null);
+                                  }}
+                                  style={{
+                                    backgroundColor: '#333',
+                                    padding: 16,
+                                    borderRadius: 12,
+                                    flex: 1,
+                                    alignItems: 'center',
+                                  }}
+                                >
+                                  <Text color="white" fontWeight="bold">
+                                    {lang === 'sv' ? 'Stäng' : 'Close'}
+                                  </Text>
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    setCurrentQuizIndex(0);
+                                    setSelectedQuizAnswers([]);
+                                    setQuizScore(0);
+                                    setShowQuizResults(false);
+                                    setHasSubmittedAnswer(false);
+                                    setCorrectAnswerIds([]);
+                                  }}
+                                  style={{
+                                    backgroundColor: '#4B6BFF',
+                                    padding: 16,
+                                    borderRadius: 12,
+                                    flex: 1,
+                                    alignItems: 'center',
+                                  }}
+                                >
+                                  <Text color="white" fontWeight="bold">
+                                    {lang === 'sv' ? 'Försök Igen' : 'Retry Quiz'}
+                                  </Text>
+                                </TouchableOpacity>
+                              </XStack>
+                            </YStack>
+                          ) : quizQuestions.length > 0 ? (
+                            <YStack gap={20} padding={24}>
+                              {/* Previous Attempts Stats (only show on first question before submission) */}
+                              {currentQuizIndex === 0 && !hasSubmittedAnswer && quizAttempts.length > 0 && (
+                                <YStack
+                                  padding={12}
+                                  backgroundColor={quizAttempts[0].passed ? 'rgba(0, 230, 195, 0.1)' : 'rgba(75, 107, 255, 0.1)'}
+                                  borderRadius={12}
+                                  borderWidth={1}
+                                  borderColor={quizAttempts[0].passed ? '#00E6C3' : '#4B6BFF'}
+                                  gap={8}
+                                >
+                                  <XStack alignItems="center" gap={8}>
+                                    <Feather 
+                                      name={quizAttempts[0].passed ? 'check-circle' : 'info'} 
+                                      size={16} 
+                                      color={quizAttempts[0].passed ? '#00E6C3' : '#4B6BFF'} 
+                                    />
+                                    <Text fontSize={14} fontWeight="bold" color="$color">
+                                      {lang === 'sv' ? 'Tidigare Försök' : 'Previous Attempts'}
+                                    </Text>
+                                  </XStack>
+                                  <XStack justifyContent="space-between">
+                                    <Text fontSize={12} color="$gray11">
+                                      {lang === 'sv' ? 'Bästa poäng:' : 'Best score:'}
+                                    </Text>
+                                    <Text fontSize={12} color={quizAttempts[0].passed ? '#00E6C3' : '#4B6BFF'} fontWeight="bold">
+                                      {Math.round(quizAttempts[0].score_percentage)}%
+                                    </Text>
+                                  </XStack>
+                                  <XStack justifyContent="space-between">
+                                    <Text fontSize={12} color="$gray11">
+                                      {lang === 'sv' ? 'Antal försök:' : 'Attempts:'}
+                                    </Text>
+                                    <Text fontSize={12} color="$color" fontWeight="bold">
+                                      {quizAttempts.length}
+                                    </Text>
+                                  </XStack>
+                                </YStack>
+                              )}
+                              
+                              {/* Quiz Progress */}
+                              <Text fontSize={16} color="$gray11">
+                                Question {currentQuizIndex + 1} of {quizQuestions.length}
+                              </Text>
+                              
+                              {/* Question */}
+                              <YStack gap={12}>
+                                <Text fontSize={20} fontWeight="bold" color="$color">
+                                  {quizQuestions[currentQuizIndex]?.question_text?.[lang] || 
+                                   quizQuestions[currentQuizIndex]?.question_text?.en}
+                                </Text>
+                              </YStack>
+
+                              {/* Answers */}
+                              <YStack gap={12}>
+                                {(() => {
+                                  const answers = quizQuestions[currentQuizIndex]?.answers || [];
+                                  return answers.map((answer: any) => {
+                                  const isSelected = selectedQuizAnswers.includes(answer.id);
+                                  const isCorrect = correctAnswerIds.includes(answer.id);
+                                  const isWrong = hasSubmittedAnswer && isSelected && !isCorrect;
+                                  const showAsCorrect = hasSubmittedAnswer && isCorrect;
+                                  
+                                  // Determine colors based on state
+                                  let backgroundColor = '#222';
+                                  let borderColor = '#333';
+                                  let iconColor = '#888';
+                                  
+                                  if (showAsCorrect) {
+                                    backgroundColor = 'rgba(0, 230, 195, 0.2)';
+                                    borderColor = '#00E6C3';
+                                    iconColor = '#00E6C3';
+                                  } else if (isWrong) {
+                                    backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                                    borderColor = '#EF4444';
+                                    iconColor = '#EF4444';
+                                  } else if (isSelected && !hasSubmittedAnswer) {
+                                    backgroundColor = 'rgba(75, 107, 255, 0.2)';
+                                    borderColor = '#4B6BFF';
+                                    iconColor = '#4B6BFF';
+                                  }
+                                  
+                                  return (
+                                    <TouchableOpacity
+                                      key={answer.id}
+                                      disabled={hasSubmittedAnswer}
+                                      onPress={() => {
+                                        if (quizQuestions[currentQuizIndex].question_type === 'multiple_choice') {
+                                          setSelectedQuizAnswers(prev =>
+                                            prev.includes(answer.id)
+                                              ? prev.filter(id => id !== answer.id)
+                                              : [...prev, answer.id]
+                                          );
+                                        } else {
+                                          setSelectedQuizAnswers([answer.id]);
+                                        }
+                                      }}
+                                      style={{
+                                        backgroundColor,
+                                        padding: 16,
+                                        borderRadius: 12,
+                                        borderWidth: 2,
+                                        borderColor,
+                                        opacity: hasSubmittedAnswer ? 1 : 1,
+                                      }}
+                                    >
+                                      <XStack alignItems="center" gap={12}>
+                                        <View
+                                          style={{
+                                            width: 24,
+                                            height: 24,
+                                            borderRadius: 12,
+                                            borderWidth: 2,
+                                            borderColor: iconColor,
+                                            backgroundColor: (isSelected || showAsCorrect) ? iconColor : 'transparent',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                          }}
+                                        >
+                                          {(isSelected || showAsCorrect) && (
+                                            <Feather 
+                                              name={showAsCorrect ? 'check' : isWrong ? 'x' : 'check'} 
+                                              size={16} 
+                                              color="white" 
+                                            />
+                                          )}
+                                        </View>
+                                        <Text fontSize={16} color="$color" flex={1}>
+                                          {answer.answer_label}. {answer.answer_text?.[lang] || answer.answer_text?.en}
+                                        </Text>
+                                      </XStack>
+                                    </TouchableOpacity>
+                                  );
+                                  });
+                                })()}
+                              </YStack>
+
+                              {/* Submit/Next Button */}
+                              <XStack gap={12}>
+                                {/* Back Button (only show after first question and before submission) */}
+                                {currentQuizIndex > 0 && !hasSubmittedAnswer && (
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      setCurrentQuizIndex(prev => prev - 1);
+                                      setSelectedQuizAnswers([]);
+                                      setHasSubmittedAnswer(false);
+                                      setCorrectAnswerIds([]);
+                                    }}
+                                    style={{
+                                      backgroundColor: '#333',
+                                      padding: 16,
+                                      borderRadius: 12,
+                                      alignItems: 'center',
+                                      flex: 1,
+                                    }}
+                                  >
+                                    <Text color="white" fontWeight="bold" fontSize={16}>
+                                      {lang === 'sv' ? 'Tillbaka' : 'Back'}
+                                    </Text>
+                                  </TouchableOpacity>
+                                )}
+                                
+                                {/* Main Action Button */}
+                                <TouchableOpacity
+                                  disabled={selectedQuizAnswers.length === 0 && !hasSubmittedAnswer}
+                                  onPress={() => {
+                                    if (!hasSubmittedAnswer) {
+                                      // Step 1: Check answer
+                                      const currentQ = quizQuestions[currentQuizIndex];
+                                      const correctIds = currentQ.answers.filter((a: any) => a.is_correct).map((a: any) => a.id);
+                                      const isCorrect = selectedQuizAnswers.length === correctIds.length &&
+                                        selectedQuizAnswers.every(id => correctIds.includes(id));
+                                      
+                                      if (isCorrect) {
+                                        setQuizScore(prev => prev + (currentQ.points || 10));
+                                      }
+                                      
+                                      setCorrectAnswerIds(correctIds);
+                                      setHasSubmittedAnswer(true);
+                                    } else {
+                                      // Step 2: Move to next question or finish
+                                      if (currentQuizIndex < quizQuestions.length - 1) {
+                                        setCurrentQuizIndex(prev => prev + 1);
+                                        setSelectedQuizAnswers([]);
+                                        setHasSubmittedAnswer(false);
+                                        setCorrectAnswerIds([]);
+                                      } else {
+                                        // Quiz complete - calculate final score and save
+                                        const totalPoints = quizQuestions.reduce((sum, q) => sum + (q.points || 10), 0);
+                                        const finalScorePercentage = (quizScore / totalPoints) * 100;
+                                        setQuizScore(finalScorePercentage);
+                                        setShowQuizResults(true);
+                                        
+                                        // Save quiz attempt to database
+                                        if (effectiveUserId && selectedExercise?.id) {
+                                          const passed = finalScorePercentage >= (selectedExercise.quiz_pass_score || 70);
+                                          supabase
+                                            .from('quiz_attempts')
+                                            .insert({
+                                              user_id: effectiveUserId,
+                                              exercise_id: selectedExercise.id,
+                                              quiz_type: 'learning_path',
+                                              total_questions: quizQuestions.length,
+                                              correct_answers: Math.round((quizScore / totalPoints) * quizQuestions.length),
+                                              score_percentage: finalScorePercentage,
+                                              points_earned: quizScore,
+                                              passed,
+                                            })
+                                            .then(({ error }) => {
+                                              if (error) {
+                                                console.error('❌ Error saving quiz attempt:', error);
+                                              } else {
+                                                console.log('✅ Quiz attempt saved successfully');
+                                              }
+                                            });
+                                        }
+                                      }
+                                    }
+                                  }}
+                                  style={{
+                                    backgroundColor: (selectedQuizAnswers.length > 0 || hasSubmittedAnswer) ? '#4B6BFF' : '#333',
+                                    padding: 16,
+                                    borderRadius: 12,
+                                    alignItems: 'center',
+                                    flex: currentQuizIndex > 0 && !hasSubmittedAnswer ? 2 : 1,
+                                  }}
+                                >
+                                  <Text color="white" fontWeight="bold" fontSize={16}>
+                                    {!hasSubmittedAnswer
+                                      ? (lang === 'sv' ? 'Kontrollera Svar' : 'Check Answer')
+                                      : currentQuizIndex < quizQuestions.length - 1
+                                        ? (lang === 'sv' ? 'Nästa Fråga' : 'Next Question')
+                                        : (lang === 'sv' ? 'Avsluta Quiz' : 'Finish Quiz')
+                                    }
+                                  </Text>
+                                </TouchableOpacity>
+                              </XStack>
+                            </YStack>
+                          ) : null
+                        ) : (
+                          <>
+                            {/* REGULAR EXERCISE CONTENT */}
+                            {/* Exercise header with icon (exact copy from ProgressScreen) */}
+                            <XStack alignItems="center" gap={12} marginBottom={16}>
+                              {selectedExercise.icon && (
+                                <View style={{ marginRight: 8 }}>
+                                  <Feather
+                                    name={selectedExercise.icon as keyof typeof Feather.glyphMap}
+                                    size={28}
+                                    color={isPasswordLocked ? '#FF9500' : '#00E6C3'}
+                                  />
+                                </View>
+                              )}
+                              <YStack flex={1}>
+                                <XStack alignItems="center" gap={8}>
+                                  <Text
+                                    fontSize={28}
+                                    fontWeight="bold"
+                                    color="$color"
+                                    numberOfLines={1}
+                                  >
+                                    {selectedExercise.title?.[lang] ||
+                                      selectedExercise.title?.en ||
+                                      'Untitled'}
+                                  </Text>
 
                               {selectedExercise.isRepeat && (
                                 <XStack
@@ -1414,16 +1843,16 @@ export function ExerciseListSheet({
                                   </Text>
                                 </XStack>
                               )}
-                          </YStack>
+                              </YStack>
 
-                          {isPasswordLocked ? (
-                            <MaterialIcons name="lock" size={24} color="#FF9500" />
-                          ) : !prevExercisesComplete ? (
-                            <MaterialIcons name="hourglass-empty" size={24} color="#FF9500" />
-                          ) : isDone ? (
-                            <Feather name="check-circle" size={24} color="#00E6C3" />
-                          ) : null}
-                        </XStack>
+                              {isPasswordLocked ? (
+                                <MaterialIcons name="lock" size={24} color="#FF9500" />
+                              ) : !prevExercisesComplete ? (
+                                <MaterialIcons name="hourglass-empty" size={24} color="#FF9500" />
+                              ) : isDone ? (
+                                <Feather name="check-circle" size={24} color="#00E6C3" />
+                              ) : null}
+                            </XStack>
 
                         {selectedExercise.description?.[lang] && (
                           <Text color="$gray11" marginBottom={16}>
@@ -1689,7 +2118,34 @@ export function ExerciseListSheet({
                                 </YStack>
                               )}
 
-                            {/* Toggle done/not done button */}
+                            {/* Quiz Button - HIDDEN (quiz auto-opens now) */}
+                            {/* {selectedExercise?.has_quiz && (
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setActiveQuizExercise(selectedExercise);
+                                  quiz.openQuiz();
+                                }}
+                                style={{
+                                  backgroundColor: selectedExercise.quiz_required ? '#4B6BFF' : '#00E6C3',
+                                  padding: 16,
+                                  borderRadius: 12,
+                                  alignItems: 'center',
+                                  marginTop: 24,
+                                }}
+                              >
+                                <XStack alignItems="center" gap={8}>
+                                  <Feather name="clipboard" size={20} color="white" />
+                                  <Text color="white" fontWeight="bold">
+                                    {selectedExercise.quiz_required
+                                      ? t('exercise.takeRequiredQuiz') || 'Take Required Quiz'
+                                      : t('exercise.takeOptionalQuiz') || 'Take Optional Quiz'}
+                                  </Text>
+                                </XStack>
+                              </TouchableOpacity>
+                            )} */}
+
+                            {/* Toggle done/not done button - HIDDEN FOR QUIZ EXERCISES */}
+                            {/* {!selectedExercise?.has_quiz && (
                             <TouchableOpacity
                               onPress={async () => {
                                 const shouldMarkDone = !isDone;
@@ -1749,9 +2205,10 @@ export function ExerciseListSheet({
                                 {isDone ? 'Mark All as Not Done' : 'Mark All as Done'}
                               </Text>
                             </TouchableOpacity>
+                            )} */}
 
-                            {/* Comments section */}
-                            <YStack marginTop={24}>
+                            {/* Comments section - COMMENTED OUT */}
+                            {/* <YStack marginTop={24}>
                               <Text fontSize={18} fontWeight="bold" color="$color" marginBottom={8}>
                                 Comments
                               </Text>
@@ -1759,7 +2216,9 @@ export function ExerciseListSheet({
                                 targetType="exercise"
                                 targetId={selectedExercise.id}
                               />
-                            </YStack>
+                            </YStack> */}
+                          </>
+                        )}
                           </>
                         )}
                       </ScrollView>
@@ -1846,7 +2305,7 @@ export function ExerciseListSheet({
                       {/* Header with Progress Circle */}
                       <YStack gap={16} marginBottom={16}>
                         <XStack justifyContent="space-between" alignItems="center">
-                          {onBackToAllPaths ? (
+                          {onBackToAllPaths && !fromFeaturedContent ? (
                             <TouchableOpacity onPress={onBackToAllPaths}>
                               <Feather
                                 name="arrow-left"
@@ -2957,6 +3416,7 @@ export function ExerciseListSheet({
           </TouchableOpacity>
         </Modal>
       </Modal>
+
     </>
   );
 }

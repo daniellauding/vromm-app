@@ -51,23 +51,23 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
 
     const startTime = Date.now();
     console.log('⚡ [CreatedRoutes] Loading created routes for user:', effectiveUserId);
-    console.log('🗺️ [CreatedRoutes] Is viewing as student:', isViewingAsStudent);
+      console.log('🗺️ [CreatedRoutes] Is viewing as student:', isViewingAsStudent);
 
-    try {
-      const { data: createdData, error: createdError } = await supabase
-        .from('routes')
-        .select('*')
-        .eq('creator_id', effectiveUserId)
-        .order('created_at', { ascending: false });
+      try {
+        const { data: createdData, error: createdError } = await supabase
+          .from('routes')
+          .select('*')
+          .eq('creator_id', effectiveUserId)
+          .order('created_at', { ascending: false });
 
-      if (createdError) throw createdError;
+        if (createdError) throw createdError;
 
-      console.log('🗺️ [CreatedRoutes] Loaded created routes:', createdData?.length || 0);
-      setCreatedRoutes(createdData as Route[]);
+        console.log('🗺️ [CreatedRoutes] Loaded created routes:', createdData?.length || 0);
+        setCreatedRoutes(createdData as Route[]);
       console.log('⚡ [CreatedRoutes] Created routes loaded in:', Date.now() - startTime, 'ms');
-    } catch (err) {
-      console.error('❌ [CreatedRoutes] Error loading created routes:', err);
-    }
+      } catch (err) {
+        console.error('❌ [CreatedRoutes] Error loading created routes:', err);
+      }
   }, [effectiveUserId, isViewingAsStudent]);
 
   React.useEffect(() => {
@@ -263,8 +263,8 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
                       navigation.navigate('RouteDetail', { routeId: route.id });
                     }
                   }}
-                />
-              </XStack>
+            />
+          </XStack>
             )}
           />
         )}

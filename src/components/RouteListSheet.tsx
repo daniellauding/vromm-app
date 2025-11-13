@@ -401,14 +401,14 @@ export function RouteListSheet({
                     </YStack>
                   </YStack>
                 ) : (
-                  <RouteList
+                <RouteList
                     routes={filteredRoutes}
-                    onRoutePress={(routeId) => {
+                  onRoutePress={(routeId) => {
                       console.log('📋 [RouteListSheet] Route pressed, opening RouteDetailSheet:', routeId);
                       setSelectedRouteId(routeId);
                       setShowRouteDetailSheet(true);
-                    }}
-                  />
+                  }}
+                />
                 )}
               </YStack>
             </YStack>

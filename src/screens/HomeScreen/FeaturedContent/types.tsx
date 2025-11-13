@@ -24,6 +24,10 @@ export interface FeaturedExercise {
   learning_path_id: string;
   is_featured: boolean;
   repeat_count?: number;
+  // Quiz fields
+  has_quiz?: boolean;
+  quiz_required?: boolean;
+  quiz_pass_score?: number;
   // Access Control & Paywall
   is_locked?: boolean;
   lock_password?: string | null;

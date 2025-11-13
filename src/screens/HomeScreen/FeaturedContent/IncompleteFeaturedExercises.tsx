@@ -1,11 +1,13 @@
-import React from 'react';
-import { Dimensions, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { Dimensions, Pressable, TouchableOpacity } from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from '../../../contexts/TranslationContext';
 import { useUnlock } from '../../../contexts/UnlockContext';
 import { FeaturedExercise, FeaturedLearningPath } from './types';
 import { FeaturedMedia } from './FeaturedMedia';
+import { QuizModal } from '../../../components/QuizModal';
+import { useQuiz } from '../../../hooks/useQuiz';
 
 const { width: screenWidth } = Dimensions.get('window');
 const cardWidth = screenWidth * 0.7;
@@ -19,6 +21,19 @@ export const IncompleteFeaturedExercises = React.memo(function IncompleteFeature
 }) {
   const { t, language: lang } = useTranslation();
   const { isPathUnlocked, hasPathPayment } = useUnlock();
+
+  // Quiz integration
+  const quiz = useQuiz({
+    exerciseId: exercise.id || '',
+    exerciseTitle: exercise.title || { en: '', sv: '' },
+    hasQuiz: exercise.has_quiz || false,
+    quizRequired: exercise.quiz_required || false,
+    quizPassScore: exercise.quiz_pass_score || 70,
+    onQuizComplete: async (passed, score) => {
+      console.log('Featured exercise quiz completed:', { passed, score });
+      // Could refresh featured exercises here if needed
+    },
+  });
 
   const isPathPasswordLocked = React.useCallback(
     (path: FeaturedLearningPath): boolean => {
@@ -63,8 +78,8 @@ export const IncompleteFeaturedExercises = React.memo(function IncompleteFeature
         }}
       >
         <YStack gap="$3" position="relative">
-          {/* Lock/Payment indicator badges (top-right corner) */}
-          {(isPasswordLocked || isPaywallLocked) && (
+          {/* Lock/Payment/Quiz indicator badges (top-right corner) */}
+          {(isPasswordLocked || isPaywallLocked || exercise.has_quiz) && (
             <XStack position="absolute" top={0} right={0} zIndex={10} gap="$1">
               {isPasswordLocked && (
                 <YStack
@@ -87,6 +102,28 @@ export const IncompleteFeaturedExercises = React.memo(function IncompleteFeature
                 >
                   <Feather name="credit-card" size={10} color="black" />
                 </YStack>
+              )}
+              {exercise.has_quiz && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    quiz.openQuiz();
+                  }}
+                  style={{
+                    backgroundColor: exercise.quiz_required ? '#4B6BFF' : '#00E6C3',
+                    borderRadius: 8,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <Feather name="clipboard" size={12} color="white" />
+                  <Text fontSize={10} color="white" fontWeight="bold">
+                    {exercise.quiz_required ? 'QUIZ' : 'QUIZ'}
+                  </Text>
+                </TouchableOpacity>
               )}
             </XStack>
           )}
@@ -132,6 +169,17 @@ export const IncompleteFeaturedExercises = React.memo(function IncompleteFeature
           </XStack>
         </YStack>
       </Card>
+
+      {/* Quiz Modal */}
+      <QuizModal
+        visible={quiz.showQuizModal}
+        onClose={quiz.closeQuiz}
+        exerciseId={quiz.exerciseId}
+        exerciseTitle={quiz.exerciseTitle}
+        quizRequired={quiz.quizRequired}
+        quizPassScore={quiz.quizPassScore}
+        onQuizComplete={quiz.handleQuizComplete}
+      />
     </Pressable>
   );
 });

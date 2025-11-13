@@ -149,7 +149,7 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('learning_path_exercises')
         .select(
-          'id, title, description, icon, image, youtube_url, learning_path_id, is_featured, repeat_count',
+          'id, title, description, icon, image, youtube_url, learning_path_id, is_featured, repeat_count, has_quiz, quiz_required, quiz_pass_score',
         )
         .eq('is_featured', true)
         .order('created_at', { ascending: false })
@@ -157,6 +157,22 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
 
       if (exercisesError) {
         console.error('Error fetching featured exercises:', exercisesError);
+        // If quiz columns don't exist yet, try without them
+        if (exercisesError.code === '42703') {
+          console.log('⚠️ [FeaturedContent] Quiz columns not found, fetching without them');
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('learning_path_exercises')
+            .select(
+              'id, title, description, icon, image, youtube_url, learning_path_id, is_featured, repeat_count',
+            )
+            .eq('is_featured', true)
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+          if (!fallbackError && fallbackData) {
+            setFeaturedExercises(fallbackData || []);
+          }
+        }
       } else {
         setFeaturedExercises(exercisesData || []);
       }
@@ -344,6 +360,7 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
         title={selectedTitle}
         learningPathId={selectedPathId}
         initialExerciseId={selectedExerciseId}
+        fromFeaturedContent={true}
       />
 
       <PayWall

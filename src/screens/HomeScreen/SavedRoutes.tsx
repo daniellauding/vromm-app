@@ -238,10 +238,10 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
                     onRoutePress(route.id);
                   } else {
                     navigation.navigate('RouteDetail', { routeId: route.id });
-                  }
+            }
                 }}
-              />
-            </XStack>
+          />
+        </XStack>
           )}
         />
       </YStack>

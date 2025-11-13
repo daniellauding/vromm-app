@@ -96,7 +96,7 @@ export default React.memo(function MyTab({
           Linking.openURL('https://vromm.se/about');
         }}
       />,
-    );
+  );
   }, [showModal]);
 
   console.log('🗓️ [MyTab] Render');
