@@ -6,6 +6,9 @@ import {
   useColorScheme,
   TouchableOpacity,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { YStack, XStack, TextArea, Text } from 'tamagui';
 import { BlurView } from 'expo-blur';
@@ -73,33 +76,33 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
         'report.spamDescription',
         language === 'sv'
           ? 'Repetitivt, oönskat eller kommersiellt innehåll'
-          : 'Repetitive, unwanted, or commercial content'
+          : 'Repetitive, unwanted, or commercial content',
       ),
     },
     {
       value: 'harmful_content',
       label: getTranslation(
         'report.harmfulContent',
-        language === 'sv' ? 'Skadligt innehåll' : 'Harmful Content'
+        language === 'sv' ? 'Skadligt innehåll' : 'Harmful Content',
       ),
       description: getTranslation(
         'report.harmfulDescription',
         language === 'sv'
           ? 'Innehåll som kan vara skadligt, stötande eller olämpligt'
-          : 'Content that may be harmful, offensive, or inappropriate'
+          : 'Content that may be harmful, offensive, or inappropriate',
       ),
     },
     {
       value: 'privacy_issue',
       label: getTranslation(
         'report.privacyIssue',
-        language === 'sv' ? 'Integritetsproblem' : 'Privacy Issue'
+        language === 'sv' ? 'Integritetsproblem' : 'Privacy Issue',
       ),
       description: getTranslation(
         'report.privacyDescription',
         language === 'sv'
           ? 'Innehåll som bryter mot integriteten eller delar personlig information'
-          : 'Content that violates privacy or shares personal information'
+          : 'Content that violates privacy or shares personal information',
       ),
     },
     {
@@ -109,7 +112,7 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
         'report.otherDescription',
         language === 'sv'
           ? 'Vänligen ge detaljer om din rapport'
-          : 'Please provide details about your report'
+          : 'Please provide details about your report',
       ),
     },
   ];
@@ -124,8 +127,10 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
         getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
         getTranslation(
           'report.mustBeLoggedIn',
-          language === 'sv' ? 'Du måste vara inloggad för att rapportera innehåll' : 'You must be logged in to report content'
-        )
+          language === 'sv'
+            ? 'Du måste vara inloggad för att rapportera innehåll'
+            : 'You must be logged in to report content',
+        ),
       );
       return;
     }
@@ -135,8 +140,10 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
         getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
         getTranslation(
           'report.provideDetails',
-          language === 'sv' ? 'Vänligen ge detaljer för din rapport' : 'Please provide details for your report'
-        )
+          language === 'sv'
+            ? 'Vänligen ge detaljer för din rapport'
+            : 'Please provide details for your report',
+        ),
       );
       return;
     }
@@ -229,8 +236,10 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
           getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
           getTranslation(
             'report.alreadyReported',
-            language === 'sv' ? 'Du har redan rapporterat detta' : 'You have already reported this item'
-          )
+            language === 'sv'
+              ? 'Du har redan rapporterat detta'
+              : 'You have already reported this item',
+          ),
         );
         return;
       }
@@ -254,8 +263,8 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
         getTranslation('common.success', language === 'sv' ? 'Lyckades' : 'Success'),
         getTranslation(
           'report.submitted',
-          language === 'sv' ? 'Rapport skickad' : 'Report submitted successfully'
-        )
+          language === 'sv' ? 'Rapport skickad' : 'Report submitted successfully',
+        ),
       );
       onClose();
     } catch (error) {
@@ -264,8 +273,10 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
         getTranslation('common.error', language === 'sv' ? 'Fel' : 'Error'),
         getTranslation(
           'report.failed',
-          language === 'sv' ? 'Misslyckades att skicka rapport. Försök igen.' : 'Failed to submit report. Please try again.'
-        )
+          language === 'sv'
+            ? 'Misslyckades att skicka rapport. Försök igen.'
+            : 'Failed to submit report. Please try again.',
+        ),
       );
     } finally {
       setLoading(false);
@@ -306,131 +317,140 @@ export function ReportDialog({ reportableId, reportableType, onClose }: ReportDi
             justifyContent="center"
             alignItems="center"
           >
-            <YStack
-              backgroundColor={backgroundColor}
-              paddingVertical="$4"
-              paddingHorizontal="$4"
-              overflow="hidden"
-              borderRadius="$4"
-              width="100%"
-              gap="$4"
-              borderColor={borderColor}
-              borderWidth={1}
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ width: '100%' }}
+              keyboardVerticalOffset={0}
             >
-              {/* Header */}
-              <YStack gap="$3">
-                <Text
-                  fontSize={24}
-                  fontWeight="900"
-                  fontStyle="italic"
-                  color={textColor}
-                  textAlign="center"
-                >
-                  {getTranslation(
-                    'report.title',
-                    language === 'sv' ? 'Rapportera innehåll' : 'Report Content'
-                  )}
-                </Text>
-
+              <YStack
+                backgroundColor={backgroundColor}
+                paddingVertical="$4"
+                paddingHorizontal="$4"
+                overflow="hidden"
+                borderRadius="$4"
+                width="100%"
+                gap="$4"
+                borderColor={borderColor}
+                borderWidth={1}
+              >
+                {/* Header */}
                 <YStack gap="$3">
-                  <Text fontSize={18} fontWeight="600" color={textColor}>
+                  <Text
+                    fontSize={24}
+                    fontWeight="900"
+                    fontStyle="italic"
+                    color={textColor}
+                    textAlign="center"
+                  >
                     {getTranslation(
-                      'report.question',
-                      language === 'sv' ? 'Vad är fel med detta innehåll?' : "What's wrong with this content?"
+                      'report.title',
+                      language === 'sv' ? 'Rapportera innehåll' : 'Report Content',
                     )}
                   </Text>
-                  <XStack flexWrap="wrap" gap="$2">
-                    {REPORT_TYPES.map((type) => (
-                      <TouchableOpacity
-                        key={type.value}
-                        onPress={() => setReportType(type.value)}
-                        disabled={loading}
-                        style={[
-                          styles.filterChip,
-                          {
-                            borderColor,
-                            backgroundColor: reportType === type.value ? '#27febe' : 'transparent',
-                          },
-                        ]}
-                      >
-                        <Text
+
+                  <YStack gap="$3">
+                    <Text fontSize={18} fontWeight="600" color={textColor}>
+                      {getTranslation(
+                        'report.question',
+                        language === 'sv'
+                          ? 'Vad är fel med detta innehåll?'
+                          : "What's wrong with this content?",
+                      )}
+                    </Text>
+                    <XStack flexWrap="wrap" gap="$2">
+                      {REPORT_TYPES.map((type) => (
+                        <TouchableOpacity
+                          key={type.value}
+                          onPress={() => setReportType(type.value)}
+                          disabled={loading}
                           style={[
-                            styles.chipText,
+                            styles.filterChip,
                             {
-                              color: reportType === type.value ? '#000000' : textColor,
-                              fontWeight: reportType === type.value ? '600' : '500',
+                              borderColor,
+                              backgroundColor:
+                                reportType === type.value ? '#27febe' : 'transparent',
                             },
                           ]}
                         >
-                          {type.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </XStack>
-                  {selectedType && (
-                    <Text fontSize={12} color={textColor} opacity={0.7} fontStyle="italic">
-                      {selectedType.description}
-                    </Text>
+                          <Text
+                            style={[
+                              styles.chipText,
+                              {
+                                color: reportType === type.value ? '#000000' : textColor,
+                                fontWeight: reportType === type.value ? '600' : '500',
+                              },
+                            ]}
+                          >
+                            {type.label}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </XStack>
+                    {selectedType && (
+                      <Text fontSize={12} color={textColor} opacity={0.7} fontStyle="italic">
+                        {selectedType.description}
+                      </Text>
+                    )}
+                  </YStack>
+
+                  {(reportType === 'other' || content) && (
+                    <YStack gap="$2">
+                      <Text fontSize={16} fontWeight="600" color={textColor}>
+                        {getTranslation(
+                          'report.additionalDetails',
+                          language === 'sv' ? 'Ytterligare detaljer' : 'Additional Details',
+                        )}
+                      </Text>
+                      <TextArea
+                        placeholder={getTranslation(
+                          'report.placeholder',
+                          language === 'sv'
+                            ? 'Vänligen ge mer information om din rapport...'
+                            : 'Please provide more information about your report...',
+                        )}
+                        value={content}
+                        onChangeText={setContent}
+                        autoCapitalize="sentences"
+                        numberOfLines={4}
+                        disabled={loading}
+                        style={{
+                          color: textColor,
+                          backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                          borderColor: borderColor,
+                          borderWidth: 1,
+                          borderRadius: 8,
+                          padding: 12,
+                        }}
+                      />
+                    </YStack>
                   )}
                 </YStack>
 
-                {(reportType === 'other' || content) && (
-                  <YStack gap="$2">
-                    <Text fontSize={16} fontWeight="600" color={textColor}>
-                      {getTranslation(
-                        'report.additionalDetails',
-                        language === 'sv' ? 'Ytterligare detaljer' : 'Additional Details'
-                      )}
-                    </Text>
-                    <TextArea
-                      placeholder={getTranslation(
-                        'report.placeholder',
-                        language === 'sv'
-                          ? 'Vänligen ge mer information om din rapport...'
-                          : 'Please provide more information about your report...'
-                      )}
-                      value={content}
-                      onChangeText={setContent}
-                      autoCapitalize="sentences"
-                      numberOfLines={4}
-                      disabled={loading}
-                      style={{
-                        color: textColor,
-                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
-                        borderColor: borderColor,
-                        borderWidth: 1,
-                        borderRadius: 8,
-                        padding: 12,
-                      }}
-                    />
-                  </YStack>
-                )}
-              </YStack>
+                {/* Action Buttons */}
+                <YStack gap="$2">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onPress={handleSubmit}
+                    disabled={loading || (reportType === 'other' && !content.trim())}
+                  >
+                    {loading
+                      ? getTranslation(
+                          'report.submitting',
+                          language === 'sv' ? 'Skickar...' : 'Submitting...',
+                        )
+                      : getTranslation(
+                          'report.submitButton',
+                          language === 'sv' ? 'Skicka rapport' : 'Submit Report',
+                        )}
+                  </Button>
 
-              {/* Action Buttons */}
-              <YStack gap="$2">
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onPress={handleSubmit}
-                  disabled={loading || (reportType === 'other' && !content.trim())}
-                >
-                  {loading
-                    ? getTranslation(
-                        'report.submitting',
-                        language === 'sv' ? 'Skickar...' : 'Submitting...'
-                      )
-                    : getTranslation(
-                        'report.submitButton',
-                        language === 'sv' ? 'Skicka rapport' : 'Submit Report'
-                      )}
-                </Button>
-
-                <Button size="sm" variant="link" onPress={onClose} disabled={loading}>
-                  {getTranslation('common.cancel', language === 'sv' ? 'Avbryt' : 'Cancel')}
-                </Button>
+                  <Button size="sm" variant="link" onPress={onClose} disabled={loading}>
+                    {getTranslation('common.cancel', language === 'sv' ? 'Avbryt' : 'Cancel')}
+                  </Button>
+                </YStack>
               </YStack>
-            </YStack>
+            </KeyboardAvoidingView>
           </YStack>
         </Pressable>
       </Pressable>

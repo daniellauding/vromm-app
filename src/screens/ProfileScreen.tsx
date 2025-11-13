@@ -17,6 +17,8 @@ import {
   Animated,
   Easing,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -49,7 +51,6 @@ import { LockModal, useLockModal } from '../components/LockModal';
 import { Language } from '../contexts/TranslationContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Popover from 'react-native-popover-view';
-import { Platform, KeyboardAvoidingView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
@@ -256,7 +257,7 @@ export function ProfileScreen() {
   const { setUserLocation } = useLocation();
   const { showToast } = useToast();
   const colorScheme = useColorScheme();
-  
+
   // Get screen dimensions for snap points
   const { height } = Dimensions.get('window');
 
@@ -630,7 +631,10 @@ export function ProfileScreen() {
         avatar_url: profile?.avatar_url || null,
       });
 
-      console.log('🗺️ [ProfileScreen] ✅ setFormData called - formData.location set to:', locationData.location);
+      console.log(
+        '🗺️ [ProfileScreen] ✅ setFormData called - formData.location set to:',
+        locationData.location,
+      );
 
       // Update license plan form data when profile changes
       const planData = profile.license_plan_data as any;
@@ -728,7 +732,10 @@ export function ProfileScreen() {
       setLocationLoading(true);
 
       // Always try to detect location, even if city is already selected (allow override)
-      console.log('🗺️ [ProfileScreen] detectLocation - current formData.location:', formData.location);
+      console.log(
+        '🗺️ [ProfileScreen] detectLocation - current formData.location:',
+        formData.location,
+      );
 
       // Start dots animation
       dotsInterval = setInterval(() => {
@@ -742,10 +749,14 @@ export function ProfileScreen() {
       if (status !== 'granted') {
         console.log('🗺️ [ProfileScreen] detectLocation - permission DENIED');
         showToast({
-          title: t('errors.permissionDenied') || (language === 'sv' ? 'Tillstånd nekat' : 'Permission denied'),
+          title:
+            t('errors.permissionDenied') ||
+            (language === 'sv' ? 'Tillstånd nekat' : 'Permission denied'),
           message:
             t('errors.enableLocationServices') ||
-            (language === 'sv' ? 'Aktivera platstjänster för att använda denna funktion' : 'Please enable location services to use this feature'),
+            (language === 'sv'
+              ? 'Aktivera platstjänster för att använda denna funktion'
+              : 'Please enable location services to use this feature'),
           type: 'error',
         });
         setLocationLoading(false);
@@ -758,7 +769,10 @@ export function ProfileScreen() {
         location = await Location.getCurrentPositionAsync({});
         console.log('🗺️ [ProfileScreen] detectLocation - got position:', location.coords);
       } catch (locationError) {
-        console.log('📍 [ProfileScreen] Location detection failed, using Lund, Sweden fallback:', locationError);
+        console.log(
+          '📍 [ProfileScreen] Location detection failed, using Lund, Sweden fallback:',
+          locationError,
+        );
         // Fallback location for simulator - Lund, Sweden (same as OnboardingInteractive)
         location = {
           coords: {
@@ -794,7 +808,10 @@ export function ProfileScreen() {
       };
 
       // Set as selected location for user to confirm with Save button
-      console.log('🗺️ [ProfileScreen] detectLocation - setting selectedLocationData:', locationData);
+      console.log(
+        '🗺️ [ProfileScreen] detectLocation - setting selectedLocationData:',
+        locationData,
+      );
       setSelectedLocationData(locationData);
 
       // Add to search results so user can see it
@@ -810,7 +827,9 @@ export function ProfileScreen() {
       console.error('❌ [ProfileScreen] detectLocation - error:', err);
       showToast({
         title: t('errors.title') || (language === 'sv' ? 'Fel' : 'Error'),
-        message: t('errors.locationDetectionFailed') || (language === 'sv' ? 'Misslyckades med att hitta plats' : 'Failed to detect location'),
+        message:
+          t('errors.locationDetectionFailed') ||
+          (language === 'sv' ? 'Misslyckades med att hitta plats' : 'Failed to detect location'),
         type: 'error',
       });
     } finally {
@@ -928,7 +947,10 @@ export function ProfileScreen() {
 
   // Handle location selection from autocomplete - NOW SAVES TO DATABASE
   const handleLocationSelect = async (locationData: any) => {
-    console.log('🗺️ [ProfileScreen] handleLocationSelect - START - SAVING locationData:', locationData);
+    console.log(
+      '🗺️ [ProfileScreen] handleLocationSelect - START - SAVING locationData:',
+      locationData,
+    );
     const locationName = [locationData.city, locationData.region, locationData.country]
       .filter(Boolean)
       .join(', ');
@@ -954,7 +976,9 @@ export function ProfileScreen() {
     // Save to database profile (both location and preferred_city fields)
     if (user && locationData.coords?.latitude && locationData.coords?.longitude) {
       try {
-        console.log('🗺️ [ProfileScreen] handleLocationSelect - Saving to database (location + preferred_city)...');
+        console.log(
+          '🗺️ [ProfileScreen] handleLocationSelect - Saving to database (location + preferred_city)...',
+        );
         await updateProfile({
           location: locationName,
           location_lat: locationData.coords.latitude,
@@ -965,7 +989,10 @@ export function ProfileScreen() {
             longitude: locationData.coords.longitude,
           },
         } as any);
-        console.log('✅ [ProfileScreen] Location saved to database (both location AND preferred_city):', locationName);
+        console.log(
+          '✅ [ProfileScreen] Location saved to database (both location AND preferred_city):',
+          locationName,
+        );
 
         // Refresh profile to ensure dropdown button updates
         console.log('🗺️ [ProfileScreen] handleLocationSelect - Refreshing profile...');
@@ -1241,7 +1268,10 @@ export function ProfileScreen() {
     console.log(
       '🗺️ [ProfileScreen] showLocationSheet - Opening location modal at LARGE snap point',
     );
-    console.log('🗺️ [ProfileScreen] showLocationSheet - current formData.location:', formData.location);
+    console.log(
+      '🗺️ [ProfileScreen] showLocationSheet - current formData.location:',
+      formData.location,
+    );
     setShowLocationDrawer(true);
     setSelectedLocationData(null); // Reset selected location when opening
 
@@ -1254,7 +1284,7 @@ export function ProfileScreen() {
     locationBackdropOpacityShared.value = withTiming(1, { duration: 300 });
     currentLocationState.value = locationSnapPoints.large;
     setCurrentLocationSnapPoint(locationSnapPoints.large);
-    
+
     // Also update old animation refs for compatibility
     Animated.timing(locationBackdropOpacity, {
       toValue: 1,
@@ -1271,7 +1301,10 @@ export function ProfileScreen() {
 
   const hideLocationSheet = () => {
     console.log('🗺️ [ProfileScreen] hideLocationSheet - Closing location modal');
-    console.log('🗺️ [ProfileScreen] hideLocationSheet - final formData.location:', formData.location);
+    console.log(
+      '🗺️ [ProfileScreen] hideLocationSheet - final formData.location:',
+      formData.location,
+    );
     setSelectedLocationData(null); // Reset selected location when closing
 
     // Use the new reanimated shared values
@@ -1281,7 +1314,7 @@ export function ProfileScreen() {
       stiffness: 100,
     });
     locationBackdropOpacityShared.value = withTiming(0, { duration: 300 });
-    
+
     // Also update old animation refs for compatibility
     Animated.timing(locationBackdropOpacity, {
       toValue: 0,
@@ -3146,7 +3179,7 @@ export function ProfileScreen() {
                     {language === 'sv' ? 'Medlem sedan' : 'Joined'}{' '}
                     {new Date(profile.created_at).toLocaleDateString(
                       language === 'sv' ? 'sv-SE' : 'en-US',
-                      { year: 'numeric', month: 'long', day: 'numeric' }
+                      { year: 'numeric', month: 'long', day: 'numeric' },
                     )}
                   </Text>
                 )}
@@ -3385,8 +3418,14 @@ export function ProfileScreen() {
                           '🗺️ [ProfileScreen] DropdownButton pressed - current location:',
                           formData.location,
                         );
-                        console.log('🗺️ [ProfileScreen] DropdownButton - profile.preferred_city:', (profile as any)?.preferred_city);
-                        console.log('🗺️ [ProfileScreen] DropdownButton - profile.location:', profile?.location);
+                        console.log(
+                          '🗺️ [ProfileScreen] DropdownButton - profile.preferred_city:',
+                          (profile as any)?.preferred_city,
+                        );
+                        console.log(
+                          '🗺️ [ProfileScreen] DropdownButton - profile.location:',
+                          profile?.location,
+                        );
                         // Don't search if we already have a location - just open the sheet
                         // Only search for nearby locations if no location is set
                         if (!formData.location) {
@@ -3412,18 +3451,18 @@ export function ProfileScreen() {
                   <Text size="sm" fontWeight="400" color="$color">
                     {t('profile.roleLabel') || (language === 'sv' ? 'Roll' : 'Role')}
                   </Text>
-                  <DropdownButton
-                    onPress={showRoleSheet}
-                    value={
-                      formData.role === 'student'
-                        ? t('profile.roles.student')
-                        : formData.role === 'instructor'
-                          ? t('profile.roles.instructor')
-                          : t('profile.roles.school')
-                    }
-                    placeholder={t('profile.selectRole') || 'Select Role'}
-                    isActive={showRoleModal}
-                  />
+                <DropdownButton
+                  onPress={showRoleSheet}
+                  value={
+                    formData.role === 'student'
+                      ? t('profile.roles.student')
+                      : formData.role === 'instructor'
+                        ? t('profile.roles.instructor')
+                        : t('profile.roles.school')
+                  }
+                  placeholder={t('profile.selectRole') || 'Select Role'}
+                  isActive={showRoleModal}
+                />
                 </YStack>
 
                 <YStack gap="$2">
@@ -3433,34 +3472,34 @@ export function ProfileScreen() {
                       language === 'sv' ? 'Erfarenhetsnivå' : 'Experience Level',
                     )}
                   </Text>
-                  <DropdownButton
-                    onPress={showExperienceSheet}
-                    value={
-                      formData.experience_level === 'beginner'
-                        ? t('profile.experienceLevels.beginner')
-                        : formData.experience_level === 'intermediate'
-                          ? t('profile.experienceLevels.intermediate')
-                          : t('profile.experienceLevels.advanced')
-                    }
+                <DropdownButton
+                  onPress={showExperienceSheet}
+                  value={
+                    formData.experience_level === 'beginner'
+                      ? t('profile.experienceLevels.beginner')
+                      : formData.experience_level === 'intermediate'
+                        ? t('profile.experienceLevels.intermediate')
+                        : t('profile.experienceLevels.advanced')
+                  }
                     placeholder={
                       t('profile.selectExperience') || language === 'sv'
                         ? 'Välj erfarenhetsnivå'
                         : 'Select Experience Level'
                     }
-                    isActive={showExperienceModal}
-                  />
+                  isActive={showExperienceModal}
+                />
                 </YStack>
 
                 <YStack gap="$2">
                   <Text size="sm" fontWeight="400" color="$color">
                     {t('profile.languageLabel') || (language === 'sv' ? 'Språk' : 'Language')}
                   </Text>
-                  <DropdownButton
-                    onPress={showLanguageSheet}
-                    value={LANGUAGE_LABELS[language]}
-                    placeholder={t('profile.selectLanguage') || 'Select Language'}
-                    isActive={showLanguageModal}
-                  />
+                <DropdownButton
+                  onPress={showLanguageSheet}
+                  value={LANGUAGE_LABELS[language]}
+                  placeholder={t('profile.selectLanguage') || 'Select Language'}
+                  isActive={showLanguageModal}
+                />
                 </YStack>
 
                 {/* Notification Settings */}
@@ -3478,14 +3517,14 @@ export function ProfileScreen() {
                     <Text size="sm" fontWeight="400" color="$color">
                       {t('profile.themeLabel') || (language === 'sv' ? 'Tema' : 'Theme')}
                     </Text>
-                    <DropdownButton
-                      onPress={showThemeSheet}
+                  <DropdownButton
+                    onPress={showThemeSheet}
                       value={
                         t('profile.themeSettings') ||
                         (language === 'sv' ? 'Temainställningar' : 'Theme Settings')
                       }
                       placeholder={language === 'sv' ? 'Temainställningar' : 'Theme Settings'}
-                    />
+                  />
                   </YStack>
                 </YStack>
 
@@ -5552,7 +5591,10 @@ export function ProfileScreen() {
                   <TouchableOpacity
                     onPress={async () => {
                       try {
-                      console.log('🗺️ [ProfileScreen] Clear Location pressed - clearing:', formData.location);
+                      console.log(
+                        '🗺️ [ProfileScreen] Clear Location pressed - clearing:',
+                        formData.location,
+                      );
                         // Immediately clear form data
                         setFormData((prev) => ({
                           ...prev,
@@ -5561,27 +5603,31 @@ export function ProfileScreen() {
                           location_lng: null,
                         }));
 
-                        // Immediately clear from database profile (ALL location fields including preferred_city)
+                      // Immediately clear from database profile (ALL location fields including preferred_city)
                         if (user) {
-                          console.log('🗺️ [ProfileScreen] Clearing ALL location fields from database...');
-                          const { error } = await supabase
-                            .from('profiles')
-                            .update({
-                              location: null,
+                        console.log(
+                          '🗺️ [ProfileScreen] Clearing ALL location fields from database...',
+                        );
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({
+                            location: null,
                             location_lat: null,
                             location_lng: null,
-                              preferred_city: null,
-                              preferred_city_coords: null,
-                            })
-                            .eq('id', user.id);
+                            preferred_city: null,
+                            preferred_city_coords: null,
+                          })
+                          .eq('id', user.id);
 
-                          if (error) {
-                            console.error('🗺️ [ProfileScreen] Error clearing location:', error);
-                          } else {
-                            console.log('🗺️ [ProfileScreen] ✅ All location fields cleared from database');
-                            // Refresh profile to get updated data
-                            await refreshProfile();
-                          }
+                        if (error) {
+                          console.error('🗺️ [ProfileScreen] Error clearing location:', error);
+                        } else {
+                          console.log(
+                            '🗺️ [ProfileScreen] ✅ All location fields cleared from database',
+                          );
+                          // Refresh profile to get updated data
+                          await refreshProfile();
+                        }
                         }
 
                         // Clear from LocationContext
@@ -5596,7 +5642,7 @@ export function ProfileScreen() {
                       // Clear search results and selected location
                         setLocationSearchResults([]);
                       setSelectedLocationData(null);
-                      
+
                       console.log('🗺️ [ProfileScreen] Location cleared successfully');
 
                         showToast({
@@ -5606,7 +5652,7 @@ export function ProfileScreen() {
                           (language === 'sv' ? 'Plats rensad' : 'Location cleared'),
                           type: 'success',
                         });
-                      
+
                       hideLocationSheet();
                       } catch (error) {
                       console.error('🗺️ [ProfileScreen] Error clearing location:', error);
@@ -5637,21 +5683,26 @@ export function ProfileScreen() {
             </YStack>
 
             {/* Scrollable Body */}
-            <ScrollView 
-              style={{ 
-                flex: 1,
-                maxHeight: selectedLocationData ? height * 0.5 : height * 0.7 
-              }} 
-              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
-              showsVerticalScrollIndicator={true}
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ flex: 1 }}
+              keyboardVerticalOffset={0}
             >
-              <YStack gap="$3">
+              <ScrollView
+                style={{
+                  flex: 1,
+                  maxHeight: selectedLocationData ? height * 0.5 : height * 0.7,
+                }}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+                showsVerticalScrollIndicator={true}
+              >
+                <YStack gap="$3">
                 <FormField
                   placeholder={
                     t('profile.location.searchPlaceholder') ||
-                    (language === 'sv'
-                      ? "Sök städer... (prova 'Stockholm', 'Göteborg', etc.)"
-                      : "Search cities... (try 'Stockholm', 'New York', etc.)")
+                      (language === 'sv'
+                        ? "Sök städer... (prova 'Stockholm', 'Göteborg', etc.)"
+                        : "Search cities... (try 'Stockholm', 'New York', etc.)")
                   }
                   value={formData.location}
                   onChangeText={handleLocationSearch}
@@ -5678,31 +5729,38 @@ export function ProfileScreen() {
                         .filter(Boolean)
                         .join(', ');
 
-                    const isSelected =
-                      selectedLocationData &&
-                      selectedLocationData.coords?.latitude === locationData.coords?.latitude &&
-                      selectedLocationData.coords?.longitude === locationData.coords?.longitude;
+                      const isSelected =
+                        selectedLocationData &&
+                        selectedLocationData.coords?.latitude === locationData.coords?.latitude &&
+                        selectedLocationData.coords?.longitude === locationData.coords?.longitude;
 
                       return (
                         <TouchableOpacity
                           key={index}
-                        onPress={() => {
-                          console.log(
-                            '🗺️ [ProfileScreen] Location item clicked:',
-                            locationName,
-                            'coords:',
-                            locationData.coords,
-                          );
-                          setSelectedLocationData(locationData);
-                          console.log('🗺️ [ProfileScreen] Selected location data set to:', locationData);
-                          console.log('🗺️ [ProfileScreen] ✅ Save button should NOW BE VISIBLE at the bottom!');
-                        }}
+                          onPress={() => {
+                            console.log(
+                              '🗺️ [ProfileScreen] Location item clicked:',
+                              locationName,
+                              'coords:',
+                              locationData.coords,
+                            );
+                            setSelectedLocationData(locationData);
+                            console.log(
+                              '🗺️ [ProfileScreen] Selected location data set to:',
+                              locationData,
+                            );
+                            console.log(
+                              '🗺️ [ProfileScreen] ✅ Save button should NOW BE VISIBLE at the bottom!',
+                            );
+                          }}
                           style={[
                             styles.sheetOption,
                             {
-                            backgroundColor: isSelected ? 'rgba(52, 211, 153, 0.1)' : 'transparent',
-                            borderWidth: isSelected ? 1 : 0,
-                            borderColor: isSelected ? '#34D399' : 'transparent',
+                              backgroundColor: isSelected
+                                  ? 'rgba(52, 211, 153, 0.1)'
+                                  : 'transparent',
+                              borderWidth: isSelected ? 1 : 0,
+                              borderColor: isSelected ? '#34D399' : 'transparent',
                             },
                           ]}
                         >
@@ -5710,10 +5768,10 @@ export function ProfileScreen() {
                             <Feather
                               name="map-pin"
                               size={16}
-                            color={isSelected ? '#34D399' : '#666'}
+                              color={isSelected ? '#34D399' : '#666'}
                             />
                             <YStack flex={1}>
-                            <Text color={isSelected ? '#34D399' : '$color'} size="lg">
+                              <Text color={isSelected ? '#34D399' : '$color'} size="lg">
                                 {locationName}
                               </Text>
                               <Text size="sm" color="$gray11">
@@ -5721,14 +5779,15 @@ export function ProfileScreen() {
                                 {locationData.coords?.longitude.toFixed(4)}
                               </Text>
                             </YStack>
-                          {isSelected && <Feather name="check" size={16} color="#34D399" />}
+                            {isSelected && <Feather name="check" size={16} color="#34D399" />}
                           </XStack>
                         </TouchableOpacity>
                       );
                     })}
-                </YStack>
+                  </YStack>
                   </YStack>
                 </ScrollView>
+            </KeyboardAvoidingView>
 
             {/* Fixed Footer - Save Button */}
             {selectedLocationData ? (
@@ -5764,7 +5823,11 @@ export function ProfileScreen() {
                 </Button>
               </YStack>
             ) : (
-              <View onLayout={() => console.log('🗺️ [ProfileScreen] ⚠️ NO selectedLocationData - button NOT rendered')} />
+              <View
+                onLayout={() =>
+                  console.log('🗺️ [ProfileScreen] ⚠️ NO selectedLocationData - button NOT rendered')
+                }
+              />
             )}
           </YStack>
         </ReanimatedAnimated.View>
@@ -6732,11 +6795,11 @@ export function ProfileScreen() {
 
                 <YStack gap="$2">
                   {/* System Default */}
-                  <RadioButton
-                    onPress={async () => {
-                      try {
-                        await updateProfile({ theme_preference: 'system' });
-                        showToast({
+                    <RadioButton
+                      onPress={async () => {
+                        try {
+                          await updateProfile({ theme_preference: 'system' });
+                          showToast({
                           title: getTranslation(
                             'common.success',
                             language === 'sv' ? 'Lyckades' : 'Success',
@@ -6745,11 +6808,11 @@ export function ProfileScreen() {
                             'profile.theme.updated',
                             language === 'sv' ? 'Tema uppdaterat' : 'Theme updated',
                           ),
-                          type: 'success',
-                        });
-                        hideThemeSheet();
-                      } catch (error) {
-                        showToast({
+                            type: 'success',
+                          });
+                          hideThemeSheet();
+                        } catch (error) {
+                          showToast({
                           title: getTranslation(
                             'common.error',
                             language === 'sv' ? 'Fel' : 'Error',
@@ -6760,10 +6823,10 @@ export function ProfileScreen() {
                               ? 'Kunde inte uppdatera tema'
                               : 'Failed to update theme',
                           ),
-                          type: 'error',
-                        });
-                      }
-                    }}
+                            type: 'error',
+                          });
+                        }
+                      }}
                     title={getTranslation(
                       'profile.theme.system',
                       language === 'sv' ? 'Systemstandard' : 'System Default',
@@ -6778,11 +6841,11 @@ export function ProfileScreen() {
                   />
 
                   {/* Light Mode */}
-                  <RadioButton
-                    onPress={async () => {
-                      try {
-                        await updateProfile({ theme_preference: 'light' });
-                        showToast({
+                    <RadioButton
+                      onPress={async () => {
+                        try {
+                          await updateProfile({ theme_preference: 'light' });
+                          showToast({
                           title: getTranslation(
                             'common.success',
                             language === 'sv' ? 'Lyckades' : 'Success',
@@ -6791,11 +6854,11 @@ export function ProfileScreen() {
                             'profile.theme.updated',
                             language === 'sv' ? 'Tema uppdaterat' : 'Theme updated',
                           ),
-                          type: 'success',
-                        });
-                        hideThemeSheet();
-                      } catch (error) {
-                        showToast({
+                            type: 'success',
+                          });
+                          hideThemeSheet();
+                        } catch (error) {
+                          showToast({
                           title: getTranslation(
                             'common.error',
                             language === 'sv' ? 'Fel' : 'Error',
@@ -6806,10 +6869,10 @@ export function ProfileScreen() {
                               ? 'Kunde inte uppdatera tema'
                               : 'Failed to update theme',
                           ),
-                          type: 'error',
-                        });
-                      }
-                    }}
+                            type: 'error',
+                          });
+                        }
+                      }}
                     title={getTranslation(
                       'profile.theme.light',
                       language === 'sv' ? 'Ljust läge' : 'Light Mode',
@@ -6824,11 +6887,11 @@ export function ProfileScreen() {
                   />
 
                   {/* Dark Mode */}
-                  <RadioButton
-                    onPress={async () => {
-                      try {
-                        await updateProfile({ theme_preference: 'dark' });
-                        showToast({
+                    <RadioButton
+                      onPress={async () => {
+                        try {
+                          await updateProfile({ theme_preference: 'dark' });
+                          showToast({
                           title: getTranslation(
                             'common.success',
                             language === 'sv' ? 'Lyckades' : 'Success',
@@ -6837,11 +6900,11 @@ export function ProfileScreen() {
                             'profile.theme.updated',
                             language === 'sv' ? 'Tema uppdaterat' : 'Theme updated',
                           ),
-                          type: 'success',
-                        });
-                        hideThemeSheet();
-                      } catch (error) {
-                        showToast({
+                            type: 'success',
+                          });
+                          hideThemeSheet();
+                        } catch (error) {
+                          showToast({
                           title: getTranslation(
                             'common.error',
                             language === 'sv' ? 'Fel' : 'Error',
@@ -6852,10 +6915,10 @@ export function ProfileScreen() {
                               ? 'Kunde inte uppdatera tema'
                               : 'Failed to update theme',
                           ),
-                          type: 'error',
-                        });
-                      }
-                    }}
+                            type: 'error',
+                          });
+                        }
+                      }}
                     title={getTranslation(
                       'profile.theme.dark',
                       language === 'sv' ? 'Mörkt läge' : 'Dark Mode',

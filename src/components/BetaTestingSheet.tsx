@@ -10,6 +10,7 @@ import {
   Pressable,
   Image,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Text, XStack, YStack, useTheme, Card } from 'tamagui';
 import { Button } from './Button';
@@ -148,14 +149,20 @@ export function BetaTestingSheet({
         field,
         translationKey,
         language,
-        fallback: field === 'title' ? item.label : item.description
+        fallback: field === 'title' ? item.label : item.description,
       });
-      const translated = getTranslation(translationKey, field === 'title' ? item.label : item.description);
+      const translated = getTranslation(
+        translationKey,
+        field === 'title' ? item.label : item.description,
+      );
       console.log('🌍 [BetaTestingSheet] Translation result:', translated);
       return translated;
     }
     // Fallback to original text if parsing fails
-    console.log('🌍 [BetaTestingSheet] Translation parsing failed, using fallback:', field === 'title' ? item.label : item.description);
+    console.log(
+      '🌍 [BetaTestingSheet] Translation parsing failed, using fallback:',
+      field === 'title' ? item.label : item.description,
+    );
     return field === 'title' ? item.label : item.description;
   };
 
@@ -286,7 +293,9 @@ export function BetaTestingSheet({
   });
   const [feedbackMedia, setFeedbackMedia] = useState<mediaUtils.MediaItem[]>([]);
   const [uploadingFeedback, setUploadingFeedback] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(
+    null,
+  );
 
   // Pricing form state
   const [pricingForm, setPricingForm] = useState({
@@ -347,12 +356,12 @@ export function BetaTestingSheet({
             playsInSilentModeIOS: true,
             staysActiveInBackground: false,
           });
-          const { sound } = await Audio.Sound.createAsync(
-            require('../../assets/voice-intro.mp3'),
-            { shouldPlay: true, volume: 1.0 }
-          );
+          const { sound } = await Audio.Sound.createAsync(require('../../assets/voice-intro.mp3'), {
+            shouldPlay: true,
+            volume: 1.0,
+          });
           audioSoundRef.current = sound;
-          
+
           sound.setOnPlaybackStatusUpdate((status) => {
             if (status.isLoaded) {
               if (status.didJustFinish) {
@@ -575,7 +584,8 @@ export function BetaTestingSheet({
         {
           id: 'document_usability',
           title: 'Document general usability issues',
-          description: 'Note any confusing UI elements, unclear instructions, or usability problems',
+          description:
+            'Note any confusing UI elements, unclear instructions, or usability problems',
           order: 6,
         },
       ],
@@ -622,12 +632,19 @@ export function BetaTestingSheet({
   };
 
   // Load checklist items from database
-  const loadChecklistItems = async (roleToView: 'student' | 'supervisor' | 'other' = viewingRole) => {
+  const loadChecklistItems = async (
+    roleToView: 'student' | 'supervisor' | 'other' = viewingRole,
+  ) => {
     if (!user?.id) return;
 
     try {
       setChecklistLoading(true);
-      console.log('🔍 [BetaTestingSheet] Loading checklist items for user:', user.id, 'viewing role:', roleToView);
+      console.log(
+        '🔍 [BetaTestingSheet] Loading checklist items for user:',
+        user.id,
+        'viewing role:',
+        roleToView,
+      );
 
       // Get user's role from profile (this is the actual user role, not the viewing role)
       const { data: profile } = await supabase
@@ -637,7 +654,12 @@ export function BetaTestingSheet({
         .single();
 
       const userRole = profile?.role || 'student';
-      console.log('🔍 [BetaTestingSheet] User role from profile:', userRole, 'Viewing role:', roleToView);
+      console.log(
+        '🔍 [BetaTestingSheet] User role from profile:',
+        userRole,
+        'Viewing role:',
+        roleToView,
+      );
 
       // Load assignments for this specific user filtered by the viewing role
       const { data: assignments, error } = await supabase
@@ -761,7 +783,7 @@ export function BetaTestingSheet({
             const existing = itemsMap.get(key);
             const existingDate = existing.completedAt || existing.createdAt;
             const newDate = assignment.completed_at || assignment.created_at;
-            
+
             // Prefer completed items, or more recent if both completed or both not completed
             if (
               (assignment.is_completed && !existing.completed) ||
@@ -782,9 +804,14 @@ export function BetaTestingSheet({
           }
         });
 
-        const itemsWithStatus = Array.from(itemsMap.values()).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+        const itemsWithStatus = Array.from(itemsMap.values()).sort(
+          (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0),
+        );
 
-        console.log('🔍 [BetaTestingSheet] New assignments created (deduplicated):', itemsWithStatus);
+        console.log(
+          '🔍 [BetaTestingSheet] New assignments created (deduplicated):',
+          itemsWithStatus,
+        );
         setChecklistItems(itemsWithStatus);
         return;
       }
@@ -812,7 +839,7 @@ export function BetaTestingSheet({
           const existing = itemsMap.get(key);
           const existingDate = existing.completedAt || existing.createdAt;
           const newDate = assignment.completed_at || assignment.created_at;
-          
+
           // Prefer completed items, or more recent if both completed or both not completed
           if (
             (assignment.is_completed && !existing.completed) ||
@@ -833,11 +860,13 @@ export function BetaTestingSheet({
         }
       });
 
-      const itemsWithStatus = Array.from(itemsMap.values()).sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+      const itemsWithStatus = Array.from(itemsMap.values()).sort(
+        (a, b) => (a.orderIndex || 0) - (b.orderIndex || 0),
+      );
 
       console.log('🔍 [BetaTestingSheet] Final checklist items (deduplicated):', itemsWithStatus);
       setChecklistItems(itemsWithStatus);
-      
+
       // Check for celebration if all items completed
       const allCompleted = itemsWithStatus.every((item) => item.completed);
       if (allCompleted && itemsWithStatus.length > 0 && user?.id) {
@@ -853,7 +882,7 @@ export function BetaTestingSheet({
                 });
                 const { sound } = await Audio.Sound.createAsync(
                   require('../../assets/sounds/ui-celebration.mp3'),
-                  { shouldPlay: true, volume: 0.6 }
+                  { shouldPlay: true, volume: 0.6 },
                 );
                 sound.setOnPlaybackStatusUpdate((status) => {
                   if (status.isLoaded && status.didJustFinish) {
@@ -864,16 +893,16 @@ export function BetaTestingSheet({
                 console.log('🔊 Celebration error:', error);
               }
             };
-            
+
             playCelebration();
-            
+
             // Use showToast instead of showCelebration since we're not in CelebrationProvider context
             showToast({
               title: '🎉 Beta Testing Complete!',
               message: 'Thank you for completing all testing tasks!',
               type: 'success',
             });
-            
+
             AsyncStorage.setItem(checkKey, 'true');
           }
         });
@@ -1192,7 +1221,7 @@ export function BetaTestingSheet({
 
     try {
       setUploadingFeedback(true);
-      
+
       // Upload media files first
       let mediaUrls: string[] = [];
       if (feedbackMedia.length > 0) {
@@ -1202,7 +1231,7 @@ export function BetaTestingSheet({
           const mediaItem = feedbackMedia[i];
           try {
             setUploadProgress({ current: i + 1, total: feedbackMedia.length });
-            
+
             const publicUrl = await mediaUtils.uploadMediaToSupabase(
               mediaItem,
               'beta-test-images',
@@ -1216,7 +1245,7 @@ export function BetaTestingSheet({
             // Continue with other files even if one fails
           }
         }
-        
+
         setUploadProgress(null);
       }
 
@@ -1352,7 +1381,8 @@ export function BetaTestingSheet({
 
       showToast({
         title: 'Thank You!',
-        message: 'Your pricing feedback has been saved and will help us set the right price for Vromm.',
+        message:
+          'Your pricing feedback has been saved and will help us set the right price for Vromm.',
         type: 'success',
       });
 
@@ -1439,7 +1469,7 @@ export function BetaTestingSheet({
         <Text fontSize="$6" fontWeight="700" color={textColor}>
           {getTranslation(
             'beta.testingChecklist',
-            language === 'sv' ? 'Testchecklista' : 'Testing Checklist'
+            language === 'sv' ? 'Testchecklista' : 'Testing Checklist',
           )}
         </Text>
         <Text fontSize="$4" color={textColor} opacity={0.7}>
@@ -1447,17 +1477,17 @@ export function BetaTestingSheet({
             'beta.completeTasks',
             language === 'sv'
               ? 'Slutför dessa uppgifter för att hjälpa oss testa Vromm effektivt:'
-              : 'Complete these tasks to help us test Vromm effectively:'
+              : 'Complete these tasks to help us test Vromm effectively:',
           )}
         </Text>
-        
+
         {/* Role selector for checklist view */}
         <Card padding="$3" backgroundColor={`${primaryColor}10`} marginTop="$2">
           <YStack gap="$2">
             <Text fontSize="$3" fontWeight="600" color={textColor} opacity={0.8}>
               {getTranslation(
                 'beta.selectChecklist',
-                language === 'sv' ? 'Välj checklista att visa:' : 'Select checklist to view:'
+                language === 'sv' ? 'Välj checklista att visa:' : 'Select checklist to view:',
               )}
             </Text>
             <XStack gap="$2" flexWrap="wrap">
@@ -1512,7 +1542,10 @@ export function BetaTestingSheet({
                   fontWeight={viewingRole === 'supervisor' ? '600' : '500'}
                   color={viewingRole === 'supervisor' ? '#000000' : textColor}
                 >
-                  {getTranslation('beta.supervisor', language === 'sv' ? 'Handledare' : 'Supervisor')}
+                  {getTranslation(
+                    'beta.supervisor',
+                    language === 'sv' ? 'Handledare' : 'Supervisor',
+                  )}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1541,7 +1574,7 @@ export function BetaTestingSheet({
                 >
                   {getTranslation(
                     'beta.other',
-                    language === 'sv' ? 'Annat / Stresstest' : 'Other / Stress Test'
+                    language === 'sv' ? 'Annat / Stresstest' : 'Other / Stress Test',
                   )}
                 </Text>
               </TouchableOpacity>
@@ -1612,7 +1645,11 @@ export function BetaTestingSheet({
                     )}
                     {item.completed && item.completedAt && (
                       <Text fontSize="$2" color={primaryColor} opacity={0.8}>
-                        {getTranslation('beta.completed', language === 'sv' ? 'Slutförd' : 'Completed')}: {new Date(item.completedAt).toLocaleDateString()}
+                        {getTranslation(
+                          'beta.completed',
+                          language === 'sv' ? 'Slutförd' : 'Completed',
+                        )}
+                        : {new Date(item.completedAt).toLocaleDateString()}
                       </Text>
                     )}
                   </YStack>
@@ -1647,10 +1684,10 @@ export function BetaTestingSheet({
         {user && !feedbackForm.name && (
           <TouchableOpacity
             onPress={() => {
-              const newForm = { 
-                ...feedbackForm, 
+              const newForm = {
+                ...feedbackForm,
                 name: user.email?.split('@')[0] || 'User',
-                email: user.email || ''
+                email: user.email || '',
               };
               setFeedbackForm(newForm);
               saveFeedback(newForm);
@@ -1670,14 +1707,16 @@ export function BetaTestingSheet({
             </Text>
           </TouchableOpacity>
         )}
-        
+
         <YStack position="relative">
           <YStack gap="$1">
             <XStack alignItems="center" gap="$1">
               <Text fontSize="$3" fontWeight="600" color={textColor}>
                 Your name
               </Text>
-              <Text fontSize="$3" color="#EF4444">*</Text>
+              <Text fontSize="$3" color="#EF4444">
+                *
+              </Text>
             </XStack>
             <FormField
               placeholder="Your name"
@@ -1727,7 +1766,9 @@ export function BetaTestingSheet({
             <Text fontSize="$4" fontWeight="600" color={textColor}>
               Rate your experience (1-5 stars)
             </Text>
-            <Text fontSize="$4" color="#EF4444">*</Text>
+            <Text fontSize="$4" color="#EF4444">
+              *
+            </Text>
           </XStack>
           {feedbackForm.rating === 0 && (
             <View
@@ -1817,7 +1858,9 @@ export function BetaTestingSheet({
               <Text fontSize="$3" fontWeight="600" color={textColor}>
                 Your detailed feedback
               </Text>
-              <Text fontSize="$3" color="#EF4444">*</Text>
+              <Text fontSize="$3" color="#EF4444">
+                *
+              </Text>
             </XStack>
             <FormField
               placeholder="Your detailed feedback..."
@@ -1946,8 +1989,8 @@ export function BetaTestingSheet({
           </Card>
         )}
 
-        <Button 
-          variant="primary" 
+        <Button
+          variant="primary"
           onPress={submitFeedback}
           disabled={uploadingFeedback || uploadProgress !== null}
         >
@@ -1972,10 +2015,10 @@ export function BetaTestingSheet({
         {user && !pricingForm.name && (
           <TouchableOpacity
             onPress={() => {
-              const newForm = { 
-                ...pricingForm, 
+              const newForm = {
+                ...pricingForm,
                 name: user.email?.split('@')[0] || 'User',
-                email: user.email || ''
+                email: user.email || '',
               };
               setPricingForm(newForm);
               savePricing(newForm);
@@ -2001,7 +2044,9 @@ export function BetaTestingSheet({
             <Text fontSize="$3" fontWeight="600" color={textColor}>
               Your name
             </Text>
-            <Text fontSize="$3" color="#EF4444">*</Text>
+            <Text fontSize="$3" color="#EF4444">
+              *
+            </Text>
           </XStack>
           <FormField
             placeholder="Your name"
@@ -2061,7 +2106,9 @@ export function BetaTestingSheet({
             <Text fontSize="$3" fontWeight="600" color={textColor}>
               Suggested price for Vromm
             </Text>
-            <Text fontSize="$3" color="#EF4444">*</Text>
+            <Text fontSize="$3" color="#EF4444">
+              *
+            </Text>
           </XStack>
           <FormField
             placeholder="What would you be willing to pay for Vromm? (e.g., 99 SEK/month)"
@@ -2250,7 +2297,9 @@ export function BetaTestingSheet({
             <Text fontSize="$3" fontWeight="600" color={textColor}>
               Explain your reasoning
             </Text>
-            <Text fontSize="$3" color="#EF4444">*</Text>
+            <Text fontSize="$3" color="#EF4444">
+              *
+            </Text>
           </XStack>
           <FormField
             placeholder="Explain your reasoning for the suggested price..."
@@ -2312,11 +2361,7 @@ export function BetaTestingSheet({
             marginBottom: 16,
           }}
         >
-          <Feather 
-            name={isAudioPlaying ? "pause" : "play"} 
-            size={32} 
-            color="#000" 
-          />
+          <Feather name={isAudioPlaying ? 'pause' : 'play'} size={32} color="#000" />
         </TouchableOpacity>
         <Text fontSize="$5" fontWeight="600" color={textColor} marginTop="$2">
           Welcome Message
@@ -2446,13 +2491,15 @@ export function BetaTestingSheet({
                     <Text fontSize="$6" fontWeight="700" color={textColor}>
                       {getTranslation(
                         'beta.title',
-                        language === 'sv' ? 'Betatestning' : 'Beta Testing'
+                        language === 'sv' ? 'Betatestning' : 'Beta Testing',
                       )}
                     </Text>
                     <Text fontSize="$3" color={textColor} opacity={0.7}>
                       {getTranslation(
                         'beta.subtitle',
-                        language === 'sv' ? 'Hjälp oss att perfekta Vromm' : 'Help us perfect Vromm'
+                        language === 'sv'
+                          ? 'Hjälp oss att perfekta Vromm'
+                          : 'Help us perfect Vromm',
                       )}
                     </Text>
                   </YStack>
@@ -2465,13 +2512,19 @@ export function BetaTestingSheet({
                 {renderTabs()}
 
                 {/* Content */}
-                <ScrollView
-                  showsVerticalScrollIndicator={false}
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                   style={{ flex: 1 }}
-                  contentContainerStyle={{ paddingBottom: 40 + BOTTOM_INSET }}
+                  keyboardVerticalOffset={0}
                 >
-                  {renderTabContent()}
-                </ScrollView>
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ paddingBottom: 40 + BOTTOM_INSET }}
+                  >
+                    {renderTabContent()}
+                  </ScrollView>
+                </KeyboardAvoidingView>
               </View>
             )}
           </YStack>

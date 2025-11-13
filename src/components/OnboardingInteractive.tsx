@@ -14,6 +14,8 @@ import {
   Easing,
   Pressable,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -256,6 +258,7 @@ export function OnboardingInteractive({
   const [showDatePopover, setShowDatePopover] = useState(false);
   const [selectedDateOption, setSelectedDateOption] = useState<string>('6months'); // Track which date option is selected
   const dateButtonRef = useRef<any>(null);
+  const licenseDetailsScrollViewRef = useRef<any>(null);
 
   // License plan additional fields (from LicensePlanScreen.tsx)
   const [hasTheory, setHasTheory] = useState<boolean>(() => {
@@ -1173,7 +1176,10 @@ export function OnboardingInteractive({
             .eq('id', user.id);
 
           if (error) {
-            console.error('🗺️ [OnboardingInteractive] Error saving detected location to profile:', error);
+            console.error(
+              '🗺️ [OnboardingInteractive] Error saving detected location to profile:',
+              error,
+            );
           } else {
             console.log('✅ [OnboardingInteractive] Detected location saved to profile:', {
               cityName,
@@ -1681,7 +1687,7 @@ export function OnboardingInteractive({
       if (user) {
         // Update profile to remove avatar using AuthContext's updateProfile
         await updateProfile({ avatar_url: null });
-        
+
         setAvatarUrl('');
 
         showToast({
@@ -2263,7 +2269,7 @@ export function OnboardingInteractive({
   const renderProfileSetupStep = (item: OnboardingStep) => {
     return (
       <View style={{ width, flex: 1 }}>
-        {/* Fixed Header */}
+        {/* Fixed Header - Outside KeyboardAvoidingView */}
         <YStack
           paddingTop={insets.top + 12}
           paddingHorizontal="$4"
@@ -2310,113 +2316,120 @@ export function OnboardingInteractive({
           </YStack>
         </YStack>
 
-        {/* Scrollable Content */}
-        <ScrollView
+        {/* Scrollable Content - Let keyboard push this up, footer can be covered */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingTop: 20,
-            paddingBottom: 20,
-          }}
-          showsVerticalScrollIndicator={false}
-          bounces={true}
+          keyboardVerticalOffset={0}
         >
-          <YStack gap="$4" width="100%" alignItems="center">
-            {/* Avatar Section - copied from ProfileScreen.tsx */}
-            <TouchableOpacity onPress={showAvatarSheet} disabled={avatarUploading}>
-              <View style={{ position: 'relative' }}>
-                {avatarUrl ? (
-                  <Image
-                    source={{ uri: avatarUrl }}
-                    style={{
-                      width: 96,
-                      height: 96,
-                      borderRadius: 48,
-                      borderWidth: 2,
-                      borderColor: '#ccc',
-                    }}
-                  />
-                ) : (
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingTop: 20,
+              paddingBottom: 20,
+            }}
+            showsVerticalScrollIndicator={false}
+            bounces={true}
+            keyboardShouldPersistTaps="handled"
+          >
+            <YStack gap="$4" width="100%" alignItems="center">
+              {/* Avatar Section - copied from ProfileScreen.tsx */}
+              <TouchableOpacity onPress={showAvatarSheet} disabled={avatarUploading}>
+                <View style={{ position: 'relative' }}>
+                  {avatarUrl ? (
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      style={{
+                        width: 96,
+                        height: 96,
+                        borderRadius: 48,
+                        borderWidth: 2,
+                        borderColor: '#ccc',
+                      }}
+                    />
+                  ) : (
+                    <View
+                      style={{
+                        width: 96,
+                        height: 96,
+                        borderRadius: 48,
+                        backgroundColor: '#eee',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 2,
+                        borderColor: '#ccc',
+                      }}
+                    >
+                      <Feather name="user" size={48} color="#bbb" />
+                    </View>
+                  )}
+                  {/* Edit indicator overlay */}
                   <View
                     style={{
-                      width: 96,
-                      height: 96,
-                      borderRadius: 48,
-                      backgroundColor: '#eee',
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      backgroundColor: '#00E6C3',
+                      borderRadius: 12,
+                      width: 24,
+                      height: 24,
                       alignItems: 'center',
                       justifyContent: 'center',
                       borderWidth: 2,
-                      borderColor: '#ccc',
+                      borderColor: 'white',
                     }}
                   >
-                    <Feather name="user" size={48} color="#bbb" />
+                    <Feather name="edit-2" size={12} color="white" />
                   </View>
-                )}
-                {/* Edit indicator overlay */}
-                <View
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    right: 0,
-                    backgroundColor: '#00E6C3',
-                    borderRadius: 12,
-                    width: 24,
-                    height: 24,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderWidth: 2,
-                    borderColor: 'white',
-                  }}
-                >
-                  <Feather name="edit-2" size={12} color="white" />
                 </View>
-              </View>
-            </TouchableOpacity>
-            <Text size="sm" color="$gray11" textAlign="center">
-              {getTranslation(
-                'profile.avatar.tapToChange',
-                language === 'sv' ? 'Tryck för att ändra profilbild' : 'Tap to change avatar',
-              )}
-            </Text>
+              </TouchableOpacity>
+              <Text size="sm" color="$gray11" textAlign="center">
+                {getTranslation(
+                  'profile.avatar.tapToChange',
+                  language === 'sv' ? 'Tryck för att ändra profilbild' : 'Tap to change avatar',
+                )}
+              </Text>
 
-            {/* Name Input - copied from ProfileScreen.tsx */}
-            <YStack gap="$2" width="100%" marginTop="$4">
-              <FormField
-                value={fullName}
-                onChangeText={(text) => setFullName(text)}
-                onBlur={async () => {
-                  // Save name when field loses focus
-                  if (user && fullName !== profile?.full_name) {
-                    try {
-                      const { error } = await supabase
-                        .from('profiles')
-                        .update({ full_name: fullName })
-                        .eq('id', user.id);
+              {/* Name Input - copied from ProfileScreen.tsx */}
+              <YStack gap="$2" width="100%" marginTop="$4">
+                <FormField
+                  value={fullName}
+                  onChangeText={(text) => setFullName(text)}
+                  onBlur={async () => {
+                    // Save name when field loses focus
+                    if (user && fullName !== profile?.full_name) {
+                      try {
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({ full_name: fullName })
+                          .eq('id', user.id);
 
-                      if (!error) {
-                        console.log('✅ Name updated:', fullName);
-                        await refreshProfile();
+                        if (!error) {
+                          console.log('✅ Name updated:', fullName);
+                          await refreshProfile();
+                        }
+                      } catch (error) {
+                        console.error('Error saving name:', error);
                       }
-                    } catch (error) {
-                      console.error('Error saving name:', error);
                     }
-                  }
-                }}
-                placeholder={getTranslation(
-                  'profile.fullNamePlaceholder',
-                  language === 'sv' ? 'Ange ditt fullständiga namn' : 'Enter your full name',
-                )}
-                autoCapitalize="words"
-                label={getTranslation(
-                  'profile.fullName',
-                  language === 'sv' ? 'Fullständigt namn' : 'Full Name',
-                )}
-              />
+                  }}
+                  placeholder={getTranslation(
+                    'profile.fullNamePlaceholder',
+                    language === 'sv' ? 'Ange ditt fullständiga namn' : 'Enter your full name',
+                  )}
+                  autoCapitalize="words"
+                  label={getTranslation(
+                    'profile.fullName',
+                    language === 'sv' ? 'Fullständigt namn' : 'Full Name',
+                  )}
+                />
+              </YStack>
             </YStack>
-          </YStack>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
-        {/* Fixed Footer */}
+        {/* Fixed Footer - OUTSIDE KeyboardAvoidingView, can be covered by keyboard */}
         <YStack
           paddingHorizontal="$4"
           paddingTop="$3"
@@ -2819,130 +2832,153 @@ export function OnboardingInteractive({
           </YStack>
         </YStack>
 
-        {/* Scrollable Content */}
-        <ScrollView
+        {/* Scrollable Content - Let keyboard push this up, footer can be covered */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingTop: 20,
-            paddingBottom: 20,
-          }}
-          showsVerticalScrollIndicator={false}
-          bounces={true}
+          keyboardVerticalOffset={0}
         >
-          {/* License Details Fields */}
-          <YStack gap="$3" width="100%">
-            {/* Have passed theory test */}
-            <YStack gap="$2">
-              <Text size="sm" fontWeight="400" color="$color">
-                {getTranslation(
-                  'onboarding.license_details.theoryTest',
-                  language === 'sv'
-                    ? 'Har du klarat teoriprov?'
-                    : 'Have you passed the theory test?',
-                )}
-              </Text>
-              <XStack gap="$3">
-                <Button
-                  variant={hasTheory ? 'primary' : 'outlined'}
-                  size="md"
-                  flex={1}
-                  onPress={() => setHasTheory(true)}
-                >
-                  {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
-                </Button>
-                <Button
-                  variant={!hasTheory ? 'primary' : 'outlined'}
-                  size="md"
-                  flex={1}
-                  onPress={() => setHasTheory(false)}
-                >
-                  {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
-                </Button>
-              </XStack>
-            </YStack>
+          <ScrollView
+            ref={licenseDetailsScrollViewRef}
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              paddingTop: 20,
+              paddingBottom: 20,
+            }}
+            showsVerticalScrollIndicator={false}
+            bounces={true}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* License Details Fields */}
+            <YStack gap="$3" width="100%">
+              {/* Have passed theory test */}
+              <YStack gap="$2">
+                <Text size="sm" fontWeight="400" color="$color">
+                  {getTranslation(
+                    'onboarding.license_details.theoryTest',
+                    language === 'sv'
+                      ? 'Har du klarat teoriprov?'
+                      : 'Have you passed the theory test?',
+                  )}
+                </Text>
+                <XStack gap="$3">
+                  <Button
+                    variant={hasTheory ? 'primary' : 'outlined'}
+                    size="md"
+                    flex={1}
+                    onPress={() => setHasTheory(true)}
+                  >
+                    {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
+                  </Button>
+                  <Button
+                    variant={!hasTheory ? 'primary' : 'outlined'}
+                    size="md"
+                    flex={1}
+                    onPress={() => setHasTheory(false)}
+                  >
+                    {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
+                  </Button>
+                </XStack>
+              </YStack>
 
-            {/* Have passed practical test */}
-            <YStack gap="$2" marginTop="$2">
-              <Text size="sm" fontWeight="400" color="$color">
-                {getTranslation(
-                  'onboarding.license_details.practicalTest',
-                  language === 'sv'
-                    ? 'Har du klarat körprov?'
-                    : 'Have you passed the practical test?',
-                )}
-              </Text>
-              <XStack gap="$3">
-                <Button
-                  variant={hasPractice ? 'primary' : 'outlined'}
-                  size="md"
-                  flex={1}
-                  onPress={() => setHasPractice(true)}
-                >
-                  {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
-                </Button>
-                <Button
-                  variant={!hasPractice ? 'primary' : 'outlined'}
-                  size="md"
-                  flex={1}
-                  onPress={() => setHasPractice(false)}
-                >
-                  {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
-                </Button>
-              </XStack>
-            </YStack>
+              {/* Have passed practical test */}
+              <YStack gap="$2" marginTop="$2">
+                <Text size="sm" fontWeight="400" color="$color">
+                  {getTranslation(
+                    'onboarding.license_details.practicalTest',
+                    language === 'sv'
+                      ? 'Har du klarat körprov?'
+                      : 'Have you passed the practical test?',
+                  )}
+                </Text>
+                <XStack gap="$3">
+                  <Button
+                    variant={hasPractice ? 'primary' : 'outlined'}
+                    size="md"
+                    flex={1}
+                    onPress={() => setHasPractice(true)}
+                  >
+                    {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
+                  </Button>
+                  <Button
+                    variant={!hasPractice ? 'primary' : 'outlined'}
+                    size="md"
+                    flex={1}
+                    onPress={() => setHasPractice(false)}
+                  >
+                    {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
+                  </Button>
+                </XStack>
+              </YStack>
 
-            {/* Describe driving experience */}
-            <YStack gap="$2" marginTop="$2">
-              <Text size="sm" fontWeight="400" color="$color">
-                {getTranslation(
-                  'onboarding.license_details.drivingExperience',
-                  language === 'sv'
-                    ? 'Beskriv din körerfarenhet'
-                    : 'Describe your driving experience',
-                )}
-              </Text>
-              <TextArea
-                placeholder={getTranslation(
-                  'onboarding.license_details.drivingExperiencePlaceholder',
-                  language === 'sv'
-                    ? 'Berätta om din körerfarenhet...'
-                    : 'Tell us about your driving experience...',
-                )}
-                value={previousExperience}
-                onChangeText={setPreviousExperience}
-                minHeight={100}
-                numberOfLines={4}
-              />
-            </YStack>
+              {/* Describe driving experience */}
+              <YStack gap="$2" marginTop="$2">
+                <Text size="sm" fontWeight="400" color="$color">
+                  {getTranslation(
+                    'onboarding.license_details.drivingExperience',
+                    language === 'sv'
+                      ? 'Beskriv din körerfarenhet'
+                      : 'Describe your driving experience',
+                  )}
+                </Text>
+                <TextArea
+                  placeholder={getTranslation(
+                    'onboarding.license_details.drivingExperiencePlaceholder',
+                    language === 'sv'
+                      ? 'Berätta om din körerfarenhet...'
+                      : 'Tell us about your driving experience...',
+                  )}
+                  value={previousExperience}
+                  onChangeText={setPreviousExperience}
+                  onFocus={() => {
+                    setTimeout(() => {
+                      licenseDetailsScrollViewRef.current?.scrollTo({
+                        y: 250,
+                        animated: false,
+                      });
+                    }, 50);
+                  }}
+                  minHeight={100}
+                  numberOfLines={4}
+                />
+              </YStack>
 
-            {/* Goals with license */}
-            <YStack gap="$2" marginTop="$2">
-              <Text size="sm" fontWeight="400" color="$color">
-                {getTranslation(
-                  'onboarding.license_details.goals',
-                  language === 'sv'
-                    ? 'Vilka är dina mål med körkortet?'
-                    : 'What are your goals with getting a license?',
-                )}
-              </Text>
-              <TextArea
-                placeholder={getTranslation(
-                  'onboarding.license_details.goalsPlaceholder',
-                  language === 'sv'
-                    ? 'Vad vill du uppnå med ditt körkort?'
-                    : 'What do you want to achieve with your license?',
-                )}
-                value={specificGoals}
-                onChangeText={setSpecificGoals}
-                minHeight={100}
-                numberOfLines={4}
-              />
+              {/* Goals with license */}
+              <YStack gap="$2" marginTop="$2">
+                <Text size="sm" fontWeight="400" color="$color">
+                  {getTranslation(
+                    'onboarding.license_details.goals',
+                    language === 'sv'
+                      ? 'Vilka är dina mål med körkortet?'
+                      : 'What are your goals with getting a license?',
+                  )}
+                </Text>
+                <TextArea
+                  placeholder={getTranslation(
+                    'onboarding.license_details.goalsPlaceholder',
+                    language === 'sv'
+                      ? 'Vad vill du uppnå med ditt körkort?'
+                      : 'What do you want to achieve with your license?',
+                  )}
+                  value={specificGoals}
+                  onChangeText={setSpecificGoals}
+                  onFocus={() => {
+                    setTimeout(() => {
+                      licenseDetailsScrollViewRef.current?.scrollToEnd({
+                        animated: false,
+                      });
+                    }, 50);
+                  }}
+                  minHeight={100}
+                  numberOfLines={4}
+                />
+              </YStack>
             </YStack>
-          </YStack>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
 
-        {/* Fixed Footer */}
+        {/* Fixed Footer - OUTSIDE KeyboardAvoidingView, can be covered by keyboard */}
         <YStack
           paddingHorizontal="$4"
           paddingTop="$3"

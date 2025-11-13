@@ -14,14 +14,36 @@ import {
   Modal,
   Animated,
   Easing,
+  KeyboardAvoidingView,
 } from 'react-native';
-import { YStack, Form, Input, TextArea, XStack, Card, Separator, Group, Heading, useTheme } from 'tamagui';
+import {
+  YStack,
+  Form,
+  Input,
+  TextArea,
+  XStack,
+  Card,
+  Separator,
+  Group,
+  Heading,
+  useTheme,
+} from 'tamagui';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 // Navigation imports removed for sheet component
-import { Map, Waypoint, Screen, Button, Text, Header, FormField, Chip, IconButton } from '../components';
+import {
+  Map,
+  Waypoint,
+  Screen,
+  Button,
+  Text,
+  Header,
+  FormField,
+  Chip,
+  IconButton,
+} from '../components';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
@@ -117,14 +139,14 @@ interface CreateRouteSheetProps {
   isModal?: boolean;
 }
 
-// Hardcoded fallback translations for create route sheet  
+// Hardcoded fallback translations for create route sheet
 const CREATE_ROUTE_FALLBACKS = {
   en: {
     // Difficulty
     beginner: 'Beginner',
     intermediate: 'Intermediate',
     advanced: 'Advanced',
-    // Spot Type  
+    // Spot Type
     urban: 'Urban',
     highway: 'Highway',
     rural: 'Rural',
@@ -206,7 +228,8 @@ export function CreateRouteSheet({
   const finalInitialWaypoints = recordedRouteData?.waypoints || initialWaypoints;
   const finalInitialName = recordedRouteData?.name || initialName;
   const finalInitialDescription = recordedRouteData?.description || initialDescription;
-  const finalInitialSearchCoordinates = recordedRouteData?.searchCoordinates || initialSearchCoordinates;
+  const finalInitialSearchCoordinates =
+    recordedRouteData?.searchCoordinates || initialSearchCoordinates;
   const finalInitialRoutePath = recordedRouteData?.routePath || initialRoutePath;
   const finalInitialStartPoint = recordedRouteData?.startPoint || initialStartPoint;
   const finalInitialEndPoint = recordedRouteData?.endPoint || initialEndPoint;
@@ -238,19 +261,21 @@ export function CreateRouteSheet({
   }
 
   const { t, language } = useTranslation();
-  
+
   // Helper to get translation with fallback - handles both full keys and simple values
   const getT = (key: string, fallbackKey?: string): string => {
     const translation = t(key);
     // If translation returns the key itself, use hardcoded fallback
     if (translation === key) {
       const langKey = (language === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
-      const fbKey = (fallbackKey || key.split('.').pop() || key) as keyof typeof CREATE_ROUTE_FALLBACKS['en'];
+      const fbKey = (fallbackKey ||
+        key.split('.').pop() ||
+        key) as keyof (typeof CREATE_ROUTE_FALLBACKS)['en'];
       return CREATE_ROUTE_FALLBACKS[langKey][fbKey] || fallbackKey || key;
     }
     return translation;
   };
-  
+
   const { showModal } = useModal();
   const { showRouteCreatedToast, showToast } = useToast();
   const createRouteContext = useCreateRoute();
@@ -267,7 +292,7 @@ export function CreateRouteSheet({
   const colorScheme = useColorScheme();
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const searchInputRef = useRef<any>(null);
-  
+
   // Use proper theming for search results
   const theme = useTheme();
   const textColor = theme.color?.val || '#11181C';
@@ -477,7 +502,9 @@ export function CreateRouteSheet({
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const pendingToastRef = useRef<{ id: string; name: string; isEditing: boolean } | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(
+    null,
+  );
 
   // Drawing modes system - set to 'record' if coming from recorded route
   const [drawingMode, setDrawingMode] = useState<'pin' | 'waypoint' | 'pen' | 'record'>(
@@ -647,8 +674,8 @@ export function CreateRouteSheet({
 
   // Validation helpers
   const isBasicInfoComplete = formData.name.trim().length > 0;
-  
-  const isLocationComplete = 
+
+  const isLocationComplete =
     (drawingMode === 'pin' && waypoints.length > 0) ||
     (drawingMode === 'waypoint' && waypoints.length >= 2) ||
     (drawingMode === 'pen' && (penPath.length > 0 || waypoints.length > 0)) ||
@@ -782,16 +809,29 @@ export function CreateRouteSheet({
 
   // Show toast when modal is closed and we have pending toast data
   useEffect(() => {
-    console.log('🍞 [CreateRouteSheet] Toast useEffect triggered - visible:', visible, 'pendingToastRef:', pendingToastRef.current);
-    
+    console.log(
+      '🍞 [CreateRouteSheet] Toast useEffect triggered - visible:',
+      visible,
+      'pendingToastRef:',
+      pendingToastRef.current,
+    );
+
     if (!visible && pendingToastRef.current) {
       const { id, name, isEditing } = pendingToastRef.current;
-      console.log('🍞 [CreateRouteSheet] ✅ CONDITIONS MET - Modal closed, showing pending toast:', id, name);
+      console.log(
+        '🍞 [CreateRouteSheet] ✅ CONDITIONS MET - Modal closed, showing pending toast:',
+        id,
+        name,
+      );
       console.log('🍞 [CreateRouteSheet] Setting timeout for 1200ms...');
-      
+
       // Use a longer delay to ensure modal is fully unmounted and animations complete
       const timeoutId = setTimeout(() => {
-        console.log('🍞 [CreateRouteSheet] ⏰ TIMEOUT FIRED - NOW showing toast after delay:', id, name);
+        console.log(
+          '🍞 [CreateRouteSheet] ⏰ TIMEOUT FIRED - NOW showing toast after delay:',
+          id,
+          name,
+        );
         console.log('🍞 [CreateRouteSheet] Calling showRouteCreatedToast function...');
         try {
           showRouteCreatedToast(id, name, isEditing, false, () => {
@@ -805,15 +845,20 @@ export function CreateRouteSheet({
         pendingToastRef.current = null; // Clear the pending toast
         console.log('🍞 [CreateRouteSheet] Cleared pendingToastRef');
       }, 1200); // Increased from 500ms to 1200ms for smooth animation completion
-      
+
       console.log('🍞 [CreateRouteSheet] Timeout ID:', timeoutId);
-      
+
       return () => {
         console.log('🍞 [CreateRouteSheet] Cleanup - clearing timeout:', timeoutId);
         clearTimeout(timeoutId);
       };
     } else {
-      console.log('🍞 [CreateRouteSheet] ❌ Conditions NOT met - visible:', visible, 'hasPendingToast:', !!pendingToastRef.current);
+      console.log(
+        '🍞 [CreateRouteSheet] ❌ Conditions NOT met - visible:',
+        visible,
+        'hasPendingToast:',
+        !!pendingToastRef.current,
+      );
     }
   }, [visible, showRouteCreatedToast]);
 
@@ -1731,7 +1776,7 @@ export function CreateRouteSheet({
         const item = newMediaItems[i];
         try {
           setUploadProgress({ current: i + 1, total: newMediaItems.length });
-          
+
           const publicUrl = await mediaUtils.uploadMediaToSupabase(
             item,
             'media',
@@ -1750,7 +1795,7 @@ export function CreateRouteSheet({
           // Continue with other items even if one fails
         }
       }
-      
+
       setUploadProgress(null);
 
       if (uploadResults.length > 0) {
@@ -2124,19 +2169,28 @@ export function CreateRouteSheet({
       setLoading(false);
 
       // Store route data for toast - will be shown after modal unmounts
-      console.log('🍞 [CreateRouteSheet] Route saved successfully - route data:', { id: route?.id, name: route?.name, isEditing });
-      
+      console.log('🍞 [CreateRouteSheet] Route saved successfully - route data:', {
+        id: route?.id,
+        name: route?.name,
+        isEditing,
+      });
+
       if (route?.id && route?.name) {
         pendingToastRef.current = { id: route.id, name: route.name, isEditing };
         console.log('🍞 [CreateRouteSheet] ✅ SET pendingToastRef to:', pendingToastRef.current);
       } else {
-        console.error('🍞 [CreateRouteSheet] ❌ Cannot set pendingToastRef - missing route.id or route.name!', route);
+        console.error(
+          '🍞 [CreateRouteSheet] ❌ Cannot set pendingToastRef - missing route.id or route.name!',
+          route,
+        );
       }
 
       console.log('🍞 [CreateRouteSheet] Calling onClose() to close sheet...');
       // Close the create sheet
       onClose();
-      console.log('🍞 [CreateRouteSheet] onClose() called - sheet should close now and trigger toast useEffect');
+      console.log(
+        '🍞 [CreateRouteSheet] onClose() called - sheet should close now and trigger toast useEffect',
+      );
 
       // Don't call onRouteCreated to prevent navigation away from HomeScreen
       // User stays on HomeScreen with toast notification showing route was created
@@ -2559,14 +2613,19 @@ export function CreateRouteSheet({
                 }}
               />
 
-              <ScrollView
+              <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
-                scrollEnabled={drawingMode !== 'pen'}
-                showsVerticalScrollIndicator={drawingMode !== 'pen'}
+                keyboardVerticalOffset={0}
               >
-                {/* Existing Content */}
-                <YStack f={1} gap={2}>
-                  {/* <Header
+                <ScrollView
+                  style={{ flex: 1 }}
+                  scrollEnabled={drawingMode !== 'pen'}
+                  showsVerticalScrollIndicator={drawingMode !== 'pen'}
+                >
+                  {/* Existing Content */}
+                  <YStack f={1} gap={2}>
+                    {/* <Header
                     title={
                       isEditing
                         ? getTranslation(t, 'createRoute.editTitle', 'Edit Route')
@@ -2574,37 +2633,39 @@ export function CreateRouteSheet({
                     }
                     showBack={false}
                   /> */}
-                  <XStack padding="$4" gap="$2" flexWrap="wrap">
-                    <View style={{ flex: 1, position: 'relative' }}>
-                      <IconButton
-                        icon="info"
-                        label={getTranslation(t, 'createRoute.routeName', 'Route Name')}
-                        onPress={() => setActiveSection('basic')}
-                        selected={activeSection === 'basic'}
-                        backgroundColor="transparent"
-                        borderColor="transparent"
-                        flex={1}
-                      />
-                      {!isBasicInfoComplete && (
-                        <View
-                          style={{
-                            position: 'absolute',
-                            top: 4,
-                            right: 4,
-                            width: 18,
-                            height: 18,
-                            borderRadius: 9,
-                            backgroundColor: '#EF4444',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>!</Text>
-                        </View>
-                      )}
-                    </View>
-                    {/* Exercises tab temporarily disabled - will be re-enabled later */}
-                    {/* <IconButton
+                    <XStack padding="$4" gap="$2" flexWrap="wrap">
+                      <View style={{ flex: 1, position: 'relative' }}>
+                        <IconButton
+                          icon="info"
+                          label={getTranslation(t, 'createRoute.routeName', 'Route Name')}
+                          onPress={() => setActiveSection('basic')}
+                          selected={activeSection === 'basic'}
+                          backgroundColor="transparent"
+                          borderColor="transparent"
+                          flex={1}
+                        />
+                        {!isBasicInfoComplete && (
+                          <View
+                            style={{
+                              position: 'absolute',
+                              top: 4,
+                              right: 4,
+                              width: 18,
+                              height: 18,
+                              borderRadius: 9,
+                              backgroundColor: '#EF4444',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+                              !
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      {/* Exercises tab temporarily disabled - will be re-enabled later */}
+                      {/* <IconButton
                       icon="activity"
                       label={getTranslation(t, 'createRoute.exercises', 'Exercises')}
                       onPress={() => setActiveSection('exercises')}
@@ -2613,183 +2674,208 @@ export function CreateRouteSheet({
                       borderColor="transparent"
                       flex={1}
                     /> */}
-                    <IconButton
-                      icon="image"
-                      label={getTranslation(t, 'createRoute.media', 'Media')}
-                      onPress={() => setActiveSection('media')}
-                      selected={activeSection === 'media'}
-                      backgroundColor="transparent"
-                      borderColor="transparent"
-                      flex={1}
-                    />
-                    <IconButton
-                      icon="settings"
-                      label={getTranslation(t, 'common.details', 'Details')}
-                      onPress={() => setActiveSection('details')}
-                      selected={activeSection === 'details'}
-                      backgroundColor="transparent"
-                      borderColor="transparent"
-                      flex={1}
-                    />
-                  </XStack>
+                      <IconButton
+                        icon="image"
+                        label={getTranslation(t, 'createRoute.media', 'Media')}
+                        onPress={() => setActiveSection('media')}
+                        selected={activeSection === 'media'}
+                        backgroundColor="transparent"
+                        borderColor="transparent"
+                        flex={1}
+                      />
+                      <IconButton
+                        icon="settings"
+                        label={getTranslation(t, 'common.details', 'Details')}
+                        onPress={() => setActiveSection('details')}
+                        selected={activeSection === 'details'}
+                        backgroundColor="transparent"
+                        borderColor="transparent"
+                        flex={1}
+                      />
+                    </XStack>
 
-                  {/* Section Content */}
-                  <YStack f={1} backgroundColor="$background">
-                    <ScrollView
-                      ref={scrollViewRef}
-                      style={{ flex: 1 }}
-                      contentContainerStyle={{ paddingBottom: 100 }}
-                      scrollEnabled={drawingMode !== 'pen'}
-                      showsVerticalScrollIndicator={drawingMode !== 'pen'}
-                    >
-                      <YStack padding="$4" gap="$4">
-                        {activeSection === 'basic' && (
-                          <YStack gap="$4">
-                            {/* Basic Information */}
-                            <YStack>
-                              {/* <Text size="lg" weight="medium" mb="$2" color="$color">
+                    {/* Section Content */}
+                    <YStack f={1} backgroundColor="$background">
+                      <ScrollView
+                        ref={scrollViewRef}
+                        style={{ flex: 1 }}
+                        contentContainerStyle={{ paddingBottom: 100 }}
+                        scrollEnabled={drawingMode !== 'pen'}
+                        showsVerticalScrollIndicator={drawingMode !== 'pen'}
+                      >
+                        <YStack padding="$4" gap="$4">
+                          {activeSection === 'basic' && (
+                            <YStack gap="$4">
+                              {/* Basic Information */}
+                              <YStack>
+                                {/* <Text size="lg" weight="medium" mb="$2" color="$color">
                                 {getTranslation(t, 'createRoute.routeName', 'Route Name')}
                               </Text> */}
-                              <FormField
-                                value={formData.name}
-                                onChangeText={(text) =>
-                                  setFormData((prev) => ({ ...prev, name: text }))
-                                }
-                                placeholder={getTranslation(
-                                  t,
-                                  'createRoute.routeNamePlaceholder',
-                                  'Enter route name',
-                                )}
-                                accessibilityLabel={getTranslation(
-                                  t,
-                                  'createRoute.routeName',
-                                  'Route Name',
-                                )}
-                                autoCapitalize="none"
-                              />
-                              
-                              {/* Quick name suggestions */}
-                              {waypoints.length > 0 && waypoints[0]?.title && (
-                                <XStack gap="$2" marginTop="$2" flexWrap="wrap">
-                                  <Pressable
-                                    onPress={() => {
-                                      const locationName = waypoints[0]?.title?.split(',')[0].trim() || '';
-                                      setFormData((prev) => ({ ...prev, name: locationName }));
-                                    }}
-                                    style={({ pressed }) => {
-                                      const chipText = waypoints[0].title.split(',')[0].trim();
-                                      const isSelected = formData.name === chipText;
-                                      return {
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 8,
-                                        borderRadius: 20,
-                                        borderWidth: 1,
-                                        borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
-                                        backgroundColor: (pressed || isSelected) ? '#00E6C3' : 'transparent',
-                                      };
-                                    }}
-                                  >
-                                    {({ pressed }) => {
-                                      const chipText = waypoints[0].title.split(',')[0].trim();
-                                      const isSelected = formData.name === chipText;
-                                      return (
-                                        <Text fontSize={14} color={(pressed || isSelected) ? '#000000' : '$color'}>
-                                          {chipText}
-                                        </Text>
-                                      );
-                                    }}
-                                  </Pressable>
-                                  
-                                  {waypoints[0]?.title?.includes(',') && waypoints[0]?.title?.split(',')[1] && (
+                                <FormField
+                                  value={formData.name}
+                                  onChangeText={(text) =>
+                                    setFormData((prev) => ({ ...prev, name: text }))
+                                  }
+                                  placeholder={getTranslation(
+                                    t,
+                                    'createRoute.routeNamePlaceholder',
+                                    'Enter route name',
+                                  )}
+                                  accessibilityLabel={getTranslation(
+                                    t,
+                                    'createRoute.routeName',
+                                    'Route Name',
+                                  )}
+                                  autoCapitalize="none"
+                                />
+
+                                {/* Quick name suggestions */}
+                                {waypoints.length > 0 && waypoints[0]?.title && (
+                                  <XStack gap="$2" marginTop="$2" flexWrap="wrap">
                                     <Pressable
                                       onPress={() => {
-                                        const cityName = waypoints[0]?.title?.split(',').slice(0, 2).join(',').trim() || '';
-                                        setFormData((prev) => ({ ...prev, name: cityName }));
+                                        const locationName =
+                                          waypoints[0]?.title?.split(',')[0].trim() || '';
+                                        setFormData((prev) => ({ ...prev, name: locationName }));
                                       }}
                                       style={({ pressed }) => {
-                                        const chipText = waypoints[0].title.split(',').slice(0, 2).join(',').trim();
+                                        const chipText = waypoints[0].title.split(',')[0].trim();
                                         const isSelected = formData.name === chipText;
                                         return {
                                           paddingHorizontal: 12,
                                           paddingVertical: 8,
                                           borderRadius: 20,
                                           borderWidth: 1,
-                                          borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
-                                          backgroundColor: (pressed || isSelected) ? '#00E6C3' : 'transparent',
+                                          borderColor:
+                                            colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                          backgroundColor:
+                                            pressed || isSelected ? '#00E6C3' : 'transparent',
                                         };
                                       }}
                                     >
                                       {({ pressed }) => {
-                                        const chipText = waypoints[0].title.split(',').slice(0, 2).join(',').trim();
+                                        const chipText = waypoints[0].title.split(',')[0].trim();
                                         const isSelected = formData.name === chipText;
                                         return (
-                                          <Text fontSize={14} color={(pressed || isSelected) ? '#000000' : '$color'}>
+                                          <Text
+                                            fontSize={14}
+                                            color={pressed || isSelected ? '#000000' : '$color'}
+                                          >
                                             {chipText}
                                           </Text>
                                         );
                                       }}
                                     </Pressable>
-                                  )}
-                                </XStack>
-                              )}
-                              <TextArea
-                                value={formData.description}
-                                onChangeText={(text) =>
-                                  setFormData((prev) => ({ ...prev, description: text }))
-                                }
-                                placeholder={getTranslation(
-                                  t,
-                                  'createRoute.descriptionPlaceholder',
-                                  'Enter description',
-                                )}
-                                accessibilityLabel={getTranslation(
-                                  t,
-                                  'createRoute.description',
-                                  'Description',
-                                )}
-                                minHeight={80}
-                                mt="$2"
-                                backgroundColor="$background"
-                                borderColor="$borderColor"
-                                borderWidth={1}
-                                borderRadius={4}
-                                paddingHorizontal={16}
-                                paddingVertical={12}
-                                fontSize={14}
-                                color="$color"
-                                placeholderTextColor="#9ca3af"
-                                focusStyle={{
-                                  borderColor: '#34d399',
-                                  borderWidth: 2,
-                                  backgroundColor: '$backgroundFocus',
-                                }}
-                              />
-                            </YStack>
 
-                            {/* Drawing Mode Controls */}
-                            <YStack gap="$4">
-                              <XStack gap="$2" flexWrap="wrap">
-                                <TouchableOpacity
-                                  onPress={() => setDrawingMode('pin')}
-                                  style={{
-                                    flex: 1,
-                                    paddingVertical: 12,
-                                    borderRadius: 8,
-                                    backgroundColor:
-                                      drawingMode === 'pin'
-                                        ? 'rgba(0, 230, 195, 0.15)'
-                                        : 'transparent',
-                                    borderWidth: 1,
-                                    borderColor:
-                                      drawingMode === 'pin'
-                                        ? 'rgba(0, 230, 195, 0.5)'
-                                        : colorScheme === 'dark'
-                                          ? 'rgba(255, 255, 255, 0.1)'
-                                          : 'rgba(0, 0, 0, 0.1)',
+                                    {waypoints[0]?.title?.includes(',') &&
+                                      waypoints[0]?.title?.split(',')[1] && (
+                                        <Pressable
+                                          onPress={() => {
+                                            const cityName =
+                                              waypoints[0]?.title
+                                                ?.split(',')
+                                                .slice(0, 2)
+                                                .join(',')
+                                                .trim() || '';
+                                            setFormData((prev) => ({ ...prev, name: cityName }));
+                                          }}
+                                          style={({ pressed }) => {
+                                            const chipText = waypoints[0].title
+                                              .split(',')
+                                              .slice(0, 2)
+                                              .join(',')
+                                              .trim();
+                                            const isSelected = formData.name === chipText;
+                                            return {
+                                              paddingHorizontal: 12,
+                                              paddingVertical: 8,
+                                              borderRadius: 20,
+                                              borderWidth: 1,
+                                              borderColor:
+                                                colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                              backgroundColor:
+                                                pressed || isSelected ? '#00E6C3' : 'transparent',
+                                            };
+                                          }}
+                                        >
+                                          {({ pressed }) => {
+                                            const chipText = waypoints[0].title
+                                              .split(',')
+                                              .slice(0, 2)
+                                              .join(',')
+                                              .trim();
+                                            const isSelected = formData.name === chipText;
+                                            return (
+                                              <Text
+                                                fontSize={14}
+                                                color={pressed || isSelected ? '#000000' : '$color'}
+                                              >
+                                                {chipText}
+                                              </Text>
+                                            );
+                                          }}
+                                        </Pressable>
+                                      )}
+                                  </XStack>
+                                )}
+                                <TextArea
+                                  value={formData.description}
+                                  onChangeText={(text) =>
+                                    setFormData((prev) => ({ ...prev, description: text }))
+                                  }
+                                  placeholder={getTranslation(
+                                    t,
+                                    'createRoute.descriptionPlaceholder',
+                                    'Enter description',
+                                  )}
+                                  accessibilityLabel={getTranslation(
+                                    t,
+                                    'createRoute.description',
+                                    'Description',
+                                  )}
+                                  minHeight={80}
+                                  mt="$2"
+                                  backgroundColor="$background"
+                                  borderColor="$borderColor"
+                                  borderWidth={1}
+                                  borderRadius={4}
+                                  paddingHorizontal={16}
+                                  paddingVertical={12}
+                                  fontSize={14}
+                                  color="$color"
+                                  placeholderTextColor="#9ca3af"
+                                  focusStyle={{
+                                    borderColor: '#34d399',
+                                    borderWidth: 2,
+                                    backgroundColor: '$backgroundFocus',
                                   }}
-                                >
-                                  <XStack gap="$2" alignItems="center" justifyContent="center">
-                                    {/* <Feather
+                                />
+                              </YStack>
+
+                              {/* Drawing Mode Controls */}
+                              <YStack gap="$4">
+                                <XStack gap="$2" flexWrap="wrap">
+                                  <TouchableOpacity
+                                    onPress={() => setDrawingMode('pin')}
+                                    style={{
+                                      flex: 1,
+                                      paddingVertical: 12,
+                                      borderRadius: 8,
+                                      backgroundColor:
+                                        drawingMode === 'pin'
+                                          ? 'rgba(0, 230, 195, 0.15)'
+                                          : 'transparent',
+                                      borderWidth: 1,
+                                      borderColor:
+                                        drawingMode === 'pin'
+                                          ? 'rgba(0, 230, 195, 0.5)'
+                                          : colorScheme === 'dark'
+                                            ? 'rgba(255, 255, 255, 0.1)'
+                                            : 'rgba(0, 0, 0, 0.1)',
+                                    }}
+                                  >
+                                    <XStack gap="$2" alignItems="center" justifyContent="center">
+                                      {/* <Feather
                                       name="map-pin"
                                       size={16}
                                       color={
@@ -2800,40 +2886,40 @@ export function CreateRouteSheet({
                                             : '#666'
                                       }
                                     /> */}
-                                    <Text
-                                      fontWeight={drawingMode === 'pin' ? '700' : '500'}
-                                      color={drawingMode === 'pin' ? '$primary' : '$gray11'}
-                                    >
-                                      {getTranslation(
-                                        t,
-                                        'map.pin',
-                                        language === 'sv' ? 'Nål' : 'Pin'
-                                      )}
-                                    </Text>
-                                  </XStack>
-                                </TouchableOpacity>
+                                      <Text
+                                        fontWeight={drawingMode === 'pin' ? '700' : '500'}
+                                        color={drawingMode === 'pin' ? '$primary' : '$gray11'}
+                                      >
+                                        {getTranslation(
+                                          t,
+                                          'map.pin',
+                                          language === 'sv' ? 'Nål' : 'Pin',
+                                        )}
+                                      </Text>
+                                    </XStack>
+                                  </TouchableOpacity>
 
-                                <TouchableOpacity
-                                  onPress={() => setDrawingMode('waypoint')}
-                                  style={{
-                                    flex: 1,
-                                    paddingVertical: 12,
-                                    borderRadius: 8,
-                                    backgroundColor:
-                                      drawingMode === 'waypoint'
-                                        ? 'rgba(0, 230, 195, 0.15)'
-                                        : 'transparent',
-                                    borderWidth: 1,
-                                    borderColor:
-                                      drawingMode === 'waypoint'
-                                        ? 'rgba(0, 230, 195, 0.5)'
-                                        : colorScheme === 'dark'
-                                          ? 'rgba(255, 255, 255, 0.1)'
-                                          : 'rgba(0, 0, 0, 0.1)',
-                                  }}
-                                >
-                                  <XStack gap="$2" alignItems="center" justifyContent="center">
-                                    {/* <Feather
+                                  <TouchableOpacity
+                                    onPress={() => setDrawingMode('waypoint')}
+                                    style={{
+                                      flex: 1,
+                                      paddingVertical: 12,
+                                      borderRadius: 8,
+                                      backgroundColor:
+                                        drawingMode === 'waypoint'
+                                          ? 'rgba(0, 230, 195, 0.15)'
+                                          : 'transparent',
+                                      borderWidth: 1,
+                                      borderColor:
+                                        drawingMode === 'waypoint'
+                                          ? 'rgba(0, 230, 195, 0.5)'
+                                          : colorScheme === 'dark'
+                                            ? 'rgba(255, 255, 255, 0.1)'
+                                            : 'rgba(0, 0, 0, 0.1)',
+                                    }}
+                                  >
+                                    <XStack gap="$2" alignItems="center" justifyContent="center">
+                                      {/* <Feather
                                       name="navigation"
                                       size={16}
                                       color={
@@ -2844,40 +2930,40 @@ export function CreateRouteSheet({
                                             : '#666'
                                       }
                                     /> */}
-                                    <Text
-                                      fontWeight={drawingMode === 'waypoint' ? '700' : '500'}
-                                      color={drawingMode === 'waypoint' ? '$primary' : '$gray11'}
-                                    >
-                                      {getTranslation(
-                                        t,
-                                        'map.waypoints',
-                                        language === 'sv' ? 'Vägpunkter' : 'Waypoints'
-                                      )}
-                                    </Text>
-                                  </XStack>
-                                </TouchableOpacity>
+                                      <Text
+                                        fontWeight={drawingMode === 'waypoint' ? '700' : '500'}
+                                        color={drawingMode === 'waypoint' ? '$primary' : '$gray11'}
+                                      >
+                                        {getTranslation(
+                                          t,
+                                          'map.waypoints',
+                                          language === 'sv' ? 'Vägpunkter' : 'Waypoints',
+                                        )}
+                                      </Text>
+                                    </XStack>
+                                  </TouchableOpacity>
 
-                                <TouchableOpacity
-                                  onPress={() => setDrawingMode('pen')}
-                                  style={{
-                                    flex: 1,
-                                    paddingVertical: 12,
-                                    borderRadius: 8,
-                                    backgroundColor:
-                                      drawingMode === 'pen'
-                                        ? 'rgba(0, 230, 195, 0.15)'
-                                        : 'transparent',
-                                    borderWidth: 1,
-                                    borderColor:
-                                      drawingMode === 'pen'
-                                        ? 'rgba(0, 230, 195, 0.5)'
-                                        : colorScheme === 'dark'
-                                          ? 'rgba(255, 255, 255, 0.1)'
-                                          : 'rgba(0, 0, 0, 0.1)',
-                                  }}
-                                >
-                                  <XStack gap="$2" alignItems="center" justifyContent="center">
-                                    {/* <Feather
+                                  <TouchableOpacity
+                                    onPress={() => setDrawingMode('pen')}
+                                    style={{
+                                      flex: 1,
+                                      paddingVertical: 12,
+                                      borderRadius: 8,
+                                      backgroundColor:
+                                        drawingMode === 'pen'
+                                          ? 'rgba(0, 230, 195, 0.15)'
+                                          : 'transparent',
+                                      borderWidth: 1,
+                                      borderColor:
+                                        drawingMode === 'pen'
+                                          ? 'rgba(0, 230, 195, 0.5)'
+                                          : colorScheme === 'dark'
+                                            ? 'rgba(255, 255, 255, 0.1)'
+                                            : 'rgba(0, 0, 0, 0.1)',
+                                    }}
+                                  >
+                                    <XStack gap="$2" alignItems="center" justifyContent="center">
+                                      {/* <Feather
                                       name="edit-3"
                                       size={16}
                                       color={
@@ -2888,43 +2974,43 @@ export function CreateRouteSheet({
                                             : '#666'
                                       }
                                     /> */}
-                                    <Text
-                                      fontWeight={drawingMode === 'pen' ? '700' : '500'}
-                                      color={drawingMode === 'pen' ? '$primary' : '$gray11'}
-                                    >
-                                      {getTranslation(
-                                        t,
-                                        'map.draw',
-                                        language === 'sv' ? 'Rita' : 'Draw'
-                                      )}
-                                    </Text>
-                                  </XStack>
-                                </TouchableOpacity>
+                                      <Text
+                                        fontWeight={drawingMode === 'pen' ? '700' : '500'}
+                                        color={drawingMode === 'pen' ? '$primary' : '$gray11'}
+                                      >
+                                        {getTranslation(
+                                          t,
+                                          'map.draw',
+                                          language === 'sv' ? 'Rita' : 'Draw',
+                                        )}
+                                      </Text>
+                                    </XStack>
+                                  </TouchableOpacity>
 
-                                <TouchableOpacity
-                                  onPress={() => {
-                                    setDrawingMode('record');
-                                    handleRecordRoute();
-                                  }}
-                                  style={{
-                                    flex: 1,
-                                    paddingVertical: 12,
-                                    borderRadius: 8,
-                                    backgroundColor:
-                                      drawingMode === 'record'
-                                        ? 'rgba(0, 230, 195, 0.15)'
-                                        : 'transparent',
-                                    borderWidth: 1,
-                                    borderColor:
-                                      drawingMode === 'record'
-                                        ? 'rgba(0, 230, 195, 0.5)'
-                                        : colorScheme === 'dark'
-                                          ? 'rgba(255, 255, 255, 0.1)'
-                                          : 'rgba(0, 0, 0, 0.1)',
-                                  }}
-                                >
-                                  <XStack gap="$2" alignItems="center" justifyContent="center">
-                                    {/* <Feather
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      setDrawingMode('record');
+                                      handleRecordRoute();
+                                    }}
+                                    style={{
+                                      flex: 1,
+                                      paddingVertical: 12,
+                                      borderRadius: 8,
+                                      backgroundColor:
+                                        drawingMode === 'record'
+                                          ? 'rgba(0, 230, 195, 0.15)'
+                                          : 'transparent',
+                                      borderWidth: 1,
+                                      borderColor:
+                                        drawingMode === 'record'
+                                          ? 'rgba(0, 230, 195, 0.5)'
+                                          : colorScheme === 'dark'
+                                            ? 'rgba(255, 255, 255, 0.1)'
+                                            : 'rgba(0, 0, 0, 0.1)',
+                                    }}
+                                  >
+                                    <XStack gap="$2" alignItems="center" justifyContent="center">
+                                      {/* <Feather
                                       name="circle"
                                       size={16}
                                       color={
@@ -2935,90 +3021,90 @@ export function CreateRouteSheet({
                                             : '#666'
                                       }
                                     /> */}
-                                    <Text
-                                      fontWeight={drawingMode === 'record' ? '700' : '500'}
-                                      color={drawingMode === 'record' ? '$primary' : '$gray11'}
-                                    >
-                                      {getTranslation(
-                                        t,
-                                        'map.record',
-                                        language === 'sv' ? 'Spela in' : 'Record'
-                                      )}
-                                    </Text>
-                                  </XStack>
-                                </TouchableOpacity>
-                              </XStack>
+                                      <Text
+                                        fontWeight={drawingMode === 'record' ? '700' : '500'}
+                                        color={drawingMode === 'record' ? '$primary' : '$gray11'}
+                                      >
+                                        {getTranslation(
+                                          t,
+                                          'map.record',
+                                          language === 'sv' ? 'Spela in' : 'Record',
+                                        )}
+                                      </Text>
+                                    </XStack>
+                                  </TouchableOpacity>
+                                </XStack>
 
-                              {/* Mode descriptions */}
-                              <Text size="sm" color="$gray10">
-                                {drawingMode === 'pin' &&
-                                  getTranslation(
-                                    t,
-                                    'map.pinDescription',
-                                    language === 'sv'
-                                      ? 'Släpp en enskild platsmargör'
-                                      : 'Drop a single location marker'
-                                  )}
-                                {drawingMode === 'waypoint' &&
-                                  getTranslation(
-                                    t,
-                                    'map.waypointsDescription',
-                                    language === 'sv'
-                                      ? 'Skapa diskreta vägpunkter förbundna med linjer (minst 2 krävs)'
-                                      : 'Create discrete waypoints connected by lines (minimum 2 required)'
-                                  )}
-                                {drawingMode === 'pen' &&
-                                  getTranslation(
-                                    t,
-                                    'map.drawDescription',
-                                    language === 'sv'
-                                      ? 'Frihandsritning: klicka och dra för att rita kontinuerliga linjer'
-                                      : 'Freehand drawing: click and drag to draw continuous lines'
-                                  )}
-                                {drawingMode === 'record' &&
-                                  (initialWaypoints?.length
-                                    ? getTranslation(
-                                        t,
-                                        'map.recordLoadedDescription',
-                                        language === 'sv'
-                                          ? 'Inspelad rutt laddad • Klicka på Spela in igen för att starta ny inspelning'
-                                          : 'Recorded route loaded • Click Record Again to start new recording'
-                                      )
-                                    : getTranslation(
-                                        t,
-                                        'map.recordDescription',
-                                        language === 'sv'
-                                          ? 'GPS-baserad live-ruttinspelning med realtidsstatistik'
-                                          : 'GPS-based live route recording with real-time stats'
-                                      ))}
-                              </Text>
+                                {/* Mode descriptions */}
+                                <Text size="sm" color="$gray10">
+                                  {drawingMode === 'pin' &&
+                                    getTranslation(
+                                      t,
+                                      'map.pinDescription',
+                                      language === 'sv'
+                                        ? 'Släpp en enskild platsmargör'
+                                        : 'Drop a single location marker',
+                                    )}
+                                  {drawingMode === 'waypoint' &&
+                                    getTranslation(
+                                      t,
+                                      'map.waypointsDescription',
+                                      language === 'sv'
+                                        ? 'Skapa diskreta vägpunkter förbundna med linjer (minst 2 krävs)'
+                                        : 'Create discrete waypoints connected by lines (minimum 2 required)',
+                                    )}
+                                  {drawingMode === 'pen' &&
+                                    getTranslation(
+                                      t,
+                                      'map.drawDescription',
+                                      language === 'sv'
+                                        ? 'Frihandsritning: klicka och dra för att rita kontinuerliga linjer'
+                                        : 'Freehand drawing: click and drag to draw continuous lines',
+                                    )}
+                                  {drawingMode === 'record' &&
+                                    (initialWaypoints?.length
+                                      ? getTranslation(
+                                          t,
+                                          'map.recordLoadedDescription',
+                                          language === 'sv'
+                                            ? 'Inspelad rutt laddad • Klicka på Spela in igen för att starta ny inspelning'
+                                            : 'Recorded route loaded • Click Record Again to start new recording',
+                                        )
+                                      : getTranslation(
+                                          t,
+                                          'map.recordDescription',
+                                          language === 'sv'
+                                            ? 'GPS-baserad live-ruttinspelning med realtidsstatistik'
+                                            : 'GPS-based live route recording with real-time stats',
+                                        ))}
+                                </Text>
 
-                              {/* Record Again Button when in record mode with existing route */}
-                              {drawingMode === 'record' && initialWaypoints?.length && (
-                                <Button
-                                  onPress={handleRecordRoute}
-                                  variant="secondary"
-                                  backgroundColor="$green10"
-                                  size="lg"
-                                  marginTop="$2"
-                                >
-                                  <XStack gap="$2" alignItems="center">
-                                    <Feather name="circle" size={20} color="white" />
-                                    <Text color="white" weight="bold">
-                                      {getTranslation(
-                                        t,
-                                        'map.recordAgain',
-                                        language === 'sv' ? 'Spela in igen' : 'Record Again'
-                                      )}
-                                    </Text>
-                                  </XStack>
-                                </Button>
-                              )}
-                            </YStack>
+                                {/* Record Again Button when in record mode with existing route */}
+                                {drawingMode === 'record' && initialWaypoints?.length && (
+                                  <Button
+                                    onPress={handleRecordRoute}
+                                    variant="secondary"
+                                    backgroundColor="$green10"
+                                    size="lg"
+                                    marginTop="$2"
+                                  >
+                                    <XStack gap="$2" alignItems="center">
+                                      <Feather name="circle" size={20} color="white" />
+                                      <Text color="white" weight="bold">
+                                        {getTranslation(
+                                          t,
+                                          'map.recordAgain',
+                                          language === 'sv' ? 'Spela in igen' : 'Record Again',
+                                        )}
+                                      </Text>
+                                    </XStack>
+                                  </Button>
+                                )}
+                              </YStack>
 
-                            {/* Route Location */}
-                            <YStack gap="$4">
-                              {/* <Heading>
+                              {/* Route Location */}
+                              <YStack gap="$4">
+                                {/* <Heading>
                                 {getTranslation(
                                   t,
                                   'createRoute.locationCoordinates',
@@ -3029,26 +3115,334 @@ export function CreateRouteSheet({
                                 {t('createRoute.searchLocation')}
                               </Text> */}
 
-                              <YStack gap="$2">
-                                <XStack gap="$2" alignItems="center">
-                                  <View style={{ flex: 1 }}>
-                                  <FormField
-                                    ref={searchInputRef}
-                                      variant="search"
-                                      rounded="full"
-                                      size="md"
-                                    value={searchQuery}
-                                    onChangeText={handleSearch}
-                                    placeholder={t('createRoute.searchLocation')}
-                                    autoComplete="street-address"
-                                    autoCapitalize="none"
-                                    accessibilityLabel={t('createRoute.searchLocation')}
-                                    />
-                                  </View>
+                                <YStack gap="$2">
+                                  <XStack gap="$2" alignItems="center">
+                                    <View style={{ flex: 1 }}>
+                                      <FormField
+                                        ref={searchInputRef}
+                                        variant="search"
+                                        rounded="full"
+                                        size="md"
+                                        value={searchQuery}
+                                        onChangeText={handleSearch}
+                                        placeholder={t('createRoute.searchLocation')}
+                                        autoComplete="street-address"
+                                        autoCapitalize="none"
+                                        accessibilityLabel={t('createRoute.searchLocation')}
+                                      />
+                                    </View>
+                                    <TouchableOpacity
+                                      onPress={handleLocateMe}
+                                      disabled={locationLoading}
+                                      style={{
+                                        width: 48,
+                                        height: 48,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderWidth: 1,
+                                        borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                        borderRadius: 24,
+                                        backgroundColor: 'transparent',
+                                      }}
+                                    >
+                                      {locationLoading ? (
+                                        <Animated.View
+                                          style={{
+                                            transform: [
+                                              {
+                                                rotate: spinValue.interpolate({
+                                                  inputRange: [0, 1],
+                                                  outputRange: ['0deg', '360deg'],
+                                                }),
+                                              },
+                                            ],
+                                          }}
+                                        >
+                                          <Feather
+                                            name="loader"
+                                            size={20}
+                                            color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                                          />
+                                        </Animated.View>
+                                      ) : (
+                                        <Feather
+                                          name="navigation"
+                                          size={20}
+                                          color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                                        />
+                                      )}
+                                    </TouchableOpacity>
+                                  </XStack>
+
+                                  {showSearchResults && searchResults.length > 0 && (
+                                    <YStack
+                                      overflow="hidden"
+                                      marginBottom="$4"
+                                      borderTopWidth={1}
+                                      borderBottomWidth={1}
+                                      borderLeftWidth={1}
+                                      borderRightWidth={1}
+                                      borderColor={borderColor}
+                                      borderRadius="$2"
+                                    >
+                                      <ScrollView>
+                                        {searchResults.map((result, index, array) => {
+                                          const isLastItem = index === array.length - 1;
+                                          return (
+                                            <TouchableOpacity
+                                              key={index}
+                                              onPress={() => handleLocationSelect(result)}
+                                              style={{
+                                                paddingVertical: 12,
+                                                paddingHorizontal: 12,
+                                                borderBottomWidth: isLastItem ? 0 : 1,
+                                                borderBottomColor: borderColor,
+                                              }}
+                                            >
+                                              <XStack alignItems="center" gap="$2">
+                                                <YStack flex={1}>
+                                                  <Text
+                                                    numberOfLines={1}
+                                                    fontWeight="600"
+                                                    color={textColor}
+                                                  >
+                                                    {[result.street, result.city]
+                                                      .filter(Boolean)
+                                                      .join(', ') || 'Unknown location'}
+                                                  </Text>
+                                                  {result.country && (
+                                                    <Text
+                                                      numberOfLines={1}
+                                                      fontSize="$3"
+                                                      color="$gray10"
+                                                    >
+                                                      {result.country}
+                                                    </Text>
+                                                  )}
+                                                </YStack>
+                                              </XStack>
+                                            </TouchableOpacity>
+                                          );
+                                        })}
+                                      </ScrollView>
+                                    </YStack>
+                                  )}
+                                </YStack>
+
+                                <View
+                                  ref={containerRef}
+                                  style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}
+                                  {...(drawingMode === 'pen'
+                                    ? drawingPanResponder.panHandlers
+                                    : {})}
+                                >
+                                  <MapView
+                                    ref={mapRef}
+                                    style={{ flex: 1 }}
+                                    region={region}
+                                    onPress={handleMapPressWrapper}
+                                    scrollEnabled={
+                                      !(
+                                        drawingMode === 'pen' &&
+                                        isDrawing &&
+                                        Platform.OS === 'android'
+                                      )
+                                    }
+                                    zoomEnabled={
+                                      !(
+                                        drawingMode === 'pen' &&
+                                        isDrawing &&
+                                        Platform.OS === 'android'
+                                      )
+                                    }
+                                    pitchEnabled={!(drawingMode === 'pen' && isDrawing)}
+                                    rotateEnabled={!(drawingMode === 'pen' && isDrawing)}
+                                    moveOnMarkerPress={false}
+                                    showsUserLocation={true}
+                                    userInterfaceStyle="dark"
+                                    zoomTapEnabled={
+                                      !(
+                                        drawingMode === 'pen' &&
+                                        isDrawing &&
+                                        Platform.OS === 'android'
+                                      )
+                                    }
+                                    scrollDuringRotateOrZoomEnabled={
+                                      !(
+                                        drawingMode === 'pen' &&
+                                        isDrawing &&
+                                        Platform.OS === 'android'
+                                      )
+                                    }
+                                  >
+                                    {/* Render waypoints as individual markers (not in pen drawing mode) */}
+                                    {drawingMode !== 'pen' &&
+                                      waypoints.map((waypoint, index) => {
+                                        return (
+                                          <Marker
+                                            key={`waypoint-${index}`}
+                                            coordinate={{
+                                              latitude: waypoint.latitude,
+                                              longitude: waypoint.longitude,
+                                            }}
+                                            anchor={{ x: 0.5, y: 0.5 }}
+                                            tracksViewChanges={false}
+                                          >
+                                            {/* Circular marker like MapScreen */}
+                                            <View
+                                              style={{
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                              }}
+                                            >
+                                              {/* Circular marker */}
+                                              <View
+                                                style={{
+                                                  width: 32,
+                                                  height: 32,
+                                                  backgroundColor: '#38fdbf',
+                                                  borderRadius: 16,
+                                                  shadowColor: '#000',
+                                                  shadowOffset: { width: 0, height: 2 },
+                                                  shadowOpacity: 0.3,
+                                                  shadowRadius: 4,
+                                                  elevation: 5,
+                                                  alignItems: 'center',
+                                                  justifyContent: 'center',
+                                                }}
+                                              >
+                                                {/* Inner dot */}
+                                                <View
+                                                  style={{
+                                                    width: 8,
+                                                    height: 8,
+                                                    backgroundColor: '#333333',
+                                                    borderRadius: 4,
+                                                  }}
+                                                />
+                                              </View>
+                                            </View>
+                                          </Marker>
+                                        );
+                                      })}
+
+                                    {/* Render pen drawing as smooth continuous line */}
+                                    {drawingMode === 'pen' && penPath.length > 0 && (
+                                      <>
+                                        {/* Show single point as a marker if only one point */}
+                                        {penPath.length === 1 && (
+                                          <Marker
+                                            coordinate={penPath[0]}
+                                            title="Drawing Start"
+                                            description="Drag to continue drawing"
+                                            pinColor="orange"
+                                          />
+                                        )}
+
+                                        {/* Show continuous line for multiple points */}
+                                        {penPath.length > 1 && (
+                                          <Polyline
+                                            coordinates={penPath}
+                                            strokeWidth={8}
+                                            strokeColor="#38fdbf"
+                                            lineJoin="round"
+                                            lineCap="round"
+                                            geodesic={false}
+                                          />
+                                        )}
+                                      </>
+                                    )}
+
+                                    {/* Orange dots removed - only showing continuous orange lines */}
+
+                                    {/* Render connecting lines for waypoints (not in pen mode) */}
+                                    {drawingMode === 'waypoint' && waypoints.length > 1 && (
+                                      <Polyline
+                                        coordinates={waypoints.map((wp) => ({
+                                          latitude: wp.latitude,
+                                          longitude: wp.longitude,
+                                        }))}
+                                        strokeWidth={3}
+                                        strokeColor="#38fdbf"
+                                        lineJoin="round"
+                                      />
+                                    )}
+
+                                    {/* Render route path if provided */}
+                                    {routePath && routePath.length > 1 && (
+                                      <Polyline
+                                        coordinates={routePath}
+                                        strokeWidth={drawingMode === 'record' ? 5 : 3}
+                                        strokeColor="#38fdbf"
+                                        lineJoin="round"
+                                        lineCap="round"
+                                      />
+                                    )}
+                                  </MapView>
+
+                                  {/* Map Controls - Top Right */}
+                                  <XStack position="absolute" top={16} right={16} gap="$2">
+                                    <Button
+                                      onPress={handleUndo}
+                                      disabled={waypoints.length === 0}
+                                      variant="secondary"
+                                      backgroundColor="rgba(0,0,0,0.7)"
+                                      size="sm"
+                                    >
+                                      <Feather name="corner-up-left" size={16} color="white" />
+                                    </Button>
+
+                                    <Button
+                                      onPress={handleRedo}
+                                      disabled={undoneWaypoints.length === 0}
+                                      variant="secondary"
+                                      backgroundColor="rgba(0,0,0,0.7)"
+                                      size="sm"
+                                    >
+                                      <Feather name="corner-up-right" size={16} color="white" />
+                                    </Button>
+                                  </XStack>
+
+                                  {/* Zoom Controls - Top Left */}
+                                  <YStack position="absolute" top={16} left={16} gap="$2">
+                                    <Button
+                                      onPress={() => {
+                                        setRegion((prev) => ({
+                                          ...prev,
+                                          latitudeDelta: prev.latitudeDelta * 0.5,
+                                          longitudeDelta: prev.longitudeDelta * 0.5,
+                                        }));
+                                      }}
+                                      variant="secondary"
+                                      backgroundColor="rgba(0,0,0,0.7)"
+                                      size="sm"
+                                    >
+                                      <Feather name="plus" size={16} color="white" />
+                                    </Button>
+
+                                    <Button
+                                      onPress={() => {
+                                        setRegion((prev) => ({
+                                          ...prev,
+                                          latitudeDelta: prev.latitudeDelta * 2,
+                                          longitudeDelta: prev.longitudeDelta * 2,
+                                        }));
+                                      }}
+                                      variant="secondary"
+                                      backgroundColor="rgba(0,0,0,0.7)"
+                                      size="sm"
+                                    >
+                                      <Feather name="minus" size={16} color="white" />
+                                    </Button>
+                                  </YStack>
+
                                   <TouchableOpacity
                                     onPress={handleLocateMe}
                                     disabled={locationLoading}
                                     style={{
+                                      position: 'absolute',
+                                      bottom: 16,
+                                      left: 16,
                                       width: 48,
                                       height: 48,
                                       alignItems: 'center',
@@ -3056,7 +3450,10 @@ export function CreateRouteSheet({
                                       borderWidth: 1,
                                       borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
                                       borderRadius: 24,
-                                      backgroundColor: 'transparent',
+                                      backgroundColor:
+                                        colorScheme === 'dark'
+                                          ? 'rgba(0,0,0,0.7)'
+                                          : 'rgba(255,255,255,0.9)',
                                     }}
                                   >
                                     {locationLoading ? (
@@ -3086,969 +3483,721 @@ export function CreateRouteSheet({
                                       />
                                     )}
                                   </TouchableOpacity>
-                                </XStack>
 
-                                {showSearchResults && searchResults.length > 0 && (
-                                  <YStack
-                                    overflow="hidden"
-                                    marginBottom="$4"
-                                    borderTopWidth={1}
-                                    borderBottomWidth={1}
-                                    borderLeftWidth={1}
-                                    borderRightWidth={1}
-                                    borderColor={borderColor}
-                                    borderRadius="$2"
-                                  >
-                                    <ScrollView>
-                                      {searchResults.map((result, index, array) => {
-                                        const isLastItem = index === array.length - 1;
-                                        return (
-                                          <TouchableOpacity
-                                            key={index}
-                                            onPress={() => handleLocationSelect(result)}
-                                            style={{
-                                              paddingVertical: 12,
-                                              paddingHorizontal: 12,
-                                              borderBottomWidth: isLastItem ? 0 : 1,
-                                              borderBottomColor: borderColor,
-                                            }}
-                                          >
-                                            <XStack alignItems="center" gap="$2">
-                                              <YStack flex={1}>
-                                                <Text numberOfLines={1} fontWeight="600" color={textColor}>
-                                                  {[result.street, result.city].filter(Boolean).join(', ') ||
-                                                    'Unknown location'}
-                                                </Text>
-                                                {result.country && (
-                                                  <Text numberOfLines={1} fontSize="$3" color="$gray10">
-                                                    {result.country}
-                                                  </Text>
-                                                )}
-                                              </YStack>
-                                            </XStack>
-                                          </TouchableOpacity>
-                                        );
-                                      })}
-                                    </ScrollView>
-                                  </YStack>
-                                )}
-                              </YStack>
-
-                              <View
-                                ref={containerRef}
-                                style={{ height: 300, borderRadius: 12, overflow: 'hidden' }}
-                                {...(drawingMode === 'pen' ? drawingPanResponder.panHandlers : {})}
-                              >
-                                <MapView
-                                  ref={mapRef}
-                                  style={{ flex: 1 }}
-                                  region={region}
-                                  onPress={handleMapPressWrapper}
-                                  scrollEnabled={
-                                    !(
-                                      drawingMode === 'pen' &&
-                                      isDrawing &&
-                                      Platform.OS === 'android'
-                                    )
-                                  }
-                                  zoomEnabled={
-                                    !(
-                                      drawingMode === 'pen' &&
-                                      isDrawing &&
-                                      Platform.OS === 'android'
-                                    )
-                                  }
-                                  pitchEnabled={!(drawingMode === 'pen' && isDrawing)}
-                                  rotateEnabled={!(drawingMode === 'pen' && isDrawing)}
-                                  moveOnMarkerPress={false}
-                                  showsUserLocation={true}
-                                  userInterfaceStyle="dark"
-                                  zoomTapEnabled={
-                                    !(
-                                      drawingMode === 'pen' &&
-                                      isDrawing &&
-                                      Platform.OS === 'android'
-                                    )
-                                  }
-                                  scrollDuringRotateOrZoomEnabled={
-                                    !(
-                                      drawingMode === 'pen' &&
-                                      isDrawing &&
-                                      Platform.OS === 'android'
-                                    )
-                                  }
-                                >
-                                  {/* Render waypoints as individual markers (not in pen drawing mode) */}
-                                  {drawingMode !== 'pen' &&
-                                    waypoints.map((waypoint, index) => {
-                                      return (
-                                        <Marker
-                                          key={`waypoint-${index}`}
-                                          coordinate={{
-                                            latitude: waypoint.latitude,
-                                            longitude: waypoint.longitude,
-                                          }}
-                                          anchor={{ x: 0.5, y: 0.5 }}
-                                          tracksViewChanges={false}
-                                        >
-                                          {/* Circular marker like MapScreen */}
-                                          <View
-                                            style={{
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                            }}
-                                          >
-                                            {/* Circular marker */}
-                                            <View
-                                              style={{
-                                                width: 32,
-                                                height: 32,
-                                                backgroundColor: '#38fdbf',
-                                                borderRadius: 16,
-                                                shadowColor: '#000',
-                                                shadowOffset: { width: 0, height: 2 },
-                                                shadowOpacity: 0.3,
-                                                shadowRadius: 4,
-                                                elevation: 5,
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                              }}
-                                            >
-                                              {/* Inner dot */}
-                                              <View
-                                                style={{
-                                                  width: 8,
-                                                  height: 8,
-                                                  backgroundColor: '#333333',
-                                                  borderRadius: 4,
-                                                }}
-                                              />
-                                            </View>
-                                          </View>
-                                        </Marker>
-                                      );
-                                    })}
-
-                                  {/* Render pen drawing as smooth continuous line */}
-                                  {drawingMode === 'pen' && penPath.length > 0 && (
-                                    <>
-                                      {/* Show single point as a marker if only one point */}
-                                      {penPath.length === 1 && (
-                                        <Marker
-                                          coordinate={penPath[0]}
-                                          title="Drawing Start"
-                                          description="Drag to continue drawing"
-                                          pinColor="orange"
-                                        />
-                                      )}
-
-                                      {/* Show continuous line for multiple points */}
-                                      {penPath.length > 1 && (
-                                        <Polyline
-                                          coordinates={penPath}
-                                          strokeWidth={8}
-                                          strokeColor="#38fdbf"
-                                          lineJoin="round"
-                                          lineCap="round"
-                                          geodesic={false}
-                                        />
-                                      )}
-                                    </>
-                                  )}
-
-                                  {/* Orange dots removed - only showing continuous orange lines */}
-
-                                  {/* Render connecting lines for waypoints (not in pen mode) */}
-                                  {drawingMode === 'waypoint' && waypoints.length > 1 && (
-                                    <Polyline
-                                      coordinates={waypoints.map((wp) => ({
-                                        latitude: wp.latitude,
-                                        longitude: wp.longitude,
-                                      }))}
-                                      strokeWidth={3}
-                                      strokeColor="#38fdbf"
-                                      lineJoin="round"
-                                    />
-                                  )}
-
-                                  {/* Render route path if provided */}
-                                  {routePath && routePath.length > 1 && (
-                                    <Polyline
-                                      coordinates={routePath}
-                                      strokeWidth={drawingMode === 'record' ? 5 : 3}
-                                      strokeColor="#38fdbf"
-                                      lineJoin="round"
-                                      lineCap="round"
-                                    />
-                                  )}
-                                </MapView>
-
-                                {/* Map Controls - Top Right */}
-                                <XStack position="absolute" top={16} right={16} gap="$2">
-                                  <Button
-                                    onPress={handleUndo}
-                                    disabled={waypoints.length === 0}
-                                    variant="secondary"
-                                    backgroundColor="rgba(0,0,0,0.7)"
-                                    size="sm"
-                                  >
-                                    <Feather name="corner-up-left" size={16} color="white" />
-                                  </Button>
-
-                                  <Button
-                                    onPress={handleRedo}
-                                    disabled={undoneWaypoints.length === 0}
-                                    variant="secondary"
-                                    backgroundColor="rgba(0,0,0,0.7)"
-                                    size="sm"
-                                  >
-                                    <Feather name="corner-up-right" size={16} color="white" />
-                                  </Button>
-                                </XStack>
-
-                                {/* Zoom Controls - Top Left */}
-                                <YStack position="absolute" top={16} left={16} gap="$2">
-                                  <Button
-                                    onPress={() => {
-                                      setRegion((prev) => ({
-                                        ...prev,
-                                        latitudeDelta: prev.latitudeDelta * 0.5,
-                                        longitudeDelta: prev.longitudeDelta * 0.5,
-                                      }));
-                                    }}
-                                    variant="secondary"
-                                    backgroundColor="rgba(0,0,0,0.7)"
-                                    size="sm"
-                                  >
-                                    <Feather name="plus" size={16} color="white" />
-                                  </Button>
-
-                                  <Button
-                                    onPress={() => {
-                                      setRegion((prev) => ({
-                                        ...prev,
-                                        latitudeDelta: prev.latitudeDelta * 2,
-                                        longitudeDelta: prev.longitudeDelta * 2,
-                                      }));
-                                    }}
-                                    variant="secondary"
-                                    backgroundColor="rgba(0,0,0,0.7)"
-                                    size="sm"
-                                  >
-                                    <Feather name="minus" size={16} color="white" />
-                                  </Button>
-                                </YStack>
-
-                                <TouchableOpacity
-                                  onPress={handleLocateMe}
-                                  disabled={locationLoading}
-                                  style={{
-                                    position: 'absolute',
-                                    bottom: 16,
-                                    left: 16,
-                                    width: 48,
-                                    height: 48,
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    borderWidth: 1,
-                                    borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
-                                    borderRadius: 24,
-                                    backgroundColor:
-                                      colorScheme === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.9)',
-                                  }}
-                                >
-                                  {locationLoading ? (
-                                    <Animated.View
-                                      style={{
-                                        transform: [
-                                          {
-                                            rotate: spinValue.interpolate({
-                                              inputRange: [0, 1],
-                                              outputRange: ['0deg', '360deg'],
-                                            }),
-                                          },
-                                        ],
-                                      }}
-                                    >
-                                      <Feather
-                                        name="loader"
-                                        size={20}
-                                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
-                                      />
-                                    </Animated.View>
-                                  ) : (
-                                    <Feather
-                                      name="navigation"
-                                      size={20}
-                                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
-                                    />
-                                  )}
-                                </TouchableOpacity>
-
-                                {/* Drawing Mode Indicator */}
-                                <View
-                                  style={{
-                                    position: 'absolute',
-                                    top: 16,
-                                    left: '50%',
-                                    transform: [{ translateX: -50 }],
-                                    backgroundColor:
-                                      drawingMode === 'pen'
-                                        ? 'rgba(56,253,191,0.9)'
-                                        : 'rgba(0,0,0,0.8)',
-                                    paddingHorizontal: 12,
-                                    paddingVertical: 6,
-                                    borderRadius: 16,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                  }}
-                                >
-                                  <Feather
-                                    name={
-                                      drawingMode === 'pin'
-                                        ? 'map-pin'
-                                        : drawingMode === 'waypoint'
-                                          ? 'navigation'
-                                          : drawingMode === 'pen'
-                                            ? 'edit-3'
-                                            : 'circle'
-                                    }
-                                    size={14}
-                                    color="white"
-                                  />
-                                  <Text style={{ color: 'white', fontSize: 12, fontWeight: '500' }}>
-                                    {drawingMode === 'pin' && 'Tap to drop pin'}
-                                    {drawingMode === 'waypoint' && 'Tap to add waypoints'}
-                                    {drawingMode === 'pen' &&
-                                      (isDrawing
-                                        ? `Drawing (${penPath.length} points) • Pinch to zoom • Drag to continue`
-                                        : waypoints.length > 0
-                                          ? `Finished (${penPath.length} coordinates) • Ready to save`
-                                          : 'Drag to draw • Two fingers to zoom/pan')}
-                                    {drawingMode === 'record' &&
-                                      (initialWaypoints?.length
-                                        ? `Recorded route (${waypoints.length} waypoints) • Tap Record Again below`
-                                        : 'Use Record button below')}
-                                  </Text>
-                                </View>
-
-                                {/* Pen Drawing Controls */}
-                                {drawingMode === 'pen' && isDrawing && (
-                                  <Button
-                                    position="absolute"
-                                    bottom={16}
-                                    right={16}
-                                    onPress={finishPenDrawing}
-                                    variant="secondary"
-                                    backgroundColor="$green10"
-                                    size="md"
-                                    opacity={0.9}
-                                  >
-                                    <XStack gap="$2" alignItems="center">
-                                      <Feather name="check" size={20} color="white" />
-                                      <Text color="white">Finish</Text>
-                                    </XStack>
-                                  </Button>
-                                )}
-                              </View>
-
-                              {/* Waypoints Accordion */}
-                              <Card backgroundColor="$backgroundStrong" bordered padding="$4">
-                                <YStack gap="$3">
-                                  <TouchableOpacity
-                                    onPress={() => setShowWaypointsDetails(!showWaypointsDetails)}
+                                  {/* Drawing Mode Indicator */}
+                                  <View
                                     style={{
+                                      position: 'absolute',
+                                      top: 16,
+                                      left: '50%',
+                                      transform: [{ translateX: -50 }],
+                                      backgroundColor:
+                                        drawingMode === 'pen'
+                                          ? 'rgba(56,253,191,0.9)'
+                                          : 'rgba(0,0,0,0.8)',
+                                      paddingHorizontal: 12,
+                                      paddingVertical: 6,
+                                      borderRadius: 16,
                                       flexDirection: 'row',
                                       alignItems: 'center',
-                                      justifyContent: 'space-between',
+                                      gap: 8,
                                     }}
                                   >
-                                    <XStack alignItems="center" gap="$2">
-                                      {/* <Feather
+                                    <Feather
+                                      name={
+                                        drawingMode === 'pin'
+                                          ? 'map-pin'
+                                          : drawingMode === 'waypoint'
+                                            ? 'navigation'
+                                            : drawingMode === 'pen'
+                                              ? 'edit-3'
+                                              : 'circle'
+                                      }
+                                      size={14}
+                                      color="white"
+                                    />
+                                    <Text
+                                      style={{ color: 'white', fontSize: 12, fontWeight: '500' }}
+                                    >
+                                      {drawingMode === 'pin' && 'Tap to drop pin'}
+                                      {drawingMode === 'waypoint' && 'Tap to add waypoints'}
+                                      {drawingMode === 'pen' &&
+                                        (isDrawing
+                                          ? `Drawing (${penPath.length} points) • Pinch to zoom • Drag to continue`
+                                          : waypoints.length > 0
+                                            ? `Finished (${penPath.length} coordinates) • Ready to save`
+                                            : 'Drag to draw • Two fingers to zoom/pan')}
+                                      {drawingMode === 'record' &&
+                                        (initialWaypoints?.length
+                                          ? `Recorded route (${waypoints.length} waypoints) • Tap Record Again below`
+                                          : 'Use Record button below')}
+                                    </Text>
+                                  </View>
+
+                                  {/* Pen Drawing Controls */}
+                                  {drawingMode === 'pen' && isDrawing && (
+                                    <Button
+                                      position="absolute"
+                                      bottom={16}
+                                      right={16}
+                                      onPress={finishPenDrawing}
+                                      variant="secondary"
+                                      backgroundColor="$green10"
+                                      size="md"
+                                      opacity={0.9}
+                                    >
+                                      <XStack gap="$2" alignItems="center">
+                                        <Feather name="check" size={20} color="white" />
+                                        <Text color="white">Finish</Text>
+                                      </XStack>
+                                    </Button>
+                                  )}
+                                </View>
+
+                                {/* Waypoints Accordion */}
+                                <Card backgroundColor="$backgroundStrong" bordered padding="$4">
+                                  <YStack gap="$3">
+                                    <TouchableOpacity
+                                      onPress={() => setShowWaypointsDetails(!showWaypointsDetails)}
+                                      style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                      }}
+                                    >
+                                      <XStack alignItems="center" gap="$2">
+                                        {/* <Feather
                                         name="map-pin"
                                         size={20}
                                         color={iconColor}
                                       /> */}
-                                      <Text fontSize="$5" fontWeight="600" color="$color">
-                                        {t('createRoute.waypoints') || 'Waypoints'}
-                                      </Text>
-                                      {waypoints.length > 0 && (
-                                        <View
-                                          style={{
-                                            backgroundColor: '#00E6C3',
-                                            borderRadius: 12,
-                                            paddingHorizontal: 8,
-                                            paddingVertical: 2,
-                                            minWidth: 20,
-                                            alignItems: 'center',
-                                          }}
-                                        >
-                                          <Text fontSize={12} color="#000" fontWeight="bold">
-                                            {waypoints.length}
-                                          </Text>
-                                        </View>
-                                      )}
-                                    </XStack>
-                                    <Feather
-                                      name={showWaypointsDetails ? 'chevron-up' : 'chevron-down'}
-                                      size={20}
-                                      color={iconColor}
-                                    />
-                                  </TouchableOpacity>
-
-                                  {showWaypointsDetails && (
-                                    <YStack gap="$3">
-                              {/* Waypoint Management Controls */}
-                              <XStack gap="$2" flexWrap="wrap">
-                                        <TouchableOpacity
-                                  onPress={handleUndo}
-                                  disabled={waypoints.length === 0}
-                                          style={{
-                                            flex: 1,
-                                            paddingVertical: 12,
-                                            borderRadius: 8,
-                                            backgroundColor: 'transparent',
-                                            borderWidth: 1,
-                                            borderColor:
-                                              colorScheme === 'dark'
-                                                ? 'rgba(255, 255, 255, 0.1)'
-                                                : 'rgba(0, 0, 0, 0.1)',
-                                            opacity: waypoints.length === 0 ? 0.5 : 1,
-                                          }}
-                                        >
-                                          <XStack gap="$2" alignItems="center" justifyContent="center">
-                                            <Feather
-                                              name="corner-up-left"
-                                              size={18}
-                                              color={colorScheme === 'dark' ? '#999' : '#666'}
-                                            />
-                                            <Text color="$gray11" fontWeight="500">
-                                              Undo
+                                        <Text fontSize="$5" fontWeight="600" color="$color">
+                                          {t('createRoute.waypoints') || 'Waypoints'}
+                                        </Text>
+                                        {waypoints.length > 0 && (
+                                          <View
+                                            style={{
+                                              backgroundColor: '#00E6C3',
+                                              borderRadius: 12,
+                                              paddingHorizontal: 8,
+                                              paddingVertical: 2,
+                                              minWidth: 20,
+                                              alignItems: 'center',
+                                            }}
+                                          >
+                                            <Text fontSize={12} color="#000" fontWeight="bold">
+                                              {waypoints.length}
                                             </Text>
-                                  </XStack>
-                                        </TouchableOpacity>
+                                          </View>
+                                        )}
+                                      </XStack>
+                                      <Feather
+                                        name={showWaypointsDetails ? 'chevron-up' : 'chevron-down'}
+                                        size={20}
+                                        color={iconColor}
+                                      />
+                                    </TouchableOpacity>
 
-                                        <TouchableOpacity
-                                  onPress={clearAllWaypoints}
-                                  disabled={waypoints.length === 0 && penPath.length === 0}
-                                          style={{
-                                            flex: 1,
-                                            paddingVertical: 12,
-                                            borderRadius: 8,
-                                            backgroundColor: 'transparent',
-                                            borderWidth: 1,
-                                            borderColor:
-                                              colorScheme === 'dark'
-                                                ? 'rgba(255, 255, 255, 0.1)'
-                                                : 'rgba(0, 0, 0, 0.1)',
-                                            opacity: waypoints.length === 0 && penPath.length === 0 ? 0.5 : 1,
-                                          }}
-                                        >
-                                          <XStack gap="$2" alignItems="center" justifyContent="center">
-                                            <Feather
-                                              name="trash-2"
-                                              size={18}
-                                              color={colorScheme === 'dark' ? '#999' : '#666'}
-                                            />
-                                            <Text color="$gray11" fontWeight="500">
-                                              Clear All
-                                            </Text>
-                                  </XStack>
-                                        </TouchableOpacity>
-                              </XStack>
-
-                              {/* Current waypoint count and mode info */}
-                              <XStack
-                                justifyContent="space-between"
-                                alignItems="center"
-                                paddingHorizontal="$2"
-                              >
-                                <Text size="sm" color="$gray11">
-                                  {waypoints.length} waypoint{waypoints.length !== 1 ? 's' : ''} •{' '}
-                                  {drawingMode} mode
-                                </Text>
-                                {drawingMode === 'waypoint' && waypoints.length === 1 && (
-                                  <Text size="sm" color="$orange10">
-                                    Need 1 more waypoint minimum
-                                  </Text>
-                                )}
-                                {drawingMode === 'pen' && (
-                                  <Text
-                                    size="sm"
-                                    color={
-                                      isDrawing
-                                        ? '$orange10'
-                                        : waypoints.length > 0
-                                          ? '$green10'
-                                          : '$blue10'
-                                    }
-                                  >
-                                    {isDrawing
-                                      ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom`
-                                      : waypoints.length > 0
-                                        ? `Finished (${penPath.length} coordinates → ${waypoints.length} waypoints)`
-                                        : `Drawing mode (${penPath.length} points drawn) • Drag to draw, two fingers to zoom`}
-                                  </Text>
-                                )}
-                                {drawingMode === 'record' && initialWaypoints?.length && (
-                                  <Text size="sm" color="$green10">
-                                    Recorded route loaded • {routePath?.length || 0} GPS points •
-                                    Click Record Again to start new recording
-                                  </Text>
-                                )}
-                              </XStack>
-
-                              {/* Waypoint Management */}
-                              {waypoints.length > 0 && (
-                                        <YStack gap="$3" marginTop="$2">
-                                  {waypoints.map((waypoint, index) => (
-                                    <Card key={index} bordered padding="$3">
-                                      <XStack
-                                        justifyContent="space-between"
-                                        alignItems="flex-start"
-                                        gap="$3"
-                                      >
-                                        <YStack flex={1} gap="$2">
-                                          <XStack alignItems="center" gap="$2">
-                                                            <View
-                                              style={{
-                                                width: 24,
-                                                height: 24,
-                                                borderRadius: 12,
-                                                backgroundColor: '#38fdbf',
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                              }}
+                                    {showWaypointsDetails && (
+                                      <YStack gap="$3">
+                                        {/* Waypoint Management Controls */}
+                                        <XStack gap="$2" flexWrap="wrap">
+                                          <TouchableOpacity
+                                            onPress={handleUndo}
+                                            disabled={waypoints.length === 0}
+                                            style={{
+                                              flex: 1,
+                                              paddingVertical: 12,
+                                              borderRadius: 8,
+                                              backgroundColor: 'transparent',
+                                              borderWidth: 1,
+                                              borderColor:
+                                                colorScheme === 'dark'
+                                                  ? 'rgba(255, 255, 255, 0.1)'
+                                                  : 'rgba(0, 0, 0, 0.1)',
+                                              opacity: waypoints.length === 0 ? 0.5 : 1,
+                                            }}
+                                          >
+                                            <XStack
+                                              gap="$2"
+                                              alignItems="center"
+                                              justifyContent="center"
                                             >
-                                              <Text size="xs" color="white" weight="bold">
-                                                {index + 1}
+                                              <Feather
+                                                name="corner-up-left"
+                                                size={18}
+                                                color={colorScheme === 'dark' ? '#999' : '#666'}
+                                              />
+                                              <Text color="$gray11" fontWeight="500">
+                                                Undo
                                               </Text>
-                                            </View>
-                                            <Text
-                                              size="sm"
-                                              weight="medium"
-                                              flex={1}
-                                              numberOfLines={1}
+                                            </XStack>
+                                          </TouchableOpacity>
+
+                                          <TouchableOpacity
+                                            onPress={clearAllWaypoints}
+                                            disabled={
+                                              waypoints.length === 0 && penPath.length === 0
+                                            }
+                                            style={{
+                                              flex: 1,
+                                              paddingVertical: 12,
+                                              borderRadius: 8,
+                                              backgroundColor: 'transparent',
+                                              borderWidth: 1,
+                                              borderColor:
+                                                colorScheme === 'dark'
+                                                  ? 'rgba(255, 255, 255, 0.1)'
+                                                  : 'rgba(0, 0, 0, 0.1)',
+                                              opacity:
+                                                waypoints.length === 0 && penPath.length === 0
+                                                  ? 0.5
+                                                  : 1,
+                                            }}
+                                          >
+                                            <XStack
+                                              gap="$2"
+                                              alignItems="center"
+                                              justifyContent="center"
                                             >
-                                              {waypoint.title}
-                                            </Text>
-                                          </XStack>
-                                          <Text size="xs" color="$gray11">
-                                            Lat: {waypoint.latitude.toFixed(6)}, Lng:{' '}
-                                            {waypoint.longitude.toFixed(6)}
+                                              <Feather
+                                                name="trash-2"
+                                                size={18}
+                                                color={colorScheme === 'dark' ? '#999' : '#666'}
+                                              />
+                                              <Text color="$gray11" fontWeight="500">
+                                                Clear All
+                                              </Text>
+                                            </XStack>
+                                          </TouchableOpacity>
+                                        </XStack>
+
+                                        {/* Current waypoint count and mode info */}
+                                        <XStack
+                                          justifyContent="space-between"
+                                          alignItems="center"
+                                          paddingHorizontal="$2"
+                                        >
+                                          <Text size="sm" color="$gray11">
+                                            {waypoints.length} waypoint
+                                            {waypoints.length !== 1 ? 's' : ''} • {drawingMode} mode
                                           </Text>
-                                          {waypoint.description && (
-                                            <Text size="xs" color="$gray10">
-                                              {waypoint.description}
+                                          {drawingMode === 'waypoint' && waypoints.length === 1 && (
+                                            <Text size="sm" color="$orange10">
+                                              Need 1 more waypoint minimum
                                             </Text>
                                           )}
-                                        </YStack>
-                                        <Button
-                                          variant="secondary"
-                                          size="sm"
-                                          onPress={() => {
-                                            const newWaypoints = waypoints.filter(
-                                              (_, i) => i !== index,
-                                            );
-                                            setWaypoints(newWaypoints);
-                                          }}
-                                          backgroundColor="$red5"
+                                          {drawingMode === 'pen' && (
+                                            <Text
+                                              size="sm"
+                                              color={
+                                                isDrawing
+                                                  ? '$orange10'
+                                                  : waypoints.length > 0
+                                                    ? '$green10'
+                                                    : '$blue10'
+                                              }
+                                            >
+                                              {isDrawing
+                                                ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom`
+                                                : waypoints.length > 0
+                                                  ? `Finished (${penPath.length} coordinates → ${waypoints.length} waypoints)`
+                                                  : `Drawing mode (${penPath.length} points drawn) • Drag to draw, two fingers to zoom`}
+                                            </Text>
+                                          )}
+                                          {drawingMode === 'record' && initialWaypoints?.length && (
+                                            <Text size="sm" color="$green10">
+                                              Recorded route loaded • {routePath?.length || 0} GPS
+                                              points • Click Record Again to start new recording
+                                            </Text>
+                                          )}
+                                        </XStack>
+
+                                        {/* Waypoint Management */}
+                                        {waypoints.length > 0 && (
+                                          <YStack gap="$3" marginTop="$2">
+                                            {waypoints.map((waypoint, index) => (
+                                              <Card key={index} bordered padding="$3">
+                                                <XStack
+                                                  justifyContent="space-between"
+                                                  alignItems="flex-start"
+                                                  gap="$3"
+                                                >
+                                                  <YStack flex={1} gap="$2">
+                                                    <XStack alignItems="center" gap="$2">
+                                                      <View
+                                                        style={{
+                                                          width: 24,
+                                                          height: 24,
+                                                          borderRadius: 12,
+                                                          backgroundColor: '#38fdbf',
+                                                          justifyContent: 'center',
+                                                          alignItems: 'center',
+                                                        }}
+                                                      >
+                                                        <Text size="xs" color="white" weight="bold">
+                                                          {index + 1}
+                                                        </Text>
+                                                      </View>
+                                                      <Text
+                                                        size="sm"
+                                                        weight="medium"
+                                                        flex={1}
+                                                        numberOfLines={1}
+                                                      >
+                                                        {waypoint.title}
+                                                      </Text>
+                                                    </XStack>
+                                                    <Text size="xs" color="$gray11">
+                                                      Lat: {waypoint.latitude.toFixed(6)}, Lng:{' '}
+                                                      {waypoint.longitude.toFixed(6)}
+                                                    </Text>
+                                                    {waypoint.description && (
+                                                      <Text size="xs" color="$gray10">
+                                                        {waypoint.description}
+                                                      </Text>
+                                                    )}
+                                                  </YStack>
+                                                  <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onPress={() => {
+                                                      const newWaypoints = waypoints.filter(
+                                                        (_, i) => i !== index,
+                                                      );
+                                                      setWaypoints(newWaypoints);
+                                                    }}
+                                                    backgroundColor="$red5"
+                                                  >
+                                                    <Feather
+                                                      name="trash-2"
+                                                      size={14}
+                                                      color="$red10"
+                                                    />
+                                                  </Button>
+                                                </XStack>
+                                              </Card>
+                                            ))}
+                                          </YStack>
+                                        )}
+                                      </YStack>
+                                    )}
+                                  </YStack>
+                                </Card>
+
+                                {/* Drawing Info */}
+                                {drawingMode === 'pen' && penPath.length > 0 && (
+                                  <YStack gap="$2" marginTop="$4">
+                                    <Text size="lg" weight="bold">
+                                      Drawing
+                                    </Text>
+                                    <Card bordered padding="$3">
+                                      <YStack gap="$2">
+                                        <XStack justifyContent="space-between" alignItems="center">
+                                          <Text size="sm" color="$gray11">
+                                            {isDrawing
+                                              ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom/pan`
+                                              : waypoints.length > 0
+                                                ? `Drawing finished (${penPath.length} raw coordinates → ${waypoints.length} waypoints)`
+                                                : `Drawing paused (${penPath.length} points) • Drag to continue drawing`}
+                                          </Text>
+                                          <XStack gap="$2">
+                                            {isDrawing && (
+                                              <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onPress={finishPenDrawing}
+                                                backgroundColor="$green10"
+                                              >
+                                                <XStack gap="$1" alignItems="center">
+                                                  <Feather name="check" size={14} color="white" />
+                                                  <Text size="sm" color="white">
+                                                    Finish
+                                                  </Text>
+                                                </XStack>
+                                              </Button>
+                                            )}
+                                            <Button
+                                              variant="secondary"
+                                              size="sm"
+                                              onPress={() => {
+                                                setPenPath([]);
+                                                setIsDrawing(false);
+                                                drawingRef.current = false;
+                                                lastDrawPointRef.current = null;
+                                                // Also clear waypoints if they were generated from pen drawing
+                                                if (
+                                                  waypoints.length > 0 &&
+                                                  waypoints[0]?.title?.includes('Drawing')
+                                                ) {
+                                                  setWaypoints([]);
+                                                }
+                                              }}
+                                              backgroundColor="$red5"
+                                            >
+                                              <Feather name="trash-2" size={14} color="$red10" />
+                                            </Button>
+                                          </XStack>
+                                        </XStack>
+
+                                        {/* Show status when finished */}
+                                        {!isDrawing && waypoints.length > 0 && (
+                                          <YStack gap="$1">
+                                            <Text size="xs" color="$green10">
+                                              ✅ Raw drawing coordinates will be saved to metadata
+                                              for accurate display
+                                            </Text>
+                                            <Text size="xs" color="$gray9">
+                                              Metadata will contain: {penPath.length} coordinate
+                                              points
+                                            </Text>
+                                          </YStack>
+                                        )}
+                                      </YStack>
+                                    </Card>
+                                  </YStack>
+                                )}
+                              </YStack>
+                            </YStack>
+                          )}
+
+                          {activeSection === 'exercises' && (
+                            <YStack gap="$4">
+                              <Heading>
+                                {getTranslation(t, 'createRoute.exercises', 'Exercises')}
+                              </Heading>
+                              <Text size="sm" color="$gray11">
+                                Add exercises from learning paths or create custom ones
+                              </Text>
+
+                              {/* Learning Path Exercises Selector */}
+                              <YStack gap="$3">
+                                <Heading size="$4">From Learning Paths</Heading>
+                                <Button
+                                  onPress={() => setShowExerciseSelector(true)}
+                                  variant="secondary"
+                                  size="lg"
+                                  backgroundColor="$green5"
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather name="book-open" size={18} color="$green11" />
+                                    <Text color="$green11" fontWeight="500">
+                                      Select from Learning Paths (
+                                      {
+                                        exercises.filter((ex) => ex.source === 'learning_path')
+                                          .length
+                                      }{' '}
+                                      selected)
+                                    </Text>
+                                  </XStack>
+                                </Button>
+                              </YStack>
+
+                              <Separator marginVertical="$4" />
+
+                              {/* Advanced Custom Exercise Creator */}
+                              <YStack gap="$3">
+                                <Heading size="$4">Create Custom Exercise</Heading>
+                                <Text size="sm" color="$gray11">
+                                  Create rich, feature-complete exercises with multimedia support,
+                                  quizzes, and multilingual content
+                                </Text>
+
+                                <Button
+                                  onPress={() => setShowAdvancedExerciseCreator(true)}
+                                  variant="secondary"
+                                  size="lg"
+                                  backgroundColor="$blue5"
+                                  marginTop="$2"
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather name="plus-circle" size={20} color="$blue11" />
+                                    <Text color="$blue11" fontWeight="500">
+                                      Create Advanced Exercise
+                                    </Text>
+                                  </XStack>
+                                </Button>
+
+                                <YStack gap="$2" marginTop="$2">
+                                  <Text size="sm" color="$green11" fontWeight="500">
+                                    🎯 Features Available:
+                                  </Text>
+                                  <Text size="xs" color="$gray11">
+                                    ✅ Photos, Videos & YouTube integration • ✅ Interactive quizzes
+                                    & embeds
+                                  </Text>
+                                  <Text size="xs" color="$gray11">
+                                    ✅ Public/Private visibility • ✅ Categories & difficulty levels
+                                  </Text>
+                                  <Text size="xs" color="$gray11">
+                                    ✅ Multilingual support (EN/SV) • ✅ Rich descriptions &
+                                    instructions
+                                  </Text>
+                                </YStack>
+                              </YStack>
+
+                              <Separator marginVertical="$4" />
+
+                              {exercises.length > 0 ? (
+                                <YStack gap="$4">
+                                  <Text size="lg" weight="bold">
+                                    Selected Exercises ({exercises.length})
+                                  </Text>
+                                  {exercises.map((exercise) => (
+                                    <Card
+                                      key={exercise.id}
+                                      bordered
+                                      padding="$3"
+                                      backgroundColor={
+                                        exercise.source === 'learning_path'
+                                          ? '$green1'
+                                          : '$background'
+                                      }
+                                      borderColor={
+                                        exercise.source === 'learning_path'
+                                          ? '$green8'
+                                          : '$borderColor'
+                                      }
+                                    >
+                                      <YStack gap="$2">
+                                        <XStack
+                                          justifyContent="space-between"
+                                          alignItems="flex-start"
                                         >
-                                          <Feather name="trash-2" size={14} color="$red10" />
-                                        </Button>
-                                      </XStack>
+                                          <YStack flex={1} gap="$1">
+                                            <XStack alignItems="center" gap="$2">
+                                              <Text size="lg" weight="medium">
+                                                {exercise.title}
+                                              </Text>
+                                              {exercise.source === 'learning_path' && (
+                                                <View
+                                                  style={{
+                                                    backgroundColor: '#10B981',
+                                                    paddingHorizontal: 6,
+                                                    paddingVertical: 2,
+                                                    borderRadius: 8,
+                                                  }}
+                                                >
+                                                  <Text
+                                                    fontSize={10}
+                                                    color="white"
+                                                    fontWeight="500"
+                                                  >
+                                                    LEARNING PATH
+                                                  </Text>
+                                                </View>
+                                              )}
+                                              {exercise.isRepeat && (
+                                                <View
+                                                  style={{
+                                                    backgroundColor: '#F59E0B',
+                                                    paddingHorizontal: 6,
+                                                    paddingVertical: 2,
+                                                    borderRadius: 8,
+                                                  }}
+                                                >
+                                                  <Text
+                                                    fontSize={10}
+                                                    color="white"
+                                                    fontWeight="500"
+                                                  >
+                                                    REPEAT {exercise.repeatNumber || ''}
+                                                  </Text>
+                                                </View>
+                                              )}
+                                              {exercise.has_quiz && (
+                                                <View
+                                                  style={{
+                                                    backgroundColor: '#3B82F6',
+                                                    paddingHorizontal: 6,
+                                                    paddingVertical: 2,
+                                                    borderRadius: 8,
+                                                  }}
+                                                >
+                                                  <Text
+                                                    fontSize={10}
+                                                    color="white"
+                                                    fontWeight="500"
+                                                  >
+                                                    QUIZ
+                                                  </Text>
+                                                </View>
+                                              )}
+                                              {exercise.youtube_url && (
+                                                <View
+                                                  style={{
+                                                    backgroundColor: '#EF4444',
+                                                    paddingHorizontal: 6,
+                                                    paddingVertical: 2,
+                                                    borderRadius: 8,
+                                                  }}
+                                                >
+                                                  <Text
+                                                    fontSize={10}
+                                                    color="white"
+                                                    fontWeight="500"
+                                                  >
+                                                    VIDEO
+                                                  </Text>
+                                                </View>
+                                              )}
+                                            </XStack>
+
+                                            {exercise.learning_path_title && (
+                                              <Text size="sm" color="$green11">
+                                                From: {exercise.learning_path_title}
+                                              </Text>
+                                            )}
+                                          </YStack>
+
+                                          <XStack gap="$2">
+                                            {exercise.source === 'custom' && (
+                                              <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onPress={() => handleEditExercise(exercise)}
+                                                backgroundColor="$blue5"
+                                              >
+                                                <Feather name="edit-3" size={16} color="$blue10" />
+                                              </Button>
+                                            )}
+                                            <Button
+                                              variant="secondary"
+                                              size="sm"
+                                              onPress={() => handleRemoveExercise(exercise.id)}
+                                              backgroundColor="$red5"
+                                            >
+                                              <Feather name="trash-2" size={16} color="$red10" />
+                                            </Button>
+                                          </XStack>
+                                        </XStack>
+
+                                        {exercise.description && (
+                                          <Text color="$gray11">{exercise.description}</Text>
+                                        )}
+
+                                        <XStack gap="$3" alignItems="center" flexWrap="wrap">
+                                          {exercise.duration && (
+                                            <XStack gap="$1" alignItems="center">
+                                              <Feather name="clock" size={14} color="$gray11" />
+                                              <Text size="sm" color="$gray11">
+                                                {exercise.duration}
+                                              </Text>
+                                            </XStack>
+                                          )}
+
+                                          {exercise.repetitions && (
+                                            <XStack gap="$1" alignItems="center">
+                                              <Feather name="repeat" size={14} color="$gray11" />
+                                              <Text size="sm" color="$gray11">
+                                                {exercise.repetitions}
+                                              </Text>
+                                            </XStack>
+                                          )}
+
+                                          {exercise.source === 'learning_path' && (
+                                            <XStack gap="$1" alignItems="center">
+                                              <Feather name="link" size={14} color="$gray11" />
+                                              <Text size="sm" color="$gray11">
+                                                Linked to Learning Path
+                                              </Text>
+                                            </XStack>
+                                          )}
+                                        </XStack>
+                                      </YStack>
                                     </Card>
                                   ))}
                                 </YStack>
-                              )}
-                                    </YStack>
+                              ) : (
+                                <Text color="$gray11" textAlign="center">
+                                  {getTranslation(
+                                    t,
+                                    'createRoute.noExercises',
+                                    'No exercises added yet',
                                   )}
-                                </YStack>
-                              </Card>
-
-                              {/* Drawing Info */}
-                              {drawingMode === 'pen' && penPath.length > 0 && (
-                                <YStack gap="$2" marginTop="$4">
-                                  <Text size="lg" weight="bold">
-                                    Drawing
-                                  </Text>
-                                  <Card bordered padding="$3">
-                                    <YStack gap="$2">
-                                      <XStack justifyContent="space-between" alignItems="center">
-                                        <Text size="sm" color="$gray11">
-                                          {isDrawing
-                                            ? `Drawing (${penPath.length} points) • Drag to continue, pinch to zoom/pan`
-                                            : waypoints.length > 0
-                                              ? `Drawing finished (${penPath.length} raw coordinates → ${waypoints.length} waypoints)`
-                                              : `Drawing paused (${penPath.length} points) • Drag to continue drawing`}
-                                        </Text>
-                                        <XStack gap="$2">
-                                          {isDrawing && (
-                                            <Button
-                                              variant="secondary"
-                                              size="sm"
-                                              onPress={finishPenDrawing}
-                                              backgroundColor="$green10"
-                                            >
-                                              <XStack gap="$1" alignItems="center">
-                                                <Feather name="check" size={14} color="white" />
-                                                <Text size="sm" color="white">
-                                                  Finish
-                                                </Text>
-                                              </XStack>
-                                            </Button>
-                                          )}
-                                          <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onPress={() => {
-                                              setPenPath([]);
-                                              setIsDrawing(false);
-                                              drawingRef.current = false;
-                                              lastDrawPointRef.current = null;
-                                              // Also clear waypoints if they were generated from pen drawing
-                                              if (
-                                                waypoints.length > 0 &&
-                                                waypoints[0]?.title?.includes('Drawing')
-                                              ) {
-                                                setWaypoints([]);
-                                              }
-                                            }}
-                                            backgroundColor="$red5"
-                                          >
-                                            <Feather name="trash-2" size={14} color="$red10" />
-                                          </Button>
-                                        </XStack>
-                                      </XStack>
-
-                                      {/* Show status when finished */}
-                                      {!isDrawing && waypoints.length > 0 && (
-                                        <YStack gap="$1">
-                                          <Text size="xs" color="$green10">
-                                            ✅ Raw drawing coordinates will be saved to metadata for
-                                            accurate display
-                                          </Text>
-                                          <Text size="xs" color="$gray9">
-                                            Metadata will contain: {penPath.length} coordinate
-                                            points
-                                          </Text>
-                                        </YStack>
-                                      )}
-                                    </YStack>
-                                  </Card>
-                                </YStack>
+                                </Text>
                               )}
                             </YStack>
-                          </YStack>
-                        )}
+                          )}
 
-                        {activeSection === 'exercises' && (
-                          <YStack gap="$4">
-                            <Heading>
-                              {getTranslation(t, 'createRoute.exercises', 'Exercises')}
-                            </Heading>
-                            <Text size="sm" color="$gray11">
-                              Add exercises from learning paths or create custom ones
-                            </Text>
-
-                            {/* Learning Path Exercises Selector */}
-                            <YStack gap="$3">
-                              <Heading size="$4">From Learning Paths</Heading>
-                              <Button
-                                onPress={() => setShowExerciseSelector(true)}
-                                variant="secondary"
-                                size="lg"
-                                backgroundColor="$green5"
-                              >
-                                <XStack gap="$2" alignItems="center">
-                                  <Feather name="book-open" size={18} color="$green11" />
-                                  <Text color="$green11" fontWeight="500">
-                                    Select from Learning Paths (
-                                    {exercises.filter((ex) => ex.source === 'learning_path').length}{' '}
-                                    selected)
-                                  </Text>
-                                </XStack>
-                              </Button>
-                            </YStack>
-
-                            <Separator marginVertical="$4" />
-
-                            {/* Advanced Custom Exercise Creator */}
-                            <YStack gap="$3">
-                              <Heading size="$4">Create Custom Exercise</Heading>
-                              <Text size="sm" color="$gray11">
-                                Create rich, feature-complete exercises with multimedia support,
-                                quizzes, and multilingual content
-                              </Text>
-
-                              <Button
-                                onPress={() => setShowAdvancedExerciseCreator(true)}
-                                variant="secondary"
-                                size="lg"
-                                backgroundColor="$blue5"
-                                marginTop="$2"
-                              >
-                                <XStack gap="$2" alignItems="center">
-                                  <Feather name="plus-circle" size={20} color="$blue11" />
-                                  <Text color="$blue11" fontWeight="500">
-                                    Create Advanced Exercise
-                                  </Text>
-                                </XStack>
-                              </Button>
-
-                              <YStack gap="$2" marginTop="$2">
-                                <Text size="sm" color="$green11" fontWeight="500">
-                                  🎯 Features Available:
-                                </Text>
-                                <Text size="xs" color="$gray11">
-                                  ✅ Photos, Videos & YouTube integration • ✅ Interactive quizzes &
-                                  embeds
-                                </Text>
-                                <Text size="xs" color="$gray11">
-                                  ✅ Public/Private visibility • ✅ Categories & difficulty levels
-                                </Text>
-                                <Text size="xs" color="$gray11">
-                                  ✅ Multilingual support (EN/SV) • ✅ Rich descriptions &
-                                  instructions
-                                </Text>
-                              </YStack>
-                            </YStack>
-
-                            <Separator marginVertical="$4" />
-
-                            {exercises.length > 0 ? (
-                              <YStack gap="$4">
-                                <Text size="lg" weight="bold">
-                                  Selected Exercises ({exercises.length})
-                                </Text>
-                                {exercises.map((exercise) => (
-                                  <Card
-                                    key={exercise.id}
-                                    bordered
-                                    padding="$3"
-                                    backgroundColor={
-                                      exercise.source === 'learning_path'
-                                        ? '$green1'
-                                        : '$background'
-                                    }
-                                    borderColor={
-                                      exercise.source === 'learning_path'
-                                        ? '$green8'
-                                        : '$borderColor'
-                                    }
-                                  >
-                                    <YStack gap="$2">
-                                      <XStack
-                                        justifyContent="space-between"
-                                        alignItems="flex-start"
-                                      >
-                                        <YStack flex={1} gap="$1">
-                                          <XStack alignItems="center" gap="$2">
-                                            <Text size="lg" weight="medium">
-                                              {exercise.title}
-                                            </Text>
-                                            {exercise.source === 'learning_path' && (
-                                              <View
-                                                style={{
-                                                  backgroundColor: '#10B981',
-                                                  paddingHorizontal: 6,
-                                                  paddingVertical: 2,
-                                                  borderRadius: 8,
-                                                }}
-                                              >
-                                                <Text fontSize={10} color="white" fontWeight="500">
-                                                  LEARNING PATH
-                                                </Text>
-                                              </View>
-                                            )}
-                                            {exercise.isRepeat && (
-                                              <View
-                                                style={{
-                                                  backgroundColor: '#F59E0B',
-                                                  paddingHorizontal: 6,
-                                                  paddingVertical: 2,
-                                                  borderRadius: 8,
-                                                }}
-                                              >
-                                                <Text fontSize={10} color="white" fontWeight="500">
-                                                  REPEAT {exercise.repeatNumber || ''}
-                                                </Text>
-                                              </View>
-                                            )}
-                                            {exercise.has_quiz && (
-                                              <View
-                                                style={{
-                                                  backgroundColor: '#3B82F6',
-                                                  paddingHorizontal: 6,
-                                                  paddingVertical: 2,
-                                                  borderRadius: 8,
-                                                }}
-                                              >
-                                                <Text fontSize={10} color="white" fontWeight="500">
-                                                  QUIZ
-                                                </Text>
-                                              </View>
-                                            )}
-                                            {exercise.youtube_url && (
-                                              <View
-                                                style={{
-                                                  backgroundColor: '#EF4444',
-                                                  paddingHorizontal: 6,
-                                                  paddingVertical: 2,
-                                                  borderRadius: 8,
-                                                }}
-                                              >
-                                                <Text fontSize={10} color="white" fontWeight="500">
-                                                  VIDEO
-                                                </Text>
-                                              </View>
-                                            )}
-                                          </XStack>
-
-                                          {exercise.learning_path_title && (
-                                            <Text size="sm" color="$green11">
-                                              From: {exercise.learning_path_title}
-                                            </Text>
-                                          )}
-                                        </YStack>
-
-                                        <XStack gap="$2">
-                                          {exercise.source === 'custom' && (
-                                            <Button
-                                              variant="secondary"
-                                              size="sm"
-                                              onPress={() => handleEditExercise(exercise)}
-                                              backgroundColor="$blue5"
-                                            >
-                                              <Feather name="edit-3" size={16} color="$blue10" />
-                                            </Button>
-                                          )}
-                                          <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onPress={() => handleRemoveExercise(exercise.id)}
-                                            backgroundColor="$red5"
-                                          >
-                                            <Feather name="trash-2" size={16} color="$red10" />
-                                          </Button>
-                                        </XStack>
-                                      </XStack>
-
-                                      {exercise.description && (
-                                        <Text color="$gray11">{exercise.description}</Text>
-                                      )}
-
-                                      <XStack gap="$3" alignItems="center" flexWrap="wrap">
-                                        {exercise.duration && (
-                                          <XStack gap="$1" alignItems="center">
-                                            <Feather name="clock" size={14} color="$gray11" />
-                                            <Text size="sm" color="$gray11">
-                                              {exercise.duration}
-                                            </Text>
-                                          </XStack>
-                                        )}
-
-                                        {exercise.repetitions && (
-                                          <XStack gap="$1" alignItems="center">
-                                            <Feather name="repeat" size={14} color="$gray11" />
-                                            <Text size="sm" color="$gray11">
-                                              {exercise.repetitions}
-                                            </Text>
-                                          </XStack>
-                                        )}
-
-                                        {exercise.source === 'learning_path' && (
-                                          <XStack gap="$1" alignItems="center">
-                                            <Feather name="link" size={14} color="$gray11" />
-                                            <Text size="sm" color="$gray11">
-                                              Linked to Learning Path
-                                            </Text>
-                                          </XStack>
-                                        )}
-                                      </XStack>
-                                    </YStack>
-                                  </Card>
-                                ))}
-                              </YStack>
-                            ) : (
-                              <Text color="$gray11" textAlign="center">
-                                {getTranslation(
-                                  t,
-                                  'createRoute.noExercises',
-                                  'No exercises added yet',
-                                )}
-                              </Text>
-                            )}
-                          </YStack>
-                        )}
-
-                        {activeSection === 'media' && (
-                          <YStack gap="$4">
-                            {/* <Heading>{getTranslation(t, 'createRoute.media', 'Media')}</Heading>
+                          {activeSection === 'media' && (
+                            <YStack gap="$4">
+                              {/* <Heading>{getTranslation(t, 'createRoute.media', 'Media')}</Heading>
                             <Text size="sm" color="$gray11">
                               {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
                             </Text> */}
 
-                            <YStack gap="$3">
-                              <TouchableOpacity
-                                onPress={() => pickMedia(false)}
-                                style={{
-                                  paddingVertical: 16,
-                                  paddingHorizontal: 16,
-                                  borderRadius: 8,
-                                  borderWidth: 1,
-                                  borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
-                                  backgroundColor: 'transparent',
-                                }}
-                              >
-                                <XStack gap="$2" alignItems="center" justifyContent="center">
-                                  <Feather name="image" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
-                                  <Text color="$color">
-                                    {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
-                                  </Text>
-                                </XStack>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                onPress={takePhoto}
-                                style={{
-                                  paddingVertical: 16,
-                                  paddingHorizontal: 16,
-                                  borderRadius: 8,
-                                  borderWidth: 1,
-                                  borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
-                                  backgroundColor: 'transparent',
-                                }}
-                              >
-                                <XStack gap="$2" alignItems="center" justifyContent="center">
-                                  <Feather name="camera" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
-                                  <Text color="$color">
-                                    {getTranslation(t, 'createRoute.takePicture', 'Take Picture')}
-                                  </Text>
-                                </XStack>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                onPress={recordVideo}
-                                style={{
-                                  paddingVertical: 16,
-                                  paddingHorizontal: 16,
-                                  borderRadius: 8,
-                                  borderWidth: 1,
-                                  borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
-                                  backgroundColor: 'transparent',
-                                }}
-                              >
-                                <XStack gap="$2" alignItems="center" justifyContent="center">
-                                  <Feather name="video" size={20} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
-                                  <Text color="$color">
-                                    {getTranslation(t, 'createRoute.takeVideo', 'Take Video')}
-                                  </Text>
-                                </XStack>
-                              </TouchableOpacity>
-                            </YStack>
+                              <YStack gap="$3">
+                                <TouchableOpacity
+                                  onPress={() => pickMedia(false)}
+                                  style={{
+                                    paddingVertical: 16,
+                                    paddingHorizontal: 16,
+                                    borderRadius: 8,
+                                    borderWidth: 1,
+                                    borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                    backgroundColor: 'transparent',
+                                  }}
+                                >
+                                  <XStack gap="$2" alignItems="center" justifyContent="center">
+                                    <Feather
+                                      name="image"
+                                      size={20}
+                                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                                    />
+                                    <Text color="$color">
+                                      {getTranslation(t, 'createRoute.addMedia', 'Add Media')}
+                                    </Text>
+                                  </XStack>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={takePhoto}
+                                  style={{
+                                    paddingVertical: 16,
+                                    paddingHorizontal: 16,
+                                    borderRadius: 8,
+                                    borderWidth: 1,
+                                    borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                    backgroundColor: 'transparent',
+                                  }}
+                                >
+                                  <XStack gap="$2" alignItems="center" justifyContent="center">
+                                    <Feather
+                                      name="camera"
+                                      size={20}
+                                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                                    />
+                                    <Text color="$color">
+                                      {getTranslation(t, 'createRoute.takePicture', 'Take Picture')}
+                                    </Text>
+                                  </XStack>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  onPress={recordVideo}
+                                  style={{
+                                    paddingVertical: 16,
+                                    paddingHorizontal: 16,
+                                    borderRadius: 8,
+                                    borderWidth: 1,
+                                    borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                    backgroundColor: 'transparent',
+                                  }}
+                                >
+                                  <XStack gap="$2" alignItems="center" justifyContent="center">
+                                    <Feather
+                                      name="video"
+                                      size={20}
+                                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                                    />
+                                    <Text color="$color">
+                                      {getTranslation(t, 'createRoute.takeVideo', 'Take Video')}
+                                    </Text>
+                                  </XStack>
+                                </TouchableOpacity>
+                              </YStack>
 
-                            {/* YouTube Link */}
-                            {/* <YStack gap="$2">
+                              {/* YouTube Link */}
+                              {/* <YStack gap="$2">
                               <Heading marginTop="$4">
                                 {getTranslation(t, 'createRoute.youtubeLink', 'YouTube Link')}
                               </Heading>
@@ -4081,537 +4230,588 @@ export function CreateRouteSheet({
                               </XStack>
                             </YStack> */}
 
-                            {/* Media Preview Grid */}
-                            {(media.length > 0 || loadingMedia) && (
-                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-                                {loadingMedia && (
-                                  <View
-                                    style={{
-                                      width: 100,
-                                      height: 100,
-                                      borderRadius: 8,
-                                      backgroundColor: colorScheme === 'dark' ? '#1C1C1C' : '#F5F5F5',
-                                      justifyContent: 'center',
-                                      alignItems: 'center',
-                                    }}
-                                  >
-                                    <Text size="sm" color="$gray11">Loading...</Text>
-                                  </View>
-                                )}
-                                {media.map((item, index) => (
-                                  <TouchableOpacity
-                                    key={item.id}
-                                    onPress={() => setSelectedMediaIndex(index)}
-                                    style={{
-                                      width: 100,
-                                      height: 100,
-                                      position: 'relative',
-                                    }}
-                                  >
-                                    {item.type === 'image' && (
-                                      <Image
-                                        source={{ uri: item.uri }}
-                                        style={{
-                                          width: '100%',
-                                          height: '100%',
-                                          borderRadius: 8,
-                                        }}
-                                      />
-                                    )}
-                                    {item.type === 'video' && (
-                                      <View
-                                        style={{
-                                          width: '100%',
-                                          height: '100%',
-                                          borderRadius: 8,
-                                          backgroundColor: '#000',
-                                          justifyContent: 'center',
-                                          alignItems: 'center',
-                                        }}
-                                      >
-                                        <Feather name="video" size={32} color="white" />
-                                      </View>
-                                    )}
-                                    {item.type === 'youtube' && (
-                                      <View
-                                        style={{
-                                          width: '100%',
-                                          height: '100%',
-                                          borderRadius: 8,
-                                          backgroundColor: '#FF0000',
-                                          justifyContent: 'center',
-                                          alignItems: 'center',
-                                        }}
-                                      >
-                                        <Feather name="youtube" size={32} color="white" />
-                                      </View>
-                                    )}
-                                    {/* Delete button - small X in top right corner */}
-                                    <TouchableOpacity
-                                      onPress={(e) => {
-                                        e.stopPropagation();
-                                        handleRemoveMedia(index);
-                                      }}
+                              {/* Media Preview Grid */}
+                              {(media.length > 0 || loadingMedia) && (
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                                  {loadingMedia && (
+                                    <View
                                       style={{
-                                        position: 'absolute',
-                                        top: 4,
-                                        right: 4,
-                                        width: 28,
-                                        height: 28,
-                                        alignItems: 'center',
+                                        width: 100,
+                                        height: 100,
+                                        borderRadius: 8,
+                                        backgroundColor:
+                                          colorScheme === 'dark' ? '#1C1C1C' : '#F5F5F5',
                                         justifyContent: 'center',
-                                        borderWidth: 1,
-                                        borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
-                                        borderRadius: 14,
-                                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                        alignItems: 'center',
                                       }}
                                     >
-                                      <Feather
-                                        name="x"
-                                        size={16}
-                                        color="#FFFFFF"
-                                      />
-                                    </TouchableOpacity>
-                                  </TouchableOpacity>
-                                ))}
-                              </View>
-                            )}
-                          </YStack>
-                        )}
-
-                        {activeSection === 'details' && (
-                          <YStack gap="$4">
-                            <Text size="lg" weight="medium" color="$color">
-                              {t('common.details')}
-                            </Text>
-
-                            {/* Difficulty */}
-                            <YStack gap="$2">
-                              <Text weight="medium" color="$color">
-                                {getTranslation(t, 'createRoute.difficulty', 'Difficulty')}
-                              </Text>
-                              <View
-                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
-                              >
-                                {['beginner', 'intermediate', 'advanced'].map((level) => {
-                                  const isSelected = formData.difficulty === (level as DifficultyLevel);
-                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
-                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
-
-                                  return (
+                                      <Text size="sm" color="$gray11">
+                                        Loading...
+                                      </Text>
+                                    </View>
+                                  )}
+                                  {media.map((item, index) => (
                                     <TouchableOpacity
-                                    key={level}
+                                      key={item.id}
+                                      onPress={() => setSelectedMediaIndex(index)}
                                       style={{
-                                        marginRight: 8,
-                                        marginBottom: 8,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 8,
-                                        borderRadius: 20,
-                                        borderWidth: 1,
-                                        borderColor,
-                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                                        width: 100,
+                                        height: 100,
+                                        position: 'relative',
                                       }}
-                                    onPress={() =>
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        difficulty: level as DifficultyLevel,
-                                      }))
-                                    }
                                     >
-                                      <Text
+                                      {item.type === 'image' && (
+                                        <Image
+                                          source={{ uri: item.uri }}
+                                          style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            borderRadius: 8,
+                                          }}
+                                        />
+                                      )}
+                                      {item.type === 'video' && (
+                                        <View
+                                          style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            borderRadius: 8,
+                                            backgroundColor: '#000',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                          }}
+                                        >
+                                          <Feather name="video" size={32} color="white" />
+                                        </View>
+                                      )}
+                                      {item.type === 'youtube' && (
+                                        <View
+                                          style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            borderRadius: 8,
+                                            backgroundColor: '#FF0000',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                          }}
+                                        >
+                                          <Feather name="youtube" size={32} color="white" />
+                                        </View>
+                                      )}
+                                      {/* Delete button - small X in top right corner */}
+                                      <TouchableOpacity
+                                        onPress={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveMedia(index);
+                                        }}
                                         style={{
-                                          fontSize: 14,
-                                          fontWeight: isSelected ? '600' : '500',
-                                          color: isSelected ? '#000000' : textColor,
+                                          position: 'absolute',
+                                          top: 4,
+                                          right: 4,
+                                          width: 28,
+                                          height: 28,
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          borderWidth: 1,
+                                          borderColor:
+                                            colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                                          borderRadius: 14,
+                                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
                                         }}
                                       >
-                                    {getT(`filters.difficulty.${level}`, level)}
-                                      </Text>
+                                        <Feather name="x" size={16} color="#FFFFFF" />
+                                      </TouchableOpacity>
                                     </TouchableOpacity>
-                                  );
-                                })}
-                              </View>
+                                  ))}
+                                </View>
+                              )}
                             </YStack>
+                          )}
 
-                            {/* Spot Type */}
-                            <YStack gap="$2">
-                              <Text weight="medium" color="$color">
-                                {t('createRoute.spotType')}
+                          {activeSection === 'details' && (
+                            <YStack gap="$4">
+                              <Text size="lg" weight="medium" color="$color">
+                                {t('common.details')}
                               </Text>
-                              <View
-                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
-                              >
-                                {['city', 'highway', 'rural', 'track', 'parking'].map((type) => {
-                                  const isSelected = formData.spot_type === (type as SpotType);
-                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
-                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
-                                  return (
-                                    <TouchableOpacity
-                                    key={type}
-                                      style={{
-                                        marginRight: 8,
-                                        marginBottom: 8,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 8,
-                                        borderRadius: 20,
-                                        borderWidth: 1,
-                                        borderColor,
-                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
-                                      }}
-                                    onPress={() =>
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        spot_type: type as SpotType,
-                                      }))
-                                    }
-                                  >
-                                      <Text
+                              {/* Difficulty */}
+                              <YStack gap="$2">
+                                <Text weight="medium" color="$color">
+                                  {getTranslation(t, 'createRoute.difficulty', 'Difficulty')}
+                                </Text>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    flexWrap: 'wrap',
+                                    marginBottom: 8,
+                                  }}
+                                >
+                                  {['beginner', 'intermediate', 'advanced'].map((level) => {
+                                    const isSelected =
+                                      formData.difficulty === (level as DifficultyLevel);
+                                    const borderColor =
+                                      colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                    const textColor =
+                                      colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                                    return (
+                                      <TouchableOpacity
+                                        key={level}
                                         style={{
-                                          fontSize: 14,
-                                          fontWeight: isSelected ? '600' : '500',
-                                          color: isSelected ? '#000000' : textColor,
+                                          marginRight: 8,
+                                          marginBottom: 8,
+                                          paddingHorizontal: 12,
+                                          paddingVertical: 8,
+                                          borderRadius: 20,
+                                          borderWidth: 1,
+                                          borderColor,
+                                          backgroundColor: isSelected ? '#00E6C3' : 'transparent',
                                         }}
+                                        onPress={() =>
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            difficulty: level as DifficultyLevel,
+                                          }))
+                                        }
                                       >
-                                    {getT(`filters.spotType.${type}`, type)}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                              </View>
-                            </YStack>
+                                        <Text
+                                          style={{
+                                            fontSize: 14,
+                                            fontWeight: isSelected ? '600' : '500',
+                                            color: isSelected ? '#000000' : textColor,
+                                          }}
+                                        >
+                                          {getT(`filters.difficulty.${level}`, level)}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                              </YStack>
 
-                            {/* Visibility */}
-                            <YStack gap="$2">
-                              <Text weight="medium" color="$color">
-                                {t('createRoute.visibility')}
-                              </Text>
-                              <View
-                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
-                              >
-                                {['public', 'private'].map((vis) => {
-                                  const isSelected = formData.visibility === (vis as SpotVisibility);
-                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
-                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+                              {/* Spot Type */}
+                              <YStack gap="$2">
+                                <Text weight="medium" color="$color">
+                                  {t('createRoute.spotType')}
+                                </Text>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    flexWrap: 'wrap',
+                                    marginBottom: 8,
+                                  }}
+                                >
+                                  {['city', 'highway', 'rural', 'track', 'parking'].map((type) => {
+                                    const isSelected = formData.spot_type === (type as SpotType);
+                                    const borderColor =
+                                      colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                    const textColor =
+                                      colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
-                                  return (
-                                    <TouchableOpacity
-                                    key={vis}
-                                      style={{
-                                        marginRight: 8,
-                                        marginBottom: 8,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 8,
-                                        borderRadius: 20,
-                                        borderWidth: 1,
-                                        borderColor,
-                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
-                                      }}
-                                    onPress={() =>
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        visibility: vis as SpotVisibility,
-                                      }))
-                                    }
-                                    >
-                                      <Text
+                                    return (
+                                      <TouchableOpacity
+                                        key={type}
                                         style={{
-                                          fontSize: 14,
-                                          fontWeight: isSelected ? '600' : '500',
-                                          color: isSelected ? '#000000' : textColor,
+                                          marginRight: 8,
+                                          marginBottom: 8,
+                                          paddingHorizontal: 12,
+                                          paddingVertical: 8,
+                                          borderRadius: 20,
+                                          borderWidth: 1,
+                                          borderColor,
+                                          backgroundColor: isSelected ? '#00E6C3' : 'transparent',
                                         }}
-                                  >
-                                    {vis === 'public'
-                                      ? getTranslation(t, 'createRoute.public', 'Public')
-                                      : getTranslation(t, 'createRoute.private', 'Private')}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                              </View>
-                            </YStack>
-
-                            {/* Category */}
-                            <YStack gap="$2">
-                              <Text weight="medium" color="$color">
-                                {getTranslation(
-                                  t,
-                                  'filters.category',
-                                  language === 'sv' ? 'Kategori' : 'Category'
-                                )}
-                              </Text>
-                              <View
-                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
-                              >
-                                {['parking', 'incline_start'].map((cat) => {
-                                  const isSelected = formData.category === (cat as Category);
-                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
-                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
-
-                                  return (
-                                    <TouchableOpacity
-                                      key={cat}
-                                      style={{
-                                        marginRight: 8,
-                                        marginBottom: 8,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 8,
-                                        borderRadius: 20,
-                                        borderWidth: 1,
-                                        borderColor,
-                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
-                                      }}
-                                      onPress={() =>
-                                        setFormData((prev) => ({
-                                          ...prev,
-                                          category: cat as Category,
-                                        }))
-                                      }
-                                    >
-                                      <Text
-                                        style={{
-                                          fontSize: 14,
-                                          fontWeight: isSelected ? '600' : '500',
-                                          color: isSelected ? '#000000' : textColor,
-                                        }}
+                                        onPress={() =>
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            spot_type: type as SpotType,
+                                          }))
+                                        }
                                       >
-                                        {getT(`filters.category.${cat}`, cat)}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                              </View>
-                            </YStack>
+                                        <Text
+                                          style={{
+                                            fontSize: 14,
+                                            fontWeight: isSelected ? '600' : '500',
+                                            color: isSelected ? '#000000' : textColor,
+                                          }}
+                                        >
+                                          {getT(`filters.spotType.${type}`, type)}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                              </YStack>
 
-                            {/* Transmission Type */}
-                            <YStack gap="$2">
-                              <Text weight="medium" color="$color">
-                                {getTranslation(
-                                  t,
-                                  'filters.transmissionType',
-                                  language === 'sv' ? 'Växellådstyp' : 'Transmission Type'
-                                )}
-                              </Text>
-                              <View
-                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
-                              >
-                                {['automatic', 'manual', 'both'].map((trans) => {
-                                  const isSelected = formData.transmission_type === trans;
-                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
-                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+                              {/* Visibility */}
+                              <YStack gap="$2">
+                                <Text weight="medium" color="$color">
+                                  {t('createRoute.visibility')}
+                                </Text>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    flexWrap: 'wrap',
+                                    marginBottom: 8,
+                                  }}
+                                >
+                                  {['public', 'private'].map((vis) => {
+                                    const isSelected =
+                                      formData.visibility === (vis as SpotVisibility);
+                                    const borderColor =
+                                      colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                    const textColor =
+                                      colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
-                                  return (
-                                    <TouchableOpacity
-                                      key={trans}
-                                      style={{
-                                        marginRight: 8,
-                                        marginBottom: 8,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 8,
-                                        borderRadius: 20,
-                                        borderWidth: 1,
-                                        borderColor,
-                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
-                                      }}
-                                      onPress={() =>
-                                        setFormData((prev) => ({
-                                          ...prev,
-                                          transmission_type: trans,
-                                        }))
-                                      }
-                                    >
-                                      <Text
+                                    return (
+                                      <TouchableOpacity
+                                        key={vis}
                                         style={{
-                                          fontSize: 14,
-                                          fontWeight: isSelected ? '600' : '500',
-                                          color: isSelected ? '#000000' : textColor,
+                                          marginRight: 8,
+                                          marginBottom: 8,
+                                          paddingHorizontal: 12,
+                                          paddingVertical: 8,
+                                          borderRadius: 20,
+                                          borderWidth: 1,
+                                          borderColor,
+                                          backgroundColor: isSelected ? '#00E6C3' : 'transparent',
                                         }}
+                                        onPress={() =>
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            visibility: vis as SpotVisibility,
+                                          }))
+                                        }
                                       >
-                                        {getT(`filters.transmissionType.${trans}`, trans)}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                              </View>
-                            </YStack>
+                                        <Text
+                                          style={{
+                                            fontSize: 14,
+                                            fontWeight: isSelected ? '600' : '500',
+                                            color: isSelected ? '#000000' : textColor,
+                                          }}
+                                        >
+                                          {vis === 'public'
+                                            ? getTranslation(t, 'createRoute.public', 'Public')
+                                            : getTranslation(t, 'createRoute.private', 'Private')}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                              </YStack>
 
-                            {/* Activity Level */}
-                            <YStack gap="$2">
-                              <Text weight="medium" color="$color">
-                                {getTranslation(
-                                  t,
-                                  'filters.activityLevel',
-                                  language === 'sv' ? 'Aktivitetsnivå' : 'Activity Level'
-                                )}
-                              </Text>
-                              <View
-                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
-                              >
-                                {['moderate', 'high'].map((level) => {
-                                  const isSelected = formData.activity_level === level;
-                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
-                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+                              {/* Category */}
+                              <YStack gap="$2">
+                                <Text weight="medium" color="$color">
+                                  {getTranslation(
+                                    t,
+                                    'filters.category',
+                                    language === 'sv' ? 'Kategori' : 'Category',
+                                  )}
+                                </Text>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    flexWrap: 'wrap',
+                                    marginBottom: 8,
+                                  }}
+                                >
+                                  {['parking', 'incline_start'].map((cat) => {
+                                    const isSelected = formData.category === (cat as Category);
+                                    const borderColor =
+                                      colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                    const textColor =
+                                      colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
-                                  return (
-                                    <TouchableOpacity
-                                      key={level}
-                                      style={{
-                                        marginRight: 8,
-                                        marginBottom: 8,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 8,
-                                        borderRadius: 20,
-                                        borderWidth: 1,
-                                        borderColor,
-                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
-                                      }}
-                                      onPress={() =>
-                                        setFormData((prev) => ({
-                                          ...prev,
-                                          activity_level: level,
-                                        }))
-                                      }
-                                    >
-                                      <Text
+                                    return (
+                                      <TouchableOpacity
+                                        key={cat}
                                         style={{
-                                          fontSize: 14,
-                                          fontWeight: isSelected ? '600' : '500',
-                                          color: isSelected ? '#000000' : textColor,
+                                          marginRight: 8,
+                                          marginBottom: 8,
+                                          paddingHorizontal: 12,
+                                          paddingVertical: 8,
+                                          borderRadius: 20,
+                                          borderWidth: 1,
+                                          borderColor,
+                                          backgroundColor: isSelected ? '#00E6C3' : 'transparent',
                                         }}
+                                        onPress={() =>
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            category: cat as Category,
+                                          }))
+                                        }
                                       >
-                                        {getT(`filters.activityLevel.${level}`, level)}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                              </View>
-                            </YStack>
+                                        <Text
+                                          style={{
+                                            fontSize: 14,
+                                            fontWeight: isSelected ? '600' : '500',
+                                            color: isSelected ? '#000000' : textColor,
+                                          }}
+                                        >
+                                          {getT(`filters.category.${cat}`, cat)}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                              </YStack>
 
-                            {/* Best Season */}
-                            <YStack gap="$2">
-                              <Text weight="medium" color="$color">
-                                {getTranslation(
-                                  t,
-                                  'filters.bestSeason',
-                                  language === 'sv' ? 'Bästa säsong' : 'Best Season'
-                                )}
-                              </Text>
-                              <View
-                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
-                              >
-                                {['all', 'year-round', 'avoid-winter'].map((season) => {
-                                  const isSelected = formData.best_season === season;
-                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
-                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+                              {/* Transmission Type */}
+                              <YStack gap="$2">
+                                <Text weight="medium" color="$color">
+                                  {getTranslation(
+                                    t,
+                                    'filters.transmissionType',
+                                    language === 'sv' ? 'Växellådstyp' : 'Transmission Type',
+                                  )}
+                                </Text>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    flexWrap: 'wrap',
+                                    marginBottom: 8,
+                                  }}
+                                >
+                                  {['automatic', 'manual', 'both'].map((trans) => {
+                                    const isSelected = formData.transmission_type === trans;
+                                    const borderColor =
+                                      colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                    const textColor =
+                                      colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
-                                  return (
-                                    <TouchableOpacity
-                                      key={season}
-                                      style={{
-                                        marginRight: 8,
-                                        marginBottom: 8,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 8,
-                                        borderRadius: 20,
-                                        borderWidth: 1,
-                                        borderColor,
-                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
-                                      }}
-                                      onPress={() =>
-                                        setFormData((prev) => ({
-                                          ...prev,
-                                          best_season: season,
-                                        }))
-                                      }
-                                    >
-                                      <Text
+                                    return (
+                                      <TouchableOpacity
+                                        key={trans}
                                         style={{
-                                          fontSize: 14,
-                                          fontWeight: isSelected ? '600' : '500',
-                                          color: isSelected ? '#000000' : textColor,
+                                          marginRight: 8,
+                                          marginBottom: 8,
+                                          paddingHorizontal: 12,
+                                          paddingVertical: 8,
+                                          borderRadius: 20,
+                                          borderWidth: 1,
+                                          borderColor,
+                                          backgroundColor: isSelected ? '#00E6C3' : 'transparent',
                                         }}
+                                        onPress={() =>
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            transmission_type: trans,
+                                          }))
+                                        }
                                       >
-                                        {getT(`filters.bestSeason.${season}`, season)}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                              </View>
-                            </YStack>
+                                        <Text
+                                          style={{
+                                            fontSize: 14,
+                                            fontWeight: isSelected ? '600' : '500',
+                                            color: isSelected ? '#000000' : textColor,
+                                          }}
+                                        >
+                                          {getT(`filters.transmissionType.${trans}`, trans)}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                              </YStack>
 
-                            {/* Vehicle Types */}
-                            <YStack gap="$2">
-                              <Text weight="medium" color="$color">
-                                {getT('filters.vehicleTypes', 'vehicleTypes')}
-                              </Text>
-                              <View
-                                style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}
-                              >
-                                {['passenger_car', 'rv'].map((vehicle) => {
-                                  const isSelected = formData.vehicle_types.includes(vehicle);
-                                  const borderColor = colorScheme === 'dark' ? '#333333' : '#E5E5E5';
-                                  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+                              {/* Activity Level */}
+                              <YStack gap="$2">
+                                <Text weight="medium" color="$color">
+                                  {getTranslation(
+                                    t,
+                                    'filters.activityLevel',
+                                    language === 'sv' ? 'Aktivitetsnivå' : 'Activity Level',
+                                  )}
+                                </Text>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    flexWrap: 'wrap',
+                                    marginBottom: 8,
+                                  }}
+                                >
+                                  {['moderate', 'high'].map((level) => {
+                                    const isSelected = formData.activity_level === level;
+                                    const borderColor =
+                                      colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                    const textColor =
+                                      colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
-                                  return (
-                                    <TouchableOpacity
-                                      key={vehicle}
-                                      style={{
-                                        marginRight: 8,
-                                        marginBottom: 8,
-                                        paddingHorizontal: 12,
-                                        paddingVertical: 8,
-                                        borderRadius: 20,
-                                        borderWidth: 1,
-                                        borderColor,
-                                        backgroundColor: isSelected ? '#00E6C3' : 'transparent',
-                                      }}
-                                      onPress={() =>
-                                        setFormData((prev) => ({
-                                          ...prev,
-                                          vehicle_types: prev.vehicle_types.includes(vehicle)
-                                            ? prev.vehicle_types.filter((v) => v !== vehicle)
-                                            : [...prev.vehicle_types, vehicle],
-                                        }))
-                                      }
-                                    >
-                                      <Text
+                                    return (
+                                      <TouchableOpacity
+                                        key={level}
                                         style={{
-                                          fontSize: 14,
-                                          fontWeight: isSelected ? '600' : '500',
-                                          color: isSelected ? '#000000' : textColor,
+                                          marginRight: 8,
+                                          marginBottom: 8,
+                                          paddingHorizontal: 12,
+                                          paddingVertical: 8,
+                                          borderRadius: 20,
+                                          borderWidth: 1,
+                                          borderColor,
+                                          backgroundColor: isSelected ? '#00E6C3' : 'transparent',
                                         }}
+                                        onPress={() =>
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            activity_level: level,
+                                          }))
+                                        }
                                       >
-                                        {getT(`filters.vehicleTypes.${vehicle}`, vehicle)}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                              </View>
-                            </YStack>
+                                        <Text
+                                          style={{
+                                            fontSize: 14,
+                                            fontWeight: isSelected ? '600' : '500',
+                                            color: isSelected ? '#000000' : textColor,
+                                          }}
+                                        >
+                                          {getT(`filters.activityLevel.${level}`, level)}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                              </YStack>
 
-                            {/* Delete Button (only when editing) */}
-                            {isEditing && (
-                              <Button
-                                onPress={handleDelete}
-                                variant="secondary"
-                                backgroundColor="$red5"
-                                marginTop="$4"
-                              >
-                                <XStack gap="$2" alignItems="center">
-                                  <Feather name="trash-2" size={18} color="$red10" />
-                                  <Text color="$red10">
-                                    {getTranslation(t, 'createRoute.deleteRoute', 'Delete Route')}
-                                  </Text>
-                                </XStack>
-                              </Button>
-                            )}
-                          </YStack>
-                        )}
-                      </YStack>
-                    </ScrollView>
+                              {/* Best Season */}
+                              <YStack gap="$2">
+                                <Text weight="medium" color="$color">
+                                  {getTranslation(
+                                    t,
+                                    'filters.bestSeason',
+                                    language === 'sv' ? 'Bästa säsong' : 'Best Season',
+                                  )}
+                                </Text>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    flexWrap: 'wrap',
+                                    marginBottom: 8,
+                                  }}
+                                >
+                                  {['all', 'year-round', 'avoid-winter'].map((season) => {
+                                    const isSelected = formData.best_season === season;
+                                    const borderColor =
+                                      colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                    const textColor =
+                                      colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                                    return (
+                                      <TouchableOpacity
+                                        key={season}
+                                        style={{
+                                          marginRight: 8,
+                                          marginBottom: 8,
+                                          paddingHorizontal: 12,
+                                          paddingVertical: 8,
+                                          borderRadius: 20,
+                                          borderWidth: 1,
+                                          borderColor,
+                                          backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                                        }}
+                                        onPress={() =>
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            best_season: season,
+                                          }))
+                                        }
+                                      >
+                                        <Text
+                                          style={{
+                                            fontSize: 14,
+                                            fontWeight: isSelected ? '600' : '500',
+                                            color: isSelected ? '#000000' : textColor,
+                                          }}
+                                        >
+                                          {getT(`filters.bestSeason.${season}`, season)}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                              </YStack>
+
+                              {/* Vehicle Types */}
+                              <YStack gap="$2">
+                                <Text weight="medium" color="$color">
+                                  {getT('filters.vehicleTypes', 'vehicleTypes')}
+                                </Text>
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    flexWrap: 'wrap',
+                                    marginBottom: 8,
+                                  }}
+                                >
+                                  {['passenger_car', 'rv'].map((vehicle) => {
+                                    const isSelected = formData.vehicle_types.includes(vehicle);
+                                    const borderColor =
+                                      colorScheme === 'dark' ? '#333333' : '#E5E5E5';
+                                    const textColor =
+                                      colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+                                    return (
+                                      <TouchableOpacity
+                                        key={vehicle}
+                                        style={{
+                                          marginRight: 8,
+                                          marginBottom: 8,
+                                          paddingHorizontal: 12,
+                                          paddingVertical: 8,
+                                          borderRadius: 20,
+                                          borderWidth: 1,
+                                          borderColor,
+                                          backgroundColor: isSelected ? '#00E6C3' : 'transparent',
+                                        }}
+                                        onPress={() =>
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            vehicle_types: prev.vehicle_types.includes(vehicle)
+                                              ? prev.vehicle_types.filter((v) => v !== vehicle)
+                                              : [...prev.vehicle_types, vehicle],
+                                          }))
+                                        }
+                                      >
+                                        <Text
+                                          style={{
+                                            fontSize: 14,
+                                            fontWeight: isSelected ? '600' : '500',
+                                            color: isSelected ? '#000000' : textColor,
+                                          }}
+                                        >
+                                          {getT(`filters.vehicleTypes.${vehicle}`, vehicle)}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })}
+                                </View>
+                              </YStack>
+
+                              {/* Delete Button (only when editing) */}
+                              {isEditing && (
+                                <Button
+                                  onPress={handleDelete}
+                                  variant="secondary"
+                                  backgroundColor="$red5"
+                                  marginTop="$4"
+                                >
+                                  <XStack gap="$2" alignItems="center">
+                                    <Feather name="trash-2" size={18} color="$red10" />
+                                    <Text color="$red10">
+                                      {getTranslation(t, 'createRoute.deleteRoute', 'Delete Route')}
+                                    </Text>
+                                  </XStack>
+                                </Button>
+                              )}
+                            </YStack>
+                          )}
+                        </YStack>
+                      </ScrollView>
+                    </YStack>
                   </YStack>
-                </YStack>
-              </ScrollView>
+                </ScrollView>
+              </KeyboardAvoidingView>
 
               {/* Save Button */}
               <YStack
@@ -4650,27 +4850,54 @@ export function CreateRouteSheet({
 
                 {/* Validation messages */}
                 {!isBasicInfoComplete && (
-                  <XStack gap="$2" alignItems="center" justifyContent="center" paddingHorizontal="$2">
+                  <XStack
+                    gap="$2"
+                    alignItems="center"
+                    justifyContent="center"
+                    paddingHorizontal="$2"
+                  >
                     <Feather name="alert-circle" size={16} color="#EF4444" />
                     <Text size="sm" color="#EF4444" fontWeight="500">
                       {getTranslation(t, 'createRoute.nameRequired', 'Route name is required')}
                     </Text>
                   </XStack>
                 )}
-                
+
                 {!isLocationComplete && (
-                  <XStack gap="$2" alignItems="center" justifyContent="center" paddingHorizontal="$2">
+                  <XStack
+                    gap="$2"
+                    alignItems="center"
+                    justifyContent="center"
+                    paddingHorizontal="$2"
+                  >
                     <Feather name="alert-circle" size={16} color="#EF4444" />
                     <Text size="sm" color="#EF4444" fontWeight="500">
                       {drawingMode === 'pin' &&
                         getTranslation(
                           t,
                           'map.dropPin',
-                          language === 'sv' ? 'Vänligen släpp en nål på kartan' : 'Please drop a pin on the map'
+                          language === 'sv'
+                            ? 'Vänligen släpp en nål på kartan'
+                            : 'Please drop a pin on the map',
                         )}
-                      {drawingMode === 'waypoint' && getTranslation(t, 'createRoute.waypointsRequired', 'At least 2 waypoints required')}
-                      {drawingMode === 'pen' && getTranslation(t, 'createRoute.drawingRequired', 'Please draw a route on the map')}
-                      {drawingMode === 'record' && getTranslation(t, 'createRoute.recordingRequired', 'Please record a route first')}
+                      {drawingMode === 'waypoint' &&
+                        getTranslation(
+                          t,
+                          'createRoute.waypointsRequired',
+                          'At least 2 waypoints required',
+                        )}
+                      {drawingMode === 'pen' &&
+                        getTranslation(
+                          t,
+                          'createRoute.drawingRequired',
+                          'Please draw a route on the map',
+                        )}
+                      {drawingMode === 'record' &&
+                        getTranslation(
+                          t,
+                          'createRoute.recordingRequired',
+                          'Please record a route first',
+                        )}
                     </Text>
                   </XStack>
                 )}
@@ -4705,7 +4932,12 @@ export function CreateRouteSheet({
                 {/* Create Route Button */}
                 <Button
                   onPress={handleCreate}
-                  disabled={loading || uploadProgress !== null || !formData.name.trim() || !isLocationComplete}
+                  disabled={
+                    loading ||
+                    uploadProgress !== null ||
+                    !formData.name.trim() ||
+                    !isLocationComplete
+                  }
                   variant="primary"
                   size="md"
                   width="100%"
@@ -4821,15 +5053,11 @@ export function CreateRouteSheet({
 
                         {/* Continue Editing Button */}
                         <Button onPress={handleContinueEditing} variant="primary" size="md">
-                        {t('createRoute.continueEditing') || 'Continue Editing'}
+                          {t('createRoute.continueEditing') || 'Continue Editing'}
                         </Button>
 
                         {/* Exit Without Saving Button */}
-                        <Button
-                          onPress={handleExitWithoutSaving}
-                          variant="outline"
-                          size="md"
-                        >
+                        <Button onPress={handleExitWithoutSaving} variant="outline" size="md">
                           {t('createRoute.exitWithoutSaving') || 'Exit Without Saving'}
                         </Button>
                       </YStack>
@@ -4917,10 +5145,12 @@ export function CreateRouteSheet({
                           }}
                         >
                           <Feather name="video" size={64} color="white" />
-                          <Text color="white" marginTop="$4">Video Preview</Text>
+                          <Text color="white" marginTop="$4">
+                            Video Preview
+                          </Text>
                         </View>
                       )}
-                      
+
                       {/* Close button - top right */}
                       <TouchableOpacity
                         onPress={() => setSelectedMediaIndex(null)}
@@ -4962,7 +5192,9 @@ export function CreateRouteSheet({
                         }}
                       >
                         <Feather name="trash-2" size={20} color="#FFFFFF" />
-                        <Text color="white" fontWeight="600">Delete</Text>
+                        <Text color="white" fontWeight="600">
+                          Delete
+                        </Text>
                       </TouchableOpacity>
                     </>
                   )}

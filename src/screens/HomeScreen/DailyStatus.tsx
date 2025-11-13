@@ -11,6 +11,7 @@ import {
   Image,
   StyleSheet,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { XStack, YStack, Text } from 'tamagui';
 import { Button } from '../../components/Button';
@@ -116,7 +117,7 @@ export function DailyStatus({
   const colorScheme = systemColorScheme || 'light';
 
   // Helper to get translation with fallback
-  const getT = (key: string, fallbackKey: keyof typeof DAILY_STATUS_FALLBACKS['en']): string => {
+  const getT = (key: string, fallbackKey: keyof (typeof DAILY_STATUS_FALLBACKS)['en']): string => {
     const translation = t(key);
     if (translation === key) {
       const langKey = (lang === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
@@ -944,19 +945,22 @@ export function DailyStatus({
     const loadTranslations = async () => {
       try {
         console.log('🌍 [DailyStatus] Refreshing translations on mount');
-        
+
         // FORCE CLEAR AsyncStorage cache completely
         const AsyncStorage = require('@react-native-async-storage/async-storage').default;
         await AsyncStorage.removeItem('translations_cache');
         await AsyncStorage.removeItem('translations_version');
         console.log('🗑️ [DailyStatus] FORCE CLEARED translation cache');
-        
+
         await refreshTranslations();
         console.log('✅ [DailyStatus] Translations refreshed successfully');
-        
+
         // Wait for React context to update
-        await new Promise(resolve => setTimeout(resolve, 500));
-        console.log('🔍 [DailyStatus] learningExercises translation:', t('dailyStatus.learningExercises'));
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log(
+          '🔍 [DailyStatus] learningExercises translation:',
+          t('dailyStatus.learningExercises'),
+        );
       } catch (error) {
         console.error('❌ [DailyStatus] Error refreshing translations:', error);
       }
@@ -1354,15 +1358,20 @@ export function DailyStatus({
                   </XStack>
 
                   {/* Scrollable Content */}
-                  <ScrollView
+                  <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     style={{ flex: 1 }}
-                    showsVerticalScrollIndicator={true}
-                    contentContainerStyle={{ paddingBottom: 20 }}
+                    keyboardVerticalOffset={0}
                   >
-                    <YStack gap="$3">
-                      {/* Status Selection */}
-                      <YStack gap="$2">
-                        {/* <Text
+                    <ScrollView
+                      style={{ flex: 1 }}
+                      showsVerticalScrollIndicator={true}
+                      contentContainerStyle={{ paddingBottom: 20 }}
+                    >
+                      <YStack gap="$3">
+                        {/* Status Selection */}
+                        <YStack gap="$2">
+                          {/* <Text
                           fontSize="$3"
                           fontWeight="600"
                           color={colorScheme === 'dark' ? '#FFF' : '#000'}
@@ -1370,128 +1379,130 @@ export function DailyStatus({
                           {t('dailyStatus.status') || 'Status'}
                         </Text> */}
 
-                        <XStack gap="$2">
-                          <IconButton
-                            icon="check-circle"
-                            label={getT('dailyStatus.yesIDrove', 'yesIDrove')}
-                            onPress={() => {
-                              const newStatus = formData.status === 'drove' ? null : 'drove';
-                              console.log('✅ [DailyStatus] Status toggled:', newStatus);
-                              setFormData((prev) => ({ ...prev, status: newStatus }));
-                              if (newStatus) setStatusError(''); // Clear error when status is selected
-                            }}
-                            selected={formData.status === 'drove'}
-                            backgroundColor={
-                              formData.status === 'drove'
-                                ? 'transparent'
-                                : colorScheme === 'dark'
+                          <XStack gap="$2">
+                            <IconButton
+                              icon="check-circle"
+                              label={getT('dailyStatus.yesIDrove', 'yesIDrove')}
+                              onPress={() => {
+                                const newStatus = formData.status === 'drove' ? null : 'drove';
+                                console.log('✅ [DailyStatus] Status toggled:', newStatus);
+                                setFormData((prev) => ({ ...prev, status: newStatus }));
+                                if (newStatus) setStatusError(''); // Clear error when status is selected
+                              }}
+                              selected={formData.status === 'drove'}
+                              backgroundColor={
+                                formData.status === 'drove'
                                   ? 'transparent'
-                                  : 'transparent'
-                            }
-                            borderColor={
-                              formData.status === 'drove'
-                                ? 'transparent'
-                                : colorScheme === 'dark'
+                                  : colorScheme === 'dark'
+                                    ? 'transparent'
+                                    : 'transparent'
+                              }
+                              borderColor={
+                                formData.status === 'drove'
                                   ? 'transparent'
-                                  : 'transparent'
-                            }
-                            flex={1}
-                          />
+                                  : colorScheme === 'dark'
+                                    ? 'transparent'
+                                    : 'transparent'
+                              }
+                              flex={1}
+                            />
 
-                          <IconButton
-                            icon="x-circle"
-                            label={getT('dailyStatus.noDidntDrive', 'noDidntDrive')}
-                            onPress={() => {
-                              const newStatus =
-                                formData.status === 'didnt_drive' ? null : 'didnt_drive';
-                              console.log('❌ [DailyStatus] Status toggled:', newStatus);
-                              setFormData((prev) => ({ ...prev, status: newStatus }));
-                              if (newStatus) setStatusError(''); // Clear error when status is selected
-                            }}
-                            selected={formData.status === 'didnt_drive'}
-                            backgroundColor={
-                              formData.status === 'didnt_drive'
-                                ? 'transparent'
-                                : colorScheme === 'dark'
+                            <IconButton
+                              icon="x-circle"
+                              label={getT('dailyStatus.noDidntDrive', 'noDidntDrive')}
+                              onPress={() => {
+                                const newStatus =
+                                  formData.status === 'didnt_drive' ? null : 'didnt_drive';
+                                console.log('❌ [DailyStatus] Status toggled:', newStatus);
+                                setFormData((prev) => ({ ...prev, status: newStatus }));
+                                if (newStatus) setStatusError(''); // Clear error when status is selected
+                              }}
+                              selected={formData.status === 'didnt_drive'}
+                              backgroundColor={
+                                formData.status === 'didnt_drive'
                                   ? 'transparent'
-                                  : 'transparent'
-                            }
-                            borderColor={
-                              formData.status === 'didnt_drive'
-                                ? 'transparent'
-                                : colorScheme === 'dark'
+                                  : colorScheme === 'dark'
+                                    ? 'transparent'
+                                    : 'transparent'
+                              }
+                              borderColor={
+                                formData.status === 'didnt_drive'
                                   ? 'transparent'
-                                  : 'transparent'
-                            }
-                            flex={1}
-                          />
-                        </XStack>
-
-                        {/* Inline error message for status validation */}
-                        {statusError && (
-                          <XStack
-                            alignItems="center"
-                            gap="$2"
-                            padding="$2"
-                            backgroundColor="rgba(244, 67, 54, 0.1)"
-                            borderRadius={8}
-                            borderWidth={1}
-                            borderColor="rgba(244, 67, 54, 0.3)"
-                          >
-                            <Feather name="alert-circle" size={14} color="#F44336" />
-                            <Text fontSize="$2" color="#F44336">
-                              {statusError}
-                            </Text>
+                                  : colorScheme === 'dark'
+                                    ? 'transparent'
+                                    : 'transparent'
+                              }
+                              flex={1}
+                            />
                           </XStack>
+
+                          {/* Inline error message for status validation */}
+                          {statusError && (
+                            <XStack
+                              alignItems="center"
+                              gap="$2"
+                              padding="$2"
+                              backgroundColor="rgba(244, 67, 54, 0.1)"
+                              borderRadius={8}
+                              borderWidth={1}
+                              borderColor="rgba(244, 67, 54, 0.3)"
+                            >
+                              <Feather name="alert-circle" size={14} color="#F44336" />
+                              <Text fontSize="$2" color="#F44336">
+                                {statusError}
+                              </Text>
+                            </XStack>
+                          )}
+                        </YStack>
+
+                        {/* Text Fields - Only show when status is selected */}
+                        {formData.status && (
+                          <>
+                            {/* How it went */}
+                            <FormField
+                              label={getT('dailyStatus.howItWent', 'howItWent')}
+                              placeholder={
+                                t('dailyStatus.howItWentPlaceholder') || 'Tell us how it went...'
+                              }
+                              value={formData.how_it_went}
+                              onChangeText={(text) =>
+                                setFormData((prev) => ({ ...prev, how_it_went: text }))
+                              }
+                              multiline
+                              numberOfLines={2}
+                            />
+
+                            {/* Challenges */}
+                            <FormField
+                              label={getT('dailyStatus.challenges', 'challenges')}
+                              placeholder={
+                                t('dailyStatus.challengesPlaceholder') || 'What was challenging?'
+                              }
+                              value={formData.challenges}
+                              onChangeText={(text) =>
+                                setFormData((prev) => ({ ...prev, challenges: text }))
+                              }
+                              multiline
+                              numberOfLines={2}
+                            />
+
+                            {/* Notes */}
+                            <FormField
+                              label={getT('dailyStatus.notes', 'notes')}
+                              placeholder={
+                                t('dailyStatus.notesPlaceholder') || 'Additional notes...'
+                              }
+                              value={formData.notes}
+                              onChangeText={(text) =>
+                                setFormData((prev) => ({ ...prev, notes: text }))
+                              }
+                              multiline
+                              numberOfLines={2}
+                            />
+                          </>
                         )}
-                      </YStack>
 
-                      {/* Text Fields - Only show when status is selected */}
-                      {formData.status && (
-                        <>
-                          {/* How it went */}
-                          <FormField
-                            label={getT('dailyStatus.howItWent', 'howItWent')}
-                            placeholder={
-                              t('dailyStatus.howItWentPlaceholder') || 'Tell us how it went...'
-                            }
-                            value={formData.how_it_went}
-                            onChangeText={(text) =>
-                              setFormData((prev) => ({ ...prev, how_it_went: text }))
-                            }
-                            multiline
-                            numberOfLines={2}
-                          />
-
-                          {/* Challenges */}
-                          <FormField
-                            label={getT('dailyStatus.challenges', 'challenges')}
-                            placeholder={
-                              t('dailyStatus.challengesPlaceholder') || 'What was challenging?'
-                            }
-                            value={formData.challenges}
-                            onChangeText={(text) =>
-                              setFormData((prev) => ({ ...prev, challenges: text }))
-                            }
-                            multiline
-                            numberOfLines={2}
-                          />
-
-                          {/* Notes */}
-                          <FormField
-                            label={getT('dailyStatus.notes', 'notes')}
-                            placeholder={t('dailyStatus.notesPlaceholder') || 'Additional notes...'}
-                            value={formData.notes}
-                            onChangeText={(text) =>
-                              setFormData((prev) => ({ ...prev, notes: text }))
-                            }
-                            multiline
-                            numberOfLines={2}
-                          />
-                        </>
-                      )}
-
-                      {/* {formData.status && !isFuture && (
+                        {/* {formData.status && !isFuture && (
                         <IconButton
                           icon="book-open"
                           label={
@@ -1530,228 +1541,235 @@ export function DailyStatus({
                         />
                       )} */}
 
-                      {/* Learning Exercises Dropdown - Show when status is selected */}
-                      {formData.status && !isFuture && (
-                        <YStack gap="$1.5">
-                          <Text
-                            fontSize="$3"
-                            fontWeight="600"
-                            color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                          >
-                            {getT('dailyStatus.learningExercises', 'learningExercises')}
-                          </Text>
-                          <DropdownButton
-                            onPress={() => {
-                              console.log(
-                                '🎯 [DailyStatus] Opening learning paths from dropdown - hiding DailyStatus modal',
-                              );
-
-                              // Hide DailyStatus modal first
-                              setShowSheet(false);
-
-                              // Set flag to remember we came from DailyStatus
-                              setCameFromDailyStatus(true);
-
-                              // Show learning paths sheet after a brief delay for smooth transition
-                              setTimeout(() => {
-                                setShowLearningPathsSheet(true);
-                              }, 200);
-                            }}
-                            placeholder={
-                              isToday
-                                ? t('dailyStatus.didYouDoExercisesToday') ||
-                                  'Did you do any exercises today?'
-                                : t('dailyStatus.didYouDoExercisesOnDate')?.replace(
-                                    '{date}',
-                                    selectedDate.toLocaleDateString('en-US', {
-                                      weekday: 'short',
-                                      month: 'short',
-                                      day: 'numeric',
-                                    }),
-                                  ) ||
-                                  `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`
-                            }
-                            value={
-                              selectedExercises.length > 0
-                                ? `${selectedExercises.length} exercise${selectedExercises.length > 1 ? 's' : ''} selected`
-                                : ''
-                            }
-                            size="xl"
-                          />
-                        </YStack>
-                      )}
-
-                      {/* Driving Details - Show only if drove */}
-                      {formData.status === 'drove' && (
-                        <YStack gap="$3">
-                          {/* Driving Time - Chip Selector */}
+                        {/* Learning Exercises Dropdown - Show when status is selected */}
+                        {formData.status && !isFuture && (
                           <YStack gap="$1.5">
                             <Text
                               fontSize="$3"
                               fontWeight="600"
                               color={colorScheme === 'dark' ? '#FFF' : '#000'}
                             >
-                              {t('dailyStatus.timeMinutes') || 'Time (minutes)'}
+                              {getT('dailyStatus.learningExercises', 'learningExercises')}
                             </Text>
-                            <XStack gap="$2" flexWrap="wrap">
-                              {[10, 15, 20, 30, 45, 60, 90, 120].map((minutes) => (
-                                <TouchableOpacity
-                                  key={minutes}
-                                  onPress={() => {
-                                    const newTime =
-                                      formData.driving_time_minutes === minutes ? 0 : minutes;
-                                    console.log(
-                                      '⏱️ [DailyStatus] Time toggled:',
-                                      newTime,
-                                      'minutes',
-                                    );
-                                    setFormData((prev) => ({
-                                      ...prev,
-                                      driving_time_minutes: newTime,
-                                    }));
-                                  }}
-                                  style={{
-                                    paddingHorizontal: 12,
-                                    paddingVertical: 8,
-                                    borderRadius: 8,
-                                    backgroundColor:
-                                      formData.driving_time_minutes === minutes
-                                        ? '#00E6C3'
-                                        : colorScheme === 'dark'
-                                          ? '#333'
-                                          : '#F0F0F0',
-                                    borderWidth: 1,
-                                    borderColor:
-                                      formData.driving_time_minutes === minutes
-                                        ? '#00E6C3'
-                                        : colorScheme === 'dark'
-                                          ? '#555'
-                                          : '#DDD',
-                                  }}
-                                >
-                                  <Text
-                                    fontSize="$2"
-                                    color={
-                                      formData.driving_time_minutes === minutes
-                                        ? '#000'
-                                        : colorScheme === 'dark'
-                                          ? '#FFF'
-                                          : '#000'
-                                    }
-                                    fontWeight={
-                                      formData.driving_time_minutes === minutes ? 'bold' : 'normal'
-                                    }
-                                  >
-                                    {minutes}m
-                                  </Text>
-                                </TouchableOpacity>
-                              ))}
-                            </XStack>
+                            <DropdownButton
+                              onPress={() => {
+                                console.log(
+                                  '🎯 [DailyStatus] Opening learning paths from dropdown - hiding DailyStatus modal',
+                                );
+
+                                // Hide DailyStatus modal first
+                                setShowSheet(false);
+
+                                // Set flag to remember we came from DailyStatus
+                                setCameFromDailyStatus(true);
+
+                                // Show learning paths sheet after a brief delay for smooth transition
+                                setTimeout(() => {
+                                  setShowLearningPathsSheet(true);
+                                }, 200);
+                              }}
+                              placeholder={
+                                isToday
+                                  ? t('dailyStatus.didYouDoExercisesToday') ||
+                                    'Did you do any exercises today?'
+                                  : t('dailyStatus.didYouDoExercisesOnDate')?.replace(
+                                      '{date}',
+                                      selectedDate.toLocaleDateString('en-US', {
+                                        weekday: 'short',
+                                        month: 'short',
+                                        day: 'numeric',
+                                      }),
+                                    ) ||
+                                    `Did you do any exercises on ${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`
+                              }
+                              value={
+                                selectedExercises.length > 0
+                                  ? `${selectedExercises.length} exercise${selectedExercises.length > 1 ? 's' : ''} selected`
+                                  : ''
+                              }
+                              size="xl"
+                            />
                           </YStack>
+                        )}
 
-                          {/* Distance - Chip Selector */}
-                          <YStack gap="$1.5">
-                            <Text
-                              fontSize="$3"
-                              fontWeight="600"
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                            >
-                              {t('dailyStatus.distanceKm') || 'Distance (km)'}
-                            </Text>
-                            <XStack gap="$2" flexWrap="wrap">
-                              {[1, 3, 5, 10, 15, 20, 30, 50].map((km) => (
-                                <TouchableOpacity
-                                  key={km}
-                                  onPress={() => {
-                                    const newDistance = formData.distance_km === km ? 0 : km;
-                                    console.log(
-                                      '📏 [DailyStatus] Distance toggled:',
-                                      newDistance,
-                                      'km',
-                                    );
-                                    setFormData((prev) => ({ ...prev, distance_km: newDistance }));
-                                  }}
-                                  style={{
-                                    paddingHorizontal: 12,
-                                    paddingVertical: 8,
-                                    borderRadius: 8,
-                                    backgroundColor:
-                                      formData.distance_km === km
-                                        ? '#00E6C3'
-                                        : colorScheme === 'dark'
-                                          ? '#333'
-                                          : '#F0F0F0',
-                                    borderWidth: 1,
-                                    borderColor:
-                                      formData.distance_km === km
-                                        ? '#00E6C3'
-                                        : colorScheme === 'dark'
-                                          ? '#555'
-                                          : '#DDD',
-                                  }}
-                                >
-                                  <Text
-                                    fontSize="$2"
-                                    color={
-                                      formData.distance_km === km
-                                        ? '#000'
-                                        : colorScheme === 'dark'
-                                          ? '#FFF'
-                                          : '#000'
-                                    }
-                                    fontWeight={formData.distance_km === km ? 'bold' : 'normal'}
-                                  >
-                                    {km}km
-                                  </Text>
-                                </TouchableOpacity>
-                              ))}
-                            </XStack>
-                          </YStack>
-
-                          {/* Rating */}
-                          <YStack gap="$1.5">
-                            <Text
-                              fontSize="$3"
-                              fontWeight="600"
-                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                            >
-                              {t('dailyStatus.ratingStars') || 'Rating (1-5 stars)'}
-                            </Text>
-                            <XStack gap="$2" alignItems="center">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <TouchableOpacity
-                                  key={star}
-                                  onPress={() => setFormData((prev) => ({ ...prev, rating: star }))}
-                                  style={{ padding: 4 }}
-                                >
-                                  <Feather
-                                    name="star"
-                                    size={24}
-                                    color={
-                                      star <= (formData.rating || 0)
-                                        ? '#FFD700'
-                                        : colorScheme === 'dark'
-                                          ? '#666'
-                                          : '#CCC'
-                                    }
-                                  />
-                                </TouchableOpacity>
-                              ))}
+                        {/* Driving Details - Show only if drove */}
+                        {formData.status === 'drove' && (
+                          <YStack gap="$3">
+                            {/* Driving Time - Chip Selector */}
+                            <YStack gap="$1.5">
                               <Text
-                                fontSize="$2"
-                                color={colorScheme === 'dark' ? '#CCC' : '#666'}
-                                marginLeft="$2"
+                                fontSize="$3"
+                                fontWeight="600"
+                                color={colorScheme === 'dark' ? '#FFF' : '#000'}
                               >
-                                {formData.rating || 0}/5
+                                {t('dailyStatus.timeMinutes') || 'Time (minutes)'}
                               </Text>
-                            </XStack>
-                          </YStack>
-                        </YStack>
-                      )}
+                              <XStack gap="$2" flexWrap="wrap">
+                                {[10, 15, 20, 30, 45, 60, 90, 120].map((minutes) => (
+                                  <TouchableOpacity
+                                    key={minutes}
+                                    onPress={() => {
+                                      const newTime =
+                                        formData.driving_time_minutes === minutes ? 0 : minutes;
+                                      console.log(
+                                        '⏱️ [DailyStatus] Time toggled:',
+                                        newTime,
+                                        'minutes',
+                                      );
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        driving_time_minutes: newTime,
+                                      }));
+                                    }}
+                                    style={{
+                                      paddingHorizontal: 12,
+                                      paddingVertical: 8,
+                                      borderRadius: 8,
+                                      backgroundColor:
+                                        formData.driving_time_minutes === minutes
+                                          ? '#00E6C3'
+                                          : colorScheme === 'dark'
+                                            ? '#333'
+                                            : '#F0F0F0',
+                                      borderWidth: 1,
+                                      borderColor:
+                                        formData.driving_time_minutes === minutes
+                                          ? '#00E6C3'
+                                          : colorScheme === 'dark'
+                                            ? '#555'
+                                            : '#DDD',
+                                    }}
+                                  >
+                                    <Text
+                                      fontSize="$2"
+                                      color={
+                                        formData.driving_time_minutes === minutes
+                                          ? '#000'
+                                          : colorScheme === 'dark'
+                                            ? '#FFF'
+                                            : '#000'
+                                      }
+                                      fontWeight={
+                                        formData.driving_time_minutes === minutes
+                                          ? 'bold'
+                                          : 'normal'
+                                      }
+                                    >
+                                      {minutes}m
+                                    </Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </XStack>
+                            </YStack>
 
-                      {/* Memory (Photo/Video) Section */}
-                      <YStack gap="$2" marginTop="$2">
-                        {/* <Text
+                            {/* Distance - Chip Selector */}
+                            <YStack gap="$1.5">
+                              <Text
+                                fontSize="$3"
+                                fontWeight="600"
+                                color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                              >
+                                {t('dailyStatus.distanceKm') || 'Distance (km)'}
+                              </Text>
+                              <XStack gap="$2" flexWrap="wrap">
+                                {[1, 3, 5, 10, 15, 20, 30, 50].map((km) => (
+                                  <TouchableOpacity
+                                    key={km}
+                                    onPress={() => {
+                                      const newDistance = formData.distance_km === km ? 0 : km;
+                                      console.log(
+                                        '📏 [DailyStatus] Distance toggled:',
+                                        newDistance,
+                                        'km',
+                                      );
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        distance_km: newDistance,
+                                      }));
+                                    }}
+                                    style={{
+                                      paddingHorizontal: 12,
+                                      paddingVertical: 8,
+                                      borderRadius: 8,
+                                      backgroundColor:
+                                        formData.distance_km === km
+                                          ? '#00E6C3'
+                                          : colorScheme === 'dark'
+                                            ? '#333'
+                                            : '#F0F0F0',
+                                      borderWidth: 1,
+                                      borderColor:
+                                        formData.distance_km === km
+                                          ? '#00E6C3'
+                                          : colorScheme === 'dark'
+                                            ? '#555'
+                                            : '#DDD',
+                                    }}
+                                  >
+                                    <Text
+                                      fontSize="$2"
+                                      color={
+                                        formData.distance_km === km
+                                          ? '#000'
+                                          : colorScheme === 'dark'
+                                            ? '#FFF'
+                                            : '#000'
+                                      }
+                                      fontWeight={formData.distance_km === km ? 'bold' : 'normal'}
+                                    >
+                                      {km}km
+                                    </Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </XStack>
+                            </YStack>
+
+                            {/* Rating */}
+                            <YStack gap="$1.5">
+                              <Text
+                                fontSize="$3"
+                                fontWeight="600"
+                                color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                              >
+                                {t('dailyStatus.ratingStars') || 'Rating (1-5 stars)'}
+                              </Text>
+                              <XStack gap="$2" alignItems="center">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <TouchableOpacity
+                                    key={star}
+                                    onPress={() =>
+                                      setFormData((prev) => ({ ...prev, rating: star }))
+                                    }
+                                    style={{ padding: 4 }}
+                                  >
+                                    <Feather
+                                      name="star"
+                                      size={24}
+                                      color={
+                                        star <= (formData.rating || 0)
+                                          ? '#FFD700'
+                                          : colorScheme === 'dark'
+                                            ? '#666'
+                                            : '#CCC'
+                                      }
+                                    />
+                                  </TouchableOpacity>
+                                ))}
+                                <Text
+                                  fontSize="$2"
+                                  color={colorScheme === 'dark' ? '#CCC' : '#666'}
+                                  marginLeft="$2"
+                                >
+                                  {formData.rating || 0}/5
+                                </Text>
+                              </XStack>
+                            </YStack>
+                          </YStack>
+                        )}
+
+                        {/* Memory (Photo/Video) Section */}
+                        <YStack gap="$2" marginTop="$2">
+                          {/* <Text
                           fontSize="$3"
                           fontWeight="600"
                           color={colorScheme === 'dark' ? '#FFF' : '#000'}
@@ -1759,166 +1777,169 @@ export function DailyStatus({
                           {t('dailyStatus.memoryPhotoVideo') || 'Memory (Photo/Video)'}
                         </Text> */}
 
-                        {formData.media_uri ? (
-                          <YStack gap="$2">
-                            {/* Media Preview */}
-                            <View
-                              style={{
-                                position: 'relative',
-                                borderRadius: 12,
-                                overflow: 'hidden',
-                                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA',
-                              }}
-                            >
-                              {formData.media_type === 'image' ? (
-                                <Image
-                                  source={{ uri: formData.media_uri }}
-                                  style={{
-                                    width: '100%',
-                                    height: 200,
-                                    borderRadius: 12,
-                                  }}
-                                  resizeMode="cover"
-                                />
-                              ) : (
-                                <Video
-                                  source={{ uri: formData.media_uri }}
-                                  style={{
-                                    width: '100%',
-                                    height: 200,
-                                    borderRadius: 12,
-                                  }}
-                                  useNativeControls
-                                  resizeMode="cover"
-                                  isLooping
-                                />
-                              )}
-
-                              {/* Remove button overlay */}
-                              <TouchableOpacity
-                                onPress={handleRemoveMedia}
+                          {formData.media_uri ? (
+                            <YStack gap="$2">
+                              {/* Media Preview */}
+                              <View
                                 style={{
-                                  position: 'absolute',
-                                  top: 8,
-                                  right: 8,
-                                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                                  borderRadius: 20,
-                                  padding: 8,
+                                  position: 'relative',
+                                  borderRadius: 12,
+                                  overflow: 'hidden',
+                                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA',
                                 }}
                               >
-                                <Feather name="x" size={18} color="#FFF" />
-                              </TouchableOpacity>
-                            </View>
-                          </YStack>
-                        ) : (
-                          <></>
-                        )}
-                      </YStack>
+                                {formData.media_type === 'image' ? (
+                                  <Image
+                                    source={{ uri: formData.media_uri }}
+                                    style={{
+                                      width: '100%',
+                                      height: 200,
+                                      borderRadius: 12,
+                                    }}
+                                    resizeMode="cover"
+                                  />
+                                ) : (
+                                  <Video
+                                    source={{ uri: formData.media_uri }}
+                                    style={{
+                                      width: '100%',
+                                      height: 200,
+                                      borderRadius: 12,
+                                    }}
+                                    useNativeControls
+                                    resizeMode="cover"
+                                    isLooping
+                                  />
+                                )}
 
-                      {/* Selected Exercises List */}
-                      {selectedExercises.length > 0 && (
-                        <YStack gap="$2" marginTop="$2">
-                          <Text
-                            fontSize="$3"
-                            fontWeight="600"
-                            color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                          >
-                            {t('dailyStatus.selectedExercises')?.replace(
-                              '{count}',
-                              selectedExercises.length.toString(),
-                            ) || `Selected Exercises (${selectedExercises.length})`}
-                          </Text>
-                          {selectedExercises.map((exercise, index) => (
-                            <XStack
-                              key={exercise.id}
-                              alignItems="center"
-                              justifyContent="space-between"
-                              padding="$2"
-                              backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
-                              borderRadius={8}
-                              borderWidth={1}
-                              borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                            >
-                              <Text
-                                fontSize="$2"
-                                color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                                flex={1}
-                              >
-                                {exercise.title}
-                              </Text>
-                              <TouchableOpacity
-                                onPress={() => {
-                                  console.log(
-                                    '🗑️ [DailyStatus] Removing exercise:',
-                                    exercise.title,
-                                  );
-                                  setSelectedExercises((prev) =>
-                                    prev.filter((_, i) => i !== index),
-                                  );
-                                }}
-                                style={{ padding: 4 }}
-                              >
-                                <Feather
-                                  name="x"
-                                  size={18}
-                                  color={colorScheme === 'dark' ? '#FF6B6B' : '#D32F2F'}
-                                />
-                              </TouchableOpacity>
-                            </XStack>
-                          ))}
+                                {/* Remove button overlay */}
+                                <TouchableOpacity
+                                  onPress={handleRemoveMedia}
+                                  style={{
+                                    position: 'absolute',
+                                    top: 8,
+                                    right: 8,
+                                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                    borderRadius: 20,
+                                    padding: 8,
+                                  }}
+                                >
+                                  <Feather name="x" size={18} color="#FFF" />
+                                </TouchableOpacity>
+                              </View>
+                            </YStack>
+                          ) : (
+                            <></>
+                          )}
                         </YStack>
-                      )}
 
-                      {/* Route Integration Buttons - 2x2 Grid */}
-                      <YStack gap="$2">
-                        {/* First Row */}
-                        <XStack gap="$2">
-                          {/* Add Memory Button */}
-                          <IconButton
-                            icon="camera"
-                            label={getT('dailyStatus.addMemory', 'addMemory')}
-                            onPress={handleAddMedia}
-                            flex={1}
-                            backgroundColor="transparent"
-                            borderColor="transparent"
-                          />
+                        {/* Selected Exercises List */}
+                        {selectedExercises.length > 0 && (
+                          <YStack gap="$2" marginTop="$2">
+                            <Text
+                              fontSize="$3"
+                              fontWeight="600"
+                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                            >
+                              {t('dailyStatus.selectedExercises')?.replace(
+                                '{count}',
+                                selectedExercises.length.toString(),
+                              ) || `Selected Exercises (${selectedExercises.length})`}
+                            </Text>
+                            {selectedExercises.map((exercise, index) => (
+                              <XStack
+                                key={exercise.id}
+                                alignItems="center"
+                                justifyContent="space-between"
+                                padding="$2"
+                                backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F8F9FA'}
+                                borderRadius={8}
+                                borderWidth={1}
+                                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                              >
+                                <Text
+                                  fontSize="$2"
+                                  color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                                  flex={1}
+                                >
+                                  {exercise.title}
+                                </Text>
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    console.log(
+                                      '🗑️ [DailyStatus] Removing exercise:',
+                                      exercise.title,
+                                    );
+                                    setSelectedExercises((prev) =>
+                                      prev.filter((_, i) => i !== index),
+                                    );
+                                  }}
+                                  style={{ padding: 4 }}
+                                >
+                                  <Feather
+                                    name="x"
+                                    size={18}
+                                    color={colorScheme === 'dark' ? '#FF6B6B' : '#D32F2F'}
+                                  />
+                                </TouchableOpacity>
+                              </XStack>
+                            ))}
+                          </YStack>
+                        )}
 
-                          {/* Find Routes Button */}
-                          <IconButton
-                            icon="map-pin"
-                            label={getT('dailyStatus.findRoutes', 'findRoutes')}
-                            onPress={handleNavigateToMap}
-                            flex={1}
-                            backgroundColor="transparent"
-                            borderColor="transparent"
-                          />
-                        </XStack>
+                        {/* Route Integration Buttons - 2x2 Grid */}
+                        <YStack gap="$2">
+                          {/* First Row */}
+                          <XStack gap="$2">
+                            {/* Add Memory Button */}
+                            <IconButton
+                              icon="camera"
+                              label={getT('dailyStatus.addMemory', 'addMemory')}
+                              onPress={handleAddMedia}
+                              flex={1}
+                              backgroundColor="transparent"
+                              borderColor="transparent"
+                            />
 
-                        {/* Second Row */}
-                        <XStack gap="$2">
-                          {/* My Routes Button */}
-                          <IconButton
-                            icon="list"
-                            label={getT('dailyStatus.myRoutes', 'myRoutes')}
-                            onPress={handleOpenRouteList}
-                            flex={1}
-                            backgroundColor="transparent"
-                            borderColor="transparent"
-                          />
+                            {/* Find Routes Button */}
+                            <IconButton
+                              icon="map-pin"
+                              label={getT('dailyStatus.findRoutes', 'findRoutes')}
+                              onPress={handleNavigateToMap}
+                              flex={1}
+                              backgroundColor="transparent"
+                              borderColor="transparent"
+                            />
+                          </XStack>
 
-                          {/* Create or Record Route Button */}
-                          <IconButton
-                            icon="plus"
-                            label={t('dailyStatus.createOrRecordRoute') || 'Create or Record Route'}
-                            onPress={handleOpenActionSheet}
-                            flex={1}
-                            backgroundColor="transparent"
-                            borderColor="transparent"
-                          />
-                        </XStack>
+                          {/* Second Row */}
+                          <XStack gap="$2">
+                            {/* My Routes Button */}
+                            <IconButton
+                              icon="list"
+                              label={getT('dailyStatus.myRoutes', 'myRoutes')}
+                              onPress={handleOpenRouteList}
+                              flex={1}
+                              backgroundColor="transparent"
+                              borderColor="transparent"
+                            />
+
+                            {/* Create or Record Route Button */}
+                            <IconButton
+                              icon="plus"
+                              label={
+                                t('dailyStatus.createOrRecordRoute') || 'Create or Record Route'
+                              }
+                              onPress={handleOpenActionSheet}
+                              flex={1}
+                              backgroundColor="transparent"
+                              borderColor="transparent"
+                            />
+                          </XStack>
+                        </YStack>
                       </YStack>
-                    </YStack>
-                  </ScrollView>
+                    </ScrollView>
+                  </KeyboardAvoidingView>
 
                   {/* Action Buttons - Fixed at bottom */}
                   <View

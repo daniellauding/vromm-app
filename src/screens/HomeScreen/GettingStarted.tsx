@@ -22,6 +22,7 @@ import {
   Platform,
   TextInput,
   Image,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { supabase } from '../../lib/supabase';
@@ -185,7 +186,10 @@ export const GettingStarted = () => {
     },
     {
       id: 'refresher',
-      title: language === 'sv' ? 'Repetitionskurs (återvändande förare)' : 'Refresher (returning drivers)',
+      title:
+        language === 'sv'
+          ? 'Repetitionskurs (återvändande förare)'
+          : 'Refresher (returning drivers)',
     },
     { id: 'expert', title: language === 'sv' ? 'Expert' : 'Expert' },
   ];
@@ -2066,350 +2070,358 @@ export const GettingStarted = () => {
                   />
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-                  <YStack gap="$4" paddingBottom="$16">
-                    {/* Header - matching connections modal style (centered, no X) */}
-                    <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                      {t('onboarding.licensePlan.title') || 'Your License Journey'}
-                    </Text>
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                  style={{ flex: 1 }}
+                  keyboardVerticalOffset={0}
+                >
+                  <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+                    <YStack gap="$4" paddingBottom="$16">
+                      {/* Header - matching connections modal style (centered, no X) */}
+                      <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                        {t('onboarding.licensePlan.title') || 'Your License Journey'}
+                      </Text>
 
-                    <Text fontSize="$3" color="$gray11" textAlign="center">
-                      {t('onboarding.licensePlan.description') ||
-                        'Tell us about your experience level, driving goals and vehicle preferences'}
-                    </Text>
+                      <Text fontSize="$3" color="$gray11" textAlign="center">
+                        {t('onboarding.licensePlan.description') ||
+                          'Tell us about your experience level, driving goals and vehicle preferences'}
+                      </Text>
 
-                    <YStack gap="$4" marginTop="$4">
-                      {/* Target License Date with Quick Options */}
-                      <YStack gap="$2">
-                        <Text weight="bold" size="lg">
-                          {t('onboarding.date.title') || 'When do you want your license?'}
-                        </Text>
+                      <YStack gap="$4" marginTop="$4">
+                        {/* Target License Date with Quick Options */}
+                        <YStack gap="$2">
+                          <Text weight="bold" size="lg">
+                            {t('onboarding.date.title') || 'When do you want your license?'}
+                          </Text>
 
-                        {/* Quick Date Options */}
-                        {[
-                          {
-                            label: t('onboarding.date.within3months') || 'Within 3 months',
-                            months: 3,
-                            key: '3months',
-                          },
-                          {
-                            label: t('onboarding.date.within6months') || 'Within 6 months',
-                            months: 6,
-                            key: '6months',
-                          },
-                          {
-                            label: t('onboarding.date.within1year') || 'Within 1 year',
-                            months: 12,
-                            key: '1year',
-                          },
-                          {
-                            label: t('onboarding.date.noSpecific') || 'No specific date',
-                            months: 24,
-                            key: 'nodate',
-                          },
-                        ].map((option) => {
-                          const optionTargetDate = new Date();
-                          optionTargetDate.setMonth(optionTargetDate.getMonth() + option.months);
-                          const isSelected = selectedDateOption === option.key;
+                          {/* Quick Date Options */}
+                          {[
+                            {
+                              label: t('onboarding.date.within3months') || 'Within 3 months',
+                              months: 3,
+                              key: '3months',
+                            },
+                            {
+                              label: t('onboarding.date.within6months') || 'Within 6 months',
+                              months: 6,
+                              key: '6months',
+                            },
+                            {
+                              label: t('onboarding.date.within1year') || 'Within 1 year',
+                              months: 12,
+                              key: '1year',
+                            },
+                            {
+                              label: t('onboarding.date.noSpecific') || 'No specific date',
+                              months: 24,
+                              key: 'nodate',
+                            },
+                          ].map((option) => {
+                            const optionTargetDate = new Date();
+                            optionTargetDate.setMonth(optionTargetDate.getMonth() + option.months);
+                            const isSelected = selectedDateOption === option.key;
 
-                          return (
-                            <RadioButton
-                              key={option.label}
-                              onPress={() => {
-                                setTargetDate(optionTargetDate);
-                                setSelectedDateOption(option.key);
-                              }}
-                              title={option.label}
-                              description={optionTargetDate.toLocaleDateString('sv-SE')}
-                              isSelected={isSelected}
-                            />
-                          );
-                        })}
-
-                        {/* Custom Date Picker with Popover - using RadioButton component */}
-                        <View ref={dateButtonRef}>
-                          <RadioButton
-                            onPress={() => {
-                              console.log('🗓️ [GettingStarted] Opening date popover');
-                              setSelectedDateOption('custom');
-                              setShowDatePopover(true);
-                            }}
-                            title={t('onboarding.date.pickSpecific') || 'Pick specific date'}
-                            description={
-                              targetDate
-                                ? targetDate.toLocaleDateString()
-                                : new Date().toLocaleDateString()
-                            }
-                            isSelected={selectedDateOption === 'custom'}
-                          />
-                        </View>
-
-                        <Popover
-                          isVisible={showDatePopover}
-                          onRequestClose={() => {
-                            console.log('🗓️ [GettingStarted] Popover onRequestClose called');
-                            setShowDatePopover(false);
-                            // Complete cleanup to prevent any blocking issues
-                            setTimeout(() => {
-                              console.log(
-                                '🗓️ [GettingStarted] Complete cleanup after popover close',
-                              );
-                              setSelectedDateOption('custom');
-                            }, 10);
-                          }}
-                          from={dateButtonRef}
-                          placement={'top' as any}
-                          backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
-                          popoverStyle={{
-                            backgroundColor: '$background',
-                            borderRadius: 12,
-                            padding: 16,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 12,
-                            elevation: 12,
-                            width: 380,
-                            height: 480,
-                            borderWidth: colorScheme === 'dark' ? 1 : 0,
-                            borderColor: colorScheme === 'dark' ? '#333' : 'transparent',
-                          }}
-                        >
-                          <YStack alignItems="center" gap="$2" width="100%">
-                            <Text
-                              color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
-                              size="lg"
-                              weight="semibold"
-                              textAlign="center"
-                            >
-                              {t('onboarding.date.selectTarget') || 'Select Target Date'}
-                            </Text>
-
-                            {/* Container for full inline DateTimePicker */}
-                            <View
-                              style={{
-                                width: 350,
-                                height: 380,
-                                backgroundColor: '$background',
-                                borderRadius: 8,
-                                overflow: 'visible',
-                              }}
-                            >
-                              <DateTimePicker
-                                testID="dateTimePicker"
-                                value={targetDate || new Date()}
-                                mode="date"
-                                display="inline"
-                                minimumDate={new Date()}
-                                maximumDate={(() => {
-                                  const maxDate = new Date();
-                                  maxDate.setFullYear(maxDate.getFullYear() + 3);
-                                  return maxDate;
-                                })()}
-                                onChange={(event, selectedDate) => {
-                                  console.log(
-                                    '🗓️ [GettingStarted] Date changed:',
-                                    selectedDate?.toLocaleDateString(),
-                                  );
-                                  if (selectedDate) {
-                                    setTargetDate(selectedDate);
-                                    setSelectedDateOption('custom');
-                                    // Don't auto-close - let user press save button
-                                    console.log(
-                                      '🗓️ [GettingStarted] Date updated, waiting for save button',
-                                    );
-                                  }
+                            return (
+                              <RadioButton
+                                key={option.label}
+                                onPress={() => {
+                                  setTargetDate(optionTargetDate);
+                                  setSelectedDateOption(option.key);
                                 }}
+                                title={option.label}
+                                description={optionTargetDate.toLocaleDateString('sv-SE')}
+                                isSelected={isSelected}
+                              />
+                            );
+                          })}
+
+                          {/* Custom Date Picker with Popover - using RadioButton component */}
+                          <View ref={dateButtonRef}>
+                            <RadioButton
+                              onPress={() => {
+                                console.log('🗓️ [GettingStarted] Opening date popover');
+                                setSelectedDateOption('custom');
+                                setShowDatePopover(true);
+                              }}
+                              title={t('onboarding.date.pickSpecific') || 'Pick specific date'}
+                              description={
+                                targetDate
+                                  ? targetDate.toLocaleDateString()
+                                  : new Date().toLocaleDateString()
+                              }
+                              isSelected={selectedDateOption === 'custom'}
+                            />
+                          </View>
+
+                          <Popover
+                            isVisible={showDatePopover}
+                            onRequestClose={() => {
+                              console.log('🗓️ [GettingStarted] Popover onRequestClose called');
+                              setShowDatePopover(false);
+                              // Complete cleanup to prevent any blocking issues
+                              setTimeout(() => {
+                                console.log(
+                                  '🗓️ [GettingStarted] Complete cleanup after popover close',
+                                );
+                                setSelectedDateOption('custom');
+                              }, 10);
+                            }}
+                            from={dateButtonRef}
+                            placement={'top' as any}
+                            backgroundStyle={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
+                            popoverStyle={{
+                              backgroundColor: '$background',
+                              borderRadius: 12,
+                              padding: 16,
+                              shadowColor: '#000',
+                              shadowOffset: { width: 0, height: 4 },
+                              shadowOpacity: 0.3,
+                              shadowRadius: 12,
+                              elevation: 12,
+                              width: 380,
+                              height: 480,
+                              borderWidth: colorScheme === 'dark' ? 1 : 0,
+                              borderColor: colorScheme === 'dark' ? '#333' : 'transparent',
+                            }}
+                          >
+                            <YStack alignItems="center" gap="$2" width="100%">
+                              <Text
+                                color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
+                                size="lg"
+                                weight="semibold"
+                                textAlign="center"
+                              >
+                                {t('onboarding.date.selectTarget') || 'Select Target Date'}
+                              </Text>
+
+                              {/* Container for full inline DateTimePicker */}
+                              <View
                                 style={{
                                   width: 350,
                                   height: 380,
                                   backgroundColor: '$background',
+                                  borderRadius: 8,
+                                  overflow: 'visible',
                                 }}
-                                themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
-                                accentColor="#00E6C3"
-                                locale={language === 'sv' ? 'sv-SE' : 'en-US'}
-                              />
-                            </View>
-                          </YStack>
-                        </Popover>
+                              >
+                                <DateTimePicker
+                                  testID="dateTimePicker"
+                                  value={targetDate || new Date()}
+                                  mode="date"
+                                  display="inline"
+                                  minimumDate={new Date()}
+                                  maximumDate={(() => {
+                                    const maxDate = new Date();
+                                    maxDate.setFullYear(maxDate.getFullYear() + 3);
+                                    return maxDate;
+                                  })()}
+                                  onChange={(event, selectedDate) => {
+                                    console.log(
+                                      '🗓️ [GettingStarted] Date changed:',
+                                      selectedDate?.toLocaleDateString(),
+                                    );
+                                    if (selectedDate) {
+                                      setTargetDate(selectedDate);
+                                      setSelectedDateOption('custom');
+                                      // Don't auto-close - let user press save button
+                                      console.log(
+                                        '🗓️ [GettingStarted] Date updated, waiting for save button',
+                                      );
+                                    }
+                                  }}
+                                  style={{
+                                    width: 350,
+                                    height: 380,
+                                    backgroundColor: '$background',
+                                  }}
+                                  themeVariant={colorScheme === 'dark' ? 'dark' : 'light'}
+                                  accentColor="#00E6C3"
+                                  locale={language === 'sv' ? 'sv-SE' : 'en-US'}
+                                />
+                              </View>
+                            </YStack>
+                          </Popover>
+                        </YStack>
+
+                        {/* Experience Level */}
+                        <YStack gap="$2">
+                          <Text weight="bold" size="lg">
+                            {t('onboarding.licensePlan.experienceLevel') ||
+                              (language === 'sv' ? 'Erfarenhetsnivå' : 'Experience Level')}
+                          </Text>
+                          <DropdownButton
+                            onPress={() => setShowExperienceModal(true)}
+                            value={
+                              experienceLevelOptions.find((e) => e.id === experienceLevel)?.title ||
+                              (language === 'sv'
+                                ? 'Nybörjare (aldrig kört)'
+                                : 'Beginner (never driven)')
+                            }
+                            isActive={showExperienceModal}
+                          />
+                        </YStack>
+
+                        {/* Vehicle Type */}
+                        <YStack gap="$2">
+                          <Text weight="bold" size="lg">
+                            {t('onboarding.licensePlan.vehicleType') ||
+                              (language === 'sv' ? 'Fordonstyp' : 'Vehicle Type')}
+                          </Text>
+                          <DropdownButton
+                            onPress={() => setShowVehicleModal(true)}
+                            value={
+                              vehicleTypeOptions.find((v) => v.id === vehicleType)?.title ||
+                              (language === 'sv' ? 'Bil' : 'Car')
+                            }
+                            isActive={showVehicleModal}
+                          />
+                        </YStack>
+
+                        {/* Transmission Type */}
+                        <YStack gap="$2">
+                          <Text weight="bold" size="lg">
+                            {t('onboarding.licensePlan.transmissionType') ||
+                              (language === 'sv' ? 'Växellådstyp' : 'Transmission Type')}
+                          </Text>
+                          <DropdownButton
+                            onPress={() => setShowTransmissionModal(true)}
+                            value={
+                              transmissionTypeOptions.find((t) => t.id === transmissionType)
+                                ?.title || (language === 'sv' ? 'Manuell' : 'Manual')
+                            }
+                            isActive={showTransmissionModal}
+                          />
+                        </YStack>
+
+                        {/* License Type */}
+                        <YStack gap="$2">
+                          <Text weight="bold" size="lg">
+                            {t('onboarding.licensePlan.licenseType') ||
+                              (language === 'sv' ? 'Körkortstyp' : 'License Type')}
+                          </Text>
+                          <DropdownButton
+                            onPress={() => setShowLicenseModal(true)}
+                            value={
+                              licenseTypeOptions.find((l) => l.id === licenseType)?.title ||
+                              (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')
+                            }
+                            isActive={showLicenseModal}
+                          />
+                        </YStack>
+
+                        {/* Theory Test - Yes/No Buttons */}
+                        <YStack gap="$2">
+                          <Text size="sm" fontWeight="400" color="$color">
+                            {t('onboarding.licensePlan.hasTheory') ||
+                              (language === 'sv'
+                                ? 'Har du klarat teoriprov?'
+                                : 'Have you passed the theory test?')}
+                          </Text>
+                          <XStack gap="$3">
+                            <Button
+                              variant={hasTheory ? 'primary' : 'outlined'}
+                              size="md"
+                              flex={1}
+                              onPress={() => setHasTheory(true)}
+                            >
+                              {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
+                            </Button>
+                            <Button
+                              variant={!hasTheory ? 'primary' : 'outlined'}
+                              size="md"
+                              flex={1}
+                              onPress={() => setHasTheory(false)}
+                            >
+                              {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
+                            </Button>
+                          </XStack>
+                        </YStack>
+
+                        {/* Practice Test - Yes/No Buttons */}
+                        <YStack gap="$2">
+                          <Text size="sm" fontWeight="400" color="$color">
+                            {t('onboarding.licensePlan.hasPractice') ||
+                              (language === 'sv'
+                                ? 'Har du klarat körprov?'
+                                : 'Have you passed the practical test?')}
+                          </Text>
+                          <XStack gap="$3">
+                            <Button
+                              variant={hasPractice ? 'primary' : 'outlined'}
+                              size="md"
+                              flex={1}
+                              onPress={() => setHasPractice(true)}
+                            >
+                              {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
+                            </Button>
+                            <Button
+                              variant={!hasPractice ? 'primary' : 'outlined'}
+                              size="md"
+                              flex={1}
+                              onPress={() => setHasPractice(false)}
+                            >
+                              {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
+                            </Button>
+                          </XStack>
+                        </YStack>
+
+                        {/* Previous Experience */}
+                        <YStack gap="$2">
+                          <Text weight="bold" size="lg">
+                            {t('onboarding.licensePlan.previousExperience') ||
+                              'Previous driving experience'}
+                          </Text>
+                          <TextArea
+                            placeholder={
+                              t('onboarding.licensePlan.experiencePlaceholder') ||
+                              'Describe your previous driving experience'
+                            }
+                            value={previousExperience}
+                            onChangeText={setPreviousExperience}
+                            minHeight={100}
+                            backgroundColor="$background"
+                            borderColor="$borderColor"
+                            color="$color"
+                            focusStyle={{
+                              borderColor: '$blue8',
+                            }}
+                          />
+                        </YStack>
+
+                        {/* Specific Goals */}
+                        <YStack gap="$2">
+                          <Text weight="bold" size="lg">
+                            {t('onboarding.licensePlan.specificGoals') || 'Specific goals'}
+                          </Text>
+                          <TextArea
+                            placeholder={
+                              t('onboarding.licensePlan.goalsPlaceholder') ||
+                              'Do you have specific goals with your license?'
+                            }
+                            value={specificGoals}
+                            onChangeText={setSpecificGoals}
+                            minHeight={100}
+                            backgroundColor="$background"
+                            borderColor="$borderColor"
+                            color="$color"
+                            focusStyle={{
+                              borderColor: '$blue8',
+                            }}
+                          />
+                        </YStack>
                       </YStack>
 
-                      {/* Experience Level */}
-                      <YStack gap="$2">
-                        <Text weight="bold" size="lg">
-                          {t('onboarding.licensePlan.experienceLevel') ||
-                            (language === 'sv' ? 'Erfarenhetsnivå' : 'Experience Level')}
-                        </Text>
-                        <DropdownButton
-                          onPress={() => setShowExperienceModal(true)}
-                          value={
-                            experienceLevelOptions.find((e) => e.id === experienceLevel)?.title ||
-                            (language === 'sv' ? 'Nybörjare (aldrig kört)' : 'Beginner (never driven)')
-                          }
-                          isActive={showExperienceModal}
-                        />
-                      </YStack>
-
-                      {/* Vehicle Type */}
-                      <YStack gap="$2">
-                        <Text weight="bold" size="lg">
-                          {t('onboarding.licensePlan.vehicleType') ||
-                            (language === 'sv' ? 'Fordonstyp' : 'Vehicle Type')}
-                        </Text>
-                        <DropdownButton
-                          onPress={() => setShowVehicleModal(true)}
-                          value={
-                            vehicleTypeOptions.find((v) => v.id === vehicleType)?.title ||
-                            (language === 'sv' ? 'Bil' : 'Car')
-                          }
-                          isActive={showVehicleModal}
-                        />
-                      </YStack>
-
-                      {/* Transmission Type */}
-                      <YStack gap="$2">
-                        <Text weight="bold" size="lg">
-                          {t('onboarding.licensePlan.transmissionType') ||
-                            (language === 'sv' ? 'Växellådstyp' : 'Transmission Type')}
-                        </Text>
-                        <DropdownButton
-                          onPress={() => setShowTransmissionModal(true)}
-                          value={
-                            transmissionTypeOptions.find((t) => t.id === transmissionType)?.title ||
-                            (language === 'sv' ? 'Manuell' : 'Manual')
-                          }
-                          isActive={showTransmissionModal}
-                        />
-                      </YStack>
-
-                      {/* License Type */}
-                      <YStack gap="$2">
-                        <Text weight="bold" size="lg">
-                          {t('onboarding.licensePlan.licenseType') ||
-                            (language === 'sv' ? 'Körkortstyp' : 'License Type')}
-                        </Text>
-                        <DropdownButton
-                          onPress={() => setShowLicenseModal(true)}
-                          value={
-                            licenseTypeOptions.find((l) => l.id === licenseType)?.title ||
-                            (language === 'sv' ? 'Standardkörkort (B)' : 'Standard License (B)')
-                          }
-                          isActive={showLicenseModal}
-                        />
-                      </YStack>
-
-                      {/* Theory Test - Yes/No Buttons */}
-                      <YStack gap="$2">
-                        <Text size="sm" fontWeight="400" color="$color">
-                          {t('onboarding.licensePlan.hasTheory') ||
-                            (language === 'sv'
-                              ? 'Har du klarat teoriprov?'
-                              : 'Have you passed the theory test?')}
-                        </Text>
-                        <XStack gap="$3">
-                          <Button
-                            variant={hasTheory ? 'primary' : 'outlined'}
-                            size="md"
-                            flex={1}
-                            onPress={() => setHasTheory(true)}
-                          >
-                            {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
-                          </Button>
-                          <Button
-                            variant={!hasTheory ? 'primary' : 'outlined'}
-                            size="md"
-                            flex={1}
-                            onPress={() => setHasTheory(false)}
-                          >
-                            {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
-                          </Button>
-                        </XStack>
-                      </YStack>
-
-                      {/* Practice Test - Yes/No Buttons */}
-                      <YStack gap="$2">
-                        <Text size="sm" fontWeight="400" color="$color">
-                          {t('onboarding.licensePlan.hasPractice') ||
-                            (language === 'sv'
-                              ? 'Har du klarat körprov?'
-                              : 'Have you passed the practical test?')}
-                        </Text>
-                        <XStack gap="$3">
-                          <Button
-                            variant={hasPractice ? 'primary' : 'outlined'}
-                            size="md"
-                            flex={1}
-                            onPress={() => setHasPractice(true)}
-                          >
-                            {t('common.yes') || (language === 'sv' ? 'Ja' : 'Yes')}
-                          </Button>
-                          <Button
-                            variant={!hasPractice ? 'primary' : 'outlined'}
-                            size="md"
-                            flex={1}
-                            onPress={() => setHasPractice(false)}
-                          >
-                            {t('common.no') || (language === 'sv' ? 'Nej' : 'No')}
-                          </Button>
-                        </XStack>
-                      </YStack>
-
-                      {/* Previous Experience */}
-                      <YStack gap="$2">
-                        <Text weight="bold" size="lg">
-                          {t('onboarding.licensePlan.previousExperience') ||
-                            'Previous driving experience'}
-                        </Text>
-                        <TextArea
-                          placeholder={
-                            t('onboarding.licensePlan.experiencePlaceholder') ||
-                            'Describe your previous driving experience'
-                          }
-                          value={previousExperience}
-                          onChangeText={setPreviousExperience}
-                          minHeight={100}
-                          backgroundColor="$background"
-                          borderColor="$borderColor"
-                          color="$color"
-                          focusStyle={{
-                            borderColor: '$blue8',
-                          }}
-                        />
-                      </YStack>
-
-                      {/* Specific Goals */}
-                      <YStack gap="$2">
-                        <Text weight="bold" size="lg">
-                          {t('onboarding.licensePlan.specificGoals') || 'Specific goals'}
-                        </Text>
-                        <TextArea
-                          placeholder={
-                            t('onboarding.licensePlan.goalsPlaceholder') ||
-                            'Do you have specific goals with your license?'
-                          }
-                          value={specificGoals}
-                          onChangeText={setSpecificGoals}
-                          minHeight={100}
-                          backgroundColor="$background"
-                          borderColor="$borderColor"
-                          color="$color"
-                          focusStyle={{
-                            borderColor: '$blue8',
-                          }}
-                        />
-                      </YStack>
+                      <Button
+                        variant="primary"
+                        size="lg"
+                        onPress={handleLicensePlanSubmit}
+                        marginTop="$4"
+                      >
+                        {t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
+                      </Button>
                     </YStack>
-
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      onPress={handleLicensePlanSubmit}
-                      marginTop="$4"
-                    >
-                      {t('onboarding.licensePlan.savePreferences') || 'Save My Preferences'}
-                    </Button>
-                  </YStack>
-                </ScrollView>
+                  </ScrollView>
+                </KeyboardAvoidingView>
               </ReanimatedAnimated.View>
             </GestureDetector>
           </View>
@@ -2424,7 +2436,12 @@ export const GettingStarted = () => {
         onRequestClose={() => setShowExperienceModal(false)}
       >
         <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
           onPress={() => setShowExperienceModal(false)}
         >
           <Pressable
@@ -2466,7 +2483,12 @@ export const GettingStarted = () => {
         onRequestClose={() => setShowVehicleModal(false)}
       >
         <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
           onPress={() => setShowVehicleModal(false)}
         >
           <Pressable
@@ -2508,7 +2530,12 @@ export const GettingStarted = () => {
         onRequestClose={() => setShowTransmissionModal(false)}
       >
         <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
           onPress={() => setShowTransmissionModal(false)}
         >
           <Pressable
@@ -2550,7 +2577,12 @@ export const GettingStarted = () => {
         onRequestClose={() => setShowLicenseModal(false)}
       >
         <Pressable
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
           onPress={() => setShowLicenseModal(false)}
         >
           <Pressable
@@ -2750,359 +2782,426 @@ export const GettingStarted = () => {
                   </View>
                 </GestureDetector>
 
-                <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                  {selectedRole === 'student'
-                    ? 'Find Instructors'
-                    : selectedRole === 'instructor' /* || selectedRole === 'school' */
-                      ? 'Find Students'
-                      : 'Find Users'}
-                </Text>
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                  style={{ flex: 1 }}
+                  keyboardVerticalOffset={0}
+                >
+                  <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                    {selectedRole === 'student'
+                      ? 'Find Instructors'
+                      : selectedRole === 'instructor' /* || selectedRole === 'school' */
+                        ? 'Find Students'
+                        : 'Find Users'}
+                  </Text>
 
-                <Text fontSize="$3" color="$gray11" textAlign="center">
-                  {selectedRole === 'student'
-                    ? 'Search for driving instructors to connect with'
-                    : selectedRole === 'instructor' /* || selectedRole === 'school' */
-                      ? 'Search for students to connect with'
-                      : 'Search for users to connect with'}
-                </Text>
+                  <Text fontSize="$3" color="$gray11" textAlign="center">
+                    {selectedRole === 'student'
+                      ? 'Search for driving instructors to connect with'
+                      : selectedRole === 'instructor' /* || selectedRole === 'school' */
+                        ? 'Search for students to connect with'
+                        : 'Search for users to connect with'}
+                  </Text>
 
-                {/* Tabbed interface for relationships */}
-                {(existingRelationships.length > 0 || pendingInvitations.length > 0) && (
-                  <YStack
-                    gap="$3"
-                    padding="$4"
-                    backgroundColor="$backgroundHover"
-                    borderRadius="$4"
-                    maxHeight="300"
-                  >
-                    {/* Tab headers */}
-                    <XStack gap="$2" marginBottom="$2">
-                      <TouchableOpacity
-                        onPress={() => setActiveRelationshipsTab('pending')}
-                        style={{
-                          paddingHorizontal: 16,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          backgroundColor:
-                            activeRelationshipsTab === 'pending'
-                              ? colorScheme === 'dark'
-                                ? '#333'
-                                : '#E5E5E5'
-                              : 'transparent',
-                        }}
-                      >
-                        <Text
-                          size="sm"
-                          fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'}
-                          color={
-                            activeRelationshipsTab === 'pending'
-                              ? colorScheme === 'dark'
-                                ? '#ECEDEE'
-                                : '#11181C'
-                              : colorScheme === 'dark'
-                                ? 'rgba(255, 255, 255, 0.3)'
-                                : 'rgba(0, 0, 0, 0.3)'
-                          }
+                  {/* Tabbed interface for relationships */}
+                  {(existingRelationships.length > 0 || pendingInvitations.length > 0) && (
+                    <YStack
+                      gap="$3"
+                      padding="$4"
+                      backgroundColor="$backgroundHover"
+                      borderRadius="$4"
+                      maxHeight="300"
+                    >
+                      {/* Tab headers */}
+                      <XStack gap="$2" marginBottom="$2">
+                        <TouchableOpacity
+                          onPress={() => setActiveRelationshipsTab('pending')}
+                          style={{
+                            paddingHorizontal: 16,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            backgroundColor:
+                              activeRelationshipsTab === 'pending'
+                                ? colorScheme === 'dark'
+                                  ? '#333'
+                                  : '#E5E5E5'
+                                : 'transparent',
+                          }}
                         >
-                          {t('onboarding.relationships.pendingTitle') || 'Pending'} (
-                          {pendingInvitations.length})
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => setActiveRelationshipsTab('existing')}
-                        style={{
-                          paddingHorizontal: 16,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          backgroundColor:
-                            activeRelationshipsTab === 'existing'
-                              ? colorScheme === 'dark'
-                                ? '#333'
-                                : '#E5E5E5'
-                              : 'transparent',
-                        }}
-                      >
-                        <Text
-                          size="sm"
-                          fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'}
-                          color={
-                            activeRelationshipsTab === 'existing'
-                              ? colorScheme === 'dark'
-                                ? '#ECEDEE'
-                                : '#11181C'
-                              : colorScheme === 'dark'
-                                ? 'rgba(255, 255, 255, 0.3)'
-                                : 'rgba(0, 0, 0, 0.3)'
-                          }
+                          <Text
+                            size="sm"
+                            fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'}
+                            color={
+                              activeRelationshipsTab === 'pending'
+                                ? colorScheme === 'dark'
+                                  ? '#ECEDEE'
+                                  : '#11181C'
+                                : colorScheme === 'dark'
+                                  ? 'rgba(255, 255, 255, 0.3)'
+                                  : 'rgba(0, 0, 0, 0.3)'
+                            }
+                          >
+                            {t('onboarding.relationships.pendingTitle') || 'Pending'} (
+                            {pendingInvitations.length})
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => setActiveRelationshipsTab('existing')}
+                          style={{
+                            paddingHorizontal: 16,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            backgroundColor:
+                              activeRelationshipsTab === 'existing'
+                                ? colorScheme === 'dark'
+                                  ? '#333'
+                                  : '#E5E5E5'
+                                : 'transparent',
+                          }}
                         >
-                          {t('onboarding.relationships.existingTitle') || 'Existing'} (
-                          {existingRelationships.length})
-                        </Text>
-                      </TouchableOpacity>
-                    </XStack>
+                          <Text
+                            size="sm"
+                            fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'}
+                            color={
+                              activeRelationshipsTab === 'existing'
+                                ? colorScheme === 'dark'
+                                  ? '#ECEDEE'
+                                  : '#11181C'
+                                : colorScheme === 'dark'
+                                  ? 'rgba(255, 255, 255, 0.3)'
+                                  : 'rgba(0, 0, 0, 0.3)'
+                            }
+                          >
+                            {t('onboarding.relationships.existingTitle') || 'Existing'} (
+                            {existingRelationships.length})
+                          </Text>
+                        </TouchableOpacity>
+                      </XStack>
 
-                    {/* Tab content */}
-                    <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={true}>
-                      <YStack gap="$3">
-                        {activeRelationshipsTab === 'pending' ? (
-                          // Pending invitations
-                          pendingInvitations.length > 0 ? (
-                            pendingInvitations.map((invitation) => (
-                              <XStack key={invitation.id} gap="$2" alignItems="center">
-                                <YStack flex={1}>
-                                  <Text fontSize="$4" fontWeight="600" color="$color">
-                                    {invitation.metadata?.targetUserName || invitation.email}
-                                  </Text>
-                                  <Text fontSize="$3" color="$gray11">
-                                    {invitation.email} • Invited as {invitation.role} •{' '}
-                                    {new Date(invitation.created_at).toLocaleDateString()}
-                                  </Text>
-                                  {invitation.metadata?.customMessage && (
-                                    <Text fontSize="$2" color="$gray9" fontStyle="italic">
-                                      Message: "{invitation.metadata.customMessage}"
+                      {/* Tab content */}
+                      <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={true}>
+                        <YStack gap="$3">
+                          {activeRelationshipsTab === 'pending' ? (
+                            // Pending invitations
+                            pendingInvitations.length > 0 ? (
+                              pendingInvitations.map((invitation) => (
+                                <XStack key={invitation.id} gap="$2" alignItems="center">
+                                  <YStack flex={1}>
+                                    <Text fontSize="$4" fontWeight="600" color="$color">
+                                      {invitation.metadata?.targetUserName || invitation.email}
                                     </Text>
-                                  )}
-                                </YStack>
-                                <Text fontSize="$3" color="$orange10" fontWeight="600">
-                                  PENDING
-                                </Text>
-                                <TouchableOpacity
-                                  onPress={async () => {
-                                    console.log(
-                                      '🗑️ [GettingStarted] TRASH BUTTON PRESSED for invitation:',
-                                      invitation.id,
-                                    );
-
-                                    // Add haptic feedback to confirm tap
-                                    try {
-                                      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                    } catch (e) {
-                                      // Haptics might not be available
-                                    }
-
-                                    try {
+                                    <Text fontSize="$3" color="$gray11">
+                                      {invitation.email} • Invited as {invitation.role} •{' '}
+                                      {new Date(invitation.created_at).toLocaleDateString()}
+                                    </Text>
+                                    {invitation.metadata?.customMessage && (
+                                      <Text fontSize="$2" color="$gray9" fontStyle="italic">
+                                        Message: "{invitation.metadata.customMessage}"
+                                      </Text>
+                                    )}
+                                  </YStack>
+                                  <Text fontSize="$3" color="$orange10" fontWeight="600">
+                                    PENDING
+                                  </Text>
+                                  <TouchableOpacity
+                                    onPress={async () => {
                                       console.log(
-                                        '🗑️ [GettingStarted] FORCE DELETING invitation with ID:',
+                                        '🗑️ [GettingStarted] TRASH BUTTON PRESSED for invitation:',
                                         invitation.id,
                                       );
-                                      console.log(
-                                        '🗑️ [GettingStarted] Full invitation object:',
-                                        JSON.stringify(invitation, null, 2),
-                                      );
 
-                                      // First, let's check if the invitation actually exists
-                                      const { data: checkData, error: checkError } = await supabase
-                                        .from('pending_invitations')
-                                        .select('*')
-                                        .eq('id', invitation.id);
-
-                                      console.log(
-                                        '🗑️ [GettingStarted] Check if invitation exists:',
-                                        { data: checkData, error: checkError },
-                                      );
-
-                                      // Try multiple deletion approaches
-                                      let deletionSuccess = false;
-
-                                      // Method 1: Direct DELETE with RLS
-                                      console.log(
-                                        '🗑️ [GettingStarted] Method 1: Direct DELETE with RLS',
-                                      );
-                                      const { data: pendingData, error: pendingError } =
-                                        await supabase
-                                          .from('pending_invitations')
-                                          .delete()
-                                          .eq('id', invitation.id)
-                                          .select();
-
-                                      console.log('🗑️ [GettingStarted] Method 1 result:', {
-                                        data: pendingData,
-                                        error: pendingError,
-                                      });
-
-                                      if (pendingData && pendingData.length > 0) {
-                                        deletionSuccess = true;
-                                        console.log(
-                                          '✅ [GettingStarted] Method 1 successful - deleted',
-                                          pendingData.length,
-                                          'rows',
+                                      // Add haptic feedback to confirm tap
+                                      try {
+                                        await Haptics.impactAsync(
+                                          Haptics.ImpactFeedbackStyle.Medium,
                                         );
-                                      } else if (pendingError) {
-                                        console.log(
-                                          '❌ [GettingStarted] Method 1 failed with error:',
-                                          pendingError,
-                                        );
+                                      } catch (e) {
+                                        // Haptics might not be available
                                       }
 
-                                      // Method 2: Try UPDATE to 'cancelled' status first, then DELETE
-                                      if (!deletionSuccess) {
+                                      try {
                                         console.log(
-                                          '🗑️ [GettingStarted] Method 2: UPDATE to cancelled, then DELETE',
+                                          '🗑️ [GettingStarted] FORCE DELETING invitation with ID:',
+                                          invitation.id,
+                                        );
+                                        console.log(
+                                          '🗑️ [GettingStarted] Full invitation object:',
+                                          JSON.stringify(invitation, null, 2),
                                         );
 
-                                        // First update to cancelled
-                                        const { data: updateData, error: updateError } =
+                                        // First, let's check if the invitation actually exists
+                                        const { data: checkData, error: checkError } =
                                           await supabase
                                             .from('pending_invitations')
-                                            .update({ status: 'cancelled' })
+                                            .select('*')
+                                            .eq('id', invitation.id);
+
+                                        console.log(
+                                          '🗑️ [GettingStarted] Check if invitation exists:',
+                                          { data: checkData, error: checkError },
+                                        );
+
+                                        // Try multiple deletion approaches
+                                        let deletionSuccess = false;
+
+                                        // Method 1: Direct DELETE with RLS
+                                        console.log(
+                                          '🗑️ [GettingStarted] Method 1: Direct DELETE with RLS',
+                                        );
+                                        const { data: pendingData, error: pendingError } =
+                                          await supabase
+                                            .from('pending_invitations')
+                                            .delete()
                                             .eq('id', invitation.id)
                                             .select();
 
-                                        console.log('🗑️ [GettingStarted] Method 2 UPDATE result:', {
-                                          data: updateData,
-                                          error: updateError,
+                                        console.log('🗑️ [GettingStarted] Method 1 result:', {
+                                          data: pendingData,
+                                          error: pendingError,
                                         });
 
-                                        if (updateData && updateData.length > 0) {
-                                          // Now try to delete
-                                          const { data: deleteData, error: deleteError } =
+                                        if (pendingData && pendingData.length > 0) {
+                                          deletionSuccess = true;
+                                          console.log(
+                                            '✅ [GettingStarted] Method 1 successful - deleted',
+                                            pendingData.length,
+                                            'rows',
+                                          );
+                                        } else if (pendingError) {
+                                          console.log(
+                                            '❌ [GettingStarted] Method 1 failed with error:',
+                                            pendingError,
+                                          );
+                                        }
+
+                                        // Method 2: Try UPDATE to 'cancelled' status first, then DELETE
+                                        if (!deletionSuccess) {
+                                          console.log(
+                                            '🗑️ [GettingStarted] Method 2: UPDATE to cancelled, then DELETE',
+                                          );
+
+                                          // First update to cancelled
+                                          const { data: updateData, error: updateError } =
                                             await supabase
                                               .from('pending_invitations')
-                                              .delete()
+                                              .update({ status: 'cancelled' })
                                               .eq('id', invitation.id)
                                               .select();
 
                                           console.log(
-                                            '🗑️ [GettingStarted] Method 2 DELETE result:',
-                                            { data: deleteData, error: deleteError },
+                                            '🗑️ [GettingStarted] Method 2 UPDATE result:',
+                                            {
+                                              data: updateData,
+                                              error: updateError,
+                                            },
                                           );
 
-                                          if (deleteData && deleteData.length > 0) {
-                                            deletionSuccess = true;
+                                          if (updateData && updateData.length > 0) {
+                                            // Now try to delete
+                                            const { data: deleteData, error: deleteError } =
+                                              await supabase
+                                                .from('pending_invitations')
+                                                .delete()
+                                                .eq('id', invitation.id)
+                                                .select();
+
                                             console.log(
-                                              '✅ [GettingStarted] Method 2 successful - deleted',
-                                              deleteData.length,
-                                              'rows',
+                                              '🗑️ [GettingStarted] Method 2 DELETE result:',
+                                              { data: deleteData, error: deleteError },
+                                            );
+
+                                            if (deleteData && deleteData.length > 0) {
+                                              deletionSuccess = true;
+                                              console.log(
+                                                '✅ [GettingStarted] Method 2 successful - deleted',
+                                                deleteData.length,
+                                                'rows',
+                                              );
+                                            }
+                                          }
+                                        }
+
+                                        // Method 3: Try using RPC function if available
+                                        if (!deletionSuccess) {
+                                          console.log(
+                                            '🗑️ [GettingStarted] Method 3: Try RPC function',
+                                          );
+                                          try {
+                                            const { data: rpcData, error: rpcError } =
+                                              await supabase.rpc('delete_pending_invitation', {
+                                                invitation_id: invitation.id,
+                                              });
+
+                                            console.log(
+                                              '🗑️ [GettingStarted] Method 3 RPC result:',
+                                              {
+                                                data: rpcData,
+                                                error: rpcError,
+                                              },
+                                            );
+
+                                            if (!rpcError && rpcData?.success) {
+                                              deletionSuccess = true;
+                                              console.log(
+                                                '✅ [GettingStarted] Method 3 successful',
+                                              );
+                                            }
+                                          } catch (rpcErr) {
+                                            console.log(
+                                              '❌ [GettingStarted] Method 3 RPC not available:',
+                                              rpcErr,
                                             );
                                           }
                                         }
-                                      }
 
-                                      // Method 3: Try using RPC function if available
-                                      if (!deletionSuccess) {
-                                        console.log(
-                                          '🗑️ [GettingStarted] Method 3: Try RPC function',
-                                        );
-                                        try {
-                                          const { data: rpcData, error: rpcError } =
-                                            await supabase.rpc('delete_pending_invitation', {
-                                              invitation_id: invitation.id,
-                                            });
-
-                                          console.log('🗑️ [GettingStarted] Method 3 RPC result:', {
-                                            data: rpcData,
-                                            error: rpcError,
-                                          });
-
-                                          if (!rpcError && rpcData?.success) {
-                                            deletionSuccess = true;
-                                            console.log('✅ [GettingStarted] Method 3 successful');
-                                          }
-                                        } catch (rpcErr) {
+                                        // Method 4: Try alternative RPC function (UPDATE then DELETE)
+                                        if (!deletionSuccess) {
                                           console.log(
-                                            '❌ [GettingStarted] Method 3 RPC not available:',
-                                            rpcErr,
+                                            '🗑️ [GettingStarted] Method 4: Try alternative RPC function',
+                                          );
+                                          try {
+                                            const { data: altRpcData, error: altRpcError } =
+                                              await supabase.rpc('cancel_and_delete_invitation', {
+                                                invitation_id: invitation.id,
+                                              });
+
+                                            console.log(
+                                              '🗑️ [GettingStarted] Method 4 RPC result:',
+                                              {
+                                                data: altRpcData,
+                                                error: altRpcError,
+                                              },
+                                            );
+
+                                            if (!altRpcError && altRpcData?.success) {
+                                              deletionSuccess = true;
+                                              console.log(
+                                                '✅ [GettingStarted] Method 4 successful',
+                                              );
+                                            }
+                                          } catch (altRpcErr) {
+                                            console.log(
+                                              '❌ [GettingStarted] Method 4 RPC not available:',
+                                              altRpcErr,
+                                            );
+                                          }
+                                        }
+
+                                        // Also try to delete from notifications table
+                                        const { data: notifData, error: notifError } =
+                                          await supabase
+                                            .from('notifications')
+                                            .delete()
+                                            .eq('id', invitation.id)
+                                            .select();
+
+                                        console.log(
+                                          '🗑️ [GettingStarted] Notifications DELETE result:',
+                                          { data: notifData, error: notifError },
+                                        );
+
+                                        // Also try to delete by invitation_id in metadata
+                                        const { data: metadataData, error: metadataError } =
+                                          await supabase
+                                            .from('notifications')
+                                            .delete()
+                                            .eq('metadata->>invitation_id', invitation.id)
+                                            .select();
+
+                                        console.log('🗑️ [GettingStarted] Metadata DELETE result:', {
+                                          data: metadataData,
+                                          error: metadataError,
+                                        });
+
+                                        if (!deletionSuccess) {
+                                          console.log(
+                                            '❌ [GettingStarted] All deletion methods failed - this might be an RLS policy issue',
+                                          );
+                                          console.log(
+                                            '❌ [GettingStarted] Please run the SQL scripts to fix RLS policies',
                                           );
                                         }
-                                      }
 
-                                      // Method 4: Try alternative RPC function (UPDATE then DELETE)
-                                      if (!deletionSuccess) {
-                                        console.log(
-                                          '🗑️ [GettingStarted] Method 4: Try alternative RPC function',
-                                        );
-                                        try {
-                                          const { data: altRpcData, error: altRpcError } =
-                                            await supabase.rpc('cancel_and_delete_invitation', {
-                                              invitation_id: invitation.id,
-                                            });
-
-                                          console.log('🗑️ [GettingStarted] Method 4 RPC result:', {
-                                            data: altRpcData,
-                                            error: altRpcError,
-                                          });
-
-                                          if (!altRpcError && altRpcData?.success) {
-                                            deletionSuccess = true;
-                                            console.log('✅ [GettingStarted] Method 4 successful');
-                                          }
-                                        } catch (altRpcErr) {
-                                          console.log(
-                                            '❌ [GettingStarted] Method 4 RPC not available:',
-                                            altRpcErr,
-                                          );
-                                        }
-                                      }
-
-                                      // Also try to delete from notifications table
-                                      const { data: notifData, error: notifError } = await supabase
-                                        .from('notifications')
-                                        .delete()
-                                        .eq('id', invitation.id)
-                                        .select();
-
-                                      console.log(
-                                        '🗑️ [GettingStarted] Notifications DELETE result:',
-                                        { data: notifData, error: notifError },
-                                      );
-
-                                      // Also try to delete by invitation_id in metadata
-                                      const { data: metadataData, error: metadataError } =
-                                        await supabase
-                                          .from('notifications')
-                                          .delete()
-                                          .eq('metadata->>invitation_id', invitation.id)
-                                          .select();
-
-                                      console.log('🗑️ [GettingStarted] Metadata DELETE result:', {
-                                        data: metadataData,
-                                        error: metadataError,
-                                      });
-
-                                      if (!deletionSuccess) {
-                                        console.log(
-                                          '❌ [GettingStarted] All deletion methods failed - this might be an RLS policy issue',
+                                        // FORCE REMOVE from local state immediately
+                                        setPendingInvitations((prev) =>
+                                          prev.filter((inv) => inv.id !== invitation.id),
                                         );
                                         console.log(
-                                          '❌ [GettingStarted] Please run the SQL scripts to fix RLS policies',
+                                          '🗑️ [GettingStarted] Removed from local state immediately',
+                                        );
+
+                                        // Refresh the pending invitations list
+                                        console.log(
+                                          '🔄 [GettingStarted] Refreshing pending invitations list...',
+                                        );
+                                        await loadPendingInvitations();
+                                        console.log(
+                                          '🔄 [GettingStarted] Pending invitations refreshed',
+                                        );
+                                      } catch (error) {
+                                        console.error(
+                                          '❌ [GettingStarted] Caught error removing invitation:',
+                                          error,
+                                        );
+                                        // Even if there's an error, remove from local state
+                                        setPendingInvitations((prev) =>
+                                          prev.filter((inv) => inv.id !== invitation.id),
                                         );
                                       }
-
-                                      // FORCE REMOVE from local state immediately
-                                      setPendingInvitations((prev) =>
-                                        prev.filter((inv) => inv.id !== invitation.id),
-                                      );
-                                      console.log(
-                                        '🗑️ [GettingStarted] Removed from local state immediately',
-                                      );
-
-                                      // Refresh the pending invitations list
-                                      console.log(
-                                        '🔄 [GettingStarted] Refreshing pending invitations list...',
-                                      );
-                                      await loadPendingInvitations();
-                                      console.log(
-                                        '🔄 [GettingStarted] Pending invitations refreshed',
-                                      );
-                                    } catch (error) {
-                                      console.error(
-                                        '❌ [GettingStarted] Caught error removing invitation:',
-                                        error,
-                                      );
-                                      // Even if there's an error, remove from local state
-                                      setPendingInvitations((prev) =>
-                                        prev.filter((inv) => inv.id !== invitation.id),
-                                      );
-                                    }
+                                    }}
+                                    style={{
+                                      padding: 12,
+                                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                      borderRadius: 8,
+                                      marginLeft: 8,
+                                    }}
+                                    activeOpacity={0.6}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                  >
+                                    <Feather name="trash-2" size={16} color="#EF4444" />
+                                  </TouchableOpacity>
+                                </XStack>
+                              ))
+                            ) : (
+                              <Text
+                                size="sm"
+                                color="$gray11"
+                                textAlign="center"
+                                paddingVertical="$4"
+                              >
+                                {t('onboarding.relationships.noPending') ||
+                                  'No pending invitations'}
+                              </Text>
+                            )
+                          ) : // Existing relationships
+                          existingRelationships.length > 0 ? (
+                            existingRelationships.map((relationship) => (
+                              <XStack key={relationship.id} gap="$2" alignItems="center">
+                                <YStack flex={1}>
+                                  <RadioButton
+                                    onPress={() => {}} // No action on tap for existing relationships
+                                    title={relationship.name}
+                                    description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? t('onboarding.relationships.yourSupervisor') || 'Your supervisor' : t('onboarding.relationships.studentYouSupervise') || 'Student you supervise'} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
+                                    isSelected={false} // Don't show as selected
+                                  />
+                                </YStack>
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    setRelationshipRemovalTarget({
+                                      id: relationship.id,
+                                      name: relationship.name,
+                                      email: relationship.email,
+                                      role: relationship.role,
+                                      relationship_type: relationship.relationship_type,
+                                    });
+                                    handleRemoveRelationship({
+                                      id: relationship.id,
+                                      name: relationship.name,
+                                      email: relationship.email,
+                                      role: relationship.role,
+                                      relationship_type: relationship.relationship_type,
+                                    });
                                   }}
-                                  style={{
-                                    padding: 12,
-                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                    borderRadius: 8,
-                                    marginLeft: 8,
-                                  }}
-                                  activeOpacity={0.6}
-                                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 >
                                   <Feather name="trash-2" size={16} color="#EF4444" />
                                 </TouchableOpacity>
@@ -3110,213 +3209,183 @@ export const GettingStarted = () => {
                             ))
                           ) : (
                             <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                              {t('onboarding.relationships.noPending') || 'No pending invitations'}
+                              {t('onboarding.relationships.noExisting') ||
+                                'No existing relationships'}
                             </Text>
-                          )
-                        ) : // Existing relationships
-                        existingRelationships.length > 0 ? (
-                          existingRelationships.map((relationship) => (
-                            <XStack key={relationship.id} gap="$2" alignItems="center">
-                              <YStack flex={1}>
-                                <RadioButton
-                                  onPress={() => {}} // No action on tap for existing relationships
-                                  title={relationship.name}
-                                  description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? t('onboarding.relationships.yourSupervisor') || 'Your supervisor' : t('onboarding.relationships.studentYouSupervise') || 'Student you supervise'} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
-                                  isSelected={false} // Don't show as selected
-                                />
-                              </YStack>
-                              <TouchableOpacity
-                                onPress={() => {
-                                  setRelationshipRemovalTarget({
-                                    id: relationship.id,
-                                    name: relationship.name,
-                                    email: relationship.email,
-                                    role: relationship.role,
-                                    relationship_type: relationship.relationship_type,
-                                  });
-                                  handleRemoveRelationship({
-                                    id: relationship.id,
-                                    name: relationship.name,
-                                    email: relationship.email,
-                                    role: relationship.role,
-                                    relationship_type: relationship.relationship_type,
-                                  });
-                                }}
-                              >
-                                <Feather name="trash-2" size={16} color="#EF4444" />
-                              </TouchableOpacity>
-                            </XStack>
-                          ))
-                        ) : (
-                          <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                            {t('onboarding.relationships.noExisting') ||
-                              'No existing relationships'}
-                          </Text>
-                        )}
-                      </YStack>
-                    </ScrollView>
-                  </YStack>
-                )}
+                          )}
+                        </YStack>
+                      </ScrollView>
+                    </YStack>
+                  )}
 
-                {/* Show selected connections with message - using OnboardingInteractive styling */}
-                {selectedConnections.length > 0 && (
-                  <YStack
-                    gap="$3"
-                    padding="$4"
-                    backgroundColor="$backgroundHover"
-                    borderRadius="$4"
-                  >
-                    <Text size="md" fontWeight="600" color="$color">
-                      {t('onboarding.relationships.newConnectionsTitle') || 'New Connection to Add'}{' '}
-                      ({selectedConnections.length}):
-                    </Text>
-                    {selectedConnections.map((connection) => (
-                      <RadioButton
-                        key={connection.id}
-                        onPress={() => {
-                          // Remove this connection
-                          setSelectedConnections((prev) =>
-                            prev.filter((conn) => conn.id !== connection.id),
-                          );
-                        }}
-                        title={connection.full_name || connection.email}
-                        description={`${connection.email} • ${connection.role || 'instructor'} • ${t('onboarding.connections.tapToRemove') || 'Tap to remove'}`}
-                        isSelected={true}
-                      />
-                    ))}
-
-                    {/* Show custom message if provided */}
-                    {connectionCustomMessage.trim() && (
-                      <YStack
-                        gap="$1"
-                        marginTop="$2"
-                        padding="$3"
-                        backgroundColor="$backgroundHover"
-                        borderRadius="$3"
-                      >
-                        <Text size="sm" color="$gray11" fontWeight="600">
-                          Your message:
-                        </Text>
-                        <Text size="sm" color="$color" fontStyle="italic">
-                          "{connectionCustomMessage.trim()}"
-                        </Text>
-                      </YStack>
-                    )}
-                  </YStack>
-                )}
-
-                {/* Custom message input */}
-                <YStack gap="$2">
-                  <Text fontSize="$3" color="$gray11">
-                    Optional message:
-                  </Text>
-                  <TextInput
-                    value={connectionCustomMessage}
-                    onChangeText={setConnectionCustomMessage}
-                    placeholder="Add a personal message..."
-                    multiline
-                    style={{
-                      backgroundColor: '$background',
-                      color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
-                      borderColor:
-                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                      borderWidth: 1,
-                      borderRadius: 8,
-                      padding: 12,
-                      minHeight: 60,
-                      textAlignVertical: 'top',
-                    }}
-                    placeholderTextColor={
-                      colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'
-                    }
-                  />
-                </YStack>
-
-                <FormField
-                  placeholder="Search by name or email..."
-                  value={connectionSearchQuery}
-                  onChangeText={handleSearchUsers}
-                />
-
-                <ScrollView style={{ flex: 1, maxHeight: 300 }} showsVerticalScrollIndicator={true}>
-                  <YStack gap="$2">
-                    {searchResults.length === 0 && connectionSearchQuery.length >= 2 && (
-                      <Text fontSize="$3" color="$gray11" textAlign="center" paddingVertical="$4">
-                        No users found
+                  {/* Show selected connections with message - using OnboardingInteractive styling */}
+                  {selectedConnections.length > 0 && (
+                    <YStack
+                      gap="$3"
+                      padding="$4"
+                      backgroundColor="$backgroundHover"
+                      borderRadius="$4"
+                    >
+                      <Text size="md" fontWeight="600" color="$color">
+                        {t('onboarding.relationships.newConnectionsTitle') ||
+                          'New Connection to Add'}{' '}
+                        ({selectedConnections.length}):
                       </Text>
-                    )}
-
-                    {searchResults.length === 0 && connectionSearchQuery.length < 2 && (
-                      <Text fontSize="$3" color="$gray11" textAlign="center" paddingVertical="$4">
-                        Start typing to search for users
-                      </Text>
-                    )}
-
-                    {searchResults.map((user) => {
-                      const isSelected = selectedConnections.some((conn) => conn.id === user.id);
-                      return (
-                        <TouchableOpacity
-                          key={user.id}
-                          onPress={async () => {
-                            if (isSelected) {
-                              // Remove from selection
-                              setSelectedConnections((prev) =>
-                                prev.filter((conn) => conn.id !== user.id),
-                              );
-                            } else {
-                              // Add to selection
-                              setSelectedConnections((prev) => [...prev, user]);
-                            }
+                      {selectedConnections.map((connection) => (
+                        <RadioButton
+                          key={connection.id}
+                          onPress={() => {
+                            // Remove this connection
+                            setSelectedConnections((prev) =>
+                              prev.filter((conn) => conn.id !== connection.id),
+                            );
                           }}
-                          style={{
-                            padding: 12,
-                            borderRadius: 8,
-                            borderWidth: isSelected ? 2 : 1,
-                            borderColor: isSelected ? '#00E6C3' : '#ccc',
-                            backgroundColor: isSelected ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
-                            marginVertical: 4,
-                          }}
+                          title={connection.full_name || connection.email}
+                          description={`${connection.email} • ${connection.role || 'instructor'} • ${t('onboarding.connections.tapToRemove') || 'Tap to remove'}`}
+                          isSelected={true}
+                        />
+                      ))}
+
+                      {/* Show custom message if provided */}
+                      {connectionCustomMessage.trim() && (
+                        <YStack
+                          gap="$1"
+                          marginTop="$2"
+                          padding="$3"
+                          backgroundColor="$backgroundHover"
+                          borderRadius="$3"
                         >
-                          <XStack gap={8} alignItems="center">
-                            <YStack flex={1}>
-                              <Text color="$color" fontSize={14} fontWeight="600">
-                                {user.full_name || 'Unknown User'}
-                              </Text>
-                              <Text fontSize={12} color="$gray11">
-                                {user.email} • {user.role}
-                              </Text>
-                            </YStack>
-                            {isSelected ? (
-                              <Feather name="check" size={16} color="#00E6C3" />
-                            ) : (
-                              <Feather name="plus-circle" size={16} color="#ccc" />
-                            )}
-                          </XStack>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </YStack>
-                </ScrollView>
+                          <Text size="sm" color="$gray11" fontWeight="600">
+                            Your message:
+                          </Text>
+                          <Text size="sm" color="$color" fontStyle="italic">
+                            "{connectionCustomMessage.trim()}"
+                          </Text>
+                        </YStack>
+                      )}
+                    </YStack>
+                  )}
 
-                {/* Action Buttons */}
-                <YStack gap="$2" marginTop="$4">
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    onPress={handleCreateConnections}
-                    disabled={selectedConnections.length === 0}
-                  >
-                    <Text color="white" fontWeight="600">
-                      {selectedConnections.length > 0
-                        ? `Send ${selectedConnections.length} Invitation${selectedConnections.length > 1 ? 's' : ''}`
-                        : 'Select Users to Invite'}
+                  {/* Custom message input */}
+                  <YStack gap="$2">
+                    <Text fontSize="$3" color="$gray11">
+                      Optional message:
                     </Text>
-                  </Button>
+                    <TextInput
+                      value={connectionCustomMessage}
+                      onChangeText={setConnectionCustomMessage}
+                      placeholder="Add a personal message..."
+                      multiline
+                      style={{
+                        backgroundColor: '$background',
+                        color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
+                        borderColor:
+                          colorScheme === 'dark'
+                            ? 'rgba(255, 255, 255, 0.1)'
+                            : 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        padding: 12,
+                        minHeight: 60,
+                        textAlignVertical: 'top',
+                      }}
+                      placeholderTextColor={
+                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'
+                      }
+                    />
+                  </YStack>
 
-                  <Button variant="outlined" size="lg" onPress={hideConnectionsSheet}>
-                    <Text color="$color">Cancel</Text>
-                  </Button>
-                </YStack>
+                  <FormField
+                    placeholder="Search by name or email..."
+                    value={connectionSearchQuery}
+                    onChangeText={handleSearchUsers}
+                  />
+
+                  <ScrollView
+                    style={{ flex: 1, maxHeight: 300 }}
+                    showsVerticalScrollIndicator={true}
+                  >
+                    <YStack gap="$2">
+                      {searchResults.length === 0 && connectionSearchQuery.length >= 2 && (
+                        <Text fontSize="$3" color="$gray11" textAlign="center" paddingVertical="$4">
+                          No users found
+                        </Text>
+                      )}
+
+                      {searchResults.length === 0 && connectionSearchQuery.length < 2 && (
+                        <Text fontSize="$3" color="$gray11" textAlign="center" paddingVertical="$4">
+                          Start typing to search for users
+                        </Text>
+                      )}
+
+                      {searchResults.map((user) => {
+                        const isSelected = selectedConnections.some((conn) => conn.id === user.id);
+                        return (
+                          <TouchableOpacity
+                            key={user.id}
+                            onPress={async () => {
+                              if (isSelected) {
+                                // Remove from selection
+                                setSelectedConnections((prev) =>
+                                  prev.filter((conn) => conn.id !== user.id),
+                                );
+                              } else {
+                                // Add to selection
+                                setSelectedConnections((prev) => [...prev, user]);
+                              }
+                            }}
+                            style={{
+                              padding: 12,
+                              borderRadius: 8,
+                              borderWidth: isSelected ? 2 : 1,
+                              borderColor: isSelected ? '#00E6C3' : '#ccc',
+                              backgroundColor: isSelected
+                                ? 'rgba(0, 230, 195, 0.1)'
+                                : 'transparent',
+                              marginVertical: 4,
+                            }}
+                          >
+                            <XStack gap={8} alignItems="center">
+                              <YStack flex={1}>
+                                <Text color="$color" fontSize={14} fontWeight="600">
+                                  {user.full_name || 'Unknown User'}
+                                </Text>
+                                <Text fontSize={12} color="$gray11">
+                                  {user.email} • {user.role}
+                                </Text>
+                              </YStack>
+                              {isSelected ? (
+                                <Feather name="check" size={16} color="#00E6C3" />
+                              ) : (
+                                <Feather name="plus-circle" size={16} color="#ccc" />
+                              )}
+                            </XStack>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </YStack>
+                  </ScrollView>
+
+                  {/* Action Buttons */}
+                  <YStack gap="$2" marginTop="$4">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      onPress={handleCreateConnections}
+                      disabled={selectedConnections.length === 0}
+                    >
+                      <Text color="white" fontWeight="600">
+                        {selectedConnections.length > 0
+                          ? `Send ${selectedConnections.length} Invitation${selectedConnections.length > 1 ? 's' : ''}`
+                          : 'Select Users to Invite'}
+                      </Text>
+                    </Button>
+
+                    <Button variant="outlined" size="lg" onPress={hideConnectionsSheet}>
+                      <Text color="$color">Cancel</Text>
+                    </Button>
+                  </YStack>
+                </KeyboardAvoidingView>
               </YStack>
             </ReanimatedAnimated.View>
           </View>
