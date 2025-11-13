@@ -30,6 +30,7 @@ import { supabase } from '../../lib/supabase';
 import { useTourTarget } from '../../components/TourOverlay';
 import { ProfileSheet } from '../../components/ProfileSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
+import { UserListSheet } from '../../components/UserListSheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Hardcoded fallback translations for header
@@ -117,6 +118,10 @@ export const HomeHeader = React.memo(function HomeHeader() {
   const [showProfileSheet, setShowProfileSheet] = React.useState(false);
   const [showUserProfileSheet, setShowUserProfileSheet] = React.useState(false);
   const [showAchievementsSheet, setShowAchievementsSheet] = React.useState(false);
+  const [showUserListSheet, setShowUserListSheet] = React.useState(false);
+
+  // Check if user is admin
+  const isAdmin = profile?.role === 'admin';
 
   // Progress state for avatar circle
   const [userProgress, setUserProgress] = useState(0);
@@ -472,6 +477,27 @@ export const HomeHeader = React.memo(function HomeHeader() {
             <Feather name="award" size={20} color="#FFD700" />
           </TouchableOpacity> */}
 
+          {/* 👥 User List Button - ADMIN ONLY */}
+          {isAdmin && (
+            <TouchableOpacity
+              onPress={() => setShowUserListSheet(true)}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5',
+              }}
+            >
+              <Feather
+                name="users"
+                size={20}
+                color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
+              />
+            </TouchableOpacity>
+          )}
+
           <NotificationBell onPress={() => setShowNotificationsSheet(true)} />
           {/* <EventsBell onPress={() => setShowEventsSheet(true)} /> */}
         </XStack>
@@ -800,6 +826,19 @@ export const HomeHeader = React.memo(function HomeHeader() {
       <AchievementsSheet
         visible={showAchievementsSheet}
         onClose={() => setShowAchievementsSheet(false)}
+      />
+
+      {/* 👥 User List Sheet - ADMIN ONLY */}
+      <UserListSheet
+        visible={showUserListSheet}
+        onClose={() => setShowUserListSheet(false)}
+        title={getTranslation('users.allUsers', language === 'sv' ? 'Alla användare' : 'All Users')}
+        onUserPress={(userId) => {
+          // Open user profile sheet when a user is pressed
+          setShowUserListSheet(false);
+          // You could add navigation to profile here if needed
+          console.log('User pressed:', userId);
+        }}
       />
     </YStack>
   );

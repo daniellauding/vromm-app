@@ -5,8 +5,9 @@ import { useStudentSwitch } from '../../context/StudentSwitchContext';
 
 import { useTranslation } from '../../contexts/TranslationContext';
 import { ProgressSection } from '../../components/ProgressSection';
+import { Text as RNText, View } from 'react-native';
 
-import { SectionHeader } from '../../components/SectionHeader';
+// import { SectionHeader } from '../../components/SectionHeader';
 // import { UsersList } from '../../components/UsersList';
 
 import { WeeklyGoal } from './WeeklyGoal';
@@ -23,6 +24,10 @@ import { DrivenRoutes } from './DrivenRoutes';
 import { DraftRoutes } from './DraftRoutes';
 import { LearningPathsSheet } from '../../components/LearningPathsSheet';
 import { ExerciseListSheet } from '../../components/ExerciseListSheet';
+import { BetaTestingSheetModal } from '../../components/BetaTestingSheet';
+import { useModal } from '../../contexts/ModalContext';
+import { Feather } from '@expo/vector-icons';
+import { useColorScheme, TouchableOpacity, Linking, Share } from 'react-native';
 // import { LearningPathCard } from './LearningPathCard';
 // import { RoleSelectionCard } from './RoleSelectionCard';
 // import { ConnectionsCard } from './ConnectionsCard';
@@ -30,9 +35,9 @@ import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 export default React.memo(function MyTab({
   activeUserId,
   handleRoutePress,
-  setSelectedUserId,
-  setShowUserProfileSheet,
-  setShowUserListSheet,
+  setSelectedUserId: _setSelectedUserId,
+  setShowUserProfileSheet: _setShowUserProfileSheet,
+  setShowUserListSheet: _setShowUserListSheet,
 }: {
   activeUserId: string | undefined;
   handleRoutePress: (routeId: string) => void;
@@ -42,6 +47,8 @@ export default React.memo(function MyTab({
 }) {
   const { t, language } = useTranslation();
   const { getEffectiveUserId } = useStudentSwitch();
+  const { showModal } = useModal();
+  const colorScheme = useColorScheme();
   const effectiveUserId = activeUserId || getEffectiveUserId();
   const [selectedDailyStatusDate, setSelectedDailyStatusDate] = useState(new Date());
   const [showLearningPathsSheet, setShowLearningPathsSheet] = useState(false);
@@ -65,15 +72,32 @@ export default React.memo(function MyTab({
     [setSelectedDailyStatusDate],
   );
 
-  const onShowUser = React.useCallback(
-    (userId: string) => {
-      if (userId) {
-        setSelectedUserId(userId);
-        setShowUserProfileSheet(true);
-      }
-    },
-    [setSelectedUserId, setShowUserProfileSheet],
-  );
+  // Beta Testing Sheet handlers
+  const handleOpenBetaTesting = React.useCallback(() => {
+    showModal(
+      <BetaTestingSheetModal
+        onOpenBuyCoffee={() => {
+          Linking.openURL('https://buymeacoffee.com/vromm');
+        }}
+        onOpenBetaWebView={() => {
+          Linking.openURL('https://beta.vromm.se');
+        }}
+        onShareApp={async () => {
+          try {
+            await Share.share({
+              message: 'Check out Vromm - The future of driving education! https://vromm.se',
+              title: 'Share Vromm',
+            });
+          } catch (error) {
+            console.error('Error sharing:', error);
+          }
+        }}
+        onOpenAbout={() => {
+          Linking.openURL('https://vromm.se/about');
+        }}
+      />,
+    );
+  }, [showModal]);
 
   console.log('🗓️ [MyTab] Render');
 
@@ -99,6 +123,50 @@ export default React.memo(function MyTab({
         selectedDate={selectedDailyStatusDate}
         onDateChange={onDateSelected}
       />
+
+      {/* Beta Testing Button */}
+      <TouchableOpacity
+        onPress={handleOpenBetaTesting}
+        style={{
+          marginHorizontal: 16,
+          marginTop: 12,
+          marginBottom: 8,
+          padding: 16,
+          backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#F5F5F5',
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: colorScheme === 'dark' ? '#2C2C2E' : '#E5E5EA',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Feather
+            name="help-circle"
+            size={20}
+            color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
+          />
+          <RNText
+            style={{
+              fontSize: 16,
+              fontWeight: '500',
+              color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
+            }}
+          >
+            {getTranslation(
+              'home.betaTesting',
+              language === 'sv' ? 'Hjälp oss testa' : 'Help with testing',
+            )}
+          </RNText>
+        </View>
+        <Feather
+          name="chevron-right"
+          size={20}
+          color={colorScheme === 'dark' ? '#8E8E93' : '#999'}
+        />
+      </TouchableOpacity>
 
       {/* Getting Started Section */}
       <GettingStarted />
