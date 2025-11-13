@@ -501,6 +501,7 @@ export function CreateRouteSheet({
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const mainScrollViewRef = useRef<ScrollView>(null);
   const pendingToastRef = useRef<{ id: string; name: string; isEditing: boolean } | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(
     null,
@@ -2619,9 +2620,11 @@ export function CreateRouteSheet({
                 keyboardVerticalOffset={0}
               >
                 <ScrollView
+                  ref={mainScrollViewRef}
                   style={{ flex: 1 }}
                   scrollEnabled={drawingMode !== 'pen'}
                   showsVerticalScrollIndicator={drawingMode !== 'pen'}
+                  keyboardShouldPersistTaps="handled"
                 >
                   {/* Existing Content */}
                   <YStack f={1} gap={2}>
@@ -2716,6 +2719,14 @@ export function CreateRouteSheet({
                                   onChangeText={(text) =>
                                     setFormData((prev) => ({ ...prev, name: text }))
                                   }
+                                  onFocus={() => {
+                                    setTimeout(() => {
+                                      mainScrollViewRef.current?.scrollTo({
+                                        y: 0,
+                                        animated: false,
+                                      });
+                                    }, 50);
+                                  }}
                                   placeholder={getTranslation(
                                     t,
                                     'createRoute.routeNamePlaceholder',
@@ -2823,6 +2834,14 @@ export function CreateRouteSheet({
                                   onChangeText={(text) =>
                                     setFormData((prev) => ({ ...prev, description: text }))
                                   }
+                                  onFocus={() => {
+                                    setTimeout(() => {
+                                      mainScrollViewRef.current?.scrollTo({
+                                        y: 150,
+                                        animated: false,
+                                      });
+                                    }, 50);
+                                  }}
                                   placeholder={getTranslation(
                                     t,
                                     'createRoute.descriptionPlaceholder',
@@ -3125,6 +3144,14 @@ export function CreateRouteSheet({
                                         size="md"
                                         value={searchQuery}
                                         onChangeText={handleSearch}
+                                        onFocus={() => {
+                                          setTimeout(() => {
+                                            mainScrollViewRef.current?.scrollTo({
+                                              y: 400,
+                                              animated: false,
+                                            });
+                                          }, 50);
+                                        }}
                                         placeholder={t('createRoute.searchLocation')}
                                         autoComplete="street-address"
                                         autoCapitalize="none"

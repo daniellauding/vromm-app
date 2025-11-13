@@ -2743,9 +2743,10 @@ export const GettingStarted = () => {
               style={[
                 {
                   position: 'absolute',
-                  bottom: 0,
+                  top: 0,
                   left: 0,
                   right: 0,
+                  height: height,
                   backgroundColor: backgroundColor,
                   borderTopLeftRadius: 16,
                   borderTopRightRadius: 16,
@@ -2760,7 +2761,8 @@ export const GettingStarted = () => {
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
                 gap="$4"
-                maxHeight="95%"
+                height="100%"
+                flex={1}
               >
                 {/* Drag Handle */}
                 <GestureDetector gesture={connectionsPanGesture}>
@@ -2782,381 +2784,435 @@ export const GettingStarted = () => {
                   </View>
                 </GestureDetector>
 
+                <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                  {selectedRole === 'student'
+                    ? 'Find Instructors'
+                    : selectedRole === 'instructor' /* || selectedRole === 'school' */
+                      ? 'Find Students'
+                      : 'Find Users'}
+                </Text>
+
+                <Text fontSize="$3" color="$gray11" textAlign="center" marginBottom="$3">
+                  {selectedRole === 'student'
+                    ? 'Search for driving instructors to connect with'
+                    : selectedRole === 'instructor' /* || selectedRole === 'school' */
+                      ? 'Search for students to connect with'
+                      : 'Search for users to connect with'}
+                </Text>
+
                 <KeyboardAvoidingView
                   behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                   style={{ flex: 1 }}
                   keyboardVerticalOffset={0}
                 >
-                  <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                    {selectedRole === 'student'
-                      ? 'Find Instructors'
-                      : selectedRole === 'instructor' /* || selectedRole === 'school' */
-                        ? 'Find Students'
-                        : 'Find Users'}
-                  </Text>
-
-                  <Text fontSize="$3" color="$gray11" textAlign="center">
-                    {selectedRole === 'student'
-                      ? 'Search for driving instructors to connect with'
-                      : selectedRole === 'instructor' /* || selectedRole === 'school' */
-                        ? 'Search for students to connect with'
-                        : 'Search for users to connect with'}
-                  </Text>
-
-                  {/* Tabbed interface for relationships */}
-                  {(existingRelationships.length > 0 || pendingInvitations.length > 0) && (
-                    <YStack
-                      gap="$3"
-                      padding="$4"
-                      backgroundColor="$backgroundHover"
-                      borderRadius="$4"
-                      maxHeight="300"
-                    >
-                      {/* Tab headers */}
-                      <XStack gap="$2" marginBottom="$2">
-                        <TouchableOpacity
-                          onPress={() => setActiveRelationshipsTab('pending')}
-                          style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 8,
-                            borderRadius: 8,
-                            backgroundColor:
-                              activeRelationshipsTab === 'pending'
-                                ? colorScheme === 'dark'
-                                  ? '#333'
-                                  : '#E5E5E5'
-                                : 'transparent',
-                          }}
-                        >
-                          <Text
-                            size="sm"
-                            fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'}
-                            color={
-                              activeRelationshipsTab === 'pending'
-                                ? colorScheme === 'dark'
-                                  ? '#ECEDEE'
-                                  : '#11181C'
-                                : colorScheme === 'dark'
-                                  ? 'rgba(255, 255, 255, 0.3)'
-                                  : 'rgba(0, 0, 0, 0.3)'
-                            }
+                  <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ paddingBottom: 20 }}
+                    showsVerticalScrollIndicator={true}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {/* Tabbed interface for relationships */}
+                    {(existingRelationships.length > 0 || pendingInvitations.length > 0) && (
+                      <YStack
+                        gap="$3"
+                        padding="$4"
+                        backgroundColor="$backgroundHover"
+                        borderRadius="$4"
+                        maxHeight="300"
+                      >
+                        {/* Tab headers */}
+                        <XStack gap="$2" marginBottom="$2">
+                          <TouchableOpacity
+                            onPress={() => setActiveRelationshipsTab('pending')}
+                            style={{
+                              paddingHorizontal: 16,
+                              paddingVertical: 8,
+                              borderRadius: 8,
+                              backgroundColor:
+                                activeRelationshipsTab === 'pending'
+                                  ? colorScheme === 'dark'
+                                    ? '#333'
+                                    : '#E5E5E5'
+                                  : 'transparent',
+                            }}
                           >
-                            {t('onboarding.relationships.pendingTitle') || 'Pending'} (
-                            {pendingInvitations.length})
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => setActiveRelationshipsTab('existing')}
-                          style={{
-                            paddingHorizontal: 16,
-                            paddingVertical: 8,
-                            borderRadius: 8,
-                            backgroundColor:
-                              activeRelationshipsTab === 'existing'
-                                ? colorScheme === 'dark'
-                                  ? '#333'
-                                  : '#E5E5E5'
-                                : 'transparent',
-                          }}
-                        >
-                          <Text
-                            size="sm"
-                            fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'}
-                            color={
-                              activeRelationshipsTab === 'existing'
-                                ? colorScheme === 'dark'
-                                  ? '#ECEDEE'
-                                  : '#11181C'
-                                : colorScheme === 'dark'
-                                  ? 'rgba(255, 255, 255, 0.3)'
-                                  : 'rgba(0, 0, 0, 0.3)'
-                            }
+                            <Text
+                              size="sm"
+                              fontWeight={activeRelationshipsTab === 'pending' ? '600' : '400'}
+                              color={
+                                activeRelationshipsTab === 'pending'
+                                  ? colorScheme === 'dark'
+                                    ? '#ECEDEE'
+                                    : '#11181C'
+                                  : colorScheme === 'dark'
+                                    ? 'rgba(255, 255, 255, 0.3)'
+                                    : 'rgba(0, 0, 0, 0.3)'
+                              }
+                            >
+                              {t('onboarding.relationships.pendingTitle') || 'Pending'} (
+                              {pendingInvitations.length})
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => setActiveRelationshipsTab('existing')}
+                            style={{
+                              paddingHorizontal: 16,
+                              paddingVertical: 8,
+                              borderRadius: 8,
+                              backgroundColor:
+                                activeRelationshipsTab === 'existing'
+                                  ? colorScheme === 'dark'
+                                    ? '#333'
+                                    : '#E5E5E5'
+                                  : 'transparent',
+                            }}
                           >
-                            {t('onboarding.relationships.existingTitle') || 'Existing'} (
-                            {existingRelationships.length})
-                          </Text>
-                        </TouchableOpacity>
-                      </XStack>
+                            <Text
+                              size="sm"
+                              fontWeight={activeRelationshipsTab === 'existing' ? '600' : '400'}
+                              color={
+                                activeRelationshipsTab === 'existing'
+                                  ? colorScheme === 'dark'
+                                    ? '#ECEDEE'
+                                    : '#11181C'
+                                  : colorScheme === 'dark'
+                                    ? 'rgba(255, 255, 255, 0.3)'
+                                    : 'rgba(0, 0, 0, 0.3)'
+                              }
+                            >
+                              {t('onboarding.relationships.existingTitle') || 'Existing'} (
+                              {existingRelationships.length})
+                            </Text>
+                          </TouchableOpacity>
+                        </XStack>
 
-                      {/* Tab content */}
-                      <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={true}>
-                        <YStack gap="$3">
-                          {activeRelationshipsTab === 'pending' ? (
-                            // Pending invitations
-                            pendingInvitations.length > 0 ? (
-                              pendingInvitations.map((invitation) => (
-                                <XStack key={invitation.id} gap="$2" alignItems="center">
-                                  <YStack flex={1}>
-                                    <Text fontSize="$4" fontWeight="600" color="$color">
-                                      {invitation.metadata?.targetUserName || invitation.email}
-                                    </Text>
-                                    <Text fontSize="$3" color="$gray11">
-                                      {invitation.email} • Invited as {invitation.role} •{' '}
-                                      {new Date(invitation.created_at).toLocaleDateString()}
-                                    </Text>
-                                    {invitation.metadata?.customMessage && (
-                                      <Text fontSize="$2" color="$gray9" fontStyle="italic">
-                                        Message: "{invitation.metadata.customMessage}"
+                        {/* Tab content */}
+                        <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={true}>
+                          <YStack gap="$3">
+                            {activeRelationshipsTab === 'pending' ? (
+                              // Pending invitations
+                              pendingInvitations.length > 0 ? (
+                                pendingInvitations.map((invitation) => (
+                                  <XStack key={invitation.id} gap="$2" alignItems="center">
+                                    <YStack flex={1}>
+                                      <Text fontSize="$4" fontWeight="600" color="$color">
+                                        {invitation.metadata?.targetUserName || invitation.email}
                                       </Text>
-                                    )}
-                                  </YStack>
-                                  <Text fontSize="$3" color="$orange10" fontWeight="600">
-                                    PENDING
-                                  </Text>
-                                  <TouchableOpacity
-                                    onPress={async () => {
-                                      console.log(
-                                        '🗑️ [GettingStarted] TRASH BUTTON PRESSED for invitation:',
-                                        invitation.id,
-                                      );
-
-                                      // Add haptic feedback to confirm tap
-                                      try {
-                                        await Haptics.impactAsync(
-                                          Haptics.ImpactFeedbackStyle.Medium,
-                                        );
-                                      } catch (e) {
-                                        // Haptics might not be available
-                                      }
-
-                                      try {
+                                      <Text fontSize="$3" color="$gray11">
+                                        {invitation.email} • Invited as {invitation.role} •{' '}
+                                        {new Date(invitation.created_at).toLocaleDateString()}
+                                      </Text>
+                                      {invitation.metadata?.customMessage && (
+                                        <Text fontSize="$2" color="$gray9" fontStyle="italic">
+                                          Message: "{invitation.metadata.customMessage}"
+                                        </Text>
+                                      )}
+                                    </YStack>
+                                    <Text fontSize="$3" color="$orange10" fontWeight="600">
+                                      PENDING
+                                    </Text>
+                                    <TouchableOpacity
+                                      onPress={async () => {
                                         console.log(
-                                          '🗑️ [GettingStarted] FORCE DELETING invitation with ID:',
+                                          '🗑️ [GettingStarted] TRASH BUTTON PRESSED for invitation:',
                                           invitation.id,
                                         );
-                                        console.log(
-                                          '🗑️ [GettingStarted] Full invitation object:',
-                                          JSON.stringify(invitation, null, 2),
-                                        );
 
-                                        // First, let's check if the invitation actually exists
-                                        const { data: checkData, error: checkError } =
-                                          await supabase
-                                            .from('pending_invitations')
-                                            .select('*')
-                                            .eq('id', invitation.id);
-
-                                        console.log(
-                                          '🗑️ [GettingStarted] Check if invitation exists:',
-                                          { data: checkData, error: checkError },
-                                        );
-
-                                        // Try multiple deletion approaches
-                                        let deletionSuccess = false;
-
-                                        // Method 1: Direct DELETE with RLS
-                                        console.log(
-                                          '🗑️ [GettingStarted] Method 1: Direct DELETE with RLS',
-                                        );
-                                        const { data: pendingData, error: pendingError } =
-                                          await supabase
-                                            .from('pending_invitations')
-                                            .delete()
-                                            .eq('id', invitation.id)
-                                            .select();
-
-                                        console.log('🗑️ [GettingStarted] Method 1 result:', {
-                                          data: pendingData,
-                                          error: pendingError,
-                                        });
-
-                                        if (pendingData && pendingData.length > 0) {
-                                          deletionSuccess = true;
-                                          console.log(
-                                            '✅ [GettingStarted] Method 1 successful - deleted',
-                                            pendingData.length,
-                                            'rows',
+                                        // Add haptic feedback to confirm tap
+                                        try {
+                                          await Haptics.impactAsync(
+                                            Haptics.ImpactFeedbackStyle.Medium,
                                           );
-                                        } else if (pendingError) {
-                                          console.log(
-                                            '❌ [GettingStarted] Method 1 failed with error:',
-                                            pendingError,
-                                          );
+                                        } catch (e) {
+                                          // Haptics might not be available
                                         }
 
-                                        // Method 2: Try UPDATE to 'cancelled' status first, then DELETE
-                                        if (!deletionSuccess) {
+                                        try {
                                           console.log(
-                                            '🗑️ [GettingStarted] Method 2: UPDATE to cancelled, then DELETE',
+                                            '🗑️ [GettingStarted] FORCE DELETING invitation with ID:',
+                                            invitation.id,
+                                          );
+                                          console.log(
+                                            '🗑️ [GettingStarted] Full invitation object:',
+                                            JSON.stringify(invitation, null, 2),
                                           );
 
-                                          // First update to cancelled
-                                          const { data: updateData, error: updateError } =
+                                          // First, let's check if the invitation actually exists
+                                          const { data: checkData, error: checkError } =
                                             await supabase
                                               .from('pending_invitations')
-                                              .update({ status: 'cancelled' })
+                                              .select('*')
+                                              .eq('id', invitation.id);
+
+                                          console.log(
+                                            '🗑️ [GettingStarted] Check if invitation exists:',
+                                            { data: checkData, error: checkError },
+                                          );
+
+                                          // Try multiple deletion approaches
+                                          let deletionSuccess = false;
+
+                                          // Method 1: Direct DELETE with RLS
+                                          console.log(
+                                            '🗑️ [GettingStarted] Method 1: Direct DELETE with RLS',
+                                          );
+                                          const { data: pendingData, error: pendingError } =
+                                            await supabase
+                                              .from('pending_invitations')
+                                              .delete()
                                               .eq('id', invitation.id)
                                               .select();
 
-                                          console.log(
-                                            '🗑️ [GettingStarted] Method 2 UPDATE result:',
-                                            {
-                                              data: updateData,
-                                              error: updateError,
-                                            },
-                                          );
+                                          console.log('🗑️ [GettingStarted] Method 1 result:', {
+                                            data: pendingData,
+                                            error: pendingError,
+                                          });
 
-                                          if (updateData && updateData.length > 0) {
-                                            // Now try to delete
-                                            const { data: deleteData, error: deleteError } =
+                                          if (pendingData && pendingData.length > 0) {
+                                            deletionSuccess = true;
+                                            console.log(
+                                              '✅ [GettingStarted] Method 1 successful - deleted',
+                                              pendingData.length,
+                                              'rows',
+                                            );
+                                          } else if (pendingError) {
+                                            console.log(
+                                              '❌ [GettingStarted] Method 1 failed with error:',
+                                              pendingError,
+                                            );
+                                          }
+
+                                          // Method 2: Try UPDATE to 'cancelled' status first, then DELETE
+                                          if (!deletionSuccess) {
+                                            console.log(
+                                              '🗑️ [GettingStarted] Method 2: UPDATE to cancelled, then DELETE',
+                                            );
+
+                                            // First update to cancelled
+                                            const { data: updateData, error: updateError } =
                                               await supabase
                                                 .from('pending_invitations')
-                                                .delete()
+                                                .update({ status: 'cancelled' })
                                                 .eq('id', invitation.id)
                                                 .select();
 
                                             console.log(
-                                              '🗑️ [GettingStarted] Method 2 DELETE result:',
-                                              { data: deleteData, error: deleteError },
-                                            );
-
-                                            if (deleteData && deleteData.length > 0) {
-                                              deletionSuccess = true;
-                                              console.log(
-                                                '✅ [GettingStarted] Method 2 successful - deleted',
-                                                deleteData.length,
-                                                'rows',
-                                              );
-                                            }
-                                          }
-                                        }
-
-                                        // Method 3: Try using RPC function if available
-                                        if (!deletionSuccess) {
-                                          console.log(
-                                            '🗑️ [GettingStarted] Method 3: Try RPC function',
-                                          );
-                                          try {
-                                            const { data: rpcData, error: rpcError } =
-                                              await supabase.rpc('delete_pending_invitation', {
-                                                invitation_id: invitation.id,
-                                              });
-
-                                            console.log(
-                                              '🗑️ [GettingStarted] Method 3 RPC result:',
+                                              '🗑️ [GettingStarted] Method 2 UPDATE result:',
                                               {
-                                                data: rpcData,
-                                                error: rpcError,
+                                                data: updateData,
+                                                error: updateError,
                                               },
                                             );
 
-                                            if (!rpcError && rpcData?.success) {
-                                              deletionSuccess = true;
+                                            if (updateData && updateData.length > 0) {
+                                              // Now try to delete
+                                              const { data: deleteData, error: deleteError } =
+                                                await supabase
+                                                  .from('pending_invitations')
+                                                  .delete()
+                                                  .eq('id', invitation.id)
+                                                  .select();
+
                                               console.log(
-                                                '✅ [GettingStarted] Method 3 successful',
+                                                '🗑️ [GettingStarted] Method 2 DELETE result:',
+                                                { data: deleteData, error: deleteError },
+                                              );
+
+                                              if (deleteData && deleteData.length > 0) {
+                                                deletionSuccess = true;
+                                                console.log(
+                                                  '✅ [GettingStarted] Method 2 successful - deleted',
+                                                  deleteData.length,
+                                                  'rows',
+                                                );
+                                              }
+                                            }
+                                          }
+
+                                          // Method 3: Try using RPC function if available
+                                          if (!deletionSuccess) {
+                                            console.log(
+                                              '🗑️ [GettingStarted] Method 3: Try RPC function',
+                                            );
+                                            try {
+                                              const { data: rpcData, error: rpcError } =
+                                                await supabase.rpc('delete_pending_invitation', {
+                                                  invitation_id: invitation.id,
+                                                });
+
+                                              console.log(
+                                                '🗑️ [GettingStarted] Method 3 RPC result:',
+                                                {
+                                                  data: rpcData,
+                                                  error: rpcError,
+                                                },
+                                              );
+
+                                              if (!rpcError && rpcData?.success) {
+                                                deletionSuccess = true;
+                                                console.log(
+                                                  '✅ [GettingStarted] Method 3 successful',
+                                                );
+                                              }
+                                            } catch (rpcErr) {
+                                              console.log(
+                                                '❌ [GettingStarted] Method 3 RPC not available:',
+                                                rpcErr,
                                               );
                                             }
-                                          } catch (rpcErr) {
-                                            console.log(
-                                              '❌ [GettingStarted] Method 3 RPC not available:',
-                                              rpcErr,
-                                            );
                                           }
-                                        }
 
-                                        // Method 4: Try alternative RPC function (UPDATE then DELETE)
-                                        if (!deletionSuccess) {
-                                          console.log(
-                                            '🗑️ [GettingStarted] Method 4: Try alternative RPC function',
-                                          );
-                                          try {
-                                            const { data: altRpcData, error: altRpcError } =
-                                              await supabase.rpc('cancel_and_delete_invitation', {
-                                                invitation_id: invitation.id,
-                                              });
-
+                                          // Method 4: Try alternative RPC function (UPDATE then DELETE)
+                                          if (!deletionSuccess) {
                                             console.log(
-                                              '🗑️ [GettingStarted] Method 4 RPC result:',
-                                              {
-                                                data: altRpcData,
-                                                error: altRpcError,
-                                              },
+                                              '🗑️ [GettingStarted] Method 4: Try alternative RPC function',
                                             );
+                                            try {
+                                              const { data: altRpcData, error: altRpcError } =
+                                                await supabase.rpc('cancel_and_delete_invitation', {
+                                                  invitation_id: invitation.id,
+                                                });
 
-                                            if (!altRpcError && altRpcData?.success) {
-                                              deletionSuccess = true;
                                               console.log(
-                                                '✅ [GettingStarted] Method 4 successful',
+                                                '🗑️ [GettingStarted] Method 4 RPC result:',
+                                                {
+                                                  data: altRpcData,
+                                                  error: altRpcError,
+                                                },
+                                              );
+
+                                              if (!altRpcError && altRpcData?.success) {
+                                                deletionSuccess = true;
+                                                console.log(
+                                                  '✅ [GettingStarted] Method 4 successful',
+                                                );
+                                              }
+                                            } catch (altRpcErr) {
+                                              console.log(
+                                                '❌ [GettingStarted] Method 4 RPC not available:',
+                                                altRpcErr,
                                               );
                                             }
-                                          } catch (altRpcErr) {
+                                          }
+
+                                          // Also try to delete from notifications table
+                                          const { data: notifData, error: notifError } =
+                                            await supabase
+                                              .from('notifications')
+                                              .delete()
+                                              .eq('id', invitation.id)
+                                              .select();
+
+                                          console.log(
+                                            '🗑️ [GettingStarted] Notifications DELETE result:',
+                                            { data: notifData, error: notifError },
+                                          );
+
+                                          // Also try to delete by invitation_id in metadata
+                                          const { data: metadataData, error: metadataError } =
+                                            await supabase
+                                              .from('notifications')
+                                              .delete()
+                                              .eq('metadata->>invitation_id', invitation.id)
+                                              .select();
+
+                                          console.log(
+                                            '🗑️ [GettingStarted] Metadata DELETE result:',
+                                            {
+                                              data: metadataData,
+                                              error: metadataError,
+                                            },
+                                          );
+
+                                          if (!deletionSuccess) {
                                             console.log(
-                                              '❌ [GettingStarted] Method 4 RPC not available:',
-                                              altRpcErr,
+                                              '❌ [GettingStarted] All deletion methods failed - this might be an RLS policy issue',
+                                            );
+                                            console.log(
+                                              '❌ [GettingStarted] Please run the SQL scripts to fix RLS policies',
                                             );
                                           }
-                                        }
 
-                                        // Also try to delete from notifications table
-                                        const { data: notifData, error: notifError } =
-                                          await supabase
-                                            .from('notifications')
-                                            .delete()
-                                            .eq('id', invitation.id)
-                                            .select();
-
-                                        console.log(
-                                          '🗑️ [GettingStarted] Notifications DELETE result:',
-                                          { data: notifData, error: notifError },
-                                        );
-
-                                        // Also try to delete by invitation_id in metadata
-                                        const { data: metadataData, error: metadataError } =
-                                          await supabase
-                                            .from('notifications')
-                                            .delete()
-                                            .eq('metadata->>invitation_id', invitation.id)
-                                            .select();
-
-                                        console.log('🗑️ [GettingStarted] Metadata DELETE result:', {
-                                          data: metadataData,
-                                          error: metadataError,
-                                        });
-
-                                        if (!deletionSuccess) {
-                                          console.log(
-                                            '❌ [GettingStarted] All deletion methods failed - this might be an RLS policy issue',
+                                          // FORCE REMOVE from local state immediately
+                                          setPendingInvitations((prev) =>
+                                            prev.filter((inv) => inv.id !== invitation.id),
                                           );
                                           console.log(
-                                            '❌ [GettingStarted] Please run the SQL scripts to fix RLS policies',
+                                            '🗑️ [GettingStarted] Removed from local state immediately',
+                                          );
+
+                                          // Refresh the pending invitations list
+                                          console.log(
+                                            '🔄 [GettingStarted] Refreshing pending invitations list...',
+                                          );
+                                          await loadPendingInvitations();
+                                          console.log(
+                                            '🔄 [GettingStarted] Pending invitations refreshed',
+                                          );
+                                        } catch (error) {
+                                          console.error(
+                                            '❌ [GettingStarted] Caught error removing invitation:',
+                                            error,
+                                          );
+                                          // Even if there's an error, remove from local state
+                                          setPendingInvitations((prev) =>
+                                            prev.filter((inv) => inv.id !== invitation.id),
                                           );
                                         }
-
-                                        // FORCE REMOVE from local state immediately
-                                        setPendingInvitations((prev) =>
-                                          prev.filter((inv) => inv.id !== invitation.id),
-                                        );
-                                        console.log(
-                                          '🗑️ [GettingStarted] Removed from local state immediately',
-                                        );
-
-                                        // Refresh the pending invitations list
-                                        console.log(
-                                          '🔄 [GettingStarted] Refreshing pending invitations list...',
-                                        );
-                                        await loadPendingInvitations();
-                                        console.log(
-                                          '🔄 [GettingStarted] Pending invitations refreshed',
-                                        );
-                                      } catch (error) {
-                                        console.error(
-                                          '❌ [GettingStarted] Caught error removing invitation:',
-                                          error,
-                                        );
-                                        // Even if there's an error, remove from local state
-                                        setPendingInvitations((prev) =>
-                                          prev.filter((inv) => inv.id !== invitation.id),
-                                        );
-                                      }
+                                      }}
+                                      style={{
+                                        padding: 12,
+                                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                        borderRadius: 8,
+                                        marginLeft: 8,
+                                      }}
+                                      activeOpacity={0.6}
+                                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                      <Feather name="trash-2" size={16} color="#EF4444" />
+                                    </TouchableOpacity>
+                                  </XStack>
+                                ))
+                              ) : (
+                                <Text
+                                  size="sm"
+                                  color="$gray11"
+                                  textAlign="center"
+                                  paddingVertical="$4"
+                                >
+                                  {t('onboarding.relationships.noPending') ||
+                                    'No pending invitations'}
+                                </Text>
+                              )
+                            ) : // Existing relationships
+                            existingRelationships.length > 0 ? (
+                              existingRelationships.map((relationship) => (
+                                <XStack key={relationship.id} gap="$2" alignItems="center">
+                                  <YStack flex={1}>
+                                    <RadioButton
+                                      onPress={() => {}} // No action on tap for existing relationships
+                                      title={relationship.name}
+                                      description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? t('onboarding.relationships.yourSupervisor') || 'Your supervisor' : t('onboarding.relationships.studentYouSupervise') || 'Student you supervise'} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
+                                      isSelected={false} // Don't show as selected
+                                    />
+                                  </YStack>
+                                  <TouchableOpacity
+                                    onPress={() => {
+                                      setRelationshipRemovalTarget({
+                                        id: relationship.id,
+                                        name: relationship.name,
+                                        email: relationship.email,
+                                        role: relationship.role,
+                                        relationship_type: relationship.relationship_type,
+                                      });
+                                      handleRemoveRelationship({
+                                        id: relationship.id,
+                                        name: relationship.name,
+                                        email: relationship.email,
+                                        role: relationship.role,
+                                        relationship_type: relationship.relationship_type,
+                                      });
                                     }}
-                                    style={{
-                                      padding: 12,
-                                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                      borderRadius: 8,
-                                      marginLeft: 8,
-                                    }}
-                                    activeOpacity={0.6}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                   >
                                     <Feather name="trash-2" size={16} color="#EF4444" />
                                   </TouchableOpacity>
@@ -3169,142 +3225,98 @@ export const GettingStarted = () => {
                                 textAlign="center"
                                 paddingVertical="$4"
                               >
-                                {t('onboarding.relationships.noPending') ||
-                                  'No pending invitations'}
+                                {t('onboarding.relationships.noExisting') ||
+                                  'No existing relationships'}
                               </Text>
-                            )
-                          ) : // Existing relationships
-                          existingRelationships.length > 0 ? (
-                            existingRelationships.map((relationship) => (
-                              <XStack key={relationship.id} gap="$2" alignItems="center">
-                                <YStack flex={1}>
-                                  <RadioButton
-                                    onPress={() => {}} // No action on tap for existing relationships
-                                    title={relationship.name}
-                                    description={`${relationship.email} • ${relationship.role} • ${relationship.relationship_type === 'has_supervisor' ? t('onboarding.relationships.yourSupervisor') || 'Your supervisor' : t('onboarding.relationships.studentYouSupervise') || 'Student you supervise'} ${t('onboarding.relationships.since') || 'since'} ${new Date(relationship.created_at).toLocaleDateString()}`}
-                                    isSelected={false} // Don't show as selected
-                                  />
-                                </YStack>
-                                <TouchableOpacity
-                                  onPress={() => {
-                                    setRelationshipRemovalTarget({
-                                      id: relationship.id,
-                                      name: relationship.name,
-                                      email: relationship.email,
-                                      role: relationship.role,
-                                      relationship_type: relationship.relationship_type,
-                                    });
-                                    handleRemoveRelationship({
-                                      id: relationship.id,
-                                      name: relationship.name,
-                                      email: relationship.email,
-                                      role: relationship.role,
-                                      relationship_type: relationship.relationship_type,
-                                    });
-                                  }}
-                                >
-                                  <Feather name="trash-2" size={16} color="#EF4444" />
-                                </TouchableOpacity>
-                              </XStack>
-                            ))
-                          ) : (
-                            <Text size="sm" color="$gray11" textAlign="center" paddingVertical="$4">
-                              {t('onboarding.relationships.noExisting') ||
-                                'No existing relationships'}
+                            )}
+                          </YStack>
+                        </ScrollView>
+                      </YStack>
+                    )}
+
+                    {/* Show selected connections with message - using OnboardingInteractive styling */}
+                    {selectedConnections.length > 0 && (
+                      <YStack
+                        gap="$3"
+                        padding="$4"
+                        backgroundColor="$backgroundHover"
+                        borderRadius="$4"
+                      >
+                        <Text size="md" fontWeight="600" color="$color">
+                          {t('onboarding.relationships.newConnectionsTitle') ||
+                            'New Connection to Add'}{' '}
+                          ({selectedConnections.length}):
+                        </Text>
+                        {selectedConnections.map((connection) => (
+                          <RadioButton
+                            key={connection.id}
+                            onPress={() => {
+                              // Remove this connection
+                              setSelectedConnections((prev) =>
+                                prev.filter((conn) => conn.id !== connection.id),
+                              );
+                            }}
+                            title={connection.full_name || connection.email}
+                            description={`${connection.email} • ${connection.role || 'instructor'} • ${t('onboarding.connections.tapToRemove') || 'Tap to remove'}`}
+                            isSelected={true}
+                          />
+                        ))}
+
+                        {/* Show custom message if provided */}
+                        {connectionCustomMessage.trim() && (
+                          <YStack
+                            gap="$1"
+                            marginTop="$2"
+                            padding="$3"
+                            backgroundColor="$backgroundHover"
+                            borderRadius="$3"
+                          >
+                            <Text size="sm" color="$gray11" fontWeight="600">
+                              Your message:
                             </Text>
-                          )}
-                        </YStack>
-                      </ScrollView>
-                    </YStack>
-                  )}
+                            <Text size="sm" color="$color" fontStyle="italic">
+                              "{connectionCustomMessage.trim()}"
+                            </Text>
+                          </YStack>
+                        )}
+                      </YStack>
+                    )}
 
-                  {/* Show selected connections with message - using OnboardingInteractive styling */}
-                  {selectedConnections.length > 0 && (
-                    <YStack
-                      gap="$3"
-                      padding="$4"
-                      backgroundColor="$backgroundHover"
-                      borderRadius="$4"
-                    >
-                      <Text size="md" fontWeight="600" color="$color">
-                        {t('onboarding.relationships.newConnectionsTitle') ||
-                          'New Connection to Add'}{' '}
-                        ({selectedConnections.length}):
+                    {/* Custom message input */}
+                    <YStack gap="$2">
+                      <Text fontSize="$3" color="$gray11">
+                        Optional message:
                       </Text>
-                      {selectedConnections.map((connection) => (
-                        <RadioButton
-                          key={connection.id}
-                          onPress={() => {
-                            // Remove this connection
-                            setSelectedConnections((prev) =>
-                              prev.filter((conn) => conn.id !== connection.id),
-                            );
-                          }}
-                          title={connection.full_name || connection.email}
-                          description={`${connection.email} • ${connection.role || 'instructor'} • ${t('onboarding.connections.tapToRemove') || 'Tap to remove'}`}
-                          isSelected={true}
-                        />
-                      ))}
-
-                      {/* Show custom message if provided */}
-                      {connectionCustomMessage.trim() && (
-                        <YStack
-                          gap="$1"
-                          marginTop="$2"
-                          padding="$3"
-                          backgroundColor="$backgroundHover"
-                          borderRadius="$3"
-                        >
-                          <Text size="sm" color="$gray11" fontWeight="600">
-                            Your message:
-                          </Text>
-                          <Text size="sm" color="$color" fontStyle="italic">
-                            "{connectionCustomMessage.trim()}"
-                          </Text>
-                        </YStack>
-                      )}
+                      <TextInput
+                        value={connectionCustomMessage}
+                        onChangeText={setConnectionCustomMessage}
+                        placeholder="Add a personal message..."
+                        multiline
+                        style={{
+                          backgroundColor: '$background',
+                          color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
+                          borderColor:
+                            colorScheme === 'dark'
+                              ? 'rgba(255, 255, 255, 0.1)'
+                              : 'rgba(0, 0, 0, 0.1)',
+                          borderWidth: 1,
+                          borderRadius: 8,
+                          padding: 12,
+                          minHeight: 60,
+                          textAlignVertical: 'top',
+                        }}
+                        placeholderTextColor={
+                          colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'
+                        }
+                      />
                     </YStack>
-                  )}
 
-                  {/* Custom message input */}
-                  <YStack gap="$2">
-                    <Text fontSize="$3" color="$gray11">
-                      Optional message:
-                    </Text>
-                    <TextInput
-                      value={connectionCustomMessage}
-                      onChangeText={setConnectionCustomMessage}
-                      placeholder="Add a personal message..."
-                      multiline
-                      style={{
-                        backgroundColor: '$background',
-                        color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
-                        borderColor:
-                          colorScheme === 'dark'
-                            ? 'rgba(255, 255, 255, 0.1)'
-                            : 'rgba(0, 0, 0, 0.1)',
-                        borderWidth: 1,
-                        borderRadius: 8,
-                        padding: 12,
-                        minHeight: 60,
-                        textAlignVertical: 'top',
-                      }}
-                      placeholderTextColor={
-                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'
-                      }
+                    <FormField
+                      placeholder="Search by name or email..."
+                      value={connectionSearchQuery}
+                      onChangeText={handleSearchUsers}
                     />
-                  </YStack>
 
-                  <FormField
-                    placeholder="Search by name or email..."
-                    value={connectionSearchQuery}
-                    onChangeText={handleSearchUsers}
-                  />
-
-                  <ScrollView
-                    style={{ flex: 1, maxHeight: 300 }}
-                    showsVerticalScrollIndicator={true}
-                  >
                     <YStack gap="$2">
                       {searchResults.length === 0 && connectionSearchQuery.length >= 2 && (
                         <Text fontSize="$3" color="$gray11" textAlign="center" paddingVertical="$4">
@@ -3365,27 +3377,27 @@ export const GettingStarted = () => {
                       })}
                     </YStack>
                   </ScrollView>
-
-                  {/* Action Buttons */}
-                  <YStack gap="$2" marginTop="$4">
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      onPress={handleCreateConnections}
-                      disabled={selectedConnections.length === 0}
-                    >
-                      <Text color="white" fontWeight="600">
-                        {selectedConnections.length > 0
-                          ? `Send ${selectedConnections.length} Invitation${selectedConnections.length > 1 ? 's' : ''}`
-                          : 'Select Users to Invite'}
-                      </Text>
-                    </Button>
-
-                    <Button variant="outlined" size="lg" onPress={hideConnectionsSheet}>
-                      <Text color="$color">Cancel</Text>
-                    </Button>
-                  </YStack>
                 </KeyboardAvoidingView>
+
+                {/* Action Buttons - OUTSIDE KeyboardAvoidingView */}
+                <YStack gap="$2" marginTop="$4">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onPress={handleCreateConnections}
+                    disabled={selectedConnections.length === 0}
+                  >
+                    <Text color="white" fontWeight="600">
+                      {selectedConnections.length > 0
+                        ? `Send ${selectedConnections.length} Invitation${selectedConnections.length > 1 ? 's' : ''}`
+                        : 'Select Users to Invite'}
+                    </Text>
+                  </Button>
+
+                  <Button variant="outlined" size="lg" onPress={hideConnectionsSheet}>
+                    <Text color="$color">Cancel</Text>
+                  </Button>
+                </YStack>
               </YStack>
             </ReanimatedAnimated.View>
           </View>
