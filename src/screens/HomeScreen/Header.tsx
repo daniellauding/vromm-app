@@ -119,6 +119,7 @@ export const HomeHeader = React.memo(function HomeHeader() {
   const [showUserProfileSheet, setShowUserProfileSheet] = React.useState(false);
   const [showAchievementsSheet, setShowAchievementsSheet] = React.useState(false);
   const [showUserListSheet, setShowUserListSheet] = React.useState(false);
+  const [selectedUserIdFromList, setSelectedUserIdFromList] = React.useState<string | null>(null);
 
   // Check if user is admin
   const isAdmin = profile?.role === 'admin';
@@ -795,8 +796,14 @@ export const HomeHeader = React.memo(function HomeHeader() {
         onClose={() => {
           console.log('🔍 [Header] UserProfileSheet onClose called');
           setShowUserProfileSheet(false);
+
+          // If we opened this from UserListSheet, go back to it
+          if (selectedUserIdFromList) {
+            setSelectedUserIdFromList(null);
+            setShowUserListSheet(true);
+          }
         }}
-        userId={profile?.id || null}
+        userId={selectedUserIdFromList || profile?.id || null}
         onViewAllRoutes={(userId) => {
           // Handle view all routes navigation
           console.log('View all routes for user:', userId);
@@ -831,13 +838,17 @@ export const HomeHeader = React.memo(function HomeHeader() {
       {/* 👥 User List Sheet - ADMIN ONLY */}
       <UserListSheet
         visible={showUserListSheet}
-        onClose={() => setShowUserListSheet(false)}
+        onClose={() => {
+          setShowUserListSheet(false);
+          setSelectedUserIdFromList(null); // Clear selection when sheet closes
+        }}
         title={getTranslation('users.allUsers', language === 'sv' ? 'Alla användare' : 'All Users')}
         onUserPress={(userId) => {
+          console.log('🔍 [Header] User pressed from UserListSheet:', userId);
           // Open user profile sheet when a user is pressed
-          setShowUserListSheet(false);
-          // You could add navigation to profile here if needed
-          console.log('User pressed:', userId);
+          setSelectedUserIdFromList(userId);
+          setShowUserListSheet(false); // Hide UserListSheet temporarily
+          setShowUserProfileSheet(true); // Show UserProfileSheet
         }}
       />
     </YStack>
