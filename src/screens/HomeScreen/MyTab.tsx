@@ -15,6 +15,7 @@ import { DailyStatus } from './DailyStatus';
 // import { JumpBackInSection } from '../../components/JumpBackInSection';
 import { GettingStarted } from './GettingStarted';
 import { FeaturedContent } from './FeaturedContent';
+import { PromotionalContent } from './PromotionalContent';
 import { SavedRoutes } from './SavedRoutes';
 // import { QuickFilters } from './QuickFilters';
 // import { CityRoutes } from './CityRoutes';
@@ -24,6 +25,7 @@ import { DrivenRoutes } from './DrivenRoutes';
 import { DraftRoutes } from './DraftRoutes';
 import { LearningPathsSheet } from '../../components/LearningPathsSheet';
 import { ExerciseListSheet } from '../../components/ExerciseListSheet';
+import { PromotionSheet } from '../../components/PromotionSheet';
 import { BetaTestingSheetModal } from '../../components/BetaTestingSheet';
 import { useModal } from '../../contexts/ModalContext';
 import { Feather } from '@expo/vector-icons';
@@ -56,6 +58,18 @@ export default React.memo(function MyTab({
   const [selectedLearningPath, setSelectedLearningPath] = useState<{
     id: string;
     title: { en: string; sv: string };
+  } | null>(null);
+  const [showPromotionSheet, setShowPromotionSheet] = useState(false);
+  const [selectedPromotion, setSelectedPromotion] = useState<{
+    id: string;
+    title: { en: string; sv: string };
+    body: { en: string; sv: string };
+    icon: string | null;
+    icon_color: string | null;
+    image_url: string | null;
+    youtube_embed: string | null;
+    media_type: string | null;
+    order_index: number;
   } | null>(null);
 
   // Helper function to get translation with fallback when t() returns the key itself
@@ -96,7 +110,7 @@ export default React.memo(function MyTab({
           Linking.openURL('https://vromm.se/about');
         }}
       />,
-  );
+    );
   }, [showModal]);
 
   console.log('🗓️ [MyTab] Render');
@@ -193,6 +207,14 @@ export default React.memo(function MyTab({
       {/* Featured Content - COMMENTED OUT FOR PERFORMANCE TESTING */}
       <FeaturedContent />
 
+      {/* Promotional Content */}
+      <PromotionalContent
+        onPromotionPress={(promotion) => {
+          setSelectedPromotion(promotion);
+          setShowPromotionSheet(true);
+        }}
+      />
+
       {/* Jump Back In Section - COMMENTED OUT FOR PERFORMANCE TESTING */}
       {/* <JumpBackInSection activeUserId={effectiveUserId || undefined} /> */}
 
@@ -252,6 +274,17 @@ export default React.memo(function MyTab({
           setShowLearningPathsSheet(false);
           setShowExerciseListSheet(true);
         }}
+      />
+
+      {/* Promotion Sheet */}
+      <PromotionSheet
+        visible={showPromotionSheet}
+        onClose={() => {
+          setShowPromotionSheet(false);
+          setSelectedPromotion(null);
+        }}
+        promotion={selectedPromotion}
+        language={language}
       />
     </YStack>
   );
