@@ -487,7 +487,7 @@ export const HomeHeader = React.memo(function HomeHeader() {
                 borderRadius: 12,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5',
+                // backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F5F5F5',
               }}
             >
               <Feather
