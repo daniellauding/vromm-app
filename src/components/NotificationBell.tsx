@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { TouchableOpacity, View, useColorScheme } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { Text } from 'tamagui';
 import { Bell } from '@tamagui/lucide-icons';
 import { notificationService } from '../services/notificationService';
@@ -20,7 +21,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
 
   // Dynamic color based on theme if not provided
   const iconColor = color || (colorScheme === 'dark' ? '#FFFFFF' : '#000000');

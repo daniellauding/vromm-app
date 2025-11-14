@@ -15,13 +15,13 @@ import { YStack, XStack, Text, Card, Input } from 'tamagui';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
 import { getTabContentPadding } from '../utils/layout';
 import { format } from 'date-fns';
 
@@ -61,8 +61,9 @@ export function UserListSheet({
   const { user } = useAuth();
   const { t, language } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
-  const colorScheme = useColorScheme();
-  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
+  const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -71,8 +72,8 @@ export function UserListSheet({
     return translated && translated !== key ? translated : fallback;
   };
 
-  // Theme colors - matching OnboardingInteractive exactly
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
+  // Theme colors - matching ProgressScreen exactly
+  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
 
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;

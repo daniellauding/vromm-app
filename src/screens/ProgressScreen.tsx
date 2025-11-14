@@ -13,7 +13,6 @@ import {
   Alert,
   RefreshControl,
   Animated,
-  useColorScheme,
 } from 'react-native';
 import {
   YStack,
@@ -208,6 +207,7 @@ interface UserPayment {
 
 // Use translation context that's available in the app
 import { useTranslation } from '../contexts/TranslationContext';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { useToast } from '../contexts/ToastContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useStripe } from '@stripe/stripe-react-native';
@@ -296,7 +296,8 @@ export function ProgressScreen() {
   const { showCelebration } = useCelebration();
   const { selectedPathId, showDetail, activeUserId } = (route.params || {}) as any;
   const focusExerciseId: string | undefined = (route.params as any)?.focusExerciseId;
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
   // Helper function to get translation with fallback when t() returns the key itself

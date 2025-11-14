@@ -30,8 +30,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { useColorScheme } from 'react-native';
 import { useTranslation } from '../../contexts/TranslationContext';
+import { useThemePreference } from '../../hooks/useThemeOverride';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../../types/navigation';
 import { LearningPathsSheet } from '../../components/LearningPathsSheet';
@@ -113,8 +113,8 @@ export function DailyStatus({
   const { showToast } = useToast();
   const { language: lang, t, refreshTranslations } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
-  const systemColorScheme = useColorScheme();
-  const colorScheme = systemColorScheme || 'light';
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
 
   // Helper to get translation with fallback
   const getT = (key: string, fallbackKey: keyof (typeof DAILY_STATUS_FALLBACKS)['en']): string => {

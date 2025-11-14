@@ -5,12 +5,12 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useTranslation } from '../../contexts/TranslationContext';
+import { useThemePreference } from '../../hooks/useThemeOverride';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCelebration } from '../../contexts/CelebrationContext';
 import { Audio } from 'expo-av';
@@ -139,8 +139,8 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
   const { activeStudentId } = useStudentSwitch();
   const { t, language } = useTranslation();
   const { showCelebration } = useCelebration();
-  const colorScheme = useColorScheme();
-  
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   // Helper to get translation with fallback
   const getT = (key: string, fallbackKey: keyof typeof WEEKLY_GOAL_FALLBACKS['en']): string => {
     const translation = t(key);

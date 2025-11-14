@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, Animated, useColorScheme, PanResponder } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, PanResponder } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
+import { useThemePreference } from '../hooks/useThemeOverride';
 
 export interface ToastData {
   id: string;
@@ -350,7 +351,8 @@ interface ToastContainerProps {
 
 function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
 
   if (toasts.length === 0) return null;
 

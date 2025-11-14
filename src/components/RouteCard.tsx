@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Image, useColorScheme, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Image, Dimensions, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -21,6 +21,7 @@ import { AppAnalytics } from '../utils/analytics';
 import { PIN_COLORS } from '../styles/mapStyles';
 import RouteDetailsCarousel from './RouteDetailSheet/RouteDetailsCarousel';
 import { useTranslation } from '../contexts/TranslationContext';
+import { useThemePreference } from '../hooks/useThemeOverride';
 
 type WaypointData = {
   lat: number;
@@ -65,8 +66,9 @@ interface RouteCardProps {
 
 export function RouteCard({ route, onPress }: RouteCardProps) {
   const navigation = useNavigation<NavigationProp>();
-  const colorScheme = useColorScheme();
-  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
+  const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
   const width = Dimensions.get('window').width - 32; // Account for padding
   const { t, language } = useTranslation();
 

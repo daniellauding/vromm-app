@@ -3,10 +3,10 @@ import { StyleSheet, ScrollView, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { XStack, Text, useTheme } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
 // import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useSmartFilters, FilterCategory } from '../hooks/useSmartFilters';
+import { useThemePreference } from '../hooks/useThemeOverride';
 
 const THEME = {
   brandPrimary: '#00E6C3',
@@ -48,8 +48,9 @@ export function AppHeader({
   hasActiveFilters = false,
   userCollections = [],
 }: AppHeaderProps) {
-  const colorScheme = useColorScheme();
-  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
+  const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
   const { getSmartFilters, trackFilterUsage, addUserCollections, getAllFilters } =
     useSmartFilters();
   const theme = useTheme();
@@ -69,12 +70,12 @@ export function AppHeader({
   const allFilters = getAllFilters(filters);
   const smartFilters = getSmartFilters(allFilters, activeFilters);
 
-  // Chip colors - improved styling with solid backgrounds
+  // Chip colors - improved styling with solid backgrounds matching ProgressScreen
   const chipColors = {
     inactive: {
-      background: colorScheme === 'dark' ? theme.background?.val : '#F5F5F5',
-      border: colorScheme === 'dark' ? theme.background?.val : '#E0E0E0',
-      text: colorScheme === 'dark' ? '#E0E0E0' : '#666666',
+      background: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+      border: colorScheme === 'dark' ? '#333333' : '#E0E0E0',
+      text: colorScheme === 'dark' ? '#ECEDEE' : '#666666',
     },
     active: {
       background: THEME.brandPrimary,
@@ -111,7 +112,7 @@ export function AppHeader({
               >
                 <TouchableOpacity
                   style={{
-                    backgroundColor: theme.background?.val || '#FFFFFF',
+                    backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF',
                     borderRadius: 25,
                     width: 34,
                     height: 34,
@@ -123,7 +124,7 @@ export function AppHeader({
                     shadowRadius: 4,
                     elevation: 5,
                     borderWidth: 1,
-                    borderColor: theme.borderColor?.val || '#E5E5E5',
+                    borderColor: colorScheme === 'dark' ? '#232323' : '#E5E5E5',
                   }}
                   onPress={onSearchFilterPress}
                 >

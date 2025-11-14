@@ -22,13 +22,13 @@ import { YStack, XStack, Text, Card, useTheme } from 'tamagui';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { supabase } from '../lib/supabase';
 import { Feather } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
 import { Database } from '../lib/database.types';
 import { ReportDialog } from './report/ReportDialog';
 import { parseRecordingStats, isRecordedRoute } from '../utils/routeUtils';
@@ -100,12 +100,13 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
     navigation = null;
   }
 
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const theme = useTheme();
-  const iconColor = theme.color?.val || '#000000';
+  const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
-  // Theme colors - matching OnboardingInteractive exactly
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
+  // Theme colors - matching ProgressScreen exactly
+  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
 
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;

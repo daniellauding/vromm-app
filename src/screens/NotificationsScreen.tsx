@@ -31,6 +31,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { getTabContentPadding } from '../utils/layout';
 import { useToast } from '../contexts/ToastContext';
 import { useTranslation } from '../contexts/TranslationContext';
+import { useThemePreference } from '../hooks/useThemeOverride';
 
 interface NotificationsScreenProps {
   showArchived?: boolean;
@@ -48,6 +49,8 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   const navigation = useNavigation();
   const { showToast } = useToast();
   const { t, language } = useTranslation();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -994,7 +997,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
   if (loading) {
     return (
-      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor="$background">
+      <YStack flex={1} justifyContent="center" alignItems="center" backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}>
         <Spinner size="large" color="#00FFBC" />
         <Text color="$color" marginTop={16}>
           Loading notifications...
@@ -1004,7 +1007,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   }
 
   return (
-    <YStack flex={1}>
+    <YStack flex={1} backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}>
       {/* Header - Only show when not in modal (modal has its own header) */}
       {!isModal && (
         <XStack
@@ -1057,7 +1060,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
       {/* Notifications List */}
       {notifications.length === 0 ? (
-        <YStack flex={1} justifyContent="center" alignItems="center" padding={24}>
+        <YStack flex={1} justifyContent="center" alignItems="center" padding={24} backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}>
           {showArchived ? (
             <Archive size={48} color="rgba(255, 255, 255, 0.3)" />
           ) : (

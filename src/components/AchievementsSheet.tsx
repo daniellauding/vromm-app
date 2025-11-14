@@ -8,7 +8,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  useColorScheme,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -25,6 +24,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useTranslation } from '../contexts/TranslationContext';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import Svg, { Circle } from 'react-native-svg';
 
 const { height } = Dimensions.get('window');
@@ -61,7 +61,8 @@ interface StreakData {
 
 export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const { t, language } = useTranslation();
   const { user } = useAuth();
   const { activeStudentId, getEffectiveUserId } = useStudentSwitch();

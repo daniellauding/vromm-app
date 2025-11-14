@@ -36,7 +36,7 @@ import { supabase } from '../lib/supabase';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
-import { useColorScheme } from 'react-native';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { getTabContentPadding } from '../utils/layout';
 // import { CommentsSection } from './CommentsSection';
 import { ReportDialog } from './report/ReportDialog';
@@ -185,12 +185,13 @@ export function ExerciseListSheet({
     hasExercisePayment,
   } = useUnlock();
   const { showCelebration } = useCelebration();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const navigation = useNavigation<NavigationProp>();
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
-  // Theme colors - matching OnboardingInteractive exactly
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#151515' }, 'background');
+  // Theme colors - matching ProgressScreen exactly
+  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
 
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;

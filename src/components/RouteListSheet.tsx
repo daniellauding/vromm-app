@@ -16,7 +16,7 @@ import { RouteList } from './RouteList';
 import { Button } from './Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColor } from '../../hooks/useThemeColor';
-import { useColorScheme } from 'react-native';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import type { Route } from '../hooks/useRoutes';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -51,12 +51,13 @@ export function RouteListSheet({
 }: RouteListSheetProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const { language } = useTranslation();
   const theme = useTheme();
 
-  // Theme colors - matching OnboardingInteractive exactly
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
+  // Theme colors - matching ProgressScreen exactly
+  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
 
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;

@@ -14,7 +14,8 @@ import { Database } from '../lib/database.types';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { Feather } from '@expo/vector-icons';
-import { Alert, TouchableOpacity, useColorScheme, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, TouchableOpacity, ScrollView, StyleSheet, View } from 'react-native';
+import { useThemePreference } from '../hooks/useThemeOverride';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 
@@ -34,7 +35,8 @@ export function AddReviewScreen({ route }: Props) {
   const navigation = useNavigation<NavigationProp>();
   const { language, t } = useTranslation();
   const { user } = useAuth();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const textColor = colorScheme === 'dark' ? 'white' : 'black';
   const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
   const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';

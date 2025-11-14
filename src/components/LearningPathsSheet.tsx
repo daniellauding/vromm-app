@@ -27,7 +27,7 @@ import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useUnlock } from '../contexts/UnlockContext';
 import { supabase } from '../lib/supabase';
-import { useColorScheme } from 'react-native';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import Svg, { Circle } from 'react-native-svg';
 
 const { height } = Dimensions.get('window');
@@ -137,10 +137,11 @@ export function LearningPathsSheet({
   const { activeStudentId } = useStudentSwitch();
   const { language: lang, t } = useTranslation();
   const { isPathUnlocked, hasPathPayment, loadUserPayments, loadUnlockedContent } = useUnlock();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
 
-  // Theme colors - matching other sheets
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#151515' }, 'background');
+  // Theme colors - matching ProgressScreen exactly
+  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
 
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;

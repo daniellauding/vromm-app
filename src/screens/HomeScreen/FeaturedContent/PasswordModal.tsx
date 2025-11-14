@@ -3,7 +3,7 @@ import { TouchableOpacity, Modal as RNModal, TextInput, Alert, View } from 'reac
 import { YStack, XStack, Text } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from '../../../contexts/TranslationContext';
-import { useColorScheme } from 'react-native';
+import { useThemePreference } from '../../../hooks/useThemeOverride';
 import { useUnlock } from '../../../contexts/UnlockContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { FeaturedLearningPath } from './types';
@@ -23,7 +23,8 @@ export default function PasswordModal({
   setSelectedTitle: (title: string) => void;
   setShowExerciseSheet: (show: boolean) => void;
 }) {
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const { language: lang } = useTranslation();
   const { showToast } = useToast();
 

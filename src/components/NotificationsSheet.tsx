@@ -11,8 +11,7 @@ import { YStack, XStack, Text, Spinner, useTheme } from 'tamagui';
 import { TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useThemeColor } from '../../hooks/useThemeColor';
-import { useColorScheme } from 'react-native';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { notificationService } from '../services/notificationService';
 import { useToast } from '../contexts/ToastContext';
@@ -28,7 +27,8 @@ interface NotificationsSheetProps {
 
 export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps) {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
   const { showToast } = useToast();
   const theme = useTheme();
@@ -47,8 +47,8 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
   const [showArchived, setShowArchived] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Theme colors - matching other sheets
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
+  // Theme colors - matching ProgressScreen exactly
+  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
 
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;

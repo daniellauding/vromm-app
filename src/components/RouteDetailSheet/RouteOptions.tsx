@@ -5,14 +5,13 @@ import { YStack, XStack, Text, useTheme } from 'tamagui';
 import { Button } from '../../components/Button';
 
 import { Feather } from '@expo/vector-icons';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { useTranslation } from '@/src/contexts/TranslationContext';
-import { useAuth } from '@/src/context/AuthContext';
-import { useToast } from '@/src/contexts/ToastContext';
+import { useTranslation } from '../../contexts/TranslationContext';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { ReportDialog } from '../report/ReportDialog';
-import { supabase } from '@/src/lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { useNavigation } from '@react-navigation/native';
-import { useColorScheme } from 'react-native';
+import { useThemePreference } from '../../hooks/useThemeOverride';
 
 export default function RouteOptions({
   routeData,
@@ -30,9 +29,11 @@ export default function RouteOptions({
   const theme = useTheme();
   const { showToast } = useToast();
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const iconColor = theme.color?.val || '#000000';
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#1C1C1C' }, 'background');
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
+  const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+  // Theme colors - matching ProgressScreen exactly
+  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
   const [isShowReportDialog, setShowReportDialog] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
@@ -115,6 +116,10 @@ export default function RouteOptions({
     }
   }, [routeData, showToast, language, user, onClose, onRouteDeleted]);
 
+  const confirmAndDelete = React.useCallback(() => {
+    setShowDeleteConfirm(true);
+  }, []);
+
   if (isShowReportDialog) {
     return (
       <ReportDialog
@@ -160,7 +165,7 @@ export default function RouteOptions({
                   }}
                   style={{
                     padding: 16,
-                    backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
+                    backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
                     borderRadius: 12,
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -179,7 +184,7 @@ export default function RouteOptions({
                     disabled={deleting}
                     style={{
                       padding: 16,
-                      backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
+                      backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
                       borderRadius: 12,
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -204,7 +209,7 @@ export default function RouteOptions({
                     }}
                     style={{
                       padding: 16,
-                      backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
+                      backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
                       borderRadius: 12,
                       flexDirection: 'row',
                       alignItems: 'center',

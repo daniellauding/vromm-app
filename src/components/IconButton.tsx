@@ -1,5 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, View, useColorScheme } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { YStack, Text } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 
@@ -30,7 +31,8 @@ export function IconButton({
   width,
   badge,
 }: IconButtonProps) {
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const iconSize = size === 'sm' ? 20 : size === 'lg' ? 28 : 24;
   const containerSize = size === 'sm' ? 40 : size === 'lg' ? 56 : 48;
 

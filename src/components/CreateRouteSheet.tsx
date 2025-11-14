@@ -4,7 +4,6 @@ import {
   ScrollView,
   Image,
   Alert,
-  useColorScheme,
   Dimensions,
   TouchableOpacity,
   Pressable,
@@ -62,6 +61,7 @@ import { AppAnalytics } from '../utils/analytics';
 import { MediaCarousel } from '../components/MediaCarousel';
 import { MediaItem, Exercise, WaypointData, MediaUrl, RouteData } from '../types/route';
 import { useTranslation } from '../contexts/TranslationContext';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { useModal } from '../contexts/ModalContext';
 import { useToast } from '../contexts/ToastContext';
 import { useCreateRoute } from '../contexts/CreateRouteContext';
@@ -289,8 +289,9 @@ export function CreateRouteSheet({
   //   isEditing,
   //   hasOnRouteCreated: !!onRouteCreated,
   // });
-  const colorScheme = useColorScheme();
-  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
+  const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
   const searchInputRef = useRef<any>(null);
 
   // Use proper theming for search results

@@ -11,6 +11,7 @@ import { Dimensions } from 'react-native';
 import { Text } from '../../components/Text';
 import { Feather } from '@expo/vector-icons';
 import { useThemeColor } from '../../../hooks/useThemeColor';
+import { useThemePreference } from '../../hooks/useThemeOverride';
 import {
   View,
   TouchableOpacity,
@@ -18,7 +19,6 @@ import {
   Animated,
   Easing,
   Pressable,
-  useColorScheme,
   Platform,
   TextInput,
   Image,
@@ -63,13 +63,14 @@ export const GettingStarted = () => {
   const { isActive: tourActive, currentStep, steps } = useTour();
   const { t, language } = useTranslation();
   const { showCelebration } = useCelebration();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
 
   // Get window dimensions
   const { height } = Dimensions.get('window');
 
-  // Theme colors
-  const backgroundColor = useThemeColor({ light: '#fff', dark: '#151515' }, 'background');
+  // Theme colors - matching ProgressScreen exactly
+  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
 
   // Register license plan card for tour targeting
   const licensePlanRef = useTourTarget('GettingStarted.LicensePlan');
@@ -2755,7 +2756,7 @@ export const GettingStarted = () => {
               ]}
             >
               <YStack
-                backgroundColor="$background"
+                backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
                 padding="$4"
                 paddingBottom={24}
                 borderTopLeftRadius="$4"
@@ -2816,7 +2817,7 @@ export const GettingStarted = () => {
                       <YStack
                         gap="$3"
                         padding="$4"
-                        backgroundColor="$backgroundHover"
+                        backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
                         borderRadius="$4"
                         maxHeight="300"
                       >
@@ -3239,7 +3240,7 @@ export const GettingStarted = () => {
                       <YStack
                         gap="$3"
                         padding="$4"
-                        backgroundColor="$backgroundHover"
+                        backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
                         borderRadius="$4"
                       >
                         <Text size="md" fontWeight="600" color="$color">
@@ -3268,7 +3269,7 @@ export const GettingStarted = () => {
                             gap="$1"
                             marginTop="$2"
                             padding="$3"
-                            backgroundColor="$backgroundHover"
+                            backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
                             borderRadius="$3"
                           >
                             <Text size="sm" color="$gray11" fontWeight="600">
@@ -3293,7 +3294,7 @@ export const GettingStarted = () => {
                         placeholder="Add a personal message..."
                         multiline
                         style={{
-                          backgroundColor: '$background',
+                          backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF',
                           color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
                           borderColor:
                             colorScheme === 'dark'

@@ -15,7 +15,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { Text } from '../../components/Text';
 import { Feather } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
+import { useThemePreference } from '../../hooks/useThemeOverride';
 
 import { NotificationBell } from '../../components/NotificationBell';
 import { MessagesSheet } from '../../components/MessagesSheet';
@@ -79,7 +79,8 @@ const ProgressCircle = ({ percent, size = 44, color = '#00E6C3', bg = '#333' }) 
 
 export const HomeHeader = React.memo(function HomeHeader() {
   const { t, language } = useTranslation();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const { profile, signOut } = useAuth();
   const { setActiveStudent, activeStudentId } = useStudentSwitch();
   const insets = useSafeAreaInsets();

@@ -4,7 +4,7 @@ import { YStack, XStack, Text } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '../../../lib/supabase';
 import { useTranslation } from '../../../contexts/TranslationContext';
-import { useColorScheme } from 'react-native';
+import { useThemePreference } from '../../../hooks/useThemeOverride';
 import { useAuth } from '../../../context/AuthContext';
 import { useUnlock } from '../../../contexts/UnlockContext';
 import { useToast } from '../../../contexts/ToastContext';
@@ -28,7 +28,8 @@ export default function PayWall({
   setShowExerciseSheet: (show: boolean) => void;
 }) {
   const { t, language: lang } = useTranslation();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const { user: authUser, profile } = useAuth();
   const { showToast } = useToast();
   const { initPaymentSheet, presentPaymentSheet } = useStripe();

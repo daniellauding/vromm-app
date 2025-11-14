@@ -8,13 +8,13 @@ import {
   NativeSyntheticEvent,
   StyleSheet,
   View,
-  useColorScheme,
   TextInput,
   TouchableOpacity,
   Keyboard,
   Platform,
 } from 'react-native';
 import { useTranslation } from '@/src/contexts/TranslationContext';
+import { useThemePreference } from '@/src/hooks/useThemeOverride';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Text, XStack, useTheme, YStack } from 'tamagui';
@@ -172,7 +172,8 @@ export const RoutesDrawer = React.forwardRef<
   ) => {
     const { t, language } = useTranslation();
     const scrollOffset = useRef(0);
-    const colorScheme = useColorScheme();
+    const { effectiveTheme } = useThemePreference();
+    const colorScheme = effectiveTheme || 'light';
     const theme = useTheme();
     const { height: screenHeight } = Dimensions.get('window');
     const [searchQuery, setSearchQuery] = useState('');
@@ -351,16 +352,16 @@ export const RoutesDrawer = React.forwardRef<
             styles.bottomSheet,
             {
               height: screenHeight,
-              backgroundColor: theme.background?.val || '#FFFFFF',
+              backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF',
             },
             animatedStyle,
           ]}
         >
           <View style={styles.handleContainer}>
-            <View style={[styles.handle, { backgroundColor: theme.gray8?.val || '#E5E5E5' }]} />
+            <View style={[styles.handle, { backgroundColor: colorScheme === 'dark' ? '#666' : '#E5E5E5' }]} />
             <XStack alignItems="center" gap="$2">
-              <Feather name="map" size={16} color={theme.color?.val || '#000000'} />
-              <Text fontSize="$4" fontWeight="600" color={theme.color?.val || '#000000'}>
+              <Feather name="map" size={16} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
+              <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}>
                 {searchFilteredRoutes.length}{' '}
                 {searchFilteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
               </Text>
@@ -373,8 +374,10 @@ export const RoutesDrawer = React.forwardRef<
               style={[
                 styles.searchInput,
                 {
-                  backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#F2F2F7',
-                  color: theme.color?.val || '#000000',
+                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F2F2F7',
+                  color: colorScheme === 'dark' ? '#ECEDEE' : '#000000',
+                  borderWidth: 1,
+                  borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
                 },
               ]}
               placeholder={language === 'sv' ? 'Sök rutter, städer...' : 'Search routes, cities...'}
