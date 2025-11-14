@@ -152,18 +152,50 @@ interface RouteDetailSheetProps {
   onRouteChange?: (routeId: string) => void;
 }
 
-export default function RouteDetailsCarousel({ routeData }: { routeData: any }) {
+export interface RouteDetailsCarouselProps {
+  routeData: any;
+  showMap?: boolean;
+  showImage?: boolean;
+  showVideo?: boolean;
+  height?: number;
+  enableCarousel?: boolean;
+}
+
+export default function RouteDetailsCarousel({
+  routeData,
+  showMap = true,
+  showImage = true,
+  showVideo = true,
+  height: customHeight,
+  enableCarousel = true,
+}: RouteDetailsCarouselProps) {
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
-  const carouselItems = React.useMemo(() => getCarouselItems(routeData), [routeData]);
+  const carouselItems = React.useMemo(() => {
+    const allItems = getCarouselItems(routeData);
+    // Filter based on showMap/showImage/showVideo props
+    return allItems.filter((item: any) => {
+      if (item.type === 'map') return showMap;
+      if (item.type === 'image') return showImage;
+      if (item.type === 'video' || item.type === 'youtube') return showVideo;
+      return false;
+    });
+  }, [routeData, showMap, showImage, showVideo]);
+
+  const carouselHeight = customHeight ?? height * 0.3;
+
   if (carouselItems.length === 0) return null;
 
-  if (carouselItems.length === 1) {
+  // Show single item if only one item OR carousel is disabled
+  // Match card border radius (16px = $4 in Tamagui) - only top corners
+  const cardBorderRadius = 16;
+  if (carouselItems.length === 1 || !enableCarousel) {
     return (
       <View
         style={{
-          height: height * 0.3,
-          borderRadius: 12,
+          height: carouselHeight,
+          borderTopLeftRadius: cardBorderRadius,
+          borderTopRightRadius: cardBorderRadius,
           overflow: 'hidden',
           marginBottom: 16,
         }}
@@ -173,11 +205,13 @@ export default function RouteDetailsCarousel({ routeData }: { routeData: any }) 
     );
   }
 
+  // Show carousel when multiple items and carousel is enabled
   return (
     <View
       style={{
-        height: height * 0.3,
-        borderRadius: 12,
+        height: carouselHeight,
+        borderTopLeftRadius: cardBorderRadius,
+        borderTopRightRadius: cardBorderRadius,
         overflow: 'hidden',
         marginBottom: 16,
       }}
@@ -185,7 +219,7 @@ export default function RouteDetailsCarousel({ routeData }: { routeData: any }) 
       <Carousel
         loop
         width={width - 32}
-        height={height * 0.3}
+        height={carouselHeight}
         data={carouselItems}
         renderItem={({ item }) => <CarouselItem item={item} />}
         onSnapToItem={setActiveMediaIndex}

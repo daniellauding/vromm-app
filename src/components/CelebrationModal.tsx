@@ -3,7 +3,7 @@ import { View, Dimensions, Animated, Pressable, Image, TouchableOpacity } from '
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
-import { useColorScheme } from 'react-native';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { BlurView } from 'expo-blur';
 import { Button } from './Button';
 import Svg, { Circle } from 'react-native-svg';
@@ -52,7 +52,8 @@ export function CelebrationModal({
   isAllPathsComplete = false,
 }: CelebrationModalProps) {
   const { t, language: lang } = useTranslation();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const [scaleAnim] = useState(new Animated.Value(0));
   const [fadeAnim] = useState(new Animated.Value(0));
   const [confettiAnim] = useState(new Animated.Value(0));

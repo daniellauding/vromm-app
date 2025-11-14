@@ -3,9 +3,9 @@ import { FeaturedExercise, FeaturedLearningPath } from './types';
 import { YStack, Text } from 'tamagui';
 import { TouchableOpacity, Image, View, Dimensions, Linking } from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
+import { FeaturedCardSize, getFeaturedCardSizeConfig } from './variants';
 
 const { width: screenWidth } = Dimensions.get('window');
-const cardWidth = screenWidth * 0.7;
 
 const getYouTubeVideoId = (url: string | undefined): string | null => {
   if (!url) return null;
@@ -36,9 +36,17 @@ const getYouTubeVideoId = (url: string | undefined): string | null => {
   return null;
 };
 
-const YouTubeEmbed = ({ videoId, width }: { videoId: string; width?: number }) => {
+const YouTubeEmbed = ({
+  videoId,
+  width,
+  aspectRatio,
+}: {
+  videoId: string;
+  width?: number;
+  aspectRatio?: number;
+}) => {
   const videoWidth = width || screenWidth - 48;
-  const videoHeight = videoWidth * 0.5625; // 16:9 aspect ratio
+  const videoHeight = aspectRatio ? videoWidth / aspectRatio : videoWidth * 0.5625; // Default 16:9, or custom
 
   return (
     <View
@@ -63,12 +71,27 @@ const YouTubeEmbed = ({ videoId, width }: { videoId: string; width?: number }) =
   );
 };
 
-export const FeaturedMedia = ({ item }: { item: FeaturedLearningPath | FeaturedExercise }) => {
+export const FeaturedMedia = ({
+  item,
+  size = 'medium',
+  cardWidth,
+  aspectRatio,
+}: {
+  item: FeaturedLearningPath | FeaturedExercise;
+  size?: FeaturedCardSize;
+  cardWidth?: number;
+  aspectRatio?: number;
+}) => {
   const { t } = useTranslation();
   const hasMedia = item.image || item.youtube_url;
   if (!hasMedia) return null;
 
-  const cardContentWidth = cardWidth - 32; // Account for card padding
+  // Use provided cardWidth or calculate from size config
+  const sizeConfig = getFeaturedCardSizeConfig(size);
+  const effectiveCardWidth = cardWidth || sizeConfig.cardWidth;
+  const paddingValue = size === 'large' ? 40 : size === 'medium' ? 32 : size === 'small' ? 24 : 16;
+  const cardContentWidth = effectiveCardWidth - paddingValue; // Account for card padding
+  const mediaAspectRatio = aspectRatio || sizeConfig.mediaAspectRatio || 0.5625; // Default 16:9
 
   return (
     <YStack gap={8} marginTop={8} marginBottom={8}>
@@ -77,7 +100,7 @@ export const FeaturedMedia = ({ item }: { item: FeaturedLearningPath | FeaturedE
         (() => {
           const videoId = getYouTubeVideoId(item.youtube_url);
           return videoId ? (
-            <YouTubeEmbed videoId={videoId} width={cardContentWidth} />
+            <YouTubeEmbed videoId={videoId} width={cardContentWidth} aspectRatio={mediaAspectRatio} />
           ) : (
             <TouchableOpacity
               onPress={() => item.youtube_url && Linking.openURL(item.youtube_url)}
@@ -101,7 +124,7 @@ export const FeaturedMedia = ({ item }: { item: FeaturedLearningPath | FeaturedE
           source={{ uri: item.image }}
           style={{
             width: cardContentWidth,
-            height: cardContentWidth * 0.5625,
+            height: cardContentWidth / mediaAspectRatio,
             borderRadius: 8,
             resizeMode: 'cover',
           }}

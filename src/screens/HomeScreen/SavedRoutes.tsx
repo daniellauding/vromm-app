@@ -1,16 +1,12 @@
 import React from 'react';
 import { YStack, XStack, Text, Card } from 'tamagui';
-import { FlatList, Dimensions, TouchableOpacity, Image, useColorScheme, View } from 'react-native';
+import { FlatList, Dimensions, TouchableOpacity, Image } from 'react-native';
 
-import { HeroCarousel } from '../../components/HeroCarousel';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
-import { navigateDomain } from '@/src/utils/navigation';
 import { SectionHeader } from '../../components/SectionHeader';
 import { RouteListSheet } from '../../components/RouteListSheet';
-import { EmptyState } from './EmptyState';
 import { useTranslation } from '@/src/contexts/TranslationContext';
-import { useAuth } from '@/src/context/AuthContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { supabase } from '../../lib/supabase';
 import { Route, SavedRoute, SavedRouteFromDB } from '@/src/types/route';
@@ -28,27 +24,6 @@ const isValidRoute = (route: any): route is Route => {
     typeof route.name === 'string' &&
     Array.isArray(route.media_attachments)
   );
-};
-
-const getRouteImage: (route: Route) => string | null = (route) => {
-  if (!route.media_attachments || !Array.isArray(route.media_attachments)) {
-    return null;
-  }
-
-  for (const attachment of route.media_attachments) {
-    if (
-      attachment &&
-      typeof attachment === 'object' &&
-      'type' in attachment &&
-      attachment.type === 'image' &&
-      'url' in attachment &&
-      typeof attachment.url === 'string'
-    ) {
-      return attachment.url;
-    }
-  }
-
-  return null;
 };
 
 interface SavedRoutesProps {
@@ -228,21 +203,45 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
           data={savedRoutes}
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 8 }}
-          renderItem={({ item: route }) => (
-            <XStack marginRight="$3">
-              <RouteCard 
-                route={route} 
-                onPress={() => {
-                  if (onRoutePress) {
-                    onRoutePress(route.id);
-                  } else {
-                    navigation.navigate('RouteDetail', { routeId: route.id });
-            }
-                }}
-          />
-        </XStack>
-          )}
+          contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
+          // Calculate card width to show 3-4 cards at once
+          // Screen width - padding (32) - gaps between cards (12 * 3) = available width
+          // Divide by 3.5 to show ~3.5 cards (3-4 visible)
+          getItemLayout={(data, index) => {
+            const screenWidth = Dimensions.get('window').width;
+            const padding = 32; // 16 on each side
+            const gap = 12; // gap between cards
+            const cardWidth = (screenWidth - padding - gap * 2) / 3.5;
+            return {
+              length: cardWidth + gap,
+              offset: (cardWidth + gap) * index,
+              index,
+            };
+          }}
+          snapToInterval={Dimensions.get('window').width / 3.5 + 12}
+          decelerationRate="fast"
+          snapToAlignment="start"
+          renderItem={({ item: route }) => {
+            const screenWidth = Dimensions.get('window').width;
+            const padding = 32;
+            const gap = 12;
+            const cardWidth = (screenWidth - padding - gap * 2) / 3.5;
+            return (
+              <XStack marginRight="$3" width={cardWidth} overflow="hidden">
+                <RouteCard
+                  route={route as any}
+                  preset="grid"
+                  onPress={() => {
+                    if (onRoutePress) {
+                      onRoutePress(route.id);
+                    } else {
+                      navigation.navigate('RouteDetail', { routeId: route.id });
+                    }
+                  }}
+                />
+              </XStack>
+            );
+          }}
         />
       </YStack>
 

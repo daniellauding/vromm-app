@@ -39,7 +39,11 @@ import {
 import { RouteExerciseList } from './../RouteExerciseList';
 import { useToast } from '../../contexts/ToastContext';
 import { UserProfileSheet } from './../UserProfileSheet';
+<<<<<<< HEAD
 import { useTabletLayout } from '../../hooks/useTabletLayout';
+=======
+import { AddReviewSheet } from './../AddReviewSheet';
+>>>>>>> a9b702aac893c1bd60fff7a840f73af7ffb4c987
 
 import { getCarouselItems } from './utils';
 import RouteDetailsCarousel from './RouteDetailsCarousel';
@@ -422,6 +426,7 @@ export function RouteDetailSheet({
   const [showCommentsDetails, setShowCommentsDetails] = useState(false);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
+  const [showReviewSheet, setShowReviewSheet] = useState(false);
 
   // Exercise-related state
   const [exerciseStats, setExerciseStats] = useState<{
@@ -783,6 +788,7 @@ export function RouteDetailSheet({
                             routeId={routeId}
                             onClose={onClose}
                             handleRefresh={handleRefresh}
+                            onOpenReviewSheet={() => setShowReviewSheet(true)}
                           />
 
                           {/* Basic Info Card */}
@@ -1153,6 +1159,26 @@ export function RouteDetailSheet({
             }
           }}
           userId={selectedProfileUserId}
+        />
+      )}
+
+      {/* Add Review Sheet */}
+      {routeId && (
+        <AddReviewSheet
+          visible={showReviewSheet}
+          onClose={() => setShowReviewSheet(false)}
+          routeId={routeId}
+          onReviewComplete={() => {
+            setShowReviewSheet(false);
+            // Refresh route data to show updated review
+            handleRefresh();
+            // Reopen RouteDetailSheet after review completes
+            if (onReopen) {
+              setTimeout(() => {
+                onReopen();
+              }, 300);
+            }
+          }}
         />
       )}
     </Modal>

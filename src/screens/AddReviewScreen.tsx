@@ -28,9 +28,11 @@ type Props = {
       returnToRouteDetail?: boolean;
     };
   };
+  onReviewComplete?: () => void;
+  embeddedInSheet?: boolean; // When true, skip Screen/Header wrapper
 };
 
-export function AddReviewScreen({ route }: Props) {
+export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = false }: Props) {
   const { routeId, returnToRouteDetail } = route.params;
   const navigation = useNavigation<NavigationProp>();
   const { language, t } = useTranslation();
@@ -217,15 +219,29 @@ export function AddReviewScreen({ route }: Props) {
       console.log('Review operation successful:', result.data);
 
       // Mark route as driven (if not already)
-      const { error: drivenError } = await supabase.from('driven_routes').upsert({
-        route_id: routeId,
-        user_id: user.id,
-        driven_at: visitDate,
-      });
+      // Use upsert with onConflict to handle the unique constraint on (user_id, route_id)
+      const { error: drivenError } = await supabase
+        .from('driven_routes')
+        .upsert(
+          {
+            route_id: routeId,
+            user_id: user.id,
+            driven_at: visitDate,
+          },
+          {
+            onConflict: 'user_id,route_id',
+          }
+        );
 
       if (drivenError) {
         console.error('Driven route error:', drivenError);
-        throw drivenError;
+        // If it's a duplicate key error, it means the route is already marked as driven
+        // This is fine - we can just continue
+        if (drivenError.code !== '23505') {
+          throw drivenError;
+        } else {
+          console.log('Route already marked as driven, continuing...');
+        }
       }
 
       try {
@@ -249,6 +265,12 @@ export function AddReviewScreen({ route }: Props) {
         }
       } catch (notifyError) {
         console.log('Route completion notification failed (best-effort):', notifyError);
+      }
+
+      // Call onReviewComplete callback if provided (for sheet mode)
+      if (onReviewComplete) {
+        onReviewComplete();
+        return;
       }
 
       // Navigate back and ensure reviews are refreshed immediately
@@ -545,14 +567,15 @@ export function AddReviewScreen({ route }: Props) {
     },
   });
 
-  return (
-    <Screen>
-      <YStack f={1} gap="$4" backgroundColor={backgroundColor}>
+  const reviewContent = (
+    <YStack f={1} gap="$4" backgroundColor={backgroundColor}>
+      {!embeddedInSheet && (
         <Header 
           title={t('review.title') || 'Add Review'} 
           showBack 
           onBackPress={handleBackPress}
         />
+      )}
 
         {/* Progress Indicator */}
         <XStack gap="$2" paddingHorizontal="$4" justifyContent="center">
@@ -590,6 +613,15 @@ export function AddReviewScreen({ route }: Props) {
           {renderStep()}
         </ScrollView>
       </YStack>
+  );
+
+  if (embeddedInSheet) {
+    return reviewContent;
+  }
+
+  return (
+    <Screen>
+      {reviewContent}
     </Screen>
   );
 }
