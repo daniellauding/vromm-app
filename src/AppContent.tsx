@@ -27,10 +27,17 @@ import { registerInvitationModalOpener } from './utils/invitationModalBridge';
 import { AppAnalytics } from './utils/analytics';
 import { TourOverlay } from './components/TourOverlay';
 import { GlobalCelebrationModal } from './components/GlobalCelebrationModal';
+import { PromotionModal } from './components/PromotionModal';
 import type { NavigationContainerRef } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LoadingScreen } from './components/LoadingScreen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRecording } from './contexts/RecordingContext';
+import { useModal } from './contexts/ModalContext';
+import { CreateRouteSheet } from './components/CreateRouteSheet';
+import { BetaTestingSheetModal } from './components/BetaTestingSheet';
+import { shouldShowInteractiveOnboarding } from './components/OnboardingInteractive';
 
 // Define a compatible type for WebBrowser dismiss helpers to avoid any-casts
 type WebBrowserCompat = typeof WebBrowser & {
@@ -225,6 +232,16 @@ function AuthenticatedAppContent() {
   const authData = useAuth();
   const { showToast } = useToast();
   const { t, refreshTranslations } = useTranslation();
+  
+  // Get contexts - these hooks must be called unconditionally
+  // They will throw if not within providers, which is expected
+  const recordingContext = useRecording();
+  const modalContext = useModal();
+  
+  // Extract functions from contexts with optional chaining for safety
+  const startRecording = recordingContext?.startRecording;
+  const showModal = modalContext?.showModal;
+  const hideModal = modalContext?.hideModal;
 
   useEffect(() => {
     if (!authData?.user?.id) {
@@ -483,6 +500,11 @@ function AppContent() {
 
   // Global unified invitation notification state
   const [showGlobalInvitationNotification, setShowGlobalInvitationNotification] = useState(false);
+  
+  // Promotion modal state
+  const [promotionContents, setPromotionContents] = useState<any[]>([]);
+  const [currentModalIndex, setCurrentModalIndex] = useState(0);
+  const [showPromotionModal, setShowPromotionModal] = useState(false);
   // Global unified invitation checking function
   const checkForGlobalInvitations = React.useCallback(async () => {
     if (!user?.email || !user?.id) {
@@ -911,6 +933,414 @@ function AppContent() {
     checkDatabaseTables();
   }, []);
 
+  // Check if modal should be shown based on conditions
+  const shouldShowModal = React.useCallback(async (content: any, userId: string): Promise<boolean> => {
+    if (!content || !userId) return false;
+
+    const contentId = content.id;
+    const storageKey = `promotion_modal_${contentId}_${userId}`;
+
+    try {
+      // Get stored data
+      const storedData = await AsyncStorage.getItem(storageKey);
+      const seenData = storedData ? JSON.parse(storedData) : null;
+
+      // Check if content was updated (force reset from admin)
+      if (seenData && content.updated_at) {
+        const contentUpdatedAt = new Date(content.updated_at);
+        const lastStoredUpdate = seenData.contentUpdatedAt ? new Date(seenData.contentUpdatedAt) : null;
+        
+        // If content was updated after we last saw it, reset the seen state
+        if (!lastStoredUpdate || contentUpdatedAt > lastStoredUpdate) {
+          // Clear the seen state to allow showing again
+          await AsyncStorage.removeItem(storageKey);
+          // Return true to show the modal
+          return true;
+        }
+      }
+
+      // Check frequency
+      const frequency = content.modal_frequency || 'once';
+      const now = new Date();
+      
+      if (seenData) {
+        const lastSeen = new Date(seenData.lastSeen);
+        const daysSinceLastSeen = Math.floor((now.getTime() - lastSeen.getTime()) / (1000 * 60 * 60 * 24));
+
+        switch (frequency) {
+          case 'once':
+            // Already seen once, don't show again unless reset
+            if (content.modal_reset_days && daysSinceLastSeen >= content.modal_reset_days) {
+              // Reset period passed, allow showing again
+              break;
+            }
+            return false;
+          case 'daily':
+            if (daysSinceLastSeen < 1) return false;
+            break;
+          case 'weekly':
+            if (daysSinceLastSeen < 7) return false;
+            break;
+          case 'monthly':
+            if (daysSinceLastSeen < 30) return false;
+            break;
+          case 'always':
+            // Always show, no check needed
+            break;
+        }
+
+        // Check max show count
+        if (content.modal_max_show_count && seenData.showCount >= content.modal_max_show_count) {
+          return false;
+        }
+      }
+
+      // Check inactive days requirement
+      if (content.modal_show_after_days) {
+        // Get user's last login from profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('updated_at, created_at')
+          .eq('id', userId)
+          .single();
+
+        if (profile) {
+          const lastActivity = profile.updated_at ? new Date(profile.updated_at) : new Date(profile.created_at);
+          const daysSinceActivity = Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysSinceActivity < content.modal_show_after_days) {
+            return false; // User is too active, don't show
+          }
+        }
+      }
+
+      // Check app version
+      if (content.modal_min_app_version) {
+        const appVersion = Constants.expoConfig?.version || Constants.manifest?.version || '0.0.0';
+        const minVersion = content.modal_min_app_version;
+        
+        // Simple version comparison (assumes semantic versioning)
+        const compareVersions = (v1: string, v2: string): number => {
+          const parts1 = v1.split('.').map(Number);
+          const parts2 = v2.split('.').map(Number);
+          for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+            const part1 = parts1[i] || 0;
+            const part2 = parts2[i] || 0;
+            if (part1 < part2) return -1;
+            if (part1 > part2) return 1;
+          }
+          return 0;
+        };
+
+        if (compareVersions(appVersion, minVersion) < 0) {
+          return false; // App version too old
+        }
+      }
+
+      // Check user segments (simplified - you may want to enhance this)
+      if (content.modal_user_segments && content.modal_user_segments.length > 0) {
+        const segments = content.modal_user_segments;
+        if (!segments.includes('all_users')) {
+          // Get user profile to determine segment
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('created_at, updated_at')
+            .eq('id', userId)
+            .single();
+
+          if (profile) {
+            const createdAt = new Date(profile.created_at);
+            const updatedAt = profile.updated_at ? new Date(profile.updated_at) : createdAt;
+            const daysSinceCreated = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+            const daysSinceUpdated = Math.floor((now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60 * 24));
+
+            let userSegment = 'returning_users';
+            if (daysSinceCreated < 7) {
+              userSegment = 'new_users';
+            } else if (daysSinceUpdated > 30) {
+              userSegment = 'inactive_users';
+            }
+
+            if (!segments.includes(userSegment)) {
+              return false; // User doesn't match any selected segment
+            }
+          }
+        }
+      }
+
+      return true;
+    } catch (error) {
+      logError('Error checking if modal should show', error as Error);
+      return false;
+    }
+  }, []);
+
+  // Track modal statistics
+  const trackModalEvent = React.useCallback(async (
+    contentId: string,
+    eventType: 'opened' | 'viewed' | 'dismissed' | 'action_clicked' | 'next_clicked' | 'previous_clicked',
+    actionType?: string
+  ) => {
+    if (!user?.id) return;
+    
+    // Fire and forget - don't block UI
+    // Use an IIFE to handle the promise properly
+    (async () => {
+      try {
+        const { error } = await supabase.from('promotion_modal_stats').insert({
+          content_id: contentId,
+          user_id: user.id,
+          event_type: eventType,
+          action_type: actionType || null,
+          metadata: {
+            app_version: Constants.expoConfig?.version || 'unknown',
+            platform: Platform.OS,
+          }
+        });
+        
+        if (error) {
+          logError('Error tracking modal event', error as Error);
+        }
+      } catch (error) {
+        logError('Error tracking modal event', error as Error);
+      }
+    })();
+  }, [user?.id]);
+
+  // Store modal as seen
+  const markModalAsSeen = React.useCallback(async (contentId: string, userId: string, contentUpdatedAt?: string) => {
+    try {
+      const storageKey = `promotion_modal_${contentId}_${userId}`;
+      const storedData = await AsyncStorage.getItem(storageKey);
+      const seenData = storedData ? JSON.parse(storedData) : { showCount: 0 };
+      
+      await AsyncStorage.setItem(storageKey, JSON.stringify({
+        lastSeen: new Date().toISOString(),
+        showCount: (seenData.showCount || 0) + 1,
+        contentUpdatedAt: contentUpdatedAt || new Date().toISOString() // Store content's updated_at timestamp
+      }));
+      
+      // Track viewed event
+      trackModalEvent(contentId, 'viewed');
+    } catch (error) {
+      logError('Error marking modal as seen', error as Error);
+    }
+  }, [trackModalEvent]);
+
+  // Fetch and show promotion modal content
+  useEffect(() => {
+    const fetchPromotionContent = async () => {
+      if (!user?.id) {
+        return;
+      }
+
+      try {
+        // IMPORTANT: Check if onboarding should be shown first - onboarding takes priority
+        const shouldShowOnboarding = await shouldShowInteractiveOnboarding('interactive_onboarding', user.id);
+        if (shouldShowOnboarding) {
+          logInfo('Onboarding should be shown - skipping promotion modals');
+          return; // Don't show promotion modals if onboarding is needed
+        }
+
+        // Fetch all active promotion content that should be shown as modal
+        // Include YouTube fields for video support
+        const { data, error } = await supabase
+          .from('content')
+          .select('*')
+          .eq('content_type', 'promotion')
+          .eq('active', true)
+          .eq('is_modal', true)
+          .overlaps('platforms', ['mobile'])
+          .order('order_index', { ascending: true });
+
+        if (error) {
+          logError('Error fetching promotion content', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          // Check all conditions for each modal in parallel for better performance
+          const eligibilityChecks = await Promise.all(
+            data.map(content => shouldShowModal(content, user.id))
+          );
+          
+          // Filter to only eligible modals
+          const eligibleModals = data.filter((_, index) => eligibilityChecks[index]);
+
+          if (eligibleModals.length > 0) {
+            setPromotionContents(eligibleModals);
+            setCurrentModalIndex(0);
+            setShowPromotionModal(true);
+            // Track opened event for first modal
+            trackModalEvent(eligibleModals[0].id, 'opened').catch(err => {
+              logError('Error tracking modal opened', err as Error);
+            });
+            // Mark first modal as seen immediately when shown (fire and forget for performance)
+            markModalAsSeen(eligibleModals[0].id, user.id, eligibleModals[0].updated_at).catch(err => {
+              logError('Error marking modal as seen', err as Error);
+            });
+          }
+        }
+      } catch (error) {
+        logError('Error in fetchPromotionContent', error);
+      }
+    };
+
+    if (user && initialized) {
+      // Small delay to ensure app is fully loaded
+      const timer = setTimeout(() => {
+        fetchPromotionContent();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, initialized]); // Only depend on user.id and initialized to avoid unnecessary re-runs
+
+  // Handle promotion modal actions
+  const handlePromotionAction = React.useCallback(async (action: string, contentId?: string) => {
+    logInfo('Promotion action pressed', { action, contentId });
+    
+    // Track action click if contentId provided
+    if (contentId) {
+      trackModalEvent(contentId, 'action_clicked', action).catch(err => {
+        logError('Error tracking action click', err as Error);
+      });
+    }
+    
+    // Get fresh context values inside callback to ensure they're available
+    const currentShowModal = modalContext?.showModal;
+    const currentHideModal = modalContext?.hideModal;
+    const currentStartRecording = recordingContext?.startRecording;
+    
+    try {
+      switch (action) {
+        case 'open_feedback':
+          // Show BetaTestingSheetModal
+          if (currentShowModal) {
+            currentShowModal(
+              <BetaTestingSheetModal
+                onOpenBuyCoffee={() => {
+                  Linking.openURL('https://buymeacoffee.com/vromm');
+                }}
+                onOpenBetaWebView={() => {
+                  Linking.openURL('https://beta.vromm.se');
+                }}
+                onShareApp={async () => {
+                  try {
+                    const { Share } = await import('react-native');
+                    await Share.share({
+                      message: 'Check out Vromm - The future of driving education! https://vromm.se',
+                      title: 'Share Vromm',
+                    });
+                  } catch (error) {
+                    console.error('Error sharing:', error);
+                  }
+                }}
+                onOpenAbout={() => {
+                  Linking.openURL('https://vromm.se/about');
+                }}
+              />
+            );
+          } else {
+            logWarn('showModal not available, falling back to navigation');
+            // Fallback: navigate to BetaTestingTab
+            if (navigationRef.current) {
+              navigationRef.current.navigate('MainTabs', { screen: 'BetaTestingTab' });
+            }
+          }
+          break;
+        case 'open_mapview':
+          // Navigate to MapTab which contains MapScreen
+          if (navigationRef.current) {
+            navigationRef.current.navigate('MainTabs', { screen: 'MapTab' });
+          }
+          break;
+        case 'open_progress':
+          // Navigate to ProgressTab
+          if (navigationRef.current) {
+            navigationRef.current.navigate('MainTabs', { screen: 'ProgressTab' });
+          }
+          break;
+        case 'create_route':
+          // Show CreateRouteSheet modal
+          if (currentShowModal && currentHideModal) {
+            currentShowModal(
+              <CreateRouteSheet
+                visible={true}
+                onClose={() => {
+                  if (currentHideModal) {
+                    currentHideModal();
+                  }
+                }}
+                onRouteCreated={(routeId) => {
+                  logInfo('Route created from promotion modal', { routeId });
+                  if (currentHideModal) {
+                    currentHideModal();
+                  }
+                }}
+              />
+            );
+          } else {
+            logWarn('showModal/hideModal not available, falling back to navigation');
+            // Fallback: navigate to CreateRoute screen
+            if (navigationRef.current) {
+              navigationRef.current.navigate('CreateRoute' as any);
+            }
+          }
+          break;
+        case 'record_route':
+          // Start recording via RecordingContext
+          if (currentStartRecording) {
+            currentStartRecording().catch((error) => {
+              logError('Error starting recording from promotion modal', error as Error);
+            });
+          } else {
+            logWarn('startRecording not available, falling back to navigation');
+            // Fallback: navigate to MapTab
+            if (navigationRef.current) {
+              navigationRef.current.navigate('MainTabs', { screen: 'MapTab' });
+            }
+          }
+          break;
+        case 'select_role':
+          // Navigate to RoleSelectionScreen
+          if (navigationRef.current) {
+            navigationRef.current.navigate('RoleSelectionScreen' as any);
+          }
+          break;
+        case 'select_connection':
+          // Navigate to HomeTab - user can manually open connections from GettingStarted
+          // TODO: Add global event/context to trigger connections modal
+          if (navigationRef.current) {
+            navigationRef.current.navigate('MainTabs', { screen: 'HomeTab' });
+          }
+          break;
+        case 'buy_me_a_coffee':
+          // Open Buy Me a Coffee link
+          try {
+            const canOpen = await Linking.canOpenURL('https://buymeacoffee.com/vromm');
+            if (canOpen) {
+              await Linking.openURL('https://buymeacoffee.com/vromm');
+            }
+          } catch (error) {
+            logError('Error opening Buy Me a Coffee link', error as Error);
+          }
+          break;
+        default:
+          // Handle external URL actions (format: external_url:key)
+          if (action.startsWith('external_url:')) {
+            logWarn('External URL action should be handled in PromotionModal', { action });
+          } else {
+            logWarn('Unknown promotion action', { action });
+          }
+          break;
+      }
+    } catch (error) {
+      logError('Error handling promotion action', error as Error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - we access fresh context values inside the callback
+
   // Only return null during initial app startup, not during login attempts
   // This prevents navigation stack from being destroyed during authentication
 
@@ -949,10 +1379,68 @@ function AppContent() {
         }}
       />
 
+      {/* Promotion Modal - high priority, shown after app loads */}
+      {user && promotionContents.length > 0 && (
+        <PromotionModal
+          visible={showPromotionModal}
+          onClose={() => {
+            const currentContent = promotionContents[currentModalIndex];
+            if (currentContent) {
+              // Track dismissed event
+              trackModalEvent(currentContent.id, 'dismissed').catch(err => {
+                logError('Error tracking modal dismissed', err as Error);
+              });
+            }
+            setShowPromotionModal(false);
+            setPromotionContents([]);
+            setCurrentModalIndex(0);
+          }}
+          content={promotionContents[currentModalIndex]}
+          onActionPress={(action) => {
+            const currentContent = promotionContents[currentModalIndex];
+            handlePromotionAction(action, currentContent?.id);
+          }}
+          onNext={() => {
+            const currentContent = promotionContents[currentModalIndex];
+            if (currentContent) {
+              trackModalEvent(currentContent.id, 'next_clicked').catch(err => {
+                logError('Error tracking next click', err as Error);
+              });
+            }
+            if (currentModalIndex < promotionContents.length - 1) {
+              const nextIndex = currentModalIndex + 1;
+              setCurrentModalIndex(nextIndex);
+              // Mark as seen asynchronously (fire and forget for performance)
+              markModalAsSeen(promotionContents[nextIndex].id, user.id, promotionContents[nextIndex].updated_at).catch(err => {
+                logError('Error marking modal as seen', err as Error);
+              });
+            } else {
+              // Last modal, close
+              setShowPromotionModal(false);
+              setPromotionContents([]);
+              setCurrentModalIndex(0);
+            }
+          }}
+          onPrevious={() => {
+            const currentContent = promotionContents[currentModalIndex];
+            if (currentContent) {
+              trackModalEvent(currentContent.id, 'previous_clicked').catch(err => {
+                logError('Error tracking previous click', err as Error);
+              });
+            }
+            if (currentModalIndex > 0) {
+              setCurrentModalIndex(currentModalIndex - 1);
+            }
+          }}
+          currentIndex={currentModalIndex}
+          totalCount={promotionContents.length}
+        />
+      )}
+
       <NavigationContainer
         key={`${user ? 'nav-app' : 'nav-auth'}-${authKey}`}
         ref={navigationRef}
-        onStateChange={(state) => {
+        onStateChange={async (state) => {
           // Track screen views for analytics - works on both iOS and Android
           if (state) {
             const route = state.routes[state.index];
@@ -971,6 +1459,49 @@ function AppContent() {
               }
             } catch (error) {
               logWarn('Analytics not available for screen view', error);
+            }
+
+            // Check for eligible modals when navigating to new screens (if no modal is currently showing)
+            if (user?.id && !showPromotionModal && (screen_name === 'HomeTab' || screen_name === 'MapTab' || screen_name === 'ProgressTab')) {
+              // Small delay to let screen load, then check for modals
+              setTimeout(async () => {
+                try {
+                  // IMPORTANT: Check if onboarding should be shown first - onboarding takes priority
+                  const shouldShowOnboarding = await shouldShowInteractiveOnboarding('interactive_onboarding', user.id);
+                  if (shouldShowOnboarding) {
+                    logInfo('Onboarding should be shown - skipping promotion modals on navigation');
+                    return; // Don't show promotion modals if onboarding is needed
+                  }
+
+                  const { data } = await supabase
+                    .from('content')
+                    .select('*')
+                    .eq('content_type', 'promotion')
+                    .eq('active', true)
+                    .eq('is_modal', true)
+                    .overlaps('platforms', ['mobile'])
+                    .order('order_index', { ascending: true });
+
+                  if (data && data.length > 0) {
+                    const eligibilityChecks = await Promise.all(
+                      data.map(content => shouldShowModal(content, user.id))
+                    );
+                    
+                    const eligibleModals = data.filter((_, index) => eligibilityChecks[index]);
+
+                    if (eligibleModals.length > 0) {
+                      setPromotionContents(eligibleModals);
+                      setCurrentModalIndex(0);
+                      setShowPromotionModal(true);
+                      markModalAsSeen(eligibleModals[0].id, user.id, eligibleModals[0].updated_at).catch(err => {
+                        logError('Error marking modal as seen', err as Error);
+                      });
+                    }
+                  }
+                } catch (error) {
+                  // Silently fail - don't interrupt navigation
+                }
+              }, 1000);
             }
           }
         }}
