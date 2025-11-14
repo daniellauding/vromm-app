@@ -15,6 +15,7 @@ import {
 import { Text, XStack, YStack, useTheme, Card } from 'tamagui';
 import { Button } from './Button';
 import { FormField } from './FormField';
+import { IconButton } from './IconButton';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
@@ -1645,54 +1646,45 @@ export function BetaTestingSheet({
     }
   };
 
-  // Render tabs
+  // Render tabs using IconButton
   const renderTabs = () => {
     const tabs = [
       {
-        key: 'checklist',
+        key: 'checklist' as const,
+        icon: 'check-square' as const,
         label: getTranslation('beta.checklist', language === 'sv' ? 'Checklista' : 'Checklist'),
       },
       {
-        key: 'feedback',
+        key: 'feedback' as const,
+        icon: 'message-circle' as const,
         label: getTranslation('beta.feedback', language === 'sv' ? 'Återkoppling' : 'Feedback'),
       },
       {
-        key: 'pricing',
+        key: 'pricing' as const,
+        icon: 'dollar-sign' as const,
         label: getTranslation('beta.pricing', language === 'sv' ? 'Prissättning' : 'Pricing'),
       },
       {
-        key: 'video',
+        key: 'video' as const,
+        icon: 'play-circle' as const,
         label: getTranslation('beta.resources', language === 'sv' ? 'Resurser' : 'Resources'),
       },
     ];
 
     return (
-      <XStack gap="$2" marginBottom="$4" flexWrap="wrap">
+      <XStack gap="$2" marginBottom="$4">
         {tabs.map((tab) => (
-          <TouchableOpacity
+          <IconButton
             key={tab.key}
-            onPress={() => setActiveTab(tab.key as any)}
-            style={{
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: borderColor,
-              backgroundColor: activeTab === tab.key ? primaryColor : 'transparent',
-              flex: 1,
-              minWidth: 80,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text
-              fontSize="$3"
-              fontWeight={activeTab === tab.key ? '600' : '500'}
-              color={activeTab === tab.key ? '#000000' : textColor}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
+            icon={tab.icon}
+            label={tab.label}
+            onPress={() => setActiveTab(tab.key)}
+            selected={activeTab === tab.key}
+            backgroundColor="transparent"
+            borderColor="transparent"
+            flex={1}
+            size="sm"
+          />
         ))}
       </XStack>
     );
