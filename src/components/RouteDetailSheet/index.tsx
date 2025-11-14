@@ -39,11 +39,8 @@ import {
 import { RouteExerciseList } from './../RouteExerciseList';
 import { useToast } from '../../contexts/ToastContext';
 import { UserProfileSheet } from './../UserProfileSheet';
-<<<<<<< HEAD
 import { useTabletLayout } from '../../hooks/useTabletLayout';
-=======
 import { AddReviewSheet } from './../AddReviewSheet';
->>>>>>> a9b702aac893c1bd60fff7a840f73af7ffb4c987
 
 import { getCarouselItems } from './utils';
 import RouteDetailsCarousel from './RouteDetailsCarousel';
