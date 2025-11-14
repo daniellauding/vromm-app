@@ -39,6 +39,7 @@ import {
 import { RouteExerciseList } from './../RouteExerciseList';
 import { useToast } from '../../contexts/ToastContext';
 import { UserProfileSheet } from './../UserProfileSheet';
+import { useTabletLayout } from '../../hooks/useTabletLayout';
 
 import { getCarouselItems } from './utils';
 import RouteDetailsCarousel from './RouteDetailsCarousel';
@@ -167,6 +168,7 @@ export function RouteDetailSheet({
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+  const { isTablet } = useTabletLayout();
 
   // Theme colors - matching ProgressScreen exactly
   const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
@@ -681,10 +683,20 @@ export function RouteDetailSheet({
                   top: 0,
                   left: 0,
                   right: 0,
-                  height: height, // Keep original height
+                  width: isTablet ? '90%' : '100%',
+                  maxWidth: isTablet ? 800 : undefined,
+                  alignSelf: isTablet ? 'center' : undefined,
+                  height: height,
                   backgroundColor: backgroundColor,
                   borderTopLeftRadius: 16,
                   borderTopRightRadius: 16,
+                  borderBottomLeftRadius: isTablet ? 16 : 0,
+                  borderBottomRightRadius: isTablet ? 16 : 0,
+                  shadowColor: isTablet ? '#000' : undefined,
+                  shadowOffset: isTablet ? { width: 0, height: 4 } : undefined,
+                  shadowOpacity: isTablet ? 0.3 : undefined,
+                  shadowRadius: isTablet ? 8 : undefined,
+                  elevation: isTablet ? 8 : undefined,
                 },
                 animatedGestureStyle,
               ]}
@@ -738,7 +750,7 @@ export function RouteDetailSheet({
                     ) : (
                       <ScrollView
                         style={{ flex: 1 }}
-                        contentContainerStyle={{ paddingBottom: 20 }}
+                        contentContainerStyle={{ paddingBottom: (insets.bottom || 20) + 80 }}
                         showsVerticalScrollIndicator={true}
                         refreshControl={
                           <RefreshControl

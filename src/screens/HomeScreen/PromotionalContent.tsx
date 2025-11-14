@@ -21,6 +21,7 @@ interface Promotion {
 
 interface PromotionalContentProps {
   onPromotionPress: (promotion: Promotion) => void;
+  onContentLoaded?: (hasContent: boolean) => void;
 }
 
 // Extract YouTube video ID from URL (reused from ProgressScreen)
@@ -55,6 +56,7 @@ const getYouTubeVideoId = (url: string | null): string | null => {
 
 export const PromotionalContent = React.memo(function PromotionalContent({
   onPromotionPress,
+  onContentLoaded,
 }: PromotionalContentProps) {
   const { t, language: lang } = useTranslation();
   const colorScheme = useColorScheme();
@@ -83,15 +85,24 @@ export const PromotionalContent = React.memo(function PromotionalContent({
       }
 
       console.log(
-        `✅ [PromotionalContent] Fetched ${data?.length || 0} promotions in ${Date.now() - startTime}ms`,
+        `✅ [PromotionalContent] Fetched ${data?.length || 0} featured promotions in ${Date.now() - startTime}ms`,
       );
       setPromotions(data || []);
+
+      // Notify parent if content is available
+      if (onContentLoaded) {
+        onContentLoaded((data?.length || 0) > 0);
+      }
     } catch (error) {
-      console.error('❌ [PromotionalContent] Error:', error);
+      console.error('💥 [PromotionalContent] Exception fetching promotions:', error);
+      setPromotions([]);
+      if (onContentLoaded) {
+        onContentLoaded(false);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onContentLoaded]);
 
   useEffect(() => {
     fetchPromotions();

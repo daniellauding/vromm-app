@@ -6,6 +6,7 @@ import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { ProgressSection } from '../../components/ProgressSection';
 import { Text as RNText, View } from 'react-native';
+import { useTabletLayout } from '../../hooks/useTabletLayout';
 
 // import { SectionHeader } from '../../components/SectionHeader';
 // import { UsersList } from '../../components/UsersList';
@@ -54,6 +55,9 @@ export default React.memo(function MyTab({
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
   const effectiveUserId = activeUserId || getEffectiveUserId();
+
+  // Tablet/iPad layout detection
+  const { isTablet, horizontalPadding, cardGap } = useTabletLayout();
   const [selectedDailyStatusDate, setSelectedDailyStatusDate] = useState(new Date());
   const [showLearningPathsSheet, setShowLearningPathsSheet] = useState(false);
   const [showExerciseListSheet, setShowExerciseListSheet] = useState(false);
@@ -73,6 +77,9 @@ export default React.memo(function MyTab({
     media_type: string | null;
     order_index: number;
   } | null>(null);
+
+  // Track if promotional content has data
+  const [hasPromotionalContent, setHasPromotionalContent] = useState(false);
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -128,17 +135,19 @@ export default React.memo(function MyTab({
 
   return (
     <YStack>
-      {/* Weekly Goal Section */}
-      <WeeklyGoal
-        activeUserId={effectiveUserId || undefined}
-        selectedDate={selectedDailyStatusDate}
-        onDateSelected={onDateSelected}
-      />
-      <DailyStatus
-        activeUserId={effectiveUserId || undefined}
-        selectedDate={selectedDailyStatusDate}
-        onDateChange={onDateSelected}
-      />
+      {/* Weekly Goal & Daily Status - Fluid width container */}
+      <View style={{ paddingHorizontal: horizontalPadding }}>
+        <WeeklyGoal
+          activeUserId={effectiveUserId || undefined}
+          selectedDate={selectedDailyStatusDate}
+          onDateSelected={onDateSelected}
+        />
+        <DailyStatus
+          activeUserId={effectiveUserId || undefined}
+          selectedDate={selectedDailyStatusDate}
+          onDateChange={onDateSelected}
+        />
+      </View>
 
       {/* Beta Testing Button */}
       <TouchableOpacity
@@ -184,51 +193,110 @@ export default React.memo(function MyTab({
         />
       </TouchableOpacity>
 
-      {/* Getting Started Section */}
-      <GettingStarted />
+      {/* 
+        📱 RESPONSIVE GRID LAYOUT
+        Mobile: 1 column (full width)
+        Tablet Portrait/iPad: Special layout per section
+        iPad Pro Landscape: Maintains special layout with adjustments
+      */}
 
-      {/* Role Selection Card - COMMENTED OUT FOR PERFORMANCE TESTING */}
-      {/* <RoleSelectionCard /> */}
+      {/* Getting Started - Always Full Width */}
+      <View style={{ paddingHorizontal: horizontalPadding, marginTop: 8 }}>
+        <GettingStarted />
+      </View>
 
-      {/* Connections Card - COMMENTED OUT FOR PERFORMANCE TESTING */}
-      {/* <ConnectionsCard /> */}
+      {/* Progress - Always Full Width */}
+      <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
+        <ProgressSection activeUserId={effectiveUserId} />
+      </View>
 
-      {/* Learning Path Card - COMMENTED OUT FOR PERFORMANCE TESTING */}
-      {/* <LearningPathCard
-        activeUserId={effectiveUserId || undefined}
-        onPress={(path) => {
-          setSelectedLearningPath(path);
-          setShowExerciseListSheet(true);
+      {/* Featured & Promo - Conditional width based on content availability */}
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          paddingHorizontal: horizontalPadding,
+          gap: cardGap,
+          marginTop: cardGap,
         }}
-        onPressSeeAll={() => setShowLearningPathsSheet(true)}
-      /> */}
+      >
+        {/* Featured Content - Takes full width if no promo, 50% if promo exists */}
+        <View
+          style={{
+            width: isTablet ? (hasPromotionalContent ? '48%' : '100%') : '100%',
+            minWidth: isTablet ? 300 : undefined,
+          }}
+        >
+          <FeaturedContent />
+        </View>
 
-      {/* Progress Section - RE-ENABLED FOR PERFORMANCE TESTING */}
-      <ProgressSection activeUserId={effectiveUserId} />
+        {/* Promotional Content - Only rendered if has content */}
+        {hasPromotionalContent && (
+          <View style={{ width: isTablet ? '48%' : '100%', minWidth: isTablet ? 300 : undefined }}>
+            <PromotionalContent
+              onPromotionPress={(promotion) => {
+                setSelectedPromotion(promotion);
+                setShowPromotionSheet(true);
+              }}
+              onContentLoaded={(hasContent) => setHasPromotionalContent(hasContent)}
+            />
+          </View>
+        )}
+      </View>
 
-      {/* Featured Content - COMMENTED OUT FOR PERFORMANCE TESTING */}
-      <FeaturedContent />
+      {/* Draft Routes - Full Width (separate from 4-col grid) */}
+      <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
+        <DraftRoutes onRoutePress={handleRoutePress} />
+      </View>
 
-      {/* Promotional Content */}
-      <PromotionalContent
-        onPromotionPress={(promotion) => {
-          setSelectedPromotion(promotion);
-          setShowPromotionSheet(true);
+      {/* Saved, Created, Driven Routes - 3 columns on tablet, 1 column on mobile */}
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          paddingHorizontal: horizontalPadding,
+          gap: cardGap,
+          marginTop: cardGap,
         }}
-      />
+      >
+        {/* Saved Routes */}
+        <View
+          style={{
+            flex: isTablet ? 1 : undefined,
+            width: isTablet ? undefined : '100%',
+            minWidth: isTablet ? 0 : undefined,
+          }}
+        >
+          <SavedRoutes onRoutePress={handleRoutePress} />
+        </View>
 
-      {/* Jump Back In Section - COMMENTED OUT FOR PERFORMANCE TESTING */}
-      {/* <JumpBackInSection activeUserId={effectiveUserId || undefined} /> */}
+        {/* Created Routes */}
+        <View
+          style={{
+            flex: isTablet ? 1 : undefined,
+            width: isTablet ? undefined : '100%',
+            minWidth: isTablet ? 0 : undefined,
+          }}
+        >
+          <CreatedRoutes onRoutePress={handleRoutePress} />
+        </View>
 
-      <DraftRoutes onRoutePress={handleRoutePress} />
-      <SavedRoutes onRoutePress={handleRoutePress} />
+        {/* Driven Routes */}
+        <View
+          style={{
+            flex: isTablet ? 1 : undefined,
+            width: isTablet ? undefined : '100%',
+            minWidth: isTablet ? 0 : undefined,
+          }}
+        >
+          <DrivenRoutes onRoutePress={handleRoutePress} />
+        </View>
+      </View>
 
-      <YStack gap="$4">
-        {/* <CityRoutes onRoutePress={handleRoutePress} /> */}
-        <CreatedRoutes onRoutePress={handleRoutePress} />
-        <DrivenRoutes onRoutePress={handleRoutePress} />
+      {/* Nearby Routes - Separate full width section */}
+      <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
         <NearByRoutes onRoutePress={handleRoutePress} />
-      </YStack>
+      </View>
 
       {/* Role Selection and Connections Cards */}
       {/* <YStack gap="$4" marginTop="$6">

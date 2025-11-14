@@ -18,7 +18,6 @@ import { useThemePreference } from '@/src/hooks/useThemeOverride';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Text, XStack, useTheme, YStack } from 'tamagui';
-import { EmptyFilterState } from '@/src/components/EmptyFilterState';
 
 const BOTTOM_NAV_HEIGHT = 80;
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
@@ -157,6 +156,7 @@ export const RoutesDrawer = React.forwardRef<
     hasActiveFilters?: boolean;
     onExpandSearch?: () => void;
     onRoutePress?: (routeId: string) => void;
+    isTabletSidebar?: boolean;
   }
 >(
   (
@@ -165,8 +165,9 @@ export const RoutesDrawer = React.forwardRef<
       filteredRoutes,
       onClearFilters,
       hasActiveFilters = false,
-      onExpandSearch,
+      onExpandSearch: _onExpandSearch,
       onRoutePress,
+      isTabletSidebar = false,
     },
     ref,
   ) => {
@@ -177,7 +178,6 @@ export const RoutesDrawer = React.forwardRef<
     const theme = useTheme();
     const { height: screenHeight } = Dimensions.get('window');
     const [searchQuery, setSearchQuery] = useState('');
-    const [isSearchFocused, setIsSearchFocused] = useState(false);
     const snapPoints = useMemo(
       () => ({
         expanded: screenHeight * 0.2, // Fully expanded
@@ -337,13 +337,119 @@ export const RoutesDrawer = React.forwardRef<
     const handleClearSearch = useCallback(() => {
       setSearchQuery('');
       Keyboard.dismiss();
-      setIsSearchFocused(false);
     }, []);
 
     if (selectedRoute) {
       return null;
     }
 
+    // Tablet Sidebar Mode (Static)
+    if (isTabletSidebar) {
+      return (
+        <View
+          ref={ref}
+          style={{
+            flex: 1,
+            backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF',
+          }}
+        >
+          <View style={{ paddingVertical: 12, paddingHorizontal: 16 }}>
+            <XStack alignItems="center" gap="$2">
+              <Feather
+                name="map"
+                size={16}
+                color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+              />
+              <Text
+                fontSize="$4"
+                fontWeight="600"
+                color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+              >
+                {searchFilteredRoutes.length}{' '}
+                {searchFilteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
+              </Text>
+            </XStack>
+          </View>
+
+          {/* Search Input */}
+          <View style={[styles.searchInputContainer, { paddingHorizontal: 12 }]}>
+            <TextInput
+              style={[
+                styles.searchInput,
+                {
+                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F2F2F7',
+                  color: colorScheme === 'dark' ? '#ECEDEE' : '#000000',
+                  borderWidth: 1,
+                  borderColor: colorScheme === 'dark' ? '#333333' : '#E5E5E5',
+                },
+              ]}
+              placeholder={language === 'sv' ? 'Sök rutter...' : 'Search routes...'}
+              placeholderTextColor={theme.gray10?.val || '#999'}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                style={[styles.clearButton, { right: 20 }]}
+                onPress={handleClearSearch}
+              >
+                <Feather name="x-circle" size={18} color={theme.gray10?.val || '#999'} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <View style={{ flex: 1 }}>
+            {searchFilteredRoutes.length > 0 ? (
+              <RouteList
+                routes={searchFilteredRoutes}
+                onScroll={handleScroll}
+                onRoutePress={onRoutePress}
+              />
+            ) : (
+              <YStack flex={1} alignItems="center" justifyContent="center" padding="$4">
+                <Feather
+                  name="search"
+                  size={48}
+                  color={theme.gray10?.val || '#999'}
+                  style={{ marginBottom: 16 }}
+                />
+                <Text
+                  fontSize="$4"
+                  fontWeight="600"
+                  color={theme.color?.val || '#000000'}
+                  textAlign="center"
+                >
+                  {language === 'sv' ? 'Inga rutter' : 'No routes'}
+                </Text>
+                <Text
+                  fontSize="$2"
+                  color={theme.gray11?.val || '#666'}
+                  textAlign="center"
+                  marginTop="$2"
+                >
+                  {searchQuery.trim()
+                    ? language === 'sv'
+                      ? `Inga rutter matchar "${searchQuery}"`
+                      : `No routes match "${searchQuery}"`
+                    : hasActiveFilters
+                      ? language === 'sv'
+                        ? 'Försök justera dina filter'
+                        : 'Try adjusting your filters'
+                      : language === 'sv'
+                        ? 'Inga rutter tillgängliga'
+                        : 'No routes available'}
+                </Text>
+              </YStack>
+            )}
+          </View>
+        </View>
+      );
+    }
+
+    // Mobile Bottom Sheet Mode (Animated)
     return (
       <GestureDetector gesture={panGesture}>
         <Animated.View
@@ -358,10 +464,23 @@ export const RoutesDrawer = React.forwardRef<
           ]}
         >
           <View style={styles.handleContainer}>
-            <View style={[styles.handle, { backgroundColor: colorScheme === 'dark' ? '#666' : '#E5E5E5' }]} />
+            <View
+              style={[
+                styles.handle,
+                { backgroundColor: colorScheme === 'dark' ? '#666' : '#E5E5E5' },
+              ]}
+            />
             <XStack alignItems="center" gap="$2">
-              <Feather name="map" size={16} color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} />
-              <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}>
+              <Feather
+                name="map"
+                size={16}
+                color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+              />
+              <Text
+                fontSize="$4"
+                fontWeight="600"
+                color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+              >
                 {searchFilteredRoutes.length}{' '}
                 {searchFilteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
               </Text>
@@ -384,8 +503,6 @@ export const RoutesDrawer = React.forwardRef<
               placeholderTextColor={theme.gray10?.val || '#999'}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
               returnKeyType="search"
               autoCapitalize="none"
               autoCorrect={false}

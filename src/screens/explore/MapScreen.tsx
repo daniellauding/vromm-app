@@ -7,8 +7,14 @@ import {
   Animated,
   Easing,
 } from 'react-native';
+import ReanimatedAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+} from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Map } from '../../components/Map';
+import { useTabletLayout } from '../../hooks/useTabletLayout';
 
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp, FilterCategory } from '../../types/navigation';
@@ -70,6 +76,28 @@ export function MapScreen({
   const { profile } = useAuth();
   const { getEffectiveUserId } = useStudentSwitch();
   const { collections: userCollections } = useUserCollections();
+  
+  // Tablet layout detection
+  const { isTablet } = useTabletLayout();
+  
+  // Drawer state for tablet
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const drawerTranslateX = useSharedValue(-100); // Start off-screen (hidden)
+  
+  // Animated drawer style
+  const animatedDrawerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: `${drawerTranslateX.value}%` }],
+  }));
+  
+  // Toggle drawer
+  const toggleDrawer = useCallback(() => {
+    const newState = !isDrawerOpen;
+    setIsDrawerOpen(newState);
+    drawerTranslateX.value = withSpring(newState ? 0 : -100, {
+      damping: 20,
+      stiffness: 300,
+    });
+  }, [isDrawerOpen, drawerTranslateX]);
 
   const [isMapReady, setIsMapReady] = useState(false);
   const { showModal } = useModal();
@@ -1144,17 +1172,85 @@ export function MapScreen({
         )}
         hasActiveFilters={filters && Object.keys(filters).length > 0}
       />
-      <View style={{ flex: 1 }}>
-        <Map
-          waypoints={allWaypoints}
-          region={region}
-          onPress={handleMapPress}
-          style={StyleSheet.absoluteFillObject}
-          selectedPin={selectedPin}
-          onMarkerPress={handleMarkerPress}
-          ref={mapRef}
-          routePathColor={PIN_COLORS.ROUTE_PATH}
-        />
+      <View style={{ flex: 1, flexDirection: isTablet ? 'row' : 'column' }}>
+        {/* iPad: Collapsible Routes Drawer on Left (30%) */}
+        {isTablet && !selectedRoute && (
+          <ReanimatedAnimated.View
+            style={[
+              {
+                width: '30%',
+                borderRightWidth: 1,
+                borderRightColor: theme.borderColor?.val || '#E5E5E5',
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                zIndex: 100,
+                backgroundColor: theme.background?.val || '#FFFFFF',
+              },
+              animatedDrawerStyle,
+            ]}
+          >
+            <RoutesDrawer
+              selectedRoute={selectedRoute}
+              filteredRoutes={activeRoutes}
+              loadRoutes={loadRoutes}
+              onClearFilters={() => {
+                setFilters({});
+                setAppliedFilters({});
+              }}
+              hasActiveFilters={filters && Object.keys(filters).length > 0}
+              onExpandSearch={handleExpandSearch}
+              onRoutePress={handleRoutePress}
+              isTabletSidebar={true}
+            />
+          </ReanimatedAnimated.View>
+        )}
+        
+        {/* Drawer Toggle Button (iPad only) */}
+        {isTablet && !selectedRoute && (
+          <TouchableOpacity
+            onPress={toggleDrawer}
+            style={{
+              position: 'absolute',
+              left: isDrawerOpen ? '30%' : 0,
+              top: 160,
+              zIndex: 101,
+              backgroundColor: theme.background?.val || '#FFFFFF',
+              paddingVertical: 40,
+              paddingHorizontal: 8,
+              borderTopRightRadius: 8,
+              borderBottomRightRadius: 8,
+              borderWidth: 1,
+              borderLeftWidth: 0,
+              borderColor: theme.borderColor?.val || '#E5E5E5',
+              shadowColor: '#000',
+              shadowOffset: { width: 2, height: 0 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+          >
+            <Feather
+              name={isDrawerOpen ? 'chevron-left' : 'chevron-right'}
+              size={20}
+              color={theme.color?.val || '#000000'}
+            />
+          </TouchableOpacity>
+        )}
+
+        {/* Map Container */}
+        <View style={{ flex: 1 }}>
+          <Map
+            waypoints={allWaypoints}
+            region={region}
+            onPress={handleMapPress}
+            style={StyleSheet.absoluteFillObject}
+            selectedPin={selectedPin}
+            onMarkerPress={handleMarkerPress}
+            ref={mapRef}
+            routePathColor={PIN_COLORS.ROUTE_PATH}
+          />
 
         {/* Route Creation Banner */}
         <RouteCreationBanner
@@ -1301,8 +1397,11 @@ export function MapScreen({
             )}
           </TouchableOpacity>
         </View>
+        </View>
       </View>
-      {selectedRoute ? null : (
+      
+      {/* Mobile: Routes Drawer at Bottom */}
+      {!isTablet && !selectedRoute && (
         <RoutesDrawer
           selectedRoute={selectedRoute}
           filteredRoutes={activeRoutes}

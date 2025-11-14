@@ -1163,7 +1163,6 @@ export function DailyStatus({
       {/* Daily Status Input-like Box - Fully Clickable with Animated Gradient Border */}
       <View
         style={{
-          marginHorizontal: 16,
           marginBottom: 12,
           borderRadius: 12,
           padding: showGradientBorder ? 2 : 0,

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import React, { useState, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Input } from 'tamagui';
 import { TouchableOpacity, Modal, Alert, Animated } from 'react-native';
@@ -142,7 +143,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
   // Helper to get translation with fallback
-  const getT = (key: string, fallbackKey: keyof typeof WEEKLY_GOAL_FALLBACKS['en']): string => {
+  const getT = (key: string, fallbackKey: keyof (typeof WEEKLY_GOAL_FALLBACKS)['en']): string => {
     const translation = t(key);
     if (translation === key) {
       const lang = (language === 'sv' ? 'sv' : 'en') as 'en' | 'sv';
@@ -213,7 +214,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
             });
             const { sound } = await Audio.Sound.createAsync(
               require('../../../assets/sounds/ui-celebration.mp3'),
-              { shouldPlay: true, volume: 0.6 }
+              { shouldPlay: true, volume: 0.6 },
             );
             sound.setOnPlaybackStatusUpdate((status) => {
               if (status.isLoaded && status.didJustFinish) {
@@ -303,7 +304,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
     } finally {
       setLoading(false);
     }
-  }, [effectiveUserId, weeklyGoal, currentWeekOffset, checkForCelebration]);
+  }, [effectiveUserId, weeklyGoal, currentWeekOffset, checkForCelebration, language]);
 
   // Load progress when user changes or week changes
   useEffect(() => {
@@ -549,6 +550,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                     return (
                       <YStack
                         key={day.date}
+                        flex={1}
                         alignItems="center"
                         gap="$1"
                         backgroundColor={
@@ -674,7 +676,12 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                     ? ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön']
                     : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
                   ).map((dayName, index) => (
-                    <YStack key={`placeholder-${dayName}-${index}`} alignItems="center" gap="$1">
+                    <YStack
+                      key={`placeholder-${dayName}-${index}`}
+                      flex={1}
+                      alignItems="center"
+                      gap="$1"
+                    >
                       <DayProgressCircle
                         progress={0}
                         size={32}
@@ -899,9 +906,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
               borderRadius="$3"
             >
               <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
-                {language === 'sv'
-                  ? '📊 Hur Veckomål Fungerar'
-                  : '📊 How Weekly Goals Work'}
+                {language === 'sv' ? '📊 Hur Veckomål Fungerar' : '📊 How Weekly Goals Work'}
               </Text>
               <Text fontSize="$3" color={colorScheme === 'dark' ? '#CCC' : '#666'}>
                 {language === 'sv'
