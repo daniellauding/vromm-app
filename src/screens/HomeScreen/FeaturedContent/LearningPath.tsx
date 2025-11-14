@@ -6,19 +6,63 @@ import { useTranslation } from '../../../contexts/TranslationContext';
 import { useUnlock } from '../../../contexts/UnlockContext';
 import { FeaturedLearningPath } from './types';
 import { FeaturedMedia } from './FeaturedMedia';
-
-const { width: screenWidth } = Dimensions.get('window');
-const cardWidth = screenWidth * 0.7;
+import {
+  FeaturedCardVariantProps,
+  getFeaturedCardSizeConfig,
+  resolveFeaturedCardProps,
+} from './variants';
 
 export const LearningPath = React.memo(function LearningPath({
   path,
   handleFeaturedPathPress,
+  size,
+  preset,
+  showIcon = true,
+  showTitle = true,
+  showDescription = true,
+  showMedia = true,
+  showActionButton = true,
+  showLockBadges = true,
+  truncateTitle = true,
+  truncateDescription = true,
 }: {
   path: FeaturedLearningPath;
   handleFeaturedPathPress: (path: FeaturedLearningPath) => void;
-}) {
+} & FeaturedCardVariantProps) {
   const { t, language: lang } = useTranslation();
   const { isPathUnlocked, hasPathPayment } = useUnlock();
+
+  // Resolve props based on preset
+  const resolvedProps = React.useMemo(
+    () =>
+      resolveFeaturedCardProps(
+        preset,
+        size,
+        showIcon,
+        showTitle,
+        showDescription,
+        showMedia,
+        showActionButton,
+        showLockBadges,
+      ),
+    [preset, size, showIcon, showTitle, showDescription, showMedia, showActionButton, showLockBadges],
+  );
+
+  const {
+    size: resolvedSize,
+    showIcon: resolvedShowIcon,
+    showTitle: resolvedShowTitle,
+    showDescription: resolvedShowDescription,
+    showMedia: resolvedShowMedia,
+    showActionButton: resolvedShowActionButton,
+    showLockBadges: resolvedShowLockBadges,
+  } = resolvedProps;
+
+  // Get size configuration
+  const sizeConfig = React.useMemo(
+    () => getFeaturedCardSizeConfig(resolvedSize, preset),
+    [resolvedSize, preset],
+  );
 
   const isPathPasswordLocked = React.useCallback(
     (path: FeaturedLearningPath): boolean => {
@@ -50,8 +94,8 @@ export const LearningPath = React.memo(function LearningPath({
       })}
     >
       <Card
-        width={cardWidth}
-        padding="$4"
+        width={sizeConfig.cardWidth}
+        padding={sizeConfig.padding}
         backgroundColor="$backgroundHover"
         borderRadius="$4"
         borderWidth={1}
@@ -63,9 +107,9 @@ export const LearningPath = React.memo(function LearningPath({
           shadowOffset: { width: 0, height: 0 },
         }}
       >
-        <YStack gap="$3" position="relative">
+        <YStack gap={sizeConfig.gap} position="relative">
           {/* Lock/Payment indicator badges (top-right corner) */}
-          {(isPasswordLocked || isPaywallLocked) && (
+          {resolvedShowLockBadges && (isPasswordLocked || isPaywallLocked) && (
             <XStack position="absolute" top={0} right={0} zIndex={10} gap="$1">
               {isPasswordLocked && (
                 <YStack
@@ -92,45 +136,73 @@ export const LearningPath = React.memo(function LearningPath({
             </XStack>
           )}
 
-          <XStack alignItems="center" gap="$2">
-            {path.icon && (
-              <Feather
-                name={path.icon as keyof typeof Feather.glyphMap}
-                size={20}
-                color="#00FFBC"
-              />
-            )}
-            <Text fontSize="$3" fontWeight="600" color="#00FFBC">
-              {(() => {
-                const translated = t('home.learningPath');
-                return translated === 'home.learningPath' ? 'Learning Path' : translated;
-              })()}
-            </Text>
-          </XStack>
+          {/* Icon and Label */}
+          {resolvedShowIcon && (
+            <XStack alignItems="center" gap="$2">
+              {path.icon && (
+                <Feather
+                  name={path.icon as keyof typeof Feather.glyphMap}
+                  size={sizeConfig.iconSize}
+                  color="#00FFBC"
+                />
+              )}
+              <Text fontSize={sizeConfig.descriptionFontSize} fontWeight="600" color="#00FFBC">
+                {(() => {
+                  const translated = t('home.learningPath');
+                  return translated === 'home.learningPath' ? 'Learning Path' : translated;
+                })()}
+              </Text>
+            </XStack>
+          )}
 
-          <Text fontSize="$5" fontWeight="bold" color="$color" numberOfLines={2}>
-            {path.title?.[lang] || path.title?.en || 'Untitled'}
-          </Text>
+          {/* Title */}
+          {resolvedShowTitle && (
+            <Text
+              fontSize={sizeConfig.titleFontSize}
+              fontWeight="bold"
+              color="$color"
+              numberOfLines={truncateTitle ? 2 : undefined}
+              ellipsizeMode={truncateTitle ? 'tail' : undefined}
+            >
+              {path.title?.[lang] || path.title?.en || 'Untitled'}
+            </Text>
+          )}
 
           {/* Media (Video/Image) */}
-          <FeaturedMedia item={path} />
+          {resolvedShowMedia && (
+            <FeaturedMedia
+              item={path}
+              size={resolvedSize}
+              cardWidth={sizeConfig.cardWidth}
+              aspectRatio={sizeConfig.mediaAspectRatio}
+            />
+          )}
 
-          {path.description?.[lang] && (
-            <Text fontSize="$3" color="$gray11" numberOfLines={3}>
+          {/* Description */}
+          {resolvedShowDescription && path.description?.[lang] && (
+            <Text
+              fontSize={sizeConfig.descriptionFontSize}
+              color="$gray11"
+              numberOfLines={truncateDescription ? 3 : undefined}
+              ellipsizeMode={truncateDescription ? 'tail' : undefined}
+            >
               {path.description[lang]}
             </Text>
           )}
 
-          <XStack alignItems="center" gap="$2" marginTop="$2">
-            <Feather name="book-open" size={16} color="$gray11" />
-            <Text fontSize="$2" color="$gray11">
-              {(() => {
-                const translated = t('home.startLearning');
-                return translated === 'home.startLearning' ? 'Start Learning' : translated;
-              })()}
-            </Text>
-            <Feather name="arrow-right" size={14} color="$gray11" />
-          </XStack>
+          {/* Action Button */}
+          {resolvedShowActionButton && (
+            <XStack alignItems="center" gap="$2" marginTop="$2">
+              <Feather name="book-open" size={sizeConfig.actionIconSize} color="$gray11" />
+              <Text fontSize={sizeConfig.descriptionFontSize} color="$gray11">
+                {(() => {
+                  const translated = t('home.startLearning');
+                  return translated === 'home.startLearning' ? 'Start Learning' : translated;
+                })()}
+              </Text>
+              <Feather name="arrow-right" size={sizeConfig.actionIconSize - 2} color="$gray11" />
+            </XStack>
+          )}
         </YStack>
       </Card>
     </Pressable>
