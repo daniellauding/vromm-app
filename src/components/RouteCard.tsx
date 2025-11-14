@@ -58,31 +58,305 @@ type Route = Database['public']['Tables']['routes']['Row'] & {
 
 type RouteCardSize = 'large' | 'medium' | 'small' | 'xs';
 
+// Preset variants for common use cases
+type RouteCardPreset =
+  | 'default' // Medium, all content
+  | 'compact' // Small, title + meta only, map/image
+  | 'minimal' // XS, title + meta only, no media
+  | 'map-only' // Small, map only with title
+  | 'image-only' // Small, image only with title
+  | 'video-only' // Small, video only with title (if route has video)
+  | 'text-only' // Title + description + author + route meta only (no media)
+  | 'title-only' // Just title, no media, no meta
+  | 'author-only' // Just author info
+  | 'meta-only' // Just route meta (difficulty, spot type, rating)
+  | 'grid' // Small, optimized for grid (3-4 visible), 4:3 aspect
+  | 'banner' // Wide banner format (16:9 aspect ratio)
+  | 'tall' // Tall portrait format (3:4 aspect ratio)
+  | 'square' // Square format (1:1 aspect ratio)
+  | 'hero' // Netflix-style: tall, title/text above media, no meta
+  | 'miniature'; // XS, map only, minimal info
+
 interface RouteCardProps {
   route: Route;
   onPress?: () => void;
   // Size variants
   size?: RouteCardSize;
+  // Preset variants (overrides individual props)
+  preset?: RouteCardPreset;
   // Visibility props - all default to true to maintain current behavior
   showMap?: boolean;
   showImage?: boolean;
+  showVideo?: boolean; // Show/hide videos (default: true, respects showImage for carousel)
   showTitle?: boolean;
   showDescription?: boolean;
   showAuthor?: boolean;
   showRouteMeta?: boolean;
+  // Carousel/Slider control - default true (enables swipe/loop when multiple items)
+  enableCarousel?: boolean;
+  // Truncation control - default true (shows ellipsis when text doesn't fit)
+  truncateTitle?: boolean; // If false, allows title to wrap to multiple lines
+  truncateDescription?: boolean; // If false, allows description to wrap to multiple lines
+  truncateAuthor?: boolean; // If false, allows author name to wrap
+  truncateMeta?: boolean; // If false, allows meta text to wrap
 }
 
 export function RouteCard({
   route,
   onPress,
-  size = 'medium',
+  size,
+  preset,
   showMap = true,
   showImage = true,
+  showVideo = true,
   showTitle = true,
   showDescription = true,
   showAuthor = true,
   showRouteMeta = true,
+  enableCarousel = true,
+  truncateTitle = true,
+  truncateDescription = true,
+  truncateAuthor = true,
+  truncateMeta = true,
 }: RouteCardProps) {
+  // Apply preset if provided (sets defaults, but individual props can override)
+  const resolvedProps = React.useMemo(() => {
+    // Start with defaults or preset values
+    let presetConfig: {
+      size: RouteCardSize;
+      showMap: boolean;
+      showImage: boolean;
+      showVideo: boolean;
+      showTitle: boolean;
+      showDescription: boolean;
+      showAuthor: boolean;
+      showRouteMeta: boolean;
+      enableCarousel: boolean;
+    } = {
+      size: (size || 'medium') as RouteCardSize,
+      showMap,
+      showImage,
+      showVideo,
+      showTitle,
+      showDescription,
+      showAuthor,
+      showRouteMeta,
+      enableCarousel,
+    };
+
+    // Apply preset defaults if preset is provided (individual props can override)
+    if (preset && preset !== 'default') {
+      switch (preset) {
+        case 'compact':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : true,
+            showImage: showImage !== undefined ? showImage : true,
+            showVideo: showVideo !== undefined ? showVideo : true,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+        case 'minimal':
+          presetConfig = {
+            size: size || 'xs',
+            showMap: showMap !== undefined ? showMap : false,
+            showImage: showImage !== undefined ? showImage : false,
+            showVideo: showVideo !== undefined ? showVideo : false,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : false,
+          };
+          break;
+        case 'map-only':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : true,
+            showImage: showImage !== undefined ? showImage : false,
+            showVideo: showVideo !== undefined ? showVideo : false,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+        case 'image-only':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : false,
+            showImage: showImage !== undefined ? showImage : true,
+            showVideo: showVideo !== undefined ? showVideo : false,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+        case 'video-only':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : false,
+            showImage: showImage !== undefined ? showImage : false,
+            showVideo: showVideo !== undefined ? showVideo : true,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+        case 'text-only':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : false,
+            showImage: showImage !== undefined ? showImage : false,
+            showVideo: showVideo !== undefined ? showVideo : false,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : true,
+            showAuthor: showAuthor !== undefined ? showAuthor : true,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : false,
+          };
+          break;
+        case 'title-only':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : false,
+            showImage: showImage !== undefined ? showImage : false,
+            showVideo: showVideo !== undefined ? showVideo : false,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : false,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : false,
+          };
+          break;
+        case 'author-only':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : false,
+            showImage: showImage !== undefined ? showImage : false,
+            showVideo: showVideo !== undefined ? showVideo : false,
+            showTitle: showTitle !== undefined ? showTitle : false,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : true,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : false,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : false,
+          };
+          break;
+        case 'meta-only':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : false,
+            showImage: showImage !== undefined ? showImage : false,
+            showVideo: showVideo !== undefined ? showVideo : false,
+            showTitle: showTitle !== undefined ? showTitle : false,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : false,
+          };
+          break;
+        case 'grid':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : true,
+            showImage: showImage !== undefined ? showImage : true,
+            showVideo: showVideo !== undefined ? showVideo : true,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+        case 'banner':
+          presetConfig = {
+            size: size || 'medium',
+            showMap: showMap !== undefined ? showMap : true,
+            showImage: showImage !== undefined ? showImage : true,
+            showVideo: showVideo !== undefined ? showVideo : true,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+        case 'tall':
+          presetConfig = {
+            size: size || 'medium',
+            showMap: showMap !== undefined ? showMap : true,
+            showImage: showImage !== undefined ? showImage : true,
+            showVideo: showVideo !== undefined ? showVideo : true,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+        case 'square':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : true,
+            showImage: showImage !== undefined ? showImage : true,
+            showVideo: showVideo !== undefined ? showVideo : true,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+        case 'miniature':
+          presetConfig = {
+            size: size || 'xs',
+            showMap: showMap !== undefined ? showMap : true,
+            showImage: showImage !== undefined ? showImage : false,
+            showVideo: showVideo !== undefined ? showVideo : false,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : false,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+      }
+    }
+
+    return presetConfig;
+  }, [
+    preset,
+    size,
+    showMap,
+    showImage,
+    showVideo,
+    showTitle,
+    showDescription,
+    showAuthor,
+    showRouteMeta,
+    enableCarousel,
+  ]);
+
+  const {
+    size: resolvedSize,
+    showMap: resolvedShowMap,
+    showImage: resolvedShowImage,
+    showVideo: resolvedShowVideo,
+    showTitle: resolvedShowTitle,
+    showDescription: resolvedShowDescription,
+    showAuthor: resolvedShowAuthor,
+    showRouteMeta: resolvedShowRouteMeta,
+    enableCarousel: resolvedEnableCarousel,
+  } = resolvedProps;
   const navigation = useNavigation<NavigationProp>();
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
@@ -95,13 +369,73 @@ export function RouteCard({
     return translated && translated !== key ? translated : fallback;
   };
 
-  // Size-based styling
+  // Calculate aspect ratio based on preset
+  const getAspectRatio = React.useMemo(() => {
+    if (!preset) return null;
+
+    switch (preset) {
+      case 'banner':
+        return 16 / 9; // Wide banner
+      case 'tall':
+        return 3 / 4; // Portrait/tall
+      case 'square':
+        return 1; // Square
+      case 'grid':
+        return 4 / 3; // 4:3 for grid
+      case 'hero':
+        return 2 / 3; // Netflix-style tall (3:2 or taller)
+      default:
+        return null; // Use default sizing
+    }
+  }, [preset]);
+
+  // Size-based styling with aspect ratio support
   const sizeConfig = React.useMemo(() => {
-    switch (size) {
+    const screenWidth = Dimensions.get('window').width;
+    const screenHeight = Dimensions.get('window').height;
+
+    // Calculate card width for grid layouts
+    const getCardWidth = () => {
+      if (preset === 'grid') {
+        return (screenWidth - 32 - 24) / 3.5; // For 3-4 cards visible
+      }
+      if (resolvedSize === 'small') {
+        return screenWidth - 32; // Full width minus padding
+      }
+      return screenWidth - 32;
+    };
+
+    const cardWidth = getCardWidth();
+    let carouselHeight: number;
+
+    // Apply aspect ratio if preset specifies one
+    if (getAspectRatio) {
+      carouselHeight = cardWidth / getAspectRatio;
+    } else {
+      // Default height calculations
+      switch (resolvedSize) {
+        case 'large':
+          carouselHeight = screenHeight * 0.35;
+          break;
+        case 'small': {
+          carouselHeight = cardWidth * 0.75; // Default 4:3 for small
+          break;
+        }
+        case 'xs':
+          carouselHeight = screenWidth * 0.5; // Square-ish
+          break;
+        case 'medium':
+        default:
+          carouselHeight = screenHeight * 0.3;
+          break;
+      }
+    }
+
+    switch (resolvedSize) {
       case 'large':
         return {
           padding: '$5' as const,
-          carouselHeight: Dimensions.get('window').height * 0.35,
+          carouselHeight,
           titleFontSize: '$6' as const,
           iconSize: 18,
           textFontSize: '$4' as const,
@@ -109,21 +443,10 @@ export function RouteCard({
           space: '$4' as const,
           metaSpace: '$4' as const,
         };
-      case 'small':
+      case 'small': {
         return {
-          padding: '$3' as const,
-          carouselHeight: Dimensions.get('window').height * 0.2,
-          titleFontSize: '$4' as const,
-          iconSize: 14,
-          textFontSize: '$3' as const,
-          metaIconSize: 14,
-          space: '$2' as const,
-          metaSpace: '$2' as const,
-        };
-      case 'xs':
-        return {
-          padding: '$2' as const,
-          carouselHeight: Dimensions.get('window').height * 0.15,
+          padding: '$2.5' as const,
+          carouselHeight,
           titleFontSize: '$3' as const,
           iconSize: 12,
           textFontSize: '$2' as const,
@@ -131,11 +454,23 @@ export function RouteCard({
           space: '$1.5' as const,
           metaSpace: '$1.5' as const,
         };
+      }
+      case 'xs':
+        return {
+          padding: '$2' as const,
+          carouselHeight,
+          titleFontSize: '$2' as const,
+          iconSize: 10,
+          textFontSize: '$1' as const,
+          metaIconSize: 10,
+          space: '$1' as const,
+          metaSpace: '$1' as const,
+        };
       case 'medium':
       default:
         return {
           padding: '$4' as const,
-          carouselHeight: Dimensions.get('window').height * 0.3,
+          carouselHeight,
           titleFontSize: '$5' as const,
           iconSize: 16,
           textFontSize: '$4' as const,
@@ -144,16 +479,25 @@ export function RouteCard({
           metaSpace: '$4' as const,
         };
     }
-  }, [size]);
+  }, [resolvedSize, preset, getAspectRatio]);
 
   // Check if we should show carousel (RouteDetailsCarousel will handle filtering internally)
   const shouldShowCarousel = React.useMemo(() => {
-    if (!showMap && !showImage) return false;
+    if (!resolvedShowMap && !resolvedShowImage && !resolvedShowVideo) return false;
     // Check if route has content to show
     const hasWaypoints = route?.waypoint_details?.length > 0;
     const hasMedia = route?.media_attachments?.length > 0;
-    return (showMap && hasWaypoints) || (showImage && hasMedia);
-  }, [route, showMap, showImage]);
+    const hasVideo =
+      hasMedia &&
+      route?.media_attachments?.some(
+        (m: { type?: string }) => m.type === 'video' || m.type === 'youtube',
+      );
+    return (
+      (resolvedShowMap && hasWaypoints) ||
+      (resolvedShowImage && hasMedia) ||
+      (resolvedShowVideo && hasVideo)
+    );
+  }, [route, resolvedShowMap, resolvedShowImage, resolvedShowVideo]);
 
   // Animation values
   const scale = useSharedValue(1);
@@ -214,36 +558,59 @@ export function RouteCard({
   const renderCarousel = () => {
     if (!shouldShowCarousel) return null;
 
-    // For medium and large, use the full carousel
-    if (size === 'medium' || size === 'large') {
-      return (
-        <RouteDetailsCarousel
-          routeData={route}
-          showMap={showMap}
-          showImage={showImage}
-          height={sizeConfig.carouselHeight}
-        />
-      );
-    }
-
-    // For small and xs, show just the first item (simplified)
-    // We need to get the first filtered item
+    // Get filtered items
     const allItems = getCarouselItems(route);
     const filteredItems = allItems.filter((item: { type: string }) => {
-      if (item.type === 'map') return showMap;
-      if (item.type === 'image') return showImage;
-      return showImage;
+      if (item.type === 'map') return resolvedShowMap;
+      if (item.type === 'image') return resolvedShowImage;
+      // For videos and youtube, respect showImage prop
+      return resolvedShowImage;
     });
 
     if (filteredItems.length === 0) return null;
 
+    // For medium, large, and hero, use RouteDetailsCarousel (supports carousel)
+    if (resolvedSize === 'medium' || resolvedSize === 'large' || preset === 'hero') {
+      return (
+        <RouteDetailsCarousel
+          routeData={route}
+          showMap={resolvedShowMap}
+          showImage={resolvedShowImage}
+          showVideo={resolvedShowVideo}
+          height={sizeConfig.carouselHeight}
+          enableCarousel={resolvedEnableCarousel}
+        />
+      );
+    }
+
+    // For small and xs, show carousel if enabled and multiple items, otherwise first item
+    const shouldShowCarouselForSmall = resolvedEnableCarousel && filteredItems.length > 1;
+
+    if (shouldShowCarouselForSmall) {
+      // Use carousel for small sizes when enabled and multiple items
+      return (
+        <RouteDetailsCarousel
+          routeData={route}
+          showMap={resolvedShowMap}
+          showImage={resolvedShowImage}
+          showVideo={resolvedShowVideo}
+          height={sizeConfig.carouselHeight}
+          enableCarousel={resolvedEnableCarousel}
+        />
+      );
+    }
+
+    // Single item view for small/xs when carousel disabled or only one item
+    // Match card border radius (16px = $4 in Tamagui) - only top corners
+    const cardBorderRadius = 16;
     return (
       <View
         style={{
           height: sizeConfig.carouselHeight,
-          borderRadius: 12,
+          borderTopLeftRadius: cardBorderRadius,
+          borderTopRightRadius: cardBorderRadius,
           overflow: 'hidden',
-          marginBottom: size === 'xs' ? 8 : 12,
+          marginBottom: resolvedSize === 'xs' ? 6 : 10,
         }}
       >
         <CarouselItem item={filteredItems[0]} />
@@ -251,24 +618,112 @@ export function RouteCard({
     );
   };
 
+  // Hero variant: title/text above media
+  const isHeroVariant = preset === 'hero';
+
   return (
     <Animated.View style={animatedStyle}>
-      <Card padding={sizeConfig.padding} onPress={handlePress}>
+      <Card padding={sizeConfig.padding} onPress={handlePress} borderRadius="$4" overflow="hidden">
         <YStack space={sizeConfig.space}>
+          {/* Hero variant: Title and description above media */}
+          {isHeroVariant && (
+            <YStack space={sizeConfig.space}>
+              {/* Title */}
+              {resolvedShowTitle && (
+                <Text
+                  fontSize={sizeConfig.titleFontSize}
+                  fontWeight="bold"
+                  numberOfLines={truncateTitle ? 2 : undefined}
+                  ellipsizeMode={truncateTitle ? 'tail' : undefined}
+                >
+                  {route.name}
+                </Text>
+              )}
+              {/* Description */}
+              {resolvedShowDescription && route.description && !isRecordedRoute(route) && (
+                <Text
+                  numberOfLines={truncateDescription ? 3 : undefined}
+                  fontSize={sizeConfig.textFontSize}
+                  color="$gray11"
+                  ellipsizeMode={truncateDescription ? 'tail' : undefined}
+                >
+                  {route.description}
+                </Text>
+              )}
+              {/* Author */}
+              {resolvedShowAuthor && (
+                <XStack space="$2" alignItems="center" flexShrink={1}>
+                  {(route.creator as unknown as { avatar_url?: string })?.avatar_url ? (
+                    <Image
+                      source={{
+                        uri: (route.creator as unknown as { avatar_url?: string }).avatar_url!,
+                      }}
+                      style={{
+                        width: sizeConfig.iconSize,
+                        height: sizeConfig.iconSize,
+                        borderRadius: sizeConfig.iconSize / 2,
+                      }}
+                    />
+                  ) : (
+                    <Feather name="user" size={sizeConfig.iconSize} color={iconColor} />
+                  )}
+                  <Text
+                    fontSize={sizeConfig.textFontSize}
+                    color="$gray11"
+                    numberOfLines={truncateAuthor ? 1 : undefined}
+                    ellipsizeMode={truncateAuthor ? 'tail' : undefined}
+                    flex={truncateAuthor ? 1 : undefined}
+                    onPress={() => {
+                      console.log('RouteCard: Navigating to profile, creator:', route.creator);
+                      if (route.creator?.id) {
+                        console.log('RouteCard: Using creator.id:', route.creator.id);
+                        navigation.navigate('PublicProfile', { userId: route.creator.id });
+                      } else if (route.creator_id) {
+                        console.log('RouteCard: Using creator_id:', route.creator_id);
+                        navigation.navigate('PublicProfile', { userId: route.creator_id });
+                      } else {
+                        console.log('RouteCard: No creator ID available');
+                      }
+                    }}
+                    pressStyle={{ opacity: 0.7 }}
+                  >
+                    {route.creator?.full_name ||
+                      getTranslation('common.unknown', language === 'sv' ? 'Okänd' : 'Unknown')}
+                  </Text>
+                </XStack>
+              )}
+            </YStack>
+          )}
+
           {/* Carousel/Map/Image */}
           {renderCarousel()}
 
           <YStack space={sizeConfig.space}>
-            {/* Title */}
-            {showTitle && (
-              <Text fontSize={sizeConfig.titleFontSize} fontWeight="bold">
+            {/* Title - only show if not hero variant */}
+            {resolvedShowTitle && !isHeroVariant && (
+              <Text
+                fontSize={sizeConfig.titleFontSize}
+                fontWeight="bold"
+                numberOfLines={
+                  truncateTitle
+                    ? resolvedSize === 'xs'
+                      ? 1
+                      : resolvedSize === 'small'
+                        ? 2
+                        : resolvedSize === 'medium'
+                          ? 2
+                          : 3
+                    : undefined
+                }
+                ellipsizeMode={truncateTitle ? 'tail' : undefined}
+              >
                 {route.name}
               </Text>
             )}
 
-            {/* Author */}
-            {showAuthor && (
-              <XStack space="$2" alignItems="center">
+            {/* Author - only show if not hero variant */}
+            {resolvedShowAuthor && !isHeroVariant && (
+              <XStack space="$2" alignItems="center" flexShrink={1}>
                 {(route.creator as unknown as { avatar_url?: string })?.avatar_url ? (
                   <Image
                     source={{
@@ -283,7 +738,12 @@ export function RouteCard({
                 ) : (
                   <Feather name="user" size={sizeConfig.iconSize} color={iconColor} />
                 )}
-                <Text fontSize={sizeConfig.textFontSize} color="$gray11"
+                <Text
+                  fontSize={sizeConfig.textFontSize}
+                  color="$gray11"
+                  numberOfLines={truncateAuthor ? 1 : undefined}
+                  ellipsizeMode={truncateAuthor ? 'tail' : undefined}
+                  flex={truncateAuthor ? 1 : undefined}
                   onPress={() => {
                     console.log('RouteCard: Navigating to profile, creator:', route.creator);
                     if (route.creator?.id) {
@@ -305,12 +765,16 @@ export function RouteCard({
             )}
 
             {/* Route Meta (Difficulty, Spot Type, Rating) */}
-            {showRouteMeta && (
+            {resolvedShowRouteMeta && (
               <>
                 <XStack space={sizeConfig.metaSpace} flexWrap="wrap">
-                  <XStack space="$1" alignItems="center">
+                  <XStack space="$1" alignItems="center" flexShrink={1}>
                     <Feather name="bar-chart" size={sizeConfig.metaIconSize} color={iconColor} />
-                    <Text fontSize={sizeConfig.textFontSize}>
+                    <Text
+                      fontSize={sizeConfig.textFontSize}
+                      numberOfLines={truncateMeta ? 1 : undefined}
+                      ellipsizeMode={truncateMeta ? 'tail' : undefined}
+                    >
                       {route.difficulty === 'beginner'
                         ? getTranslation(
                             'filters.difficulty.beginner',
@@ -330,9 +794,14 @@ export function RouteCard({
                     </Text>
                   </XStack>
 
-                  <XStack space="$1" alignItems="center">
+                  <XStack space="$1" alignItems="center" flexShrink={1}>
                     <Feather name="map-pin" size={sizeConfig.metaIconSize} color={iconColor} />
-                    <Text fontSize={sizeConfig.textFontSize}>
+                    <Text
+                      fontSize={sizeConfig.textFontSize}
+                      numberOfLines={truncateMeta ? 1 : undefined}
+                      ellipsizeMode={truncateMeta ? 'tail' : undefined}
+                      flexShrink={1}
+                    >
                       {route.spot_type === 'urban'
                         ? getTranslation(
                             'filters.spotType.urban',
@@ -358,14 +827,25 @@ export function RouteCard({
                   </XStack>
                 </XStack>
 
-                <XStack space="$2" alignItems="center">
+                <XStack space="$2" alignItems="center" flexShrink={1}>
                   <XStack space="$1" alignItems="center">
                     <Feather name="star" size={sizeConfig.metaIconSize} color={iconColor} />
-                    <Text fontSize={sizeConfig.textFontSize} fontWeight="bold" color="$yellow10">
+                    <Text
+                      fontSize={sizeConfig.textFontSize}
+                      fontWeight="bold"
+                      color="$yellow10"
+                      numberOfLines={truncateMeta ? 1 : undefined}
+                    >
                       {route.reviews?.[0]?.rating?.toFixed(1) || '0.0'}
                     </Text>
                   </XStack>
-                  <Text fontSize={sizeConfig.textFontSize} color="$gray11">
+                  <Text
+                    fontSize={sizeConfig.textFontSize}
+                    color="$gray11"
+                    numberOfLines={truncateMeta ? 1 : undefined}
+                    ellipsizeMode={truncateMeta ? 'tail' : undefined}
+                    flexShrink={1}
+                  >
                     {route.reviews?.length || 0}{' '}
                     {route.reviews?.length === 1
                       ? getTranslation('route.review', language === 'sv' ? 'recension' : 'review')
@@ -395,16 +875,30 @@ export function RouteCard({
                 );
               })()}
 
-            {/* Description */}
-            {showDescription && route.description && !isRecordedRoute(route) && (
-              <Text
-                numberOfLines={size === 'xs' ? 1 : size === 'small' ? 2 : 2}
-                fontSize={sizeConfig.textFontSize}
-                color="$gray11"
-              >
-                {route.description}
-              </Text>
-            )}
+            {/* Description - only show if not hero variant */}
+            {resolvedShowDescription &&
+              route.description &&
+              !isRecordedRoute(route) &&
+              !isHeroVariant && (
+                <Text
+                  numberOfLines={
+                    truncateDescription
+                      ? resolvedSize === 'xs'
+                        ? 1
+                        : resolvedSize === 'small'
+                          ? 2
+                          : resolvedSize === 'medium'
+                            ? 3
+                            : 4
+                      : undefined
+                  }
+                  fontSize={sizeConfig.textFontSize}
+                  color="$gray11"
+                  ellipsizeMode={truncateDescription ? 'tail' : undefined}
+                >
+                  {route.description}
+                </Text>
+              )}
           </YStack>
         </YStack>
       </Card>

@@ -193,8 +193,9 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
           contentContainerStyle={{ paddingVertical: 8 }}
           renderItem={({ item: route }) => (
             <XStack marginRight="$3">
-              <RouteCard 
-                route={route} 
+              <RouteCard
+                route={route as any}
+                preset="compact"
                 onPress={() => {
                   if (onRoutePress) {
                     onRoutePress(route.id);
@@ -203,7 +204,7 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
                   }
                 }}
               />
-                      </XStack>
+            </XStack>
           )}
         />
       ) : (
