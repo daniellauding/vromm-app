@@ -152,17 +152,41 @@ interface RouteDetailSheetProps {
   onRouteChange?: (routeId: string) => void;
 }
 
-export default function RouteDetailsCarousel({ routeData }: { routeData: any }) {
+interface RouteDetailsCarouselProps {
+  routeData: any;
+  showMap?: boolean;
+  showImage?: boolean;
+  height?: number;
+}
+
+export default function RouteDetailsCarousel({
+  routeData,
+  showMap = true,
+  showImage = true,
+  height: customHeight,
+}: RouteDetailsCarouselProps) {
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
-  const carouselItems = React.useMemo(() => getCarouselItems(routeData), [routeData]);
+  const carouselItems = React.useMemo(() => {
+    const allItems = getCarouselItems(routeData);
+    // Filter based on showMap/showImage props
+    return allItems.filter((item: any) => {
+      if (item.type === 'map') return showMap;
+      if (item.type === 'image') return showImage;
+      // For videos and youtube, respect showImage prop
+      return showImage;
+    });
+  }, [routeData, showMap, showImage]);
+
+  const carouselHeight = customHeight ?? height * 0.3;
+
   if (carouselItems.length === 0) return null;
 
   if (carouselItems.length === 1) {
     return (
       <View
         style={{
-          height: height * 0.3,
+          height: carouselHeight,
           borderRadius: 12,
           overflow: 'hidden',
           marginBottom: 16,
@@ -176,7 +200,7 @@ export default function RouteDetailsCarousel({ routeData }: { routeData: any }) 
   return (
     <View
       style={{
-        height: height * 0.3,
+        height: carouselHeight,
         borderRadius: 12,
         overflow: 'hidden',
         marginBottom: 16,
@@ -185,7 +209,7 @@ export default function RouteDetailsCarousel({ routeData }: { routeData: any }) 
       <Carousel
         loop
         width={width - 32}
-        height={height * 0.3}
+        height={carouselHeight}
         data={carouselItems}
         renderItem={({ item }) => <CarouselItem item={item} />}
         onSnapToItem={setActiveMediaIndex}
