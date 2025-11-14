@@ -5,7 +5,6 @@ import {
   StyleProp,
   ViewStyle,
   Text as RNText,
-  useColorScheme,
 } from 'react-native';
 import MapView, { Marker, Region } from '../MapView';
 import { StyleSheet } from 'react-native';
@@ -13,6 +12,7 @@ import { Text, Circle } from 'tamagui';
 import Supercluster from 'supercluster';
 import RouterDrawing from './RouterDrawing.native';
 import { lightMapStyle, darkMapStyle, PIN_COLORS } from '../../styles/mapStyles';
+import { useThemePreference } from '../../hooks/useThemeOverride';
 
 export type Waypoint = {
   latitude: number;
@@ -336,7 +336,8 @@ export function Map({
 }) {
   const mapRef = React.useRef<MapView>(null);
   const currentRegion = React.useRef<Region | null>(null);
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const [clusters, setClusters] = useState<
     (
       | Supercluster.PointFeature<Supercluster.AnyProps>
@@ -466,7 +467,7 @@ export function Map({
         onPress={onPress}
         onRegionChangeComplete={handleRegionChange}
         customMapStyle={colorScheme === 'dark' ? darkMapStyle : lightMapStyle}
-        userInterfaceStyle={colorScheme || 'light'}
+        userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}
       >
         <RouterDrawing
           routePath={routePath}

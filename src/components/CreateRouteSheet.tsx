@@ -3287,7 +3287,7 @@ export function CreateRouteSheet({
                                     rotateEnabled={!(drawingMode === 'pen' && isDrawing)}
                                     moveOnMarkerPress={false}
                                     showsUserLocation={true}
-                                    userInterfaceStyle="dark"
+                                    userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}
                                     zoomTapEnabled={
                                       !(
                                         drawingMode === 'pen' &&

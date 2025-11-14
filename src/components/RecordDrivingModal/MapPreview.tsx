@@ -6,10 +6,13 @@ import { styles } from './styles';
 import { useRecording } from '@/src/contexts/RecordingContext';
 import { useUserLocation } from '../../screens/explore/hooks';
 import { PIN_COLORS } from '@/src/styles/mapStyles';
+import { useThemePreference } from '@/src/hooks/useThemeOverride';
 
 export default function MapPreview() {
   const { recordingState } = useRecording();
   const userLocation = useUserLocation();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const region = React.useMemo(() => {
     if (recordingState?.waypoints?.length > 0) {
       return {
@@ -62,7 +65,7 @@ export default function MapPreview() {
         style={styles.map}
         region={region}
         showsUserLocation={true}
-        userInterfaceStyle="dark"
+        userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}
       >
         {/* Route Path */}
         {path.length > 1 && (
