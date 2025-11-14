@@ -45,11 +45,13 @@ export default function RouteActions({
   routeData,
   onClose,
   handleRefresh,
+  onOpenReviewSheet,
 }: {
   routeId: string | null;
   routeData: any;
   onClose: () => void;
   handleRefresh: () => void;
+  onOpenReviewSheet?: () => void;
 }) {
   const { showToast } = useToast();
   const { t } = useTranslation();
@@ -169,8 +171,10 @@ export default function RouteActions({
       // Play sound and haptic
       playActionSound();
 
-      // First time marking as driven
-      if (navigation) {
+      // First time marking as driven - open review sheet if callback provided, otherwise navigate
+      if (onOpenReviewSheet) {
+        onOpenReviewSheet();
+      } else if (navigation) {
         try {
           navigation.navigate('AddReview', {
             routeId: routeId!,
@@ -194,7 +198,7 @@ export default function RouteActions({
         });
       }
     }
-  }, [user, isDriven, routeId, showToast, t, navigation, onClose]);
+  }, [user, isDriven, routeId, showToast, t, navigation, onClose, onOpenReviewSheet]);
 
   return (
     <YStack gap="$3">

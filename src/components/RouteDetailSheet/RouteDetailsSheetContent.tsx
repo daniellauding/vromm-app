@@ -55,6 +55,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { PIN_COLORS } from '../../styles/mapStyles';
 import { CreateRouteSheet } from './../CreateRouteSheet';
 import { UserProfileSheet } from './../UserProfileSheet';
+import { AddReviewSheet } from './../AddReviewSheet';
 
 import { getCarouselItems } from './utils';
 import CarouselItem from './CarouselItem';
@@ -168,6 +169,8 @@ export default function RouteDetailsSheetContent({
   error,
   onClose,
   showAdminControls,
+  onReopen,
+  onOpenReviewSheet,
 }: {
   routeId: string | null;
   routeData: any;
@@ -182,14 +185,57 @@ export default function RouteDetailsSheetContent({
   showAdminControls: boolean;
   error: string | null;
   onClose: () => void;
+  onReopen?: () => void;
+  onOpenReviewSheet?: () => void;
 }) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
+  const theme = useTheme();
+  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
+  const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [showAdminDeleteConfirmSheet, setShowAdminDeleteConfirmSheet] = useState(false);
+  const [showReviewSheet, setShowReviewSheet] = useState(false);
+  const [showDrivenOptionsSheet, setShowDrivenOptionsSheet] = useState(false);
   const { showToast } = useToast();
+
+  // Debug: Log when showReviewSheet changes
+  useEffect(() => {
+    console.log('📝 [RouteDetailsSheetContent] showReviewSheet changed:', showReviewSheet, 'routeId:', routeId);
+  }, [showReviewSheet, routeId]);
+
+
+  // Handle unmarking route as driven
+  const handleUnmarkDriven = React.useCallback(async () => {
+    if (!routeId || !user) return;
+    try {
+      const { error } = await supabase
+        .from('driven_routes')
+        .delete()
+        .eq('route_id', routeId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      showToast({
+        title: t('routeDetail.unmarkedAsDriven') || 'Unmarked as Driven',
+        message: t('routeDetail.routeUnmarkedAsDriven') || 'Route has been unmarked as driven',
+        type: 'success',
+      });
+
+      // Refresh to update UI
+      handleRefresh();
+    } catch (error) {
+      console.error('Error unmarking route as driven:', error);
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.failedToUnmark') || 'Failed to unmark route as driven',
+        type: 'error',
+      });
+    }
+  }, [routeId, user, showToast, t, handleRefresh]);
   let navigation: any = null;
   try {
     navigation = useNavigation<NavigationProp>();
@@ -920,14 +966,22 @@ export default function RouteDetailsSheetContent({
           transparent
           animationType="none"
           onRequestClose={() => setShowDrivenOptionsSheet(false)}
+          presentationStyle="overFullScreen"
+          statusBarTranslucent
         >
           <Animated.View
             style={{
               flex: 1,
-              backgroundColor: 'transparent',
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              zIndex: 9998,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
             }}
           >
-            <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' }}>
               <Pressable style={{ flex: 1 }} onPress={() => setShowDrivenOptionsSheet(false)} />
               <Animated.View
                 style={{
@@ -936,48 +990,49 @@ export default function RouteDetailsSheetContent({
                   borderTopRightRadius: 20,
                   padding: 20,
                   paddingBottom: 40,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: -2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                  elevation: 5,
                 }}
               >
-                <YStack gap="$4">
-                  <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                    {t('routeDetail.drivenOptions') || 'Driven Options'}
-                  </Text>
+                <View style={{ backgroundColor: backgroundColor }}>
+                  <YStack gap="$4" backgroundColor={backgroundColor} style={{ backgroundColor: backgroundColor }}>
+                    <Text fontSize="$6" fontWeight="bold" color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'} textAlign="center">
+                      {t('routeDetail.drivenOptions') || 'Driven Options'}
+                    </Text>
 
                   <YStack gap="$2">
-                    <TouchableOpacity
-                      onPress={() => {
-                        setShowDrivenOptionsSheet(false);
-                        if (navigation) {
-                          try {
-                            navigation.navigate('AddReview', {
-                              routeId: routeId!,
-                              returnToRouteDetail: true,
-                            } as any);
-                            onClose();
-                          } catch (error) {
-                            console.warn('Navigation not available in modal context:', error);
-                            showToast({
-                              title: t('common.error') || 'Error',
-                              message:
-                                t('routeDetail.navigationNotAvailable') ||
-                                'Navigation not available in this context',
-                              type: 'error',
-                            });
-                          }
-                        } else {
-                          console.warn('Navigation not available in modal context');
-                          showToast({
-                            title: t('common.error') || 'Error',
-                            message:
-                              t('routeDetail.navigationNotAvailable') ||
-                              'Navigation not available in this context',
-                            type: 'error',
-                          });
-                        }
-                      }}
+                      <TouchableOpacity
+                        onPress={() => {
+                          console.log('📝 [RouteDetailsSheetContent] Edit Review pressed');
+                          console.log('📝 [RouteDetailsSheetContent] Current showReviewSheet:', showReviewSheet);
+                          console.log('📝 [RouteDetailsSheetContent] Current routeId:', routeId);
+                          // Close Driven Options sheet first
+                          setShowDrivenOptionsSheet(false);
+                          // Hide RouteDetailSheet and open AddReviewSheet (like when marking as driven)
+                          // Use setTimeout to ensure Driven Options modal closes before hiding RouteDetailSheet
+                          setTimeout(() => {
+                            onClose(); // Hide RouteDetailSheet
+                            // Use callback if provided (parent will handle AddReviewSheet rendering)
+                            if (onOpenReviewSheet) {
+                              setTimeout(() => {
+                                console.log('📝 [RouteDetailsSheetContent] Calling onOpenReviewSheet callback');
+                                onOpenReviewSheet();
+                              }, 100);
+                            } else {
+                              // Fallback: try to open AddReviewSheet directly (may not work if inside modal)
+                              setTimeout(() => {
+                                console.log('📝 [RouteDetailsSheetContent] Opening AddReviewSheet directly');
+                                setShowReviewSheet(true);
+                              }, 100);
+                            }
+                          }, 200);
+                        }}
                       style={{
                         padding: 16,
-                        backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
+                        backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
                         borderRadius: 12,
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -985,7 +1040,7 @@ export default function RouteDetailsSheetContent({
                       }}
                     >
                       <Feather name="edit" size={20} color={iconColor} />
-                      <Text fontSize="$4" color="$color">
+                      <Text fontSize="$4" color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}>
                         {t('routeDetail.editReview') || 'Edit Review'}
                       </Text>
                     </TouchableOpacity>
@@ -997,7 +1052,7 @@ export default function RouteDetailsSheetContent({
                       }}
                       style={{
                         padding: 16,
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        backgroundColor: colorScheme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.1)',
                         borderRadius: 12,
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -1011,18 +1066,57 @@ export default function RouteDetailsSheetContent({
                     </TouchableOpacity>
                   </YStack>
 
-                  <Button
-                    variant="outlined"
-                    size="lg"
+                  <TouchableOpacity
                     onPress={() => setShowDrivenOptionsSheet(false)}
+                    style={{
+                      padding: 16,
+                      backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: colorScheme === 'dark' ? '#444' : '#DDD',
+                      alignItems: 'center',
+                    }}
                   >
+                    <Text fontSize="$4" fontWeight="600" color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}>
                     {t('common.cancel') || 'Cancel'}
-                  </Button>
+                    </Text>
+                  </TouchableOpacity>
                 </YStack>
+                </View>
               </Animated.View>
             </View>
           </Animated.View>
         </Modal>
+      )}
+
+      {/* Add Review Sheet - Render here as fallback, but parent should render it outside modal */}
+      {routeId && showReviewSheet && (
+        <AddReviewSheet
+          visible={showReviewSheet}
+          onClose={() => {
+            console.log('📝 [RouteDetailsSheetContent] Closing review sheet');
+            setShowReviewSheet(false);
+            // Reopen RouteDetailSheet after closing AddReviewSheet
+            if (onReopen) {
+              setTimeout(() => {
+                onReopen();
+              }, 300);
+            }
+          }}
+          routeId={routeId}
+          onReviewComplete={() => {
+            console.log('📝 [RouteDetailsSheetContent] Review completed');
+            setShowReviewSheet(false);
+            // Refresh route data to show updated review
+            handleRefresh();
+            // Reopen RouteDetailSheet after review completes
+            if (onReopen) {
+              setTimeout(() => {
+                onReopen();
+              }, 300);
+            }
+          }}
+        />
       )}
     </View>
   );
