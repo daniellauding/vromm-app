@@ -37,6 +37,7 @@ import { useRecording } from './contexts/RecordingContext';
 import { useModal } from './contexts/ModalContext';
 import { CreateRouteSheet } from './components/CreateRouteSheet';
 import { BetaTestingSheetModal } from './components/BetaTestingSheet';
+import { ActionSheetModal } from './components/ActionSheet';
 import { shouldShowInteractiveOnboarding } from './components/OnboardingInteractive';
 
 // Define a compatible type for WebBrowser dismiss helpers to avoid any-casts
@@ -497,6 +498,10 @@ function AppContent() {
   const colorScheme = useColorScheme();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
   const [authKey, setAuthKey] = useState(0);
+  
+  // Get contexts - these hooks must be called unconditionally
+  const recordingContext = useRecording();
+  const modalContext = useModal();
 
   // Global unified invitation notification state
   const [showGlobalInvitationNotification, setShowGlobalInvitationNotification] = useState(false);
@@ -505,6 +510,13 @@ function AppContent() {
   const [promotionContents, setPromotionContents] = useState<any[]>([]);
   const [currentModalIndex, setCurrentModalIndex] = useState(0);
   const [showPromotionModal, setShowPromotionModal] = useState(false);
+  // Ref to track modal state for navigation checks (avoids stale closure issues)
+  const showPromotionModalRef = useRef(false);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    showPromotionModalRef.current = showPromotionModal;
+  }, [showPromotionModal]);
   // Global unified invitation checking function
   const checkForGlobalInvitations = React.useCallback(async () => {
     if (!user?.email || !user?.id) {
@@ -1207,16 +1219,24 @@ function AppContent() {
       });
     }
     
-    // Get fresh context values inside callback to ensure they're available
+    // Get fresh context values - these are from the component scope
     const currentShowModal = modalContext?.showModal;
     const currentHideModal = modalContext?.hideModal;
     const currentStartRecording = recordingContext?.startRecording;
+    
+    logInfo('Promotion action context check', { 
+      hasShowModal: !!currentShowModal, 
+      hasHideModal: !!currentHideModal, 
+      hasStartRecording: !!currentStartRecording,
+      hasNavigationRef: !!navigationRef.current 
+    });
     
     try {
       switch (action) {
         case 'open_feedback':
           // Show BetaTestingSheetModal
           if (currentShowModal) {
+            logInfo('Opening feedback modal via showModal');
             currentShowModal(
               <BetaTestingSheetModal
                 onOpenBuyCoffee={() => {
@@ -1246,23 +1266,32 @@ function AppContent() {
             // Fallback: navigate to BetaTestingTab
             if (navigationRef.current) {
               navigationRef.current.navigate('MainTabs', { screen: 'BetaTestingTab' });
+            } else {
+              logError('Navigation ref not available for open_feedback', new Error('Navigation ref is null'));
             }
           }
           break;
         case 'open_mapview':
           // Navigate to MapTab which contains MapScreen
+          logInfo('Navigating to MapTab');
           if (navigationRef.current) {
             navigationRef.current.navigate('MainTabs', { screen: 'MapTab' });
+          } else {
+            logError('Navigation ref not available for open_mapview', new Error('Navigation ref is null'));
           }
           break;
         case 'open_progress':
           // Navigate to ProgressTab
+          logInfo('Navigating to ProgressTab');
           if (navigationRef.current) {
             navigationRef.current.navigate('MainTabs', { screen: 'ProgressTab' });
+          } else {
+            logError('Navigation ref not available for open_progress', new Error('Navigation ref is null'));
           }
           break;
         case 'create_route':
           // Show CreateRouteSheet modal
+          logInfo('Opening create route modal');
           if (currentShowModal && currentHideModal) {
             currentShowModal(
               <CreateRouteSheet
@@ -1285,42 +1314,86 @@ function AppContent() {
             // Fallback: navigate to CreateRoute screen
             if (navigationRef.current) {
               navigationRef.current.navigate('CreateRoute' as any);
+            } else {
+              logError('Navigation ref not available for create_route', new Error('Navigation ref is null'));
             }
           }
           break;
         case 'record_route':
-          // Start recording via RecordingContext
-          if (currentStartRecording) {
-            currentStartRecording().catch((error) => {
-              logError('Error starting recording from promotion modal', error as Error);
-            });
+          // Show ActionSheet first so user can see options and choose "Record Driving"
+          logInfo('Opening ActionSheet for recording');
+          if (currentShowModal && currentHideModal) {
+            currentShowModal(
+              <ActionSheetModal
+                onCreateRoute={() => {
+                  logInfo('Create route from ActionSheet');
+                  if (currentHideModal) {
+                    currentHideModal();
+                  }
+                }}
+                onMaximizeWizard={() => {
+                  logInfo('Maximize wizard from ActionSheet');
+                  if (currentHideModal) {
+                    currentHideModal();
+                  }
+                }}
+                onCreateEvent={() => {
+                  logInfo('Create event from ActionSheet');
+                  if (currentHideModal) {
+                    currentHideModal();
+                  }
+                }}
+                onNavigateToMap={(routeId) => {
+                  logInfo('Navigate to map from ActionSheet', { routeId });
+                  if (currentHideModal) {
+                    currentHideModal();
+                  }
+                  if (navigationRef.current) {
+                    navigationRef.current.navigate('MainTabs', { screen: 'MapTab' });
+                  }
+                }}
+              />
+            );
           } else {
-            logWarn('startRecording not available, falling back to navigation');
+            logWarn('showModal/hideModal not available, falling back to navigation');
             // Fallback: navigate to MapTab
             if (navigationRef.current) {
               navigationRef.current.navigate('MainTabs', { screen: 'MapTab' });
+            } else {
+              logError('Navigation ref not available for record_route', new Error('Navigation ref is null'));
             }
           }
           break;
         case 'select_role':
           // Navigate to RoleSelectionScreen
+          logInfo('Navigating to RoleSelectionScreen');
           if (navigationRef.current) {
             navigationRef.current.navigate('RoleSelectionScreen' as any);
+          } else {
+            logError('Navigation ref not available for select_role', new Error('Navigation ref is null'));
           }
           break;
         case 'select_connection':
-          // Navigate to HomeTab - user can manually open connections from GettingStarted
-          // TODO: Add global event/context to trigger connections modal
+          // Navigate to HomeTab with param to trigger connections modal
+          logInfo('Navigating to HomeTab for connections');
           if (navigationRef.current) {
-            navigationRef.current.navigate('MainTabs', { screen: 'HomeTab' });
+            navigationRef.current.navigate('MainTabs', { 
+              screen: 'HomeTab',
+              params: { openConnectionsModal: true }
+            });
+          } else {
+            logError('Navigation ref not available for select_connection', new Error('Navigation ref is null'));
           }
           break;
         case 'buy_me_a_coffee':
           // Open Buy Me a Coffee link
+          logInfo('Opening Buy Me a Coffee link');
           try {
             const canOpen = await Linking.canOpenURL('https://buymeacoffee.com/vromm');
             if (canOpen) {
               await Linking.openURL('https://buymeacoffee.com/vromm');
+            } else {
+              logWarn('Cannot open Buy Me a Coffee URL');
             }
           } catch (error) {
             logError('Error opening Buy Me a Coffee link', error as Error);
@@ -1338,8 +1411,7 @@ function AppContent() {
     } catch (error) {
       logError('Error handling promotion action', error as Error);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - we access fresh context values inside the callback
+  }, [modalContext, recordingContext, trackModalEvent]); // Include contexts in deps to get fresh values
 
   // Only return null during initial app startup, not during login attempts
   // This prevents navigation stack from being destroyed during authentication
@@ -1461,17 +1533,26 @@ function AppContent() {
               logWarn('Analytics not available for screen view', error);
             }
 
-            // Check for eligible modals when navigating to new screens (if no modal is currently showing)
-            if (user?.id && !showPromotionModal && (screen_name === 'HomeTab' || screen_name === 'MapTab' || screen_name === 'ProgressTab')) {
+            // Check for eligible modals when navigating to new screens
+            // Always check when navigating to HomeTab/MapTab/ProgressTab, even if a modal was just closed
+            if (user?.id && (screen_name === 'HomeTab' || screen_name === 'MapTab' || screen_name === 'ProgressTab')) {
               // Small delay to let screen load, then check for modals
               setTimeout(async () => {
                 try {
+                  // Don't show if a modal is already visible (use ref to get current value)
+                  if (showPromotionModalRef.current) {
+                    logInfo('Modal already visible, skipping check');
+                    return;
+                  }
+
                   // IMPORTANT: Check if onboarding should be shown first - onboarding takes priority
                   const shouldShowOnboarding = await shouldShowInteractiveOnboarding('interactive_onboarding', user.id);
                   if (shouldShowOnboarding) {
                     logInfo('Onboarding should be shown - skipping promotion modals on navigation');
                     return; // Don't show promotion modals if onboarding is needed
                   }
+
+                  logInfo('Checking for eligible modals on navigation', { screen_name });
 
                   const { data } = await supabase
                     .from('content')
@@ -1490,16 +1571,19 @@ function AppContent() {
                     const eligibleModals = data.filter((_, index) => eligibilityChecks[index]);
 
                     if (eligibleModals.length > 0) {
+                      logInfo('Found eligible modals on navigation', { count: eligibleModals.length });
                       setPromotionContents(eligibleModals);
                       setCurrentModalIndex(0);
                       setShowPromotionModal(true);
                       markModalAsSeen(eligibleModals[0].id, user.id, eligibleModals[0].updated_at).catch(err => {
                         logError('Error marking modal as seen', err as Error);
                       });
+                    } else {
+                      logInfo('No eligible modals found on navigation');
                     }
                   }
                 } catch (error) {
-                  // Silently fail - don't interrupt navigation
+                  logError('Error checking for modals on navigation', error as Error);
                 }
               }, 1000);
             }

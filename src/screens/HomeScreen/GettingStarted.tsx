@@ -37,7 +37,7 @@ import { SectionHeader } from '../../components/SectionHeader';
 import { useAuth } from '@/src/context/AuthContext';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { NavigationProp } from '@/src/types/navigation';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTour } from '../../contexts/TourContext';
 import { useTourTarget } from '../../components/TourOverlay';
 import { CreateRouteSheet } from '../../components/CreateRouteSheet';
@@ -60,6 +60,7 @@ const GETTING_STARTED_IMAGES = {
 export const GettingStarted = () => {
   const { profile, user, updateProfile, refreshProfile } = useAuth();
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute();
   const { isActive: tourActive, currentStep, steps } = useTour();
   const { t, language } = useTranslation();
   const { showCelebration } = useCelebration();
@@ -1543,6 +1544,20 @@ export const GettingStarted = () => {
       });
     }
   }, [isAllOnboardingCompleted, user?.id, showCelebration]);
+
+  // Listen for navigation params to open connections modal
+  React.useEffect(() => {
+    const params = (route.params as any) || {};
+    if (params.openConnectionsModal === true) {
+      // Small delay to ensure component is mounted
+      setTimeout(() => {
+        showConnectionsSheet();
+        // Clear the param to prevent reopening on re-render
+        navigation.setParams({ openConnectionsModal: undefined });
+      }, 300);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.params, navigation]);
 
   // Always show GettingStarted section for all users
   // if (isAllOnboardingCompleted) {

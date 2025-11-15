@@ -3,7 +3,7 @@ import { View, Dimensions, Animated, Pressable, Image, TouchableOpacity, Linking
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
-import { useColorScheme } from 'react-native';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { BlurView } from 'expo-blur';
 import { Button } from './Button';
 import YoutubePlayer from 'react-native-youtube-iframe';
@@ -46,7 +46,8 @@ export function PromotionModal({
   totalCount = 1,
 }: PromotionModalProps) {
   const { language: lang } = useTranslation();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
   const [scaleAnim] = useState(new Animated.Value(0));
   const [fadeAnim] = useState(new Animated.Value(0));
   const hasAnimatedRef = React.useRef(false);
