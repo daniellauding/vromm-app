@@ -143,12 +143,12 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
   const { width: screenWidth } = useWindowDimensions();
-  
+
   // Responsive sizing based on screen width
   const isSmallScreen = screenWidth < 375; // iPhone SE, small phones
   const isMediumScreen = screenWidth >= 375 && screenWidth < 414; // Standard iPhones
-  const dayFontSize = isSmallScreen ? 10 : isMediumScreen ? 11 : 12;
-  const dateFontSize = isSmallScreen ? 9 : isMediumScreen ? 10 : 11;
+  const dayFontSize = isSmallScreen ? 8 : isMediumScreen ? 10 : 10;
+  const dateFontSize = isSmallScreen ? 6 : isMediumScreen ? 8 : 8; // 2px smaller than before
   const circleSize = isSmallScreen ? 24 : isMediumScreen ? 26 : 28;
   const dayGap = isSmallScreen ? 2 : isMediumScreen ? 4 : 6;
   const dayPadding = isSmallScreen ? 2 : isMediumScreen ? 3 : 4;
@@ -235,9 +235,9 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
             console.log('🔊 Celebration sound error (may be muted):', error);
           }
         };
-        
+
         playCelebrationFeedback();
-        
+
         // Use global celebration context
         showCelebration({
           learningPathTitle: { en: celebrationTitle, sv: celebrationTitle },

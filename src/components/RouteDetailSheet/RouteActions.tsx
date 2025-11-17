@@ -225,7 +225,7 @@ export default function RouteActions({
           borderColor="transparent"
           flex={1}
         />
-        {routeData?.exercises &&
+        {/* {routeData?.exercises &&
           Array.isArray(routeData.exercises) &&
           routeData.exercises.length > 0 && (
             <IconButton
@@ -266,7 +266,7 @@ export default function RouteActions({
               borderColor={isSaved ? 'transparent' : 'transparent'}
               flex={1}
             />
-          )}
+          )} */}
         {user?.id === routeData?.creator_id && (
           <IconButton
             icon="edit-2"
