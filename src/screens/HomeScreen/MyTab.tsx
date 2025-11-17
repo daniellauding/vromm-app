@@ -149,50 +149,6 @@ export default React.memo(function MyTab({
         />
       </View>
 
-      {/* Beta Testing Button */}
-      <TouchableOpacity
-        onPress={handleOpenBetaTesting}
-        style={{
-          marginHorizontal: 16,
-          marginTop: 12,
-          marginBottom: 8,
-          padding: 16,
-          backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#F5F5F5',
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: colorScheme === 'dark' ? '#2C2C2E' : '#E5E5EA',
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-        activeOpacity={0.7}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Feather
-            name="help-circle"
-            size={20}
-            color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
-          />
-          <RNText
-            style={{
-              fontSize: 16,
-              fontWeight: '500',
-              color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
-            }}
-          >
-            {getTranslation(
-              'home.betaTesting',
-              language === 'sv' ? 'Hjälp oss testa' : 'Help with testing',
-            )}
-          </RNText>
-        </View>
-        <Feather
-          name="chevron-right"
-          size={20}
-          color={colorScheme === 'dark' ? '#8E8E93' : '#999'}
-        />
-      </TouchableOpacity>
-
       {/* 
         📱 RESPONSIVE GRID LAYOUT
         Mobile: 1 column (full width)
@@ -201,12 +157,12 @@ export default React.memo(function MyTab({
       */}
 
       {/* Getting Started - Always Full Width */}
-      <View style={{ paddingHorizontal: horizontalPadding, marginTop: 8 }}>
+      <View style={{ marginTop: 8 }}>
         <GettingStarted />
       </View>
 
       {/* Progress - Always Full Width */}
-      <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
+      <View style={{ marginTop: cardGap }}>
         <ProgressSection activeUserId={effectiveUserId} />
       </View>
 
@@ -215,7 +171,7 @@ export default React.memo(function MyTab({
         style={{
           flexDirection: 'row',
           flexWrap: 'wrap',
-          paddingHorizontal: horizontalPadding,
+          // paddingHorizontal: horizontalPadding,
           gap: cardGap,
           marginTop: cardGap,
         }}
@@ -245,7 +201,7 @@ export default React.memo(function MyTab({
       </View>
 
       {/* Draft Routes - Full Width (separate from 4-col grid) */}
-      <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
+      <View style={{ marginTop: cardGap }}>
         <DraftRoutes onRoutePress={handleRoutePress} />
       </View>
 
@@ -254,7 +210,7 @@ export default React.memo(function MyTab({
         style={{
           flexDirection: 'row',
           flexWrap: 'wrap',
-          paddingHorizontal: horizontalPadding,
+          // paddingHorizontal: horizontalPadding,
           gap: cardGap,
           marginTop: cardGap,
         }}
@@ -296,6 +252,52 @@ export default React.memo(function MyTab({
       {/* Nearby Routes - Separate full width section */}
       <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
         <NearByRoutes onRoutePress={handleRoutePress} />
+      </View>
+
+      <View style={{ marginBottom: 40 }}>
+        {/* Beta Testing Button */}
+        <TouchableOpacity
+          onPress={handleOpenBetaTesting}
+          style={{
+            marginHorizontal: 16,
+            marginTop: 12,
+            marginBottom: 8,
+            padding: 16,
+            backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#F5F5F5',
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: colorScheme === 'dark' ? '#2C2C2E' : '#E5E5EA',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+          activeOpacity={0.7}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Feather
+              name="help-circle"
+              size={20}
+              color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
+            />
+            <RNText
+              style={{
+                fontSize: 16,
+                fontWeight: '500',
+                color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
+              }}
+            >
+              {getTranslation(
+                'home.betaTesting',
+                language === 'sv' ? 'Hjälp oss testa' : 'Help with testing',
+              )}
+            </RNText>
+          </View>
+          <Feather
+            name="chevron-right"
+            size={20}
+            color={colorScheme === 'dark' ? '#8E8E93' : '#999'}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Role Selection and Connections Cards */}

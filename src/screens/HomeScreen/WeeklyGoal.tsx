@@ -20,7 +20,7 @@ import * as Haptics from 'expo-haptics';
 // Hardcoded fallback translations for weekly goals
 const WEEKLY_GOAL_FALLBACKS = {
   en: {
-    title: 'Weekly Goal',
+    title: 'How’s your week going?',
     goalSettings: 'Goal Settings',
     dailyGoal: 'Daily Exercise Goal',
     goalType: 'Goal Type',
@@ -30,7 +30,7 @@ const WEEKLY_GOAL_FALLBACKS = {
     saveGoals: 'Save Goals',
   },
   sv: {
-    title: 'Veckokort',
+    title: 'Hur går det denna vecka?',
     goalSettings: 'Inställningar för Mål',
     dailyGoal: 'Dagligt Träningsmål',
     goalType: 'Måltyp',
@@ -235,9 +235,9 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
             console.log('🔊 Celebration sound error (may be muted):', error);
           }
         };
-
+        
         playCelebrationFeedback();
-
+        
         // Use global celebration context
         showCelebration({
           learningPathTitle: { en: celebrationTitle, sv: celebrationTitle },
@@ -480,6 +480,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
       // backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'}
       marginHorizontal="$0"
       marginBottom="$4"
+      marginTop="$4"
       padding="$0"
       borderRadius="$4"
     >
@@ -489,6 +490,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
         alignItems="center"
         marginBottom="$3"
         paddingHorizontal="$4"
+        display="none"
       >
         <XStack alignItems="center" gap="$2">
           <Text fontSize="$5" fontWeight="bold" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
@@ -564,8 +566,10 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                         alignItems="center"
                         gap="$0.5"
                         backgroundColor={
-                          isSelected
-                            ? 'rgba(0, 230, 195, 0.05)'
+                          isSelected || isToday
+                            ? colorScheme === 'dark'
+                              ? 'rgba(0, 230, 195, 0.1)'
+                              : 'rgba(0, 230, 195, 0.15)'
                             : colorScheme === 'dark'
                               ? '#1A1A1A'
                               : '#F8F8F8'
@@ -574,8 +578,13 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                         borderRadius="$4"
                         style={{
                           borderRadius: 16,
-                          borderWidth: isSelected ? 2 : 2,
-                          borderColor: isSelected ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
+                          borderWidth: isSelected || isToday ? 2 : 0,
+                          borderColor:
+                            isSelected || isToday
+                              ? colorScheme === 'dark'
+                                ? 'rgba(0, 230, 195, 0.3)'
+                                : 'rgba(0, 230, 195, 0.4)'
+                              : 'transparent',
                           minWidth: 0, // Allow flex shrinking
                         }}
                       >
@@ -642,12 +651,12 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                                 isFuture
                                   ? colorScheme === 'dark'
                                     ? '#444'
-                                    : '#BBB'
+                                    : '#999'
                                   : isToday
                                     ? '#00E6C3'
                                     : colorScheme === 'dark'
                                       ? '#CCC'
-                                      : '#666'
+                                      : '#333'
                               }
                               fontWeight={day.completed || isToday ? 'bold' : 'normal'}
                               numberOfLines={1}
@@ -665,12 +674,12 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                                 isFuture
                                   ? colorScheme === 'dark'
                                     ? '#333'
-                                    : '#CCC'
+                                    : '#999'
                                   : isToday
                                     ? '#00E6C3'
                                     : colorScheme === 'dark'
                                       ? '#AAA'
-                                      : '#555'
+                                      : '#333'
                               }
                               fontWeight="600"
                               numberOfLines={1}
@@ -709,7 +718,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                       <YStack alignItems="center" gap={0} style={{ width: '100%' }}>
                         <Text
                           fontSize={dayFontSize}
-                          color={colorScheme === 'dark' ? '#555' : '#AAA'}
+                          color={colorScheme === 'dark' ? '#555' : '#999'}
                           fontWeight="normal"
                           numberOfLines={1}
                           adjustsFontSizeToFit={true}
@@ -720,7 +729,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                         </Text>
                         <Text
                           fontSize={dateFontSize}
-                          color={colorScheme === 'dark' ? '#444' : '#BBB'}
+                          color={colorScheme === 'dark' ? '#444' : '#999'}
                           fontWeight="600"
                           numberOfLines={1}
                           adjustsFontSizeToFit={true}

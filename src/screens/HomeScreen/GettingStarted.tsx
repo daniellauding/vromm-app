@@ -1644,7 +1644,18 @@ export const GettingStarted = () => {
                   borderBottomRightRadius: 0,
                 }}
               />
-              <YStack padding="$2" flex={1} justifyContent="flex-start">
+              <YStack
+                padding="$2"
+                flex={1}
+                justifyContent="flex-start"
+                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                borderBottomLeftRadius={8}
+                borderBottomRightRadius={8}
+                borderWidth={1}
+                borderTopWidth={0}
+                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                // style prop is NOT needed, use props directly to ensure proper styling with Tamagui/YStack
+              >
                 <Text fontSize={12} fontWeight="bold" color="$color">
                   {t('home.gettingStarted.licensePlan.title') || 'Your License Plan'}
                 </Text>
@@ -1701,7 +1712,17 @@ export const GettingStarted = () => {
                   borderBottomRightRadius: 0,
                 }}
               />
-              <YStack padding="$2" flex={1} justifyContent="flex-start">
+              <YStack
+                padding="$2"
+                flex={1}
+                justifyContent="flex-start"
+                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                borderBottomLeftRadius={8}
+                borderBottomRightRadius={8}
+                borderWidth={1}
+                borderTopWidth={0}
+                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+              >
                 <Text fontSize={12} fontWeight="bold" color="$color">
                   {t('home.gettingStarted.firstRoute.title') || 'Add Your First Route'}
                 </Text>
@@ -1763,7 +1784,17 @@ export const GettingStarted = () => {
                   borderBottomRightRadius: 0,
                 }}
               />
-              <YStack padding="$2" flex={1} justifyContent="flex-start">
+              <YStack
+                padding="$2"
+                flex={1}
+                justifyContent="flex-start"
+                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                borderBottomLeftRadius={8}
+                borderBottomRightRadius={8}
+                borderWidth={1}
+                borderTopWidth={0}
+                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+              >
                 <Text fontSize={12} fontWeight="bold" color="$color">
                   {t('home.gettingStarted.startLearning.title') || 'Start on Step 1 of 16'}
                 </Text>
@@ -1825,7 +1856,17 @@ export const GettingStarted = () => {
                   borderBottomRightRadius: 0,
                 }}
               />
-              <YStack padding="$2" flex={1} justifyContent="flex-start">
+              <YStack
+                padding="$2"
+                flex={1}
+                justifyContent="flex-start"
+                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                borderBottomLeftRadius={8}
+                borderBottomRightRadius={8}
+                borderWidth={1}
+                borderTopWidth={0}
+                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+              >
                 <Text fontSize={12} fontWeight="bold" color="$color">
                   {t('home.gettingStarted.saveRoute.title') || 'Save a Route'}
                 </Text>
@@ -1899,7 +1940,17 @@ export const GettingStarted = () => {
                   borderBottomRightRadius: 0,
                 }}
               />
-              <YStack padding="$2" flex={1} justifyContent="flex-start">
+              <YStack
+                padding="$2"
+                flex={1}
+                justifyContent="flex-start"
+                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                borderBottomLeftRadius={8}
+                borderBottomRightRadius={8}
+                borderWidth={1}
+                borderTopWidth={0}
+                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+              >
                 <Text fontSize={12} fontWeight="bold" color="$color">
                   {t('home.gettingStarted.chooseRole.title') || 'Choose Your Role'}
                 </Text>
@@ -1957,7 +2008,17 @@ export const GettingStarted = () => {
                     borderBottomRightRadius: 0,
                   }}
                 />
-                <YStack padding="$2" flex={1} justifyContent="flex-start">
+                <YStack
+                  padding="$2"
+                  flex={1}
+                  justifyContent="flex-start"
+                  backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                  borderBottomLeftRadius={8}
+                  borderBottomRightRadius={8}
+                  borderWidth={1}
+                  borderTopWidth={0}
+                  borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                >
                   <Text fontSize={12} fontWeight="bold" color="$color">
                     {typedProfile?.role === 'student'
                       ? t('home.gettingStarted.connectStudent.title') || 'Add Supervisor'

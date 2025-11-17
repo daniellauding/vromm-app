@@ -133,7 +133,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
 
   return (
     <>
-      <YStack space="$4">
+      <YStack space="$0">
         <SectionHeader
           title={
             isViewingAsStudent
@@ -143,6 +143,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
           variant="chevron"
           onAction={onNavigateToRouteList}
           actionLabel={t('common.seeAll')}
+          showActionLabel={false}
         />
 
         {createdRoutes.length === 0 ? (
@@ -251,7 +252,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
             data={createdRoutes}
             keyExtractor={(item) => item.id}
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingVertical: 8 }}
+            contentContainerStyle={{ paddingVertical: 0 }}
             renderItem={({ item: route }) => (
               <XStack marginRight="$3">
                 <RouteCard 

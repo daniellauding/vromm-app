@@ -85,11 +85,11 @@ export function DraftRoutes({ onRoutePress }: DraftRoutesProps = {}) {
     <YStack gap="$3" paddingHorizontal="$4">
       <SectionHeader
         title={t('home.draftRoutes.title') || 'Draft Routes'}
-        subtitle={`${drafts.length} draft${drafts.length !== 1 ? 's' : ''}`}
+        // subtitle={`${drafts.length} draft${drafts.length !== 1 ? 's' : ''}`}
         variant="chevron"
         onAction={handleSeeAllDrafts}
         actionLabel={t('common.seeAll')}
-        icon={<Feather name="edit-3" size={18} color="#666" />}
+        showActionLabel={false}
       />
 
       <YStack gap="$2">

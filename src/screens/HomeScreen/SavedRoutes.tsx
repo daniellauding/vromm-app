@@ -181,7 +181,7 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
 
   return (
     <>
-      <YStack gap="$6">
+      <YStack gap="$2">
         <SectionHeader
           title={
             isViewingAsStudent
@@ -197,6 +197,7 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
             setShowRouteListSheet(true);
           }}
           actionLabel={t('common.seeAll')}
+          showActionLabel={false}
         />
         <FlatList
           horizontal

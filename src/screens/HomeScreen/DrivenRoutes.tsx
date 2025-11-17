@@ -173,7 +173,7 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
   }, []);
 
   return (
-    <YStack gap="$2">
+    <YStack gap="$0">
       <SectionHeader
         title={
           isViewingAsStudent
@@ -183,6 +183,7 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
         variant="chevron"
         onAction={onNavigateToRouteList}
         actionLabel={t('common.seeAll')}
+        showActionLabel={false}
       />
       {drivenRoutes.length > 0 ? (
         <FlatList
@@ -190,12 +191,12 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
           data={drivenRoutes}
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 8 }}
+          contentContainerStyle={{ paddingVertical: 0 }}
           renderItem={({ item: route }) => (
             <XStack marginRight="$3">
               <RouteCard
                 route={route as any}
-                preset="compact"
+                // preset="compact"
                 onPress={() => {
                   if (onRoutePress) {
                     onRoutePress(route.id);

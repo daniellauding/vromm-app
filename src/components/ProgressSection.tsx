@@ -19,14 +19,8 @@ import { useStripe } from '@stripe/stripe-react-native';
 import { useToast } from '../contexts/ToastContext';
 import { useUnlock } from '../contexts/UnlockContext';
 import { FunctionsHttpError } from '@supabase/supabase-js';
-import {
-  Modal as RNModal,
-  Pressable,
-  TextInput,
-  Alert,
-  Dimensions,
-  useColorScheme,
-} from 'react-native';
+import { useThemePreference } from '../hooks/useThemeOverride';
+import { Modal as RNModal, Pressable, TextInput, Alert, Dimensions } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 
 interface LearningPath {
@@ -195,7 +189,8 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     isPathUnlocked,
     hasPathPayment,
   } = useUnlock();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
 
   // Use activeUserId from navigation if provided, otherwise check StudentSwitchContext, then fall back to authUser
   // This matches the exact logic from ProgressScreen.tsx for instructor support
@@ -747,7 +742,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
           borderWidth: 3,
           borderColor: '#00E6C3',
           borderRadius: 16,
-          padding: 8,
+          padding: 0,
           backgroundColor: 'rgba(0, 230, 195, 0.1)',
           shadowColor: '#00E6C3',
           shadowOffset: { width: 0, height: 0 },
@@ -769,6 +764,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
           setShowLearningPathsSheet(true);
         }}
         actionLabel={t('common.seeAll') || 'See All'}
+        showActionLabel={false}
       />
 
       {/* Viewing indicator (matching ProgressScreen.tsx) */}
@@ -816,7 +812,9 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                       ? '#00E6C3'
                       : isNextToUnlock
                         ? '#00E6C3'
-                        : 'transparent',
+                        : colorScheme === 'dark'
+                          ? '#333'
+                          : '#E5E5E5',
                   borderRadius: 24,
                   shadowColor: isPasswordLocked
                     ? '#FF9500'
@@ -829,6 +827,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                   shadowRadius: isNextToUnlock || isPasswordLocked || isPaywallLocked ? 12 : 0,
                   shadowOffset: { width: 0, height: 0 },
                   marginBottom: 8,
+                  backgroundColor: colorScheme === 'dark' ? '#232323' : '#f2f1ef',
                 }}
                 disabled={!isEnabled}
               >
@@ -908,8 +907,8 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                         <ProgressCircle
                           percent={percent}
                           size={40}
-                          color={isActive ? '#fff' : '#00E6C3'}
-                          bg={isActive ? '#00E6C3' : '#E5E5E5'}
+                          color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
+                          bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                         />
                         <Text
                           style={{
@@ -924,7 +923,15 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                             fontSize: 10,
                             fontWeight: 'bold',
                           }}
-                          color={isActive ? '$color' : '$gray11'}
+                          color={
+                            percent === 1
+                              ? colorScheme === 'dark'
+                                ? '#27febe'
+                                : '#00C9A7'
+                              : colorScheme === 'dark'
+                                ? '$gray10'
+                                : '#666'
+                          }
                         >
                           {Math.round(percent * 100)}%
                         </Text>
