@@ -358,7 +358,7 @@ export default function RouteDetailsSheetContent({
                   borderColor="transparent"
                   flex={1}
                 />
-                {routeData?.exercises &&
+                {/* {routeData?.exercises &&
                   Array.isArray(routeData.exercises) &&
                   routeData.exercises.length > 0 && (
                     <IconButton
@@ -405,7 +405,7 @@ export default function RouteDetailsSheetContent({
                       borderColor={isSaved ? 'transparent' : 'transparent'}
                       flex={1}
                     />
-                  )}
+                  )} */}
                 {showAdminControls && (
                   <IconButton
                     icon="trash-2"

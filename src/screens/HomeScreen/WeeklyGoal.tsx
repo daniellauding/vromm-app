@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 import React, { useState, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Input } from 'tamagui';
-import { TouchableOpacity, Modal, Alert, Animated } from 'react-native';
+import { TouchableOpacity, Modal, Alert, Animated, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
@@ -142,6 +142,16 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
   const { showCelebration } = useCelebration();
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
+  const { width: screenWidth } = useWindowDimensions();
+
+  // Responsive sizing based on screen width
+  const isSmallScreen = screenWidth < 375; // iPhone SE, small phones
+  const isMediumScreen = screenWidth >= 375 && screenWidth < 414; // Standard iPhones
+  const dayFontSize = isSmallScreen ? 8 : isMediumScreen ? 10 : 10;
+  const dateFontSize = isSmallScreen ? 6 : isMediumScreen ? 8 : 8; // 2px smaller than before
+  const circleSize = isSmallScreen ? 24 : isMediumScreen ? 26 : 28;
+  const dayGap = isSmallScreen ? 2 : isMediumScreen ? 4 : 6;
+  const dayPadding = isSmallScreen ? 2 : isMediumScreen ? 3 : 4;
   // Helper to get translation with fallback
   const getT = (key: string, fallbackKey: keyof (typeof WEEKLY_GOAL_FALLBACKS)['en']): string => {
     const translation = t(key);
@@ -225,9 +235,9 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
             console.log('🔊 Celebration sound error (may be muted):', error);
           }
         };
-        
+
         playCelebrationFeedback();
-        
+
         // Use global celebration context
         showCelebration({
           learningPathTitle: { en: celebrationTitle, sv: celebrationTitle },
@@ -530,7 +540,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
               justifyContent="space-around"
               alignItems="center"
               paddingHorizontal="$0"
-              gap="$2"
+              gap={dayGap}
             >
               {weeklyProgress.length > 0
                 ? weeklyProgress.map((day) => {
@@ -552,7 +562,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                         key={day.date}
                         flex={1}
                         alignItems="center"
-                        gap="$1"
+                        gap="$0.5"
                         backgroundColor={
                           isSelected
                             ? 'rgba(0, 230, 195, 0.05)'
@@ -560,16 +570,13 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                               ? '#1A1A1A'
                               : '#F8F8F8'
                         }
-                        padding="$2"
+                        padding={dayPadding}
                         borderRadius="$4"
                         style={{
-                          padding: 4,
                           borderRadius: 16,
                           borderWidth: isSelected ? 2 : 2,
                           borderColor: isSelected ? 'rgba(0, 230, 195, 0.1)' : 'transparent',
-                          // backgroundColor: isSelected
-                          //   ? 'rgba(0, 230, 195, 0.15)'
-                          //   : (colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8'),
+                          minWidth: 0, // Allow flex shrinking
                         }}
                       >
                         {/* Day circle */}
@@ -603,7 +610,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                         >
                           <DayProgressCircle
                             progress={isFuture ? 0 : day.progress}
-                            size={isToday ? 28 : 28}
+                            size={circleSize}
                             color={
                               isFuture
                                 ? colorScheme === 'dark'
@@ -618,19 +625,19 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                           />
                           {day.exercises > 0 && !isFuture && (
                             <Text
-                              fontSize={9}
+                              fontSize={isSmallScreen ? 7 : 8}
                               fontWeight="bold"
                               color={day.completed ? '#01E6C3' : '#00E6C3'}
-                              style={{ position: 'absolute', top: isToday ? 9 : 9 }}
+                              style={{ position: 'absolute', top: circleSize * 0.3 }}
                             >
                               {day.exercises}
                             </Text>
                           )}
 
                           {/* Day name and date */}
-                          <YStack alignItems="center" gap="$0.5">
+                          <YStack alignItems="center" gap={0} style={{ width: '100%' }}>
                             <Text
-                              fontSize={isToday ? '$2' : '$2'}
+                              fontSize={dayFontSize}
                               color={
                                 isFuture
                                   ? colorScheme === 'dark'
@@ -643,13 +650,17 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                                       : '#666'
                               }
                               fontWeight={day.completed || isToday ? 'bold' : 'normal'}
+                              numberOfLines={1}
+                              adjustsFontSizeToFit={true}
+                              minimumFontScale={0.8}
+                              style={{ textAlign: 'center' }}
                             >
                               {day.day}
                             </Text>
 
                             {/* Date - more prominent for today */}
                             <Text
-                              fontSize={isToday ? '$2' : '$2'}
+                              fontSize={dateFontSize}
                               color={
                                 isFuture
                                   ? colorScheme === 'dark'
@@ -662,6 +673,10 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                                       : '#555'
                               }
                               fontWeight="600"
+                              numberOfLines={1}
+                              adjustsFontSizeToFit={true}
+                              minimumFontScale={0.7}
+                              style={{ textAlign: 'center' }}
                             >
                               {new Date(day.date).getDate()}/
                               {String(new Date(day.date).getMonth() + 1).padStart(2, '0')}
@@ -680,27 +695,37 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                       key={`placeholder-${dayName}-${index}`}
                       flex={1}
                       alignItems="center"
-                      gap="$1"
+                      gap="$0.5"
+                      padding={dayPadding}
+                      style={{ minWidth: 0 }}
                     >
                       <DayProgressCircle
                         progress={0}
-                        size={32}
+                        size={circleSize}
                         color="#00E6C3"
                         bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                         completed={false}
                       />
-                      <YStack alignItems="center" gap="$0.5">
+                      <YStack alignItems="center" gap={0} style={{ width: '100%' }}>
                         <Text
-                          fontSize="$2"
+                          fontSize={dayFontSize}
                           color={colorScheme === 'dark' ? '#555' : '#AAA'}
                           fontWeight="normal"
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.6}
+                          style={{ textAlign: 'center' }}
                         >
                           {dayName}
                         </Text>
                         <Text
-                          fontSize="$1"
+                          fontSize={dateFontSize}
                           color={colorScheme === 'dark' ? '#444' : '#BBB'}
                           fontWeight="600"
+                          numberOfLines={1}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.5}
+                          style={{ textAlign: 'center' }}
                         >
                           -
                         </Text>
