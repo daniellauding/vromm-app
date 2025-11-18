@@ -69,12 +69,13 @@ export const NearByRoutes = ({ onRoutePress }: NearByRoutesProps = {}) => {
   }
 
   return (
-    <YStack space="$4">
+    <YStack space="$0">
       <SectionHeader
         title={t('home.nearbyRoutes')}
         variant="chevron"
         onAction={onNavigateToRouteList}
         actionLabel={t('common.seeAll')}
+        showActionLabel={false}
       />
 
       {nearbyRoutes.length === 0 ? (

@@ -5576,7 +5576,7 @@ export function ProgressScreen() {
                     }}
                   >
                     <Card
-                      backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
+                      backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#f2f1ef'}
                       borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
                       borderWidth={3}
                       width="70%"

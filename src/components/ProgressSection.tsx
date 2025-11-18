@@ -20,7 +20,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useUnlock } from '../contexts/UnlockContext';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { useThemePreference } from '../hooks/useThemeOverride';
-import { Modal as RNModal, Pressable, TextInput, Alert, Dimensions } from 'react-native';
+import { Modal as RNModal, TextInput, Alert, Dimensions } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 
 interface LearningPath {
@@ -70,7 +70,7 @@ function ProgressCircle({
   color = '#00E6C3',
   bg = '#222',
 }: ProgressCircleProps) {
-  const strokeWidth = 6;
+  const strokeWidth = 4;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = Math.max(0, Math.min(percent, 1));
@@ -139,22 +139,40 @@ const loadLastAudit = async (
   }
 };
 
-const fetchCompletions = async (effectiveUserId: string | null): Promise<string[]> => {
+const fetchCompletions = async (
+  effectiveUserId: string | null,
+): Promise<{
+  regular: string[];
+  virtual: string[];
+}> => {
   try {
-    const { data, error } = await supabase
+    // Fetch regular completions
+    const { data: regularData, error: regularError } = await supabase
       .from('learning_path_exercise_completions')
       .select('exercise_id')
       .eq('user_id', effectiveUserId);
 
-    if (!error && data) {
-      return data.map((c: { exercise_id: string }) => c.exercise_id);
-    } else {
-      console.log('📊 [ProgressSection] No completions or error for user:', effectiveUserId, error);
-      return [];
+    // Fetch virtual repeat completions
+    const { data: virtualData, error: virtualError } = await supabase
+      .from('virtual_repeat_completions')
+      .select('exercise_id, repeat_number')
+      .eq('user_id', effectiveUserId);
+
+    const regular = regularData?.map((c: { exercise_id: string }) => c.exercise_id) || [];
+    const virtual =
+      virtualData?.map(
+        (c: { exercise_id: string; repeat_number: number }) =>
+          `${c.exercise_id}-virtual-${c.repeat_number}`,
+      ) || [];
+
+    if (regularError || virtualError) {
+      console.log('📊 [ProgressSection] Error fetching completions:', regularError || virtualError);
     }
+
+    return { regular, virtual };
   } catch (err) {
     console.error('Error fetching completions:', err);
-    return [];
+    return { regular: [], virtual: [] };
   }
 };
 
@@ -201,6 +219,14 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation<NavigationProp>();
   const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [virtualRepeatCompletions, setVirtualRepeatCompletions] = useState<string[]>([]);
+  const [allPathExercises, setAllPathExercises] = useState<
+    Array<{
+      id: string;
+      learning_path_id: string;
+      repeat_count?: number;
+    }>
+  >([]);
   const [lastAudit, setLastAudit] = useState<{
     action: string;
     actor_name: string | null;
@@ -486,7 +512,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       const data = await fetchLearningPaths();
       if (data && data.length > 0) {
         setPaths(data);
-        setActivePath(data[0].id);
+        // setActivePath(data[0].id);
       }
     };
     fetch();
@@ -497,12 +523,42 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     useCallback(() => {
       console.log('ProgressSection: Screen focused, refreshing data');
       if (effectiveUserId) {
-        fetchCompletions(effectiveUserId).then((completions) => {
-          setCompletedIds(completions);
+        fetchCompletions(effectiveUserId).then(({ regular, virtual }) => {
+          setCompletedIds(regular);
+          setVirtualRepeatCompletions(virtual);
         });
       }
     }, [effectiveUserId]),
   );
+
+  // Populate allPathExercises for consistent progress calculation (like ProgressScreen)
+  useEffect(() => {
+    const fetchAllExercises = async () => {
+      const allExercises: Array<{
+        id: string;
+        learning_path_id: string;
+        repeat_count?: number;
+      }> = [];
+
+      for (const path of paths) {
+        const { data } = await supabase
+          .from('learning_path_exercises')
+          .select('id, learning_path_id, repeat_count')
+          .eq('learning_path_id', path.id)
+          .order('order_index', { ascending: true });
+
+        if (data) {
+          allExercises.push(...data);
+        }
+      }
+      setAllPathExercises(allExercises);
+      console.log(
+        '✅ [ProgressSection] Loaded all exercises for progress calculation:',
+        allExercises.length,
+      );
+    };
+    if (paths.length > 0) fetchAllExercises();
+  }, [paths]);
 
   useEffect(() => {
     console.log('ProgressSection: Fetching last audit and completions');
@@ -513,7 +569,8 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       ]);
 
       setLastAudit(lastAudit);
-      setCompletedIds(completions);
+      setCompletedIds(completions.regular);
+      setVirtualRepeatCompletions(completions.virtual);
     };
     fetch();
 
@@ -537,8 +594,9 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
           // Debounce to handle batch updates (like Mark All)
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
-            fetchCompletions(effectiveUserId).then((completions) => {
-              setCompletedIds(completions);
+            fetchCompletions(effectiveUserId).then(({ regular, virtual }) => {
+              setCompletedIds(regular);
+              setVirtualRepeatCompletions(virtual);
             });
           }, 200); // Short delay to batch multiple rapid changes
         },
@@ -554,8 +612,9 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
           // Debounce to handle batch updates (like Mark All)
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
-            fetchCompletions(effectiveUserId).then((completions) => {
-              setCompletedIds(completions);
+            fetchCompletions(effectiveUserId).then(({ regular, virtual }) => {
+              setCompletedIds(regular);
+              setVirtualRepeatCompletions(virtual);
             });
           }, 200); // Short delay to batch multiple rapid changes
         },
@@ -575,8 +634,9 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         () => {
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
-            fetchCompletions(effectiveUserId).then((completions) => {
-              setCompletedIds(completions);
+            fetchCompletions(effectiveUserId).then(({ regular, virtual }) => {
+              setCompletedIds(regular);
+              setVirtualRepeatCompletions(virtual);
             });
           }, 200);
         },
@@ -715,12 +775,43 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     });
   }, [paths, categoryFilters]);
 
-  // Calculate progress for each path
+  // Calculate progress for each path (includes repeats like ProgressScreen)
   const getPathProgress = (path: LearningPath) => {
-    const ids = path.learning_path_exercises.map((exercise) => exercise.id);
-    if (ids.length === 0) return 0;
-    const completed = ids.filter((id) => completedIds.includes(id)).length;
-    return completed / ids.length;
+    const pathExercises = allPathExercises.filter((ex) => ex.learning_path_id === path.id);
+
+    // Fallback: if allPathExercises is empty, calculate simple progress without repeats
+    if (pathExercises.length === 0) {
+      const ids = path.learning_path_exercises.map((exercise) => exercise.id);
+      if (ids.length === 0) return 0;
+      const completed = ids.filter((id) => completedIds.includes(id)).length;
+      return completed / ids.length;
+    }
+
+    // Calculate total required completions (exercises + their repeats)
+    let totalCompletionsNeeded = 0;
+    let completedCount = 0;
+
+    pathExercises.forEach((ex) => {
+      const repeatCount = ex.repeat_count || 1;
+      totalCompletionsNeeded += repeatCount;
+
+      // Count main exercise
+      if (completedIds.includes(ex.id)) {
+        completedCount++;
+      }
+
+      // Count virtual repeats (if repeat_count > 1)
+      if (repeatCount > 1) {
+        for (let i = 2; i <= repeatCount; i++) {
+          const virtualId = `${ex.id}-virtual-${i}`;
+          if (virtualRepeatCompletions.includes(virtualId)) {
+            completedCount++;
+          }
+        }
+      }
+    });
+
+    return totalCompletionsNeeded > 0 ? completedCount / totalCompletionsNeeded : 0;
   };
 
   if (loading) {
@@ -794,7 +885,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
             const isPasswordLocked = isPathPasswordLocked(path);
             const isPaywallLocked = isPathPaywallLocked(path);
             const isEnabled = true; // Allow all paths to be clickable - access control happens in press handler
-            // Visual highlight for paths with progress or locked status
+            // Visual highlight for paths with progress (not 0% and not 100%) or locked status
             const isNextToUnlock = percent > 0 && percent < 1;
             const isFirstCard = index === 0;
             return (
@@ -805,17 +896,15 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                 activeOpacity={isEnabled ? 0.8 : 1}
                 style={{
                   opacity: isEnabled ? 1 : 0.5,
-                  borderWidth: isNextToUnlock || isPasswordLocked || isPaywallLocked ? 3 : 0,
+                  borderWidth: 2,
                   borderColor: isPasswordLocked
                     ? '#FF9500'
                     : isPaywallLocked
                       ? '#00E6C3'
-                      : isNextToUnlock
-                        ? '#00E6C3'
-                        : colorScheme === 'dark'
-                          ? '#333'
-                          : '#E5E5E5',
-                  borderRadius: 24,
+                      : colorScheme === 'dark'
+                        ? '#232323'
+                        : '#E5E5E5',
+                  borderRadius: 16,
                   shadowColor: isPasswordLocked
                     ? '#FF9500'
                     : isPaywallLocked
@@ -823,9 +912,9 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                       : isNextToUnlock
                         ? '#00E6C3'
                         : 'transparent',
-                  shadowOpacity: isNextToUnlock || isPasswordLocked || isPaywallLocked ? 0.5 : 0,
-                  shadowRadius: isNextToUnlock || isPasswordLocked || isPaywallLocked ? 12 : 0,
-                  shadowOffset: { width: 0, height: 0 },
+                  // shadowOpacity: isNextToUnlock || isPasswordLocked || isPaywallLocked ? 0.5 : 0,
+                  // shadowRadius: isNextToUnlock || isPasswordLocked || isPaywallLocked ? 12 : 0,
+                  // shadowOffset: { width: 0, height: 0 },
                   marginBottom: 8,
                   backgroundColor: colorScheme === 'dark' ? '#232323' : '#f2f1ef',
                 }}
@@ -833,10 +922,12 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
               >
                 <YStack
                   backgroundColor={isActive ? '$blue5' : '$backgroundStrong'}
-                  padding={12}
+                  paddingVertical={18}
+                  paddingTop={24}
+                  paddingHorizontal={8}
                   borderRadius={20}
-                  width={100}
-                  height={120}
+                  width={120}
+                  height={135}
                   justifyContent="space-between"
                   alignItems="center"
                   position="relative"
@@ -906,7 +997,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                       <>
                         <ProgressCircle
                           percent={percent}
-                          size={40}
+                          size={60}
                           color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
                           bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                         />
@@ -935,28 +1026,49 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                         >
                           {Math.round(percent * 100)}%
                         </Text>
+                        {/* Checkmark if completed */}
+                        {percent === 1 && (
+                          <View
+                            style={{
+                              position: 'absolute',
+                              top: -12,
+                              right: -12,
+                              width: 24,
+                              height: 24,
+                              borderRadius: 15,
+                              backgroundColor: colorScheme === 'dark' ? '#27febe' : '#00C9A7',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Feather name="check" size={12} color="#000" />
+                          </View>
+                        )}
                       </>
                     )}
                   </View>
 
                   <YStack alignItems="center" gap={2}>
-                    <Text
-                      fontSize={14}
-                      fontWeight={isActive ? 'bold' : '600'}
-                      color={
-                        isPasswordLocked
-                          ? '#FF9500'
-                          : isPaywallLocked
-                            ? '#00E6C3'
-                            : isActive
-                              ? '$color'
-                              : '$gray11'
-                      }
-                      numberOfLines={2}
-                      textAlign="center"
-                    >
-                      {path.title[lang]}
-                    </Text>
+                    <YStack minHeight={32} justifyContent="flex-start">
+                      <Text
+                        fontSize={11}
+                        fontWeight="900"
+                        fontStyle="italic"
+                        color={
+                          isPasswordLocked
+                            ? '#FF9500'
+                            : isPaywallLocked
+                              ? '#00E6C3'
+                              : isActive
+                                ? '$color'
+                                : '$color'
+                        }
+                        numberOfLines={3}
+                        textAlign="center"
+                      >
+                        {path.title[lang]}
+                      </Text>
+                    </YStack>
 
                     {/* Status indicator text */}
                     {isPasswordLocked && (
@@ -989,7 +1101,11 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
             '🎯 [ProgressSection] Learning path selected:',
             path.title[lang] || path.title.en,
           );
-          setSelectedLearningPath(path);
+          // Find the full path object from our paths array to ensure type compatibility
+          const fullPath = paths.find((p) => p.id === path.id);
+          if (fullPath) {
+            setSelectedLearningPath(fullPath);
+          }
           setSelectedPathId(path.id);
           setSelectedPathTitle(path.title[lang] || path.title.en);
           setShowLearningPathsSheet(false);
