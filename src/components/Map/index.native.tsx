@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { View, TouchableOpacity, StyleProp, ViewStyle, Text as RNText } from 'react-native';
+import { View, TouchableOpacity, StyleProp, ViewStyle, Text as RNText, PixelRatio } from 'react-native';
 import MapView, { Marker, Region } from '../MapView';
 import { StyleSheet } from 'react-native';
 import { Text, Circle } from 'tamagui';
@@ -28,15 +28,17 @@ type ClusterMarkerProps = {
   onPress?: (e?: { stopPropagation: () => void }) => void;
 };
 
+const clusterMarkerSize = PixelRatio.getPixelSizeForLayoutSize(1) === 4 ? 28 : 36;
+
 function ClusterMarker({ count, onPress }: ClusterMarkerProps) {
   return (
     <TouchableOpacity onPress={onPress}>
       <View
         style={{
-          width: 40,
-          height: 40,
+          width: clusterMarkerSize,
+          height: clusterMarkerSize,
           backgroundColor: PIN_COLORS.PRIMARY,
-          borderRadius: 20,
+          borderRadius: clusterMarkerSize / 2,
           alignItems: 'center',
           justifyContent: 'center',
           shadowColor: '#000',
@@ -153,8 +155,8 @@ const WaypointMarker = React.memo(
           {/* Circular marker like cluster */}
           <View
             style={{
-              width: 32,
-              height: 32,
+              width: 28,
+              height: 28,
               backgroundColor: getMarkerColor(),
               borderRadius: 16,
               borderWidth: isSelected ? 5 : 0,
