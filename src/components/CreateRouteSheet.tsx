@@ -3288,13 +3288,7 @@ export function CreateRouteSheet({
                                     moveOnMarkerPress={false}
                                     showsUserLocation={true}
                                     userInterfaceStyle={colorScheme === 'dark' ? 'dark' : 'light'}
-                                    zoomTapEnabled={
-                                      !(
-                                        drawingMode === 'pen' &&
-                                        isDrawing &&
-                                        Platform.OS === 'android'
-                                      )
-                                    }
+                                    zoomTapEnabled={false}
                                     scrollDuringRotateOrZoomEnabled={
                                       !(
                                         drawingMode === 'pen' &&
@@ -3314,7 +3308,6 @@ export function CreateRouteSheet({
                                               longitude: waypoint.longitude,
                                             }}
                                             anchor={{ x: 0.5, y: 0.5 }}
-                                            tracksViewChanges={false}
                                           >
                                             {/* Circular marker like MapScreen */}
                                             <View
