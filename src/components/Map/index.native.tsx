@@ -1,11 +1,5 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleProp,
-  ViewStyle,
-  Text as RNText,
-} from 'react-native';
+import { View, TouchableOpacity, StyleProp, ViewStyle, Text as RNText } from 'react-native';
 import MapView, { Marker, Region } from '../MapView';
 import { StyleSheet } from 'react-native';
 import { Text, Circle } from 'tamagui';
