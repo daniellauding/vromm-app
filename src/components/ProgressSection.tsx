@@ -512,7 +512,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
       const data = await fetchLearningPaths();
       if (data && data.length > 0) {
         setPaths(data);
-        setActivePath(data[0].id);
+        // setActivePath(data[0].id);
       }
     };
     fetch();
@@ -896,7 +896,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                 activeOpacity={isEnabled ? 0.8 : 1}
                 style={{
                   opacity: isEnabled ? 1 : 0.5,
-                  borderWidth: 3,
+                  borderWidth: 2,
                   borderColor: isPasswordLocked
                     ? '#FF9500'
                     : isPaywallLocked
@@ -904,7 +904,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                       : colorScheme === 'dark'
                         ? '#232323'
                         : '#E5E5E5',
-                  borderRadius: 24,
+                  borderRadius: 16,
                   shadowColor: isPasswordLocked
                     ? '#FF9500'
                     : isPaywallLocked
@@ -922,10 +922,12 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
               >
                 <YStack
                   backgroundColor={isActive ? '$blue5' : '$backgroundStrong'}
-                  padding={12}
+                  paddingVertical={18}
+                  paddingTop={24}
+                  paddingHorizontal={8}
                   borderRadius={20}
-                  width={100}
-                  height={120}
+                  width={120}
+                  height={135}
                   justifyContent="space-between"
                   alignItems="center"
                   position="relative"
@@ -995,7 +997,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                       <>
                         <ProgressCircle
                           percent={percent}
-                          size={40}
+                          size={60}
                           color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
                           bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                         />
@@ -1024,28 +1026,49 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                         >
                           {Math.round(percent * 100)}%
                         </Text>
+                        {/* Checkmark if completed */}
+                        {percent === 1 && (
+                          <View
+                            style={{
+                              position: 'absolute',
+                              top: -12,
+                              right: -12,
+                              width: 24,
+                              height: 24,
+                              borderRadius: 15,
+                              backgroundColor: colorScheme === 'dark' ? '#27febe' : '#00C9A7',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Feather name="check" size={12} color="#000" />
+                          </View>
+                        )}
                       </>
                     )}
                   </View>
 
                   <YStack alignItems="center" gap={2}>
-                    <Text
-                      fontSize={14}
-                      fontWeight={isActive ? 'bold' : '600'}
-                      color={
-                        isPasswordLocked
-                          ? '#FF9500'
-                          : isPaywallLocked
-                            ? '#00E6C3'
-                            : isActive
-                              ? '$color'
-                              : '$gray11'
-                      }
-                      numberOfLines={2}
-                      textAlign="center"
-                    >
-                      {path.title[lang]}
-                    </Text>
+                    <YStack minHeight={32} justifyContent="flex-start">
+                      <Text
+                        fontSize={11}
+                        fontWeight="900"
+                        fontStyle="italic"
+                        color={
+                          isPasswordLocked
+                            ? '#FF9500'
+                            : isPaywallLocked
+                              ? '#00E6C3'
+                              : isActive
+                                ? '$color'
+                                : '$color'
+                        }
+                        numberOfLines={3}
+                        textAlign="center"
+                      >
+                        {path.title[lang]}
+                      </Text>
+                    </YStack>
 
                     {/* Status indicator text */}
                     {isPasswordLocked && (
