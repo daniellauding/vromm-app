@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Pressable, useColorScheme, Image, TouchableOpacity } from 'react-native';
+import { Modal, Pressable, Image, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { ScrollView, YStack, XStack, Heading, Paragraph } from 'tamagui';
 import { Button } from '../components/Button';
@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { UserProfileSheet } from './UserProfileSheet';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useThemePreference } from '../hooks/useThemeOverride';
 
 // 🖼️ Import static images (OPTIONAL - comment out if files don't exist yet)
 
@@ -55,7 +56,7 @@ export function UnifiedInvitationModal({
   const { t } = useTranslation();
   const { user } = useAuth();
   const { showToast } = useToast();
-  const colorScheme = useColorScheme();
+  const { effectiveTheme } = useThemePreference();
 
   const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -68,9 +69,9 @@ export function UnifiedInvitationModal({
   // 🎨 Scroll state for gradient visibility
   const [isScrollable, setIsScrollable] = useState(false);
 
-  const backgroundColor = colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
-  const textColor = colorScheme === 'dark' ? 'white' : 'black';
-  const borderColor = colorScheme === 'dark' ? '#333' : '#DDD';
+  const backgroundColor = effectiveTheme === 'dark' ? '#1A1A1A' : '#FFFFFF';
+  const textColor = effectiveTheme === 'dark' ? 'white' : 'black';
+  const borderColor = effectiveTheme === 'dark' ? '#333' : '#DDD';
 
   // Fetch pending invitations
   useEffect(() => {
@@ -504,7 +505,7 @@ export function UnifiedInvitationModal({
       <BlurView
         style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
         intensity={10}
-        tint={colorScheme === 'dark' ? 'dark' : 'light'}
+        tint={effectiveTheme === 'dark' ? 'dark' : 'light'}
         pointerEvents="none"
       />
       <Pressable
@@ -619,7 +620,7 @@ export function UnifiedInvitationModal({
                                     height: 60,
                                     borderRadius: 30,
                                     borderWidth: 2,
-                                    borderColor: colorScheme === 'dark' ? '#00FFBC' : '#00CC96',
+                                    borderColor: effectiveTheme === 'dark' ? '#00FFBC' : '#00CC96',
                                   }}
                                 />
                               ) : (
@@ -627,11 +628,11 @@ export function UnifiedInvitationModal({
                                   width={60}
                                   height={60}
                                   borderRadius={30}
-                                  backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
+                                  backgroundColor={effectiveTheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}
                                   alignItems="center"
                                   justifyContent="center"
                                   borderWidth={2}
-                                  borderColor={colorScheme === 'dark' ? '#00FFBC' : '#00CC96'}
+                                  borderColor={effectiveTheme === 'dark' ? '#00FFBC' : '#00CC96'}
                                 >
                                   <User size={30} color={textColor} />
                                 </YStack>
