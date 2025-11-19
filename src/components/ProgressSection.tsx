@@ -856,6 +856,13 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         }}
         actionLabel={t('common.seeAll') || 'See All'}
         showActionLabel={false}
+        helpText={
+          lastAudit
+            ? `${t('progressSection.lastCompleted') || 'Last'}: ${lastAudit.action.replace('_', ' ')} by ${lastAudit.actor_name || 'Unknown'} at ${new Date(lastAudit.created_at).toLocaleString()}`
+            : t('progressSection.help') ||
+              'Track your learning progress across different paths. Each card shows your completion percentage.'
+        }
+        showHelp={true}
       />
 
       {/* Viewing indicator (matching ProgressScreen.tsx) */}
@@ -868,14 +875,16 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
           </YStack>
         </YStack>
       )}
-      {lastAudit && (
+      {/* {lastAudit && (
         <YStack paddingHorizontal="$4" marginBottom={4}>
-          <Text color="$gray11" fontSize={12}>
-            {t('progressSection.lastCompleted') || 'Last'}: {lastAudit.action.replace('_', ' ')} by{' '}
-            {lastAudit.actor_name || 'Unknown'} at {new Date(lastAudit.created_at).toLocaleString()}
-          </Text>
+          <XStack alignItems="center" justifyContent="flex-end">
+            <HelpIcon
+              helpText={`${t('progressSection.lastCompleted') || 'Last'}: ${lastAudit.action.replace('_', ' ')} by ${lastAudit.actor_name || 'Unknown'} at ${new Date(lastAudit.created_at).toLocaleString()}`}
+              size={14}
+            />
+          </XStack>
         </YStack>
-      )}
+      )} */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <XStack space="$3" paddingHorizontal="$4">
           {filteredPaths.map((path, index) => {

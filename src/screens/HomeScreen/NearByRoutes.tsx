@@ -76,6 +76,11 @@ export const NearByRoutes = ({ onRoutePress }: NearByRoutesProps = {}) => {
         onAction={onNavigateToRouteList}
         actionLabel={t('common.seeAll')}
         showActionLabel={false}
+        helpText={getTranslation(
+          'home.nearbyRoutes.help',
+          'Shows practice routes within 100km of your current location. Routes are sorted by distance from you.',
+        )}
+        showHelp={true}
       />
 
       {nearbyRoutes.length === 0 ? (
@@ -102,7 +107,8 @@ export const NearByRoutes = ({ onRoutePress }: NearByRoutesProps = {}) => {
           data={nearbyRoutes.slice(0, 3)}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <XStack paddingHorizontal="$4" marginRight="$4">
+            // <XStack paddingHorizontal="$4" marginRight="$4">
+            <XStack>
               <RouteCard
                 route={item}
                 onPress={onRoutePress ? () => onRoutePress(item.id) : undefined}
@@ -110,7 +116,7 @@ export const NearByRoutes = ({ onRoutePress }: NearByRoutesProps = {}) => {
             </XStack>
           )}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16 }}
+          contentContainerStyle={{ paddingHorizontal: 0, paddingVertical: 0 }}
         />
       )}
 
