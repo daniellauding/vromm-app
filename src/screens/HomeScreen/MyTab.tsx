@@ -172,6 +172,7 @@ export default React.memo(function MyTab({
         backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#EBEBEB'}
         paddingVertical={16}
         paddingHorizontal={4}
+        paddingRight={0}
         marginTop={16}
       >
 

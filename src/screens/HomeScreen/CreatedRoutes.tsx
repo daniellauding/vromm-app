@@ -295,11 +295,15 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
               data={createdRoutes}
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingVertical: 0 }}
+              contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
               renderItem={({ item: route }) => (
                 <XStack marginRight="$3">
                   <RouteCard
                     route={route}
+                    // To allow 100% or fixed width, use a wrapper XStack and control its width
+                    // Example: set width to 200, or '100%' for full width within scroll area
+                    // Here, let's allow for 100% width; you can override as needed
+                    style={{ width: '100%', maxWidth: 120, minWidth: 80 }} // change as needed!
                     onPress={() => {
                       if (onRoutePress) {
                         onRoutePress(route.id);

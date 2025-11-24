@@ -1,6 +1,6 @@
 import React from 'react';
 import { YStack, XStack, Text, Card } from 'tamagui';
-import { FlatList, Dimensions, TouchableOpacity, Image } from 'react-native';
+import { FlatList, TouchableOpacity, Image } from 'react-native';
 
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
@@ -205,28 +205,11 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
-          // Calculate card width to show 3-4 cards at once
-          // Screen width - padding (32) - gaps between cards (12 * 3) = available width
-          // Divide by 3.5 to show ~3.5 cards (3-4 visible)
-          getItemLayout={(data, index) => {
-            const screenWidth = Dimensions.get('window').width;
-            const padding = 32; // 16 on each side
-            const gap = 12; // gap between cards
-            const cardWidth = (screenWidth - padding - gap * 2) / 3.5;
-            return {
-              length: cardWidth + gap,
-              offset: (cardWidth + gap) * index,
-              index,
-            };
-          }}
-          snapToInterval={Dimensions.get('window').width / 3.5 + 12}
-          decelerationRate="fast"
-          snapToAlignment="start"
           renderItem={({ item: route }) => {
-            const screenWidth = Dimensions.get('window').width;
-            const padding = 32;
-            const gap = 12;
-            const cardWidth = (screenWidth - padding - gap * 2) / 3.5;
+            // RouteCard's grid preset calculates: (screenWidth - 32 - 24) / 3.5
+            // We need to match this for proper FlatList layout
+            const screenWidth = require('react-native').Dimensions.get('window').width;
+            const cardWidth = (screenWidth - 32 - 24) / 3.5;
             return (
               <XStack marginRight="$3" width={cardWidth} overflow="hidden">
                 <RouteCard
