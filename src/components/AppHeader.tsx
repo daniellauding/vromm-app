@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, ScrollView, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { XStack, Text, useTheme } from 'tamagui';
+import { XStack, Text } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 // import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -53,11 +53,6 @@ export function AppHeader({
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
   const { getSmartFilters, trackFilterUsage, addUserCollections, getAllFilters } =
     useSmartFilters();
-  const theme = useTheme();
-  // Semi-transparent backgrounds for overlay effect
-  const buttonBackgroundColor =
-    colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.85)' : 'rgba(255, 255, 255, 0.85)';
-  const borderColor = colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)';
 
   // Add user collections to smart filters
   React.useEffect(() => {
@@ -159,7 +154,7 @@ export function AppHeader({
                   keyboardShouldPersistTaps="handled"
                   scrollEnabled={true}
                 >
-                  {smartFilters.map((filter, index) => {
+                  {smartFilters.map((filter) => {
                     const isActive = activeFilters.includes(filter.id);
                     const count = filterCounts[filter.id];
                     const isCollection = filter.type === 'collection';
@@ -236,42 +231,6 @@ export function AppHeader({
                     );
                   })}
                 </ScrollView>
-
-                {/* Left gradient overlay */}
-                {/* <LinearGradient
-                  colors={[
-                    colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.3)' : 'rgba(255, 255, 255, 0.3)',
-                    'transparent',
-                  ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{
-                    position: 'absolute',
-                    left: 8,
-                    top: 0,
-                    bottom: 0,
-                    width: 12,
-                    pointerEvents: 'none',
-                  }}
-                /> */}
-
-                {/* Right gradient overlay */}
-                {/* <LinearGradient
-                  colors={[
-                    'transparent',
-                    colorScheme === 'dark' ? 'rgba(26, 26, 26, 0.3)' : 'rgba(255, 255, 255, 0.3)',
-                  ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{
-                    position: 'absolute',
-                    right: -16,
-                    top: 0,
-                    bottom: 0,
-                    width: 12,
-                    pointerEvents: 'none',
-                  }}
-                /> */}
               </View>
             )}
           </XStack>

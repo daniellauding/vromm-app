@@ -1,13 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Image, StyleSheet, Animated, Easing } from 'react-native';
+import { View, StyleSheet, Animated, Easing } from 'react-native';
 import { YStack } from 'tamagui';
 import { Asset } from 'expo-asset';
 
 // Import symbol with simpler path
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const symbolImage = require('../../assets/symbol.png');
-
-// Static flag to track if the animation has run during this app session
-const hasAnimationRunThisSession = false;
 
 interface AnimatedLogoProps {
   onAnimationComplete?: () => void;
@@ -19,10 +17,15 @@ const LETTERS: LetterKey[] = ['v', 'r', 'o', 'm1', 'm2'];
 
 // Define letter image modules with simpler paths
 const letterImages = {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   v: require('../../assets/v.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   r: require('../../assets/r.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   o: require('../../assets/o.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   m1: require('../../assets/m1.png'),
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   m2: require('../../assets/m2.png'),
 };
 
@@ -151,7 +154,7 @@ export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoPr
         animationRef.current.stop();
       }
     };
-  }, [assetsLoaded, onAnimationComplete]);
+  }, [assetsLoaded, onAnimationComplete, letterAnimations, symbolOpacity]);
 
   if (!assetsLoaded) {
     return null;
