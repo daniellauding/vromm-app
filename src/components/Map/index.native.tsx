@@ -4,7 +4,7 @@ import MapView, { Marker, Region } from '../MapView';
 import { StyleSheet } from 'react-native';
 import { Text } from 'tamagui';
 import Supercluster from 'supercluster';
-import RouterDrawing from './RouterDrawing.native';
+import RouterDrawing from './RouterDrawing';
 import { lightMapStyle, darkMapStyle, PIN_COLORS } from '../../styles/mapStyles';
 import { useThemePreference } from '../../hooks/useThemeOverride';
 import { RoutePathPoint } from './types';

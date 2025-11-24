@@ -236,7 +236,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
               {getTranslation(
                 'map.recordDriving',
-                language === 'sv' ? 'Spela in körning' : 'Record Route'
+                language === 'sv' ? 'Spela in körning' : 'Record Route',
               )}
             </Text>
             <XStack gap={8} alignItems="center">
@@ -283,11 +283,11 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                   {showMap
                     ? getTranslation(
                         'recording.hidePreview',
-                        language === 'sv' ? 'Dölj förhandsgranskning' : 'Hide Preview'
+                        language === 'sv' ? 'Dölj förhandsgranskning' : 'Hide Preview',
                       )
                     : getTranslation(
                         'recording.showPreview',
-                        language === 'sv' ? 'Visa ruttförhandsgranskning' : 'Show Route Preview'
+                        language === 'sv' ? 'Visa ruttförhandsgranskning' : 'Show Route Preview',
                       )}
                 </Text>
               </TouchableOpacity>
@@ -316,11 +316,11 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                   {recordingState.isPaused
                     ? getTranslation(
                         'recording.pausedStatus',
-                        language === 'sv' ? 'INSPELNING PAUSAD' : 'RECORDING PAUSED'
+                        language === 'sv' ? 'INSPELNING PAUSAD' : 'RECORDING PAUSED',
                       )
                     : getTranslation(
                         'recording.activeStatus',
-                        language === 'sv' ? 'INSPELNING AKTIV' : 'RECORDING ACTIVE'
+                        language === 'sv' ? 'INSPELNING AKTIV' : 'RECORDING ACTIVE',
                       )}
                 </Text>
               </View>
@@ -329,7 +329,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                   'recording.recordingInfo',
                   language === 'sv'
                     ? `Spelar in ${recordingState.waypoints.length} vägpunkter • ${recordingState.distance.toFixed(2)} km`
-                    : `Recording ${recordingState.waypoints.length} waypoints • ${recordingState.distance.toFixed(2)} km`
+                    : `Recording ${recordingState.waypoints.length} waypoints • ${recordingState.distance.toFixed(2)} km`,
                 )}
               </Text>
               {recordingState.debugMessage && (

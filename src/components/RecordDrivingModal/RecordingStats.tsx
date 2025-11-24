@@ -73,8 +73,9 @@ export default function RecordingStats({
           staysActiveInBackground: false,
         });
         const { sound } = await Audio.Sound.createAsync(
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
           require('../../../assets/sounds/ui-done.mp3'),
-          { shouldPlay: true, volume: 0.5 }
+          { shouldPlay: true, volume: 0.5 },
         );
         sound.setOnPlaybackStatusUpdate((status) => {
           if (status.isLoaded && status.didJustFinish) {
@@ -84,7 +85,7 @@ export default function RecordingStats({
       } catch (error) {
         console.log('🔊 Start sound error:', error);
       }
-      
+
       // Start recording immediately using global context (no delays)
       await startRecording();
 
@@ -155,59 +156,42 @@ export default function RecordingStats({
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-            {getTranslation(
-              'recording.duration',
-              language === 'sv' ? 'VARAKTIGHET' : 'DURATION'
-            )}
+            {getTranslation('recording.duration', language === 'sv' ? 'VARAKTIGHET' : 'DURATION')}
           </Text>
           <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
             {formatTime(recordingState.totalElapsedTime)}
           </Text>
           <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-            {getTranslation(
-              'recording.driving',
-              language === 'sv' ? 'Körning' : 'Driving'
-            )}: {formatTime(recordingState.drivingTime)}
+            {getTranslation('recording.driving', language === 'sv' ? 'Körning' : 'Driving')}:{' '}
+            {formatTime(recordingState.drivingTime)}
           </Text>
         </View>
         <View style={styles.statItem}>
           <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-            {getTranslation(
-              'recording.distance',
-              language === 'sv' ? 'DISTANS' : 'DISTANCE'
-            )}
+            {getTranslation('recording.distance', language === 'sv' ? 'DISTANS' : 'DISTANCE')}
           </Text>
           <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
             {recordingState.distance.toFixed(2)} km
           </Text>
           <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-            {recordingState.waypoints.length} {getTranslation(
-              'recording.waypoints',
-              language === 'sv' ? 'vägpunkter' : 'waypoints'
-            )}
+            {recordingState.waypoints.length}{' '}
+            {getTranslation('recording.waypoints', language === 'sv' ? 'vägpunkter' : 'waypoints')}
           </Text>
         </View>
         <View style={styles.statItem}>
           <Text color={DARK_THEME.text} fontSize={14} opacity={0.7}>
-            {getTranslation(
-              'recording.speed',
-              language === 'sv' ? 'HASTIGHET' : 'SPEED'
-            )}
+            {getTranslation('recording.speed', language === 'sv' ? 'HASTIGHET' : 'SPEED')}
           </Text>
           <Text color={DARK_THEME.text} fontSize={20} fontWeight="600">
             {formatSpeed(recordingState.currentSpeed)} km/h
           </Text>
           <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-            {getTranslation(
-              'recording.max',
-              language === 'sv' ? 'Max' : 'Max'
-            )}: {formatSpeed(recordingState.maxSpeed)} km/h
+            {getTranslation('recording.max', language === 'sv' ? 'Max' : 'Max')}:{' '}
+            {formatSpeed(recordingState.maxSpeed)} km/h
           </Text>
           <Text color={DARK_THEME.text} fontSize={12} opacity={0.5}>
-            {getTranslation(
-              'recording.avg',
-              language === 'sv' ? 'Snitt' : 'Avg'
-            )}: {formatSpeed(recordingState.averageSpeed)} km/h
+            {getTranslation('recording.avg', language === 'sv' ? 'Snitt' : 'Avg')}:{' '}
+            {formatSpeed(recordingState.averageSpeed)} km/h
           </Text>
         </View>
       </View>
@@ -245,8 +229,9 @@ export default function RecordingStats({
                       staysActiveInBackground: false,
                     });
                     const { sound } = await Audio.Sound.createAsync(
+                      // eslint-disable-next-line @typescript-eslint/no-require-imports
                       require('../../../assets/sounds/ui-done.mp3'),
-                      { shouldPlay: true, volume: 0.6 }
+                      { shouldPlay: true, volume: 0.6 },
                     );
                     sound.setOnPlaybackStatusUpdate((status) => {
                       if (status.isLoaded && status.didJustFinish) {
@@ -256,7 +241,7 @@ export default function RecordingStats({
                   } catch (error) {
                     console.log('🔊 Stop sound error:', error);
                   }
-                  
+
                   stopRecording();
                 }}
               >
@@ -276,15 +261,15 @@ export default function RecordingStats({
               ? recordingState.isPaused
                 ? getTranslation(
                     'recording.paused',
-                    language === 'sv' ? 'Inspelning pausad' : 'Recording Paused'
+                    language === 'sv' ? 'Inspelning pausad' : 'Recording Paused',
                   )
                 : getTranslation(
                     'recording.recording',
-                    language === 'sv' ? 'Spelar in...' : 'Recording...'
+                    language === 'sv' ? 'Spelar in...' : 'Recording...',
                   )
               : getTranslation(
                   'recording.startRecording',
-                  language === 'sv' ? 'Starta inspelning' : 'Start Recording'
+                  language === 'sv' ? 'Starta inspelning' : 'Start Recording',
                 )}
           </Text>
         </View>
@@ -294,7 +279,7 @@ export default function RecordingStats({
           <Text color={DARK_THEME.text} fontSize={18} fontWeight="600" textAlign="center">
             {getTranslation(
               'recording.complete',
-              language === 'sv' ? 'Inspelning slutförd' : 'Recording Complete'
+              language === 'sv' ? 'Inspelning slutförd' : 'Recording Complete',
             )}
           </Text>
 
@@ -304,13 +289,13 @@ export default function RecordingStats({
                   'recording.successMessage',
                   language === 'sv'
                     ? `Din rutt har spelats in med ${recordingState.waypoints.length} vägpunkter. Du kan nu skapa en rutt, fortsätta spela in eller börja om.`
-                    : `Your route has been recorded successfully with ${recordingState.waypoints.length} waypoints. You can now create a route, continue recording, or start over.`
+                    : `Your route has been recorded successfully with ${recordingState.waypoints.length} waypoints. You can now create a route, continue recording, or start over.`,
                 )
               : getTranslation(
                   'recording.noMovement',
                   language === 'sv'
                     ? 'Ingen rörelse spelades in. Du kan försöka spela in igen.'
-                    : 'No movement was recorded. You can try recording again.'
+                    : 'No movement was recorded. You can try recording again.',
                 )}
           </Text>
 
@@ -328,7 +313,7 @@ export default function RecordingStats({
                 <Text color="white" fontWeight="600" fontSize={18}>
                   {getTranslation(
                     'recording.createRoute',
-                    language === 'sv' ? 'Skapa rutt' : 'Create Route'
+                    language === 'sv' ? 'Skapa rutt' : 'Create Route',
                   )}
                 </Text>
               </XStack>
@@ -350,7 +335,7 @@ export default function RecordingStats({
                 <Text color="white">
                   {getTranslation(
                     'recording.continue',
-                    language === 'sv' ? 'Fortsätt' : 'Continue'
+                    language === 'sv' ? 'Fortsätt' : 'Continue',
                   )}
                 </Text>
               </XStack>
@@ -370,7 +355,7 @@ export default function RecordingStats({
                 <Text color="white">
                   {getTranslation(
                     'recording.startOver',
-                    language === 'sv' ? 'Börja om' : 'Start Over'
+                    language === 'sv' ? 'Börja om' : 'Start Over',
                   )}
                 </Text>
               </XStack>
@@ -384,10 +369,7 @@ export default function RecordingStats({
             marginBottom={8}
           >
             <Text color="white">
-              {getTranslation(
-                'recording.dismiss',
-                language === 'sv' ? 'Stäng' : 'Dismiss'
-              )}
+              {getTranslation('recording.dismiss', language === 'sv' ? 'Stäng' : 'Dismiss')}
             </Text>
           </Button>
         </YStack>

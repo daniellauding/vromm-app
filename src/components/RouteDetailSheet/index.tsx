@@ -19,7 +19,6 @@ import ReanimatedAnimated, {
 import { YStack, XStack, Text, Card, Progress, useTheme } from 'tamagui';
 import { Button } from '../../components/Button';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useThemeColor } from '../../../hooks/useThemeColor';
 import { useThemePreference } from '../../hooks/useThemeOverride';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../contexts/TranslationContext';
@@ -134,7 +133,6 @@ interface RouteDetailSheetProps {
   visible: boolean;
   onClose: () => void;
   routeId: string | null;
-  onStartRoute?: (routeId: string) => void;
   onNavigateToProfile?: (userId: string) => void;
   onReopen?: () => void;
   nearbyRoutes?: Array<{ id: string; name: string; waypoint_details?: any[] }>;
@@ -145,7 +143,6 @@ export function RouteDetailSheet({
   visible,
   onClose,
   routeId,
-  onStartRoute,
   onNavigateToProfile,
   onReopen,
   nearbyRoutes = [],
@@ -212,7 +209,7 @@ export function RouteDetailSheet({
       restSpeedThreshold: 0.01,
     });
     setTimeout(() => onClose(), 200);
-  }, [onClose, snapPoints.dismissed]);
+  }, [onClose, snapPoints.dismissed, translateY]);
 
   // Swipe navigation handlers
   const handleSwipeToNext = useCallback(() => {
@@ -789,7 +786,12 @@ export function RouteDetailSheet({
                           />
 
                           {/* Basic Info Card */}
-                          <Card backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'} borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'} bordered padding="$4">
+                          <Card
+                            backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
+                            borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
+                            bordered
+                            padding="$4"
+                          >
                             <YStack gap="$2">
                               <XStack gap="$2" alignItems="center" flexWrap="wrap">
                                 <Text fontSize="$5" fontWeight="600" color="$color">
@@ -866,7 +868,12 @@ export function RouteDetailSheet({
                               const formattedStats = formatRecordingStatsDisplay(recordingStats);
 
                               return (
-                                <Card backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'} borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'} bordered padding="$4">
+                                <Card
+                                  backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
+                                  borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
+                                  bordered
+                                  padding="$4"
+                                >
                                   <YStack gap="$3">
                                     <XStack alignItems="center" gap="$2">
                                       <Feather name="activity" size={20} color={iconColor} />
@@ -912,7 +919,12 @@ export function RouteDetailSheet({
                           {routeData.exercises &&
                             Array.isArray(routeData.exercises) &&
                             routeData.exercises.length > 0 && (
-                              <Card backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'} borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'} bordered padding="$4">
+                              <Card
+                                backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
+                                borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
+                                bordered
+                                padding="$4"
+                              >
                                 <YStack gap="$4">
                                   <XStack justifyContent="space-between" alignItems="center">
                                     <Text fontSize="$5" fontWeight="600" color="$color">
@@ -1014,7 +1026,13 @@ export function RouteDetailSheet({
 
                                   {/* Exercise Statistics */}
                                   {exerciseStats && (
-                                    <Card bordered padding="$3" backgroundColor={colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'}>
+                                    <Card
+                                      bordered
+                                      padding="$3"
+                                      backgroundColor={
+                                        colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'
+                                      }
+                                    >
                                       <YStack gap="$2">
                                         <Text fontSize={12} fontWeight="600" color="$gray11">
                                           {t('routeDetail.yourProgress')}
@@ -1048,7 +1066,12 @@ export function RouteDetailSheet({
                             )}
 
                           {/* Reviews Section */}
-                          <Card backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'} borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'} bordered padding="$4">
+                          <Card
+                            backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
+                            borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
+                            bordered
+                            padding="$4"
+                          >
                             <YStack gap="$3">
                               <TouchableOpacity
                                 onPress={() => setShowReviewsDetails(!showReviewsDetails)}
@@ -1100,7 +1123,12 @@ export function RouteDetailSheet({
                           </Card>
 
                           {/* Comments Section */}
-                          <Card backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'} borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'} bordered padding="$4">
+                          <Card
+                            backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
+                            borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
+                            bordered
+                            padding="$4"
+                          >
                             <YStack gap="$3">
                               <TouchableOpacity
                                 onPress={() => setShowCommentsDetails(!showCommentsDetails)}

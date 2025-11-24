@@ -71,7 +71,7 @@ export default function DrivenOptionsModal({
         type: 'error',
       });
     }
-  }, []);
+  }, [onChange, routeId, showToast, t, user]);
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -108,7 +108,7 @@ export default function DrivenOptionsModal({
                           returnToRouteDetail: true,
                         } as any);
                         onClose();
-                      } catch (error) {
+                      } catch {
                         showToast({
                           title: t('common.error') || 'Error',
                           message:
