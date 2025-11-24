@@ -7,7 +7,6 @@ import {
   Animated,
   Platform,
   ScrollView,
-  Pressable,
   Image,
   Alert,
   KeyboardAvoidingView,
@@ -43,7 +42,7 @@ interface BetaTestingSheetProps {
   onOpenAbout: () => void;
 }
 
-const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
+const { height: screenHeight } = Dimensions.get('window');
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 
 // Dynamic checklist items will be loaded from database
@@ -120,7 +119,7 @@ export function BetaTestingSheet({
 }: BetaTestingSheetProps) {
   const { t, language, refreshTranslations, translations } = useTranslation();
   const theme = useTheme();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const backgroundColor = theme.background?.val || '#FFFFFF';
   const textColor = theme.color?.val || '#000000';
