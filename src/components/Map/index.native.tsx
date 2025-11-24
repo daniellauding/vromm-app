@@ -1,12 +1,13 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { View, TouchableOpacity, StyleProp, ViewStyle, Text as RNText, PixelRatio } from 'react-native';
+import { View, TouchableOpacity, StyleProp, ViewStyle, PixelRatio } from 'react-native';
 import MapView, { Marker, Region } from '../MapView';
 import { StyleSheet } from 'react-native';
-import { Text, Circle } from 'tamagui';
+import { Text } from 'tamagui';
 import Supercluster from 'supercluster';
 import RouterDrawing from './RouterDrawing.native';
 import { lightMapStyle, darkMapStyle, PIN_COLORS } from '../../styles/mapStyles';
 import { useThemePreference } from '../../hooks/useThemeOverride';
+import { RoutePathPoint } from './types';
 
 export type Waypoint = {
   latitude: number;
@@ -16,11 +17,6 @@ export type Waypoint = {
   id?: string;
   onPress?: () => void;
   isFiltered?: boolean;
-};
-
-export type RoutePathPoint = {
-  latitude: number;
-  longitude: number;
 };
 
 type ClusterMarkerProps = {
@@ -71,7 +67,6 @@ const WaypointMarker = React.memo(
   ({
     cluster,
     onMarkerPress,
-    customMarker,
     selectedPin,
     handleClusterPress,
     drawingMode,
@@ -134,13 +129,6 @@ const WaypointMarker = React.memo(
       return selectedPin === cluster.properties.id ? PIN_COLORS.PRIMARY : PIN_COLORS.SECONDARY;
     };
 
-    const getMarkerSize = () => {
-      if (drawingMode === 'pin') return 16;
-      if (drawingMode === 'waypoint') return 14;
-      if (drawingMode === 'pen') return 8;
-      return 10;
-    };
-
     // Create circular marker like cluster (no triangle)
     const createCircularMarker = () => {
       const isSelected = selectedPin === cluster.properties.id;
@@ -182,64 +170,6 @@ const WaypointMarker = React.memo(
         </View>
       );
     };
-
-    // Option 2: Create custom pin-shaped marker
-    const createCustomPin = () => (
-      <View
-        style={{
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {/* Pin shape */}
-        <View
-          style={{
-            width: 32,
-            height: 32,
-            backgroundColor: getMarkerColor(),
-            borderRadius: 16,
-            borderWidth: 3,
-            borderColor: 'white',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.4,
-            shadowRadius: 4,
-            elevation: 5,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {/* Optional: Add number or icon inside pin */}
-          {drawingMode === 'waypoint' && (
-            <RNText
-              style={{
-                color: 'white',
-                fontSize: 12,
-                fontWeight: 'bold',
-              }}
-            >
-              {(waypointIndex || 0) + 1}
-            </RNText>
-          )}
-        </View>
-        {/* Pin bottom point */}
-        <View
-          style={{
-            width: 0,
-            height: 0,
-            borderLeftWidth: 8,
-            borderRightWidth: 8,
-            borderTopWidth: 12,
-            borderStyle: 'solid',
-            backgroundColor: 'transparent',
-            borderLeftColor: 'transparent',
-            borderRightColor: 'transparent',
-            borderTopColor: getMarkerColor(),
-            marginTop: -3,
-          }}
-        />
-      </View>
-    );
 
     return (
       <Marker
@@ -351,6 +281,7 @@ export function Map({
   const calculateClusters = useCallback(
     async ({ region }: { region: Region | null }) => {
       if (!waypoints.length) return [];
+      if (!region) return [];
 
       // Skip clustering in drawing modes - show individual waypoints
       if (drawingMode === 'pin' || drawingMode === 'waypoint' || drawingMode === 'pen') {

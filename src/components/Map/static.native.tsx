@@ -1,10 +1,8 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { View, TouchableOpacity, StyleProp, ViewStyle } from 'react-native';
-import MapView, { Marker, Region, Polyline } from '../MapView';
+import React from 'react';
+import { View, StyleProp, ViewStyle } from 'react-native';
+import MapView, { Marker, Region } from '../MapView';
 import { StyleSheet } from 'react-native';
-import { Text, Circle } from 'tamagui';
-import Supercluster from 'supercluster';
-import RouterDrawing from './RouterDrawing';
+import { RoutePathPoint } from './types';
 
 export type Waypoint = {
   latitude: number;
@@ -13,45 +11,6 @@ export type Waypoint = {
   description?: string;
   id?: string;
   onPress?: () => void;
-};
-
-export type RoutePathPoint = {
-  latitude: number;
-  longitude: number;
-};
-
-type ClusterMarkerProps = {
-  count: number;
-  onPress?: (e?: { stopPropagation: () => void }) => void;
-};
-
-function ClusterMarker({ count, onPress }: ClusterMarkerProps) {
-  return (
-    <TouchableOpacity onPress={onPress}>
-      <Circle
-        size={40}
-        backgroundColor="$blue10"
-        pressStyle={{ scale: 0.97 }}
-        alignItems="center"
-        justifyContent="center"
-      >
-        <Text color="white" fontWeight="bold">
-          {count}
-        </Text>
-      </Circle>
-    </TouchableOpacity>
-  );
-}
-
-const toLocation = (
-  coordinate:
-    | Supercluster.PointFeature<Supercluster.AnyProps>['geometry']['coordinates']
-    | Supercluster.ClusterFeature<Supercluster.AnyProps>['geometry']['coordinates'],
-) => {
-  return {
-    latitude: coordinate?.[1],
-    longitude: coordinate?.[0],
-  };
 };
 
 const WaypointMarker = React.memo(
@@ -82,37 +41,6 @@ const WaypointMarker = React.memo(
   },
 );
 
-function getClusterExpansionRegion(supercluster: Supercluster, clusterId: number) {
-  // Retrieve all leaves (points) of the cluster
-  const leaves = supercluster.getLeaves(clusterId, Infinity);
-
-  // Extract coordinates from leaves
-  const coordinates = leaves.map((leaf) => leaf.geometry.coordinates);
-
-  // Calculate bounding box
-  const lats = coordinates.map((coord) => coord[1]);
-  const lngs = coordinates.map((coord) => coord[0]);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs);
-  const maxLng = Math.max(...lngs);
-
-  // Calculate center
-  const latitude = (minLat + maxLat) / 2;
-  const longitude = (minLng + maxLng) / 2;
-
-  // Calculate deltas with padding
-  const latDelta = (maxLat - minLat) * 1.2 || 0.02;
-  const lngDelta = (maxLng - minLng) * 1.2 || 0.02;
-
-  return {
-    latitude,
-    longitude,
-    latitudeDelta: latDelta,
-    longitudeDelta: lngDelta,
-  };
-}
-
 export function StaticMap({
   waypoints,
   region,
@@ -127,16 +55,12 @@ export function StaticMap({
   routePathWidth?: number;
   showStartEndMarkers?: boolean;
 }) {
-  const styles = React.useMemo(() => {
-    return [{ width: '100%', height: '100%' }];
-  }, []);
-
   if (!region) return null;
 
   return (
     <View style={[styles.container, style]}>
       <MapView
-        style={styles}
+        style={style}
         region={region}
         scrollEnabled={false}
         zoomEnabled={false}

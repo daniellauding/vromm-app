@@ -34,7 +34,9 @@ export const PricingSection: React.FC = () => {
         if (savedPrice) setCustomPrice(savedPrice);
         if (savedMotivation) setPriceMotivation(savedMotivation);
         if (savedEmail) setUserEmail(savedEmail);
-      } catch {}
+      } catch (error) {
+        console.error('Error loading pricing section state:', error);
+      }
     })();
   }, []);
 
@@ -108,7 +110,7 @@ export const PricingSection: React.FC = () => {
       </YStack>
 
       <Button onPress={submit} disabled={!selectedPlan}>
-        Submit
+        <Text>Submit</Text>
       </Button>
     </YStack>
   );
