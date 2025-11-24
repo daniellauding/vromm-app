@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { View, Platform, PanResponder, Dimensions, Alert } from 'react-native';
+import { View, PanResponder, Alert } from 'react-native';
 import { Text, XStack, YStack, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import MapView, { Marker, Polyline } from 'react-native-maps';
@@ -52,10 +52,6 @@ export function RouteMapEditor({
 }: RouteMapEditorProps) {
   const mapRef = useRef<MapView>(null);
 
-  // Debug waypoints prop changes
-  React.useEffect(() => {
-    console.log(`🗺️ RouteMapEditor: ${waypoints.length} waypoints, mode: ${drawingMode}`);
-  }, [waypoints.length, drawingMode]);
   const containerRef = useRef<View>(null);
   const lastDrawPointRef = useRef<{
     latitude: number;
@@ -67,15 +63,126 @@ export function RouteMapEditor({
 
   const iconColor = colorScheme === 'dark' ? 'white' : 'black';
 
-  // Convert screen coordinates to map coordinates
-  const convertScreenToMapCoords = (screenX: number, screenY: number, mapRef: any) => {
-    // This is a placeholder - the real coordinate conversion happens in PanResponder
-    // using mapRef.current.coordinateForPoint()
-    return {
-      latitude: region.latitude,
-      longitude: region.longitude,
-    };
-  };
+  const handlePinMode = useCallback(
+    async (latitude: number, longitude: number) => {
+      try {
+        const [result] = await Location.reverseGeocodeAsync({
+          latitude,
+          longitude,
+        });
+
+        const title = result?.street
+          ? `${result.street}${result.streetNumber ? ` ${result.streetNumber}` : ''}`
+          : 'Custom Location';
+
+        const description =
+          [result?.city, result?.region, result?.country].filter(Boolean).join(', ') ||
+          'Added via map pin';
+
+        const newWaypoint = {
+          latitude,
+          longitude,
+          title,
+          description,
+        };
+
+        onWaypointsChange([newWaypoint]);
+        setUndoneWaypoints([]);
+      } catch (error) {
+        console.error('Error with pin mode:', error);
+        const newWaypoint = {
+          latitude,
+          longitude,
+          title: 'Custom Location',
+          description: 'Added via map pin',
+        };
+        onWaypointsChange([newWaypoint]);
+        setUndoneWaypoints([]);
+      }
+    },
+    [onWaypointsChange],
+  );
+
+  const handleWaypointMode = useCallback(
+    async (latitude: number, longitude: number) => {
+      try {
+        const waypointNumber = waypoints.length + 1;
+        // Create waypoint immediately to prevent UI lag
+        const newWaypoint = {
+          latitude,
+          longitude,
+          title: `Waypoint ${waypointNumber}`,
+          description: `Route waypoint ${waypointNumber}`,
+        };
+
+        // Add waypoint immediately
+        const updatedWaypoints = [...waypoints, newWaypoint];
+        onWaypointsChange(updatedWaypoints);
+        setUndoneWaypoints([]);
+
+        // Try to get address in background with delay to prevent rate limiting
+        setTimeout(async () => {
+          try {
+            const [result] = await Location.reverseGeocodeAsync({
+              latitude,
+              longitude,
+            });
+
+            if (result?.street) {
+              const addressTitle = `${result.street}${result.streetNumber ? ` ${result.streetNumber}` : ''}`;
+              const addressDescription =
+                [result?.city, result?.region, result?.country].filter(Boolean).join(', ') ||
+                `Waypoint ${waypointNumber} description`;
+
+              // Update the specific waypoint with real address
+              const waypointsWithAddress = updatedWaypoints.map((wp, index) =>
+                index === updatedWaypoints.length - 1
+                  ? { ...wp, title: addressTitle, description: addressDescription }
+                  : wp,
+              );
+              onWaypointsChange(waypointsWithAddress);
+            }
+          } catch (err) {
+            // Silent fail for address lookup
+          }
+        }, 500);
+      } catch (error) {
+        console.error('🗺️ ❌ Error adding waypoint:', error);
+        const waypointNumber = waypoints.length + 1;
+        const newWaypoint = {
+          latitude,
+          longitude,
+          title: `Waypoint ${waypointNumber}`,
+          description: `Waypoint ${waypointNumber} description`,
+        };
+        onWaypointsChange([...waypoints, newWaypoint]);
+        setUndoneWaypoints([]);
+      }
+    },
+    [onWaypointsChange, waypoints],
+  );
+
+  const startContinuousDrawing = useCallback(
+    (latitude: number, longitude: number) => {
+      const newPoint = { latitude, longitude };
+
+      // Clear any existing pen path and start fresh
+      onPenPathChange([newPoint]);
+      lastDrawPointRef.current = { ...newPoint, timestamp: Date.now() };
+      drawingRef.current = true;
+      onDrawingChange?.(true);
+    },
+    [onPenPathChange, onDrawingChange],
+  );
+
+  const handlePenMode = useCallback(
+    (latitude: number, longitude: number) => {
+      if (!isDrawing) {
+        startContinuousDrawing(latitude, longitude);
+      }
+    },
+    [isDrawing, startContinuousDrawing],
+  );
 
   // Handle map press events
   const handleMapPress = useCallback(
@@ -97,148 +204,33 @@ export function RouteMapEditor({
           break;
       }
     },
-    [drawingMode],
+    [drawingMode, handlePinMode, handleWaypointMode, handlePenMode],
   );
 
-  const handlePinMode = async (latitude: number, longitude: number) => {
-    try {
-      const [result] = await Location.reverseGeocodeAsync({
-        latitude,
-        longitude,
-      });
+  const addContinuousDrawingPoint = useCallback(
+    (latitude: number, longitude: number) => {
+      if (!drawingRef.current) return;
 
-      const title = result?.street
-        ? `${result.street}${result.streetNumber ? ` ${result.streetNumber}` : ''}`
-        : 'Custom Location';
+      const newPoint = { latitude, longitude };
 
-      const description =
-        [result?.city, result?.region, result?.country].filter(Boolean).join(', ') ||
-        'Added via map pin';
+      // Check distance from last point to avoid too many close points
+      if (lastDrawPointRef.current) {
+        const distance = Math.sqrt(
+          Math.pow(latitude - lastDrawPointRef.current.latitude, 2) +
+            Math.pow(longitude - lastDrawPointRef.current.longitude, 2),
+        );
 
-      const newWaypoint = {
-        latitude,
-        longitude,
-        title,
-        description,
-      };
+        // Only add point if it's far enough from the last one
+        if (distance < 0.0001) return; // Approximately 10 meters
+      }
 
-      onWaypointsChange([newWaypoint]);
-      setUndoneWaypoints([]);
-    } catch (error) {
-      console.error('Error with pin mode:', error);
-      const newWaypoint = {
-        latitude,
-        longitude,
-        title: 'Custom Location',
-        description: 'Added via map pin',
-      };
-      onWaypointsChange([newWaypoint]);
-      setUndoneWaypoints([]);
-    }
-  };
+      onPenPathChange([...penPath, newPoint]);
+      lastDrawPointRef.current = { ...newPoint, timestamp: Date.now() };
+    },
+    [onPenPathChange, penPath, lastDrawPointRef],
+  );
 
-  const handleWaypointMode = async (latitude: number, longitude: number) => {
-    try {
-      const waypointNumber = waypoints.length + 1;
-      console.log(
-        `🗺️ Adding waypoint ${waypointNumber} at ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-      );
-
-      // Create waypoint immediately to prevent UI lag
-      const newWaypoint = {
-        latitude,
-        longitude,
-        title: `Waypoint ${waypointNumber}`,
-        description: `Route waypoint ${waypointNumber}`,
-      };
-
-      // Add waypoint immediately
-      const updatedWaypoints = [...waypoints, newWaypoint];
-      onWaypointsChange(updatedWaypoints);
-      setUndoneWaypoints([]);
-
-      console.log(`🗺️ ✅ Now have ${updatedWaypoints.length} waypoints total`);
-
-      // Try to get address in background with delay to prevent rate limiting
-      setTimeout(async () => {
-        try {
-          const [result] = await Location.reverseGeocodeAsync({
-            latitude,
-            longitude,
-          });
-
-          if (result?.street) {
-            const addressTitle = `${result.street}${result.streetNumber ? ` ${result.streetNumber}` : ''}`;
-            const addressDescription =
-              [result?.city, result?.region, result?.country].filter(Boolean).join(', ') ||
-              `Waypoint ${waypointNumber} description`;
-
-            // Update the specific waypoint with real address
-            const waypointsWithAddress = updatedWaypoints.map((wp, index) =>
-              index === updatedWaypoints.length - 1
-                ? { ...wp, title: addressTitle, description: addressDescription }
-                : wp,
-            );
-            onWaypointsChange(waypointsWithAddress);
-          }
-        } catch (err) {
-          // Silent fail for address lookup
-        }
-      }, 500);
-    } catch (error) {
-      console.error('🗺️ ❌ Error adding waypoint:', error);
-      const waypointNumber = waypoints.length + 1;
-      const newWaypoint = {
-        latitude,
-        longitude,
-        title: `Waypoint ${waypointNumber}`,
-        description: `Waypoint ${waypointNumber} description`,
-      };
-      onWaypointsChange([...waypoints, newWaypoint]);
-      setUndoneWaypoints([]);
-    }
-  };
-
-  const handlePenMode = (latitude: number, longitude: number) => {
-    if (!isDrawing) {
-      startContinuousDrawing(latitude, longitude);
-    }
-  };
-
-  const startContinuousDrawing = (latitude: number, longitude: number) => {
-    console.log('🎨 Starting continuous drawing at:', latitude, longitude);
-    const newPoint = { latitude, longitude };
-
-    // Clear any existing pen path and start fresh
-    onPenPathChange([newPoint]);
-    lastDrawPointRef.current = { ...newPoint, timestamp: Date.now() };
-    drawingRef.current = true;
-    onDrawingChange?.(true);
-
-    console.log('🎨 Drawing state set - map interactions should now be blocked');
-  };
-
-  const addContinuousDrawingPoint = (latitude: number, longitude: number) => {
-    if (!drawingRef.current) return;
-
-    const newPoint = { latitude, longitude };
-
-    // Check distance from last point to avoid too many close points
-    if (lastDrawPointRef.current) {
-      const distance = Math.sqrt(
-        Math.pow(latitude - lastDrawPointRef.current.latitude, 2) +
-          Math.pow(longitude - lastDrawPointRef.current.longitude, 2),
-      );
-
-      // Only add point if it's far enough from the last one
-      if (distance < 0.0001) return; // Approximately 10 meters
-    }
-
-    onPenPathChange([...penPath, newPoint]);
-    lastDrawPointRef.current = { ...newPoint, timestamp: Date.now() };
-  };
-
-  const finishPenDrawing = () => {
+  const finishPenDrawing = useCallback(() => {
     if (penPath.length === 0) return;
 
     drawingRef.current = false;
@@ -254,16 +246,13 @@ export function RouteMapEditor({
 
     onWaypointsChange(newWaypoints);
     setUndoneWaypoints([]);
-  };
+  }, [onWaypointsChange, penPath, onDrawingChange]);
 
   // Pan responder for pen drawing with improved coordinate handling (matching CreateRouteScreen)
   const drawingPanResponder = PanResponder.create({
     onStartShouldSetPanResponder: (evt, gestureState) => {
       // Only capture in pen mode with single touch
       const shouldCapture = drawingMode === 'pen' && evt.nativeEvent.touches.length === 1;
-      if (shouldCapture) {
-        console.log('🎨 PanResponder: Starting pen drawing');
-      }
       return shouldCapture;
     },
     onMoveShouldSetPanResponder: (evt, gestureState) => {
@@ -271,30 +260,22 @@ export function RouteMapEditor({
       if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
         // Only capture if user has moved enough (avoid accidental captures)
         const hasMovedEnough = Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
-        if (hasMovedEnough) {
-          console.log('🎨 PanResponder: Should capture pen movement');
-        }
         return hasMovedEnough;
       }
       return false;
     },
-    onPanResponderTerminationRequest: (evt, gestureState) => {
+    onPanResponderTerminationRequest: () => {
       // Don't allow termination during active pen drawing
       const shouldTerminate = !(drawingMode === 'pen' && drawingRef.current);
-      console.log('🎨 PanResponder: Termination request:', shouldTerminate);
       return shouldTerminate;
     },
-    onShouldBlockNativeResponder: (evt, gestureState) => {
+    onShouldBlockNativeResponder: () => {
       // Block native responder in pen mode to prevent map interference
       const shouldBlock = drawingMode === 'pen';
-      if (shouldBlock) {
-        console.log('🎨 PanResponder: Blocking native responder');
-      }
       return shouldBlock;
     },
-    onPanResponderGrant: (evt, gestureState) => {
+    onPanResponderGrant: (evt) => {
       if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
-        console.log('🎨 PEN DRAWING STARTED - Blocking map interactions');
         const { locationX, locationY } = evt.nativeEvent;
 
         // Set drawing state immediately to block map interactions
@@ -306,17 +287,14 @@ export function RouteMapEditor({
           mapRef.current
             .coordinateForPoint({ x: locationX, y: locationY })
             .then((coordinate: { latitude: number; longitude: number }) => {
-              console.log('🎨 DRAG START at:', coordinate);
               startContinuousDrawing(coordinate.latitude, coordinate.longitude);
             })
-            .catch((error: any) => {
-              console.log('🎨 Coordinate conversion failed, using region center');
+            .catch(() => {
               // Fallback: Start at region center
               startContinuousDrawing(region.latitude, region.longitude);
             });
         } else {
           // If coordinate conversion not available, start at region center
-          console.log('🎨 Starting at region center (no coordinate conversion)');
           startContinuousDrawing(region.latitude, region.longitude);
         }
       }
@@ -335,11 +313,10 @@ export function RouteMapEditor({
           mapRef.current
             .coordinateForPoint({ x: locationX, y: locationY })
             .then((coordinate: { latitude: number; longitude: number }) => {
-              console.log('🎨 DRAG MOVE to:', coordinate);
               addContinuousDrawingPoint(coordinate.latitude, coordinate.longitude);
               lastDrawPointRef.current = { ...coordinate, timestamp: now };
             })
-            .catch((error: any) => {
+            .catch(() => {
               // If coordinate conversion fails, approximate based on gesture
               const lastPoint = lastDrawPointRef.current;
               if (lastPoint) {
@@ -350,7 +327,7 @@ export function RouteMapEditor({
                   latitude: lastPoint.latitude + deltaLat,
                   longitude: lastPoint.longitude + deltaLng,
                 };
-                console.log('🎨 APPROXIMATED MOVE to:', newCoordinate);
+
                 addContinuousDrawingPoint(newCoordinate.latitude, newCoordinate.longitude);
                 lastDrawPointRef.current = { ...newCoordinate, timestamp: now };
               }
@@ -358,9 +335,8 @@ export function RouteMapEditor({
         }
       }
     },
-    onPanResponderRelease: (evt, gestureState) => {
+    onPanResponderRelease: () => {
       if (drawingMode === 'pen') {
-        console.log('🎨 PEN DRAWING PAUSED - Can continue or finish, map interactions restored');
         drawingRef.current = false;
         // Note: Keep isDrawing true so user can continue drawing if they want
         // Map interactions will be restored since drawingRef.current is now false
@@ -368,13 +344,10 @@ export function RouteMapEditor({
     },
   });
 
-  const handleLocateMe = async () => {
+  const handleLocateMe = useCallback(async () => {
     try {
-      console.log('🗺️ [RouteMapEditor] Locate Me pressed - checking location permission');
-
       // Check current permission status first
       const currentStatus = await Location.getForegroundPermissionsAsync();
-      console.log('🗺️ [RouteMapEditor] Current permission status:', currentStatus.status);
 
       if (currentStatus.status === 'granted') {
         // Permission already granted, get location
@@ -393,7 +366,6 @@ export function RouteMapEditor({
 
       // Request permission - this shows the native dialog
       const { status } = await Location.requestForegroundPermissionsAsync();
-      console.log('🗺️ [RouteMapEditor] Permission request result:', status);
 
       if (status === 'granted') {
         // Permission granted, get location
@@ -409,7 +381,6 @@ export function RouteMapEditor({
         mapRef.current?.animateToRegion(newRegion, 1000);
       } else {
         // Permission denied, show helpful message
-        console.log('🗺️ [RouteMapEditor] Location permission denied by user');
         Alert.alert(
           '📍 Location Permission Required',
           'To use "Locate Me", please enable location access for this app in your device settings.',
@@ -422,32 +393,32 @@ export function RouteMapEditor({
     } catch (error) {
       console.error('🗺️ [RouteMapEditor] Error getting location:', error);
     }
-  };
+  }, [onRegionChange, mapRef]);
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (waypoints.length > 0) {
       const lastWaypoint = waypoints[waypoints.length - 1];
       setUndoneWaypoints([...undoneWaypoints, lastWaypoint]);
       onWaypointsChange(waypoints.slice(0, -1));
     }
-  };
+  }, [onWaypointsChange, waypoints, undoneWaypoints]);
 
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     if (undoneWaypoints.length > 0) {
       const waypointToRestore = undoneWaypoints[undoneWaypoints.length - 1];
       setUndoneWaypoints(undoneWaypoints.slice(0, -1));
       onWaypointsChange([...waypoints, waypointToRestore]);
     }
-  };
+  }, [onWaypointsChange, waypoints, undoneWaypoints]);
 
-  const clearAllWaypoints = () => {
+  const clearAllWaypoints = useCallback(() => {
     setUndoneWaypoints([]);
     onWaypointsChange([]);
     onPenPathChange([]);
     drawingRef.current = false;
     onDrawingChange?.(false);
     lastDrawPointRef.current = null;
-  };
+  }, [onWaypointsChange, onPenPathChange, onDrawingChange]);
 
   return (
     <YStack gap="$4">

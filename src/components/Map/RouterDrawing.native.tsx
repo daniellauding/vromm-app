@@ -1,5 +1,6 @@
 import { Marker, Polyline } from '../MapView';
 import { View } from 'react-native';
+import { RoutePathPoint } from './types';
 
 const RouterDrawing = ({
   routePath,
@@ -8,6 +9,13 @@ const RouterDrawing = ({
   routePathColor = '#1A73E8',
   routePathWidth = 3,
   showStartEndMarkers = false,
+}: {
+  routePath: RoutePathPoint[] | undefined;
+  penDrawingCoordinates?: Array<{ latitude: number; longitude: number }>;
+  drawingMode?: string;
+  routePathColor: string;
+  routePathWidth: number;
+  showStartEndMarkers: boolean;
 }) => {
   if (!drawingMode) {
     return null;

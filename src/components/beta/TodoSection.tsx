@@ -30,7 +30,9 @@ export const TodoSection: React.FC = () => {
         const saved = await AsyncStorage.getItem(`beta_todos_${role}`);
         if (saved) setCompleted(JSON.parse(saved));
         else setCompleted([]);
-      } catch {}
+      } catch (error) {
+        console.error('Error loading todo section state:', error);
+      }
     })();
   }, [role]);
 
@@ -48,16 +50,16 @@ export const TodoSection: React.FC = () => {
 
       <XStack gap="$2">
         <Button
-          variant={role === 'student' ? 'outlined' : 'ghost'}
+          variant={role === 'student' ? 'outlined' : undefined}
           onPress={() => setRole('student')}
         >
-          Student
+          <Text>Student</Text>
         </Button>
         <Button
-          variant={role === 'teacher' ? 'outlined' : 'ghost'}
+          variant={role === 'teacher' ? 'outlined' : undefined}
           onPress={() => setRole('teacher')}
         >
-          Teacher
+          <Text>Teacher</Text>
         </Button>
       </XStack>
 

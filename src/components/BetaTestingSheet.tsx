@@ -7,7 +7,6 @@ import {
   Animated,
   Platform,
   ScrollView,
-  Pressable,
   Image,
   Alert,
   KeyboardAvoidingView,
@@ -43,7 +42,7 @@ interface BetaTestingSheetProps {
   onOpenAbout: () => void;
 }
 
-const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
+const { height: screenHeight } = Dimensions.get('window');
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 
 // Dynamic checklist items will be loaded from database
@@ -120,7 +119,7 @@ export function BetaTestingSheet({
 }: BetaTestingSheetProps) {
   const { t, language, refreshTranslations, translations } = useTranslation();
   const theme = useTheme();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const backgroundColor = theme.background?.val || '#FFFFFF';
   const textColor = theme.color?.val || '#000000';
@@ -137,10 +136,13 @@ export function BetaTestingSheet({
   // Debug: Log available beta translations on mount (DEV only)
   React.useEffect(() => {
     if (__DEV__) {
-      const betaKeys = Object.keys(translations).filter(k => k.startsWith('beta.checklist.'));
+      const betaKeys = Object.keys(translations).filter((k) => k.startsWith('beta.checklist.'));
       console.log('🌍 [BetaTestingSheet] Available beta.checklist translations:', betaKeys.length);
       console.log('🌍 [BetaTestingSheet] Sample keys:', betaKeys.slice(0, 5));
-      console.log('🌍 [BetaTestingSheet] Total translations loaded:', Object.keys(translations).length);
+      console.log(
+        '🌍 [BetaTestingSheet] Total translations loaded:',
+        Object.keys(translations).length,
+      );
     }
   }, [translations]);
 
@@ -309,7 +311,8 @@ export function BetaTestingSheet({
     'Suggested price for Vromm': 'Föreslagen pris för Vromm',
     'What would you be willing to pay for Vromm? (e.g., 99 SEK/month)':
       'Vad skulle du vara villig att betala för Vromm? (t.ex. 99 SEK/månad)',
-    'How likely are you to pay for Vromm? (1-5)': 'Hur sannolikt är det att du betalar för Vromm? (1-5)',
+    'How likely are you to pay for Vromm? (1-5)':
+      'Hur sannolikt är det att du betalar för Vromm? (1-5)',
     'Which premium features matter most to you?': 'Vilka premiumfunktioner är viktigast för dig?',
     'Advanced Analytics': 'Avancerad analys',
     'Detailed progress tracking and insights': 'Detaljerad framgångsspårning och insikter',
@@ -336,9 +339,11 @@ export function BetaTestingSheet({
 
     // Video/Resources tab
     'Listen to Our Story': 'Lyssna på vår berättelse',
-    "Hear from Vromm's co-founder and explore additional resources:": 'Hör från Vromms medgrundare och utforska ytterligare resurser:',
+    "Hear from Vromm's co-founder and explore additional resources:":
+      'Hör från Vromms medgrundare och utforska ytterligare resurser:',
     'Welcome Message': 'Välkomstmeddelande',
-    'Listen to this personal message from our team about what makes Vromm special': 'Lyssna på detta personliga meddelande från vårt team om vad som gör Vromm speciellt',
+    'Listen to this personal message from our team about what makes Vromm special':
+      'Lyssna på detta personliga meddelande från vårt team om vad som gör Vromm speciellt',
     'Visit Beta Website': 'Besök betawebbplatsen',
     'Buy Me a Coffee': 'Bjud mig på en kaffe',
     'Share Vromm': 'Dela Vromm',
@@ -1460,7 +1465,7 @@ export function BetaTestingSheet({
       setUploadingFeedback(true);
 
       // Upload media files first
-      let mediaUrls: string[] = [];
+      const mediaUrls: string[] = [];
       if (feedbackMedia.length > 0) {
         setUploadProgress({ current: 0, total: feedbackMedia.length });
 
@@ -1825,7 +1830,9 @@ export function BetaTestingSheet({
           {checklistItems.length === 0 ? (
             <Card padding="$4" backgroundColor={`${primaryColor}10`}>
               <Text fontSize="$4" color={textColor} opacity={0.7}>
-                {getSwedishText('No checklist items available for your role. Please contact support.')}
+                {getSwedishText(
+                  'No checklist items available for your role. Please contact support.',
+                )}
               </Text>
             </Card>
           ) : (
@@ -1890,7 +1897,10 @@ export function BetaTestingSheet({
 
       <Card padding="$4" backgroundColor={`${primaryColor}10`}>
         <Text fontSize="$3" color={textColor} opacity={0.8}>
-          💡 {language === 'sv' ? 'Tips' : 'Tip'}: {getSwedishText('Check off items as you complete them. Your progress is saved automatically to the database!')}
+          💡 {language === 'sv' ? 'Tips' : 'Tip'}:{' '}
+          {getSwedishText(
+            'Check off items as you complete them. Your progress is saved automatically to the database!',
+          )}
         </Text>
       </Card>
     </YStack>
@@ -2221,7 +2231,9 @@ export function BetaTestingSheet({
           onPress={submitFeedback}
           disabled={uploadingFeedback || uploadProgress !== null}
         >
-          {uploadingFeedback ? getSwedishText('Submitting') + '...' : getSwedishText('Submit Feedback')}
+          {uploadingFeedback
+            ? getSwedishText('Submitting') + '...'
+            : getSwedishText('Submit Feedback')}
         </Button>
       </YStack>
     </YStack>
@@ -2318,7 +2330,9 @@ export function BetaTestingSheet({
         />
 
         <FormField
-          placeholder={getSwedishText('What do you currently pay for driving lessons? (e.g., 500 SEK/hour)')}
+          placeholder={getSwedishText(
+            'What do you currently pay for driving lessons? (e.g., 500 SEK/hour)',
+          )}
           value={pricingForm.currentPrice}
           onChangeText={(text) => {
             const newForm = { ...pricingForm, currentPrice: text };
@@ -2338,7 +2352,9 @@ export function BetaTestingSheet({
             </Text>
           </XStack>
           <FormField
-            placeholder={getSwedishText('What would you be willing to pay for Vromm? (e.g., 99 SEK/month)')}
+            placeholder={getSwedishText(
+              'What would you be willing to pay for Vromm? (e.g., 99 SEK/month)',
+            )}
             value={pricingForm.suggestedPrice}
             onChangeText={(text) => {
               const newForm = { ...pricingForm, suggestedPrice: text };
@@ -2594,7 +2610,9 @@ export function BetaTestingSheet({
           {getSwedishText('Welcome Message')}
         </Text>
         <Text fontSize="$3" color={textColor} opacity={0.7} textAlign="center" marginTop="$2">
-          {getSwedishText('Listen to this personal message from our team about what makes Vromm special')}
+          {getSwedishText(
+            'Listen to this personal message from our team about what makes Vromm special',
+          )}
         </Text>
       </Card>
 

@@ -61,7 +61,7 @@ export const FeedbackSection: React.FC = () => {
       />
 
       <Button onPress={save} disabled={!name || !comment || rating === 0}>
-        Submit
+        <Text>Submit</Text>
       </Button>
     </YStack>
   );

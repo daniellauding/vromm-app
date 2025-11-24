@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Animated, Pressable, View, TouchableOpacity, Linking } from 'react-native';
 
-import { YStack, XStack, Text, useTheme } from 'tamagui';
+import { YStack, Text, useTheme } from 'tamagui';
 import { Button } from '../../components/Button';
 
 import { Feather } from '@expo/vector-icons';
@@ -26,9 +26,7 @@ export default function RouteOptions({
 }) {
   const { user } = useAuth();
   const { t, language } = useTranslation();
-  const theme = useTheme();
   const { showToast } = useToast();
-  const navigation = useNavigation();
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
@@ -36,7 +34,6 @@ export default function RouteOptions({
   const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
   const [isShowReportDialog, setShowReportDialog] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
   const handleOpenInMaps = React.useCallback(() => {
     if (!routeData?.waypoint_details?.length) {
@@ -71,9 +68,9 @@ export default function RouteOptions({
 
   const handleDeleteRoute = React.useCallback(async () => {
     try {
+      if (!user) return null;
       setDeleting(true);
-      console.log('🗑️ [RouteOptions] Deleting route:', routeData.id);
-      
+
       // Delete the route from database
       const { error } = await supabase
         .from('routes')
@@ -86,39 +83,32 @@ export default function RouteOptions({
         throw error;
       }
 
-      console.log('✅ [RouteOptions] Route deleted successfully');
-      
       showToast({
         title: language === 'sv' ? 'Framgång' : 'Success',
         message: language === 'sv' ? 'Rutt borttagen' : 'Route deleted successfully',
         type: 'success',
       });
 
-      // Close the confirmation sheet
-      setShowDeleteConfirm(false);
-      
       // Close the options sheet
       onClose();
-      
+
       // Notify parent that route was deleted
       if (onRouteDeleted) {
         onRouteDeleted();
       }
     } catch (error) {
-      console.error('🗑️ [RouteOptions] Failed to delete route:', error);
       showToast({
         title: language === 'sv' ? 'Fel' : 'Error',
-        message: language === 'sv' ? 'Kunde inte ta bort rutt. Försök igen.' : 'Failed to delete route. Please try again.',
+        message:
+          language === 'sv'
+            ? 'Kunde inte ta bort rutt. Försök igen.'
+            : 'Failed to delete route. Please try again.',
         type: 'error',
       });
     } finally {
       setDeleting(false);
     }
   }, [routeData, showToast, language, user, onClose, onRouteDeleted]);
-
-  const confirmAndDelete = React.useCallback(() => {
-    setShowDeleteConfirm(true);
-  }, []);
 
   if (isShowReportDialog) {
     return (
@@ -180,7 +170,7 @@ export default function RouteOptions({
 
                 {user?.id === routeData?.creator_id && (
                   <TouchableOpacity
-                    onPress={confirmAndDelete}
+                    onPress={handleDeleteRoute}
                     disabled={deleting}
                     style={{
                       padding: 16,
@@ -194,10 +184,9 @@ export default function RouteOptions({
                   >
                     <Feather name="trash-2" size={20} color="#FF3B30" />
                     <Text fontSize="$4" color="#FF3B30">
-                      {deleting 
-                        ? (t('common.deleting') || 'Deleting...')
-                        : (t('routeDetail.deleteRoute') || 'Delete Route')
-                      }
+                      {deleting
+                        ? t('common.deleting') || 'Deleting...'
+                        : t('routeDetail.deleteRoute') || 'Delete Route'}
                     </Text>
                   </TouchableOpacity>
                 )}

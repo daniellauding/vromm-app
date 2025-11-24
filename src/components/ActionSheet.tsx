@@ -1,13 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  Animated,
-  Platform,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Dimensions, Animated, Platform } from 'react-native';
 import { Text, XStack, YStack, useTheme } from 'tamagui';
 import { useColorScheme } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -73,8 +65,6 @@ export function ActionSheet({
   isVisible,
   onClose,
   onCreateRoute,
-  onMaximizeWizard,
-  onCreateEvent,
   onNavigateToMap,
 }: ActionSheetProps) {
   const { t } = useTranslation();
@@ -83,7 +73,6 @@ export function ActionSheet({
   const backgroundColor = theme.background?.val || '#FFFFFF';
   const textColor = theme.color?.val || '#000000';
   const borderColor = theme.borderColor?.val || '#DDD';
-  const handleColor = theme.gray8?.val || '#CCC';
   const { showModal, hideModal } = useModal();
 
   // Animation values
@@ -134,91 +123,35 @@ export function ActionSheet({
   }, [isVisible, translateY, backdropOpacity]);
 
   // Handle backdrop press
-  const handleBackdropPress = () => {
+  const handleBackdropPress = React.useCallback(() => {
     onClose();
-  };
-
-  // Handle "Create Route" option
-  const handleCreateRoute = () => {
-    console.log('🎭 ==================== ACTION SHEET - CREATE ROUTE ====================');
-    console.log('🎭 ActionSheet Create Route pressed');
-    console.log('🎭 About to close ActionSheet and call onCreateRoute...');
-
-    onClose();
-    console.log('🎭 ActionSheet closed, calling onCreateRoute callback...');
-    onCreateRoute();
-    console.log('🎭 ✅ onCreateRoute callback completed');
-  };
+  }, [onClose]);
 
   // Handle "Create Route Sheet" option
-  const handleCreateRouteSheet = () => {
-    console.log('🎭 ==================== ACTION SHEET - CREATE ROUTE SHEET ====================');
-    console.log('🎭 ActionSheet Create Route Sheet pressed');
-    console.log('🎭 About to close ActionSheet and show CreateRouteSheet...');
-
+  const handleCreateRouteSheet = React.useCallback(() => {
     onClose();
-    console.log('🎭 ActionSheet closed, showing CreateRouteSheet...');
     showModal(
       <CreateRouteSheet
         visible={true}
         onClose={() => {
-          console.log('🎭 [ActionSheet] CreateRouteSheet onClose called - closing modal');
           hideModal();
         }}
-        onRouteCreated={(routeId) => {
-          console.log('🎭 ✅ Route created with ID:', routeId);
-          // Optionally call onCreateRoute with the new route ID
+        onRouteCreated={() => {
           onCreateRoute();
         }}
-        onRouteUpdated={(routeId) => {
-          console.log('🎭 ✅ Route updated with ID:', routeId);
-        }}
+        onRouteUpdated={() => {}}
         onNavigateToMap={onNavigateToMap}
       />,
     );
-    console.log('🎭 ✅ CreateRouteSheet shown');
-  };
-
-  // Handle "Share Route" option (new wizard)
-  const handleShareRoute = () => {
-    console.log('🧙‍♂️ ==================== ACTION SHEET - SHARE ROUTE ====================');
-    console.log('🧙‍♂️ ActionSheet Share Route pressed');
-    console.log('🧙‍♂️ About to close ActionSheet and show RouteWizardSheet...');
-
-    onClose();
-    console.log('🧙‍♂️ ActionSheet closed, showing RouteWizardSheet...');
-
-    // Import and show RouteWizardSheet dynamically
-    import('./RouteWizardSheet')
-      .then(({ RouteWizardSheet }) => {
-        console.log('🧙‍♂️ RouteWizardSheet imported successfully');
-        console.log('🧙‍♂️ onCreateRoute:', typeof onCreateRoute);
-        console.log('🧙‍♂️ onMaximizeWizard:', typeof onMaximizeWizard);
-
-        showModal(<RouteWizardSheet onCreateRoute={onCreateRoute} onMaximize={onMaximizeWizard} />);
-        console.log('🧙‍♂️ ✅ RouteWizardSheet modal shown');
-      })
-      .catch((error) => {
-        console.error('🧙‍♂️ ❌ Failed to import RouteWizardSheet:', error);
-        Alert.alert('Error', 'Failed to load route wizard. Please try again.');
-      });
-
-    console.log('🧙‍♂️ ✅ Dynamic import initiated');
-  };
+  }, [onCreateRoute, onClose, onNavigateToMap, hideModal, showModal]);
 
   // Handle "Record Driving" option
-  const handleRecordDriving = () => {
-    console.log('🎭 ==================== ACTION SHEET - RECORD DRIVING ====================');
-    console.log('🎭 ActionSheet Record Driving pressed');
-    console.log('🎭 About to close ActionSheet and show RecordDrivingModal...');
-
+  const handleRecordDriving = React.useCallback(() => {
     onClose();
-    console.log('🎭 ActionSheet closed, showing RecordDrivingModal...');
-    // Pass a callback that opens CreateRouteSheet with the recorded data
+
     showModal(
       <RecordDrivingModal
         onCreateRoute={(routeData) => {
-          console.log('🎭 Route data received from recording:', routeData);
           // Close RecordDrivingModal first
           hideModal();
           // Then show CreateRouteSheet with the recorded route data
@@ -227,16 +160,12 @@ export function ActionSheet({
               <CreateRouteSheet
                 visible={true}
                 onClose={() => {
-                  console.log('🎭 [ActionSheet] CreateRouteSheet onClose called');
                   hideModal();
                 }}
-                onRouteCreated={(routeId) => {
-                  console.log('🎭 ✅ Route created with ID:', routeId);
+                onRouteCreated={() => {
                   onCreateRoute(routeData); // Call parent callback with route data
                 }}
-                onRouteUpdated={(routeId) => {
-                  console.log('🎭 ✅ Route updated with ID:', routeId);
-                }}
+                onRouteUpdated={() => {}}
                 onNavigateToMap={onNavigateToMap}
                 recordedRouteData={routeData} // Pass the recorded route data to CreateRouteSheet
               />,
@@ -245,24 +174,7 @@ export function ActionSheet({
         }}
       />,
     );
-    console.log('🎭 ✅ RecordDrivingModal shown');
-  };
-
-  // Handle "Create Event" option
-  const handleCreateEvent = () => {
-    console.log('🎉 ==================== ACTION SHEET - CREATE EVENT ====================');
-    console.log('🎉 ActionSheet Create Event pressed');
-    console.log('🎉 About to close ActionSheet and call onCreateEvent...');
-
-    onClose();
-    console.log('🎉 ActionSheet closed, calling onCreateEvent callback...');
-    if (onCreateEvent) {
-      onCreateEvent();
-      console.log('🎉 ✅ onCreateEvent callback completed');
-    } else {
-      console.warn('🎉 ⚠️ onCreateEvent callback not provided');
-    }
-  };
+  }, [onCreateRoute, onClose, onNavigateToMap, hideModal, showModal]);
 
   if (!isVisible) return null;
 
@@ -292,44 +204,6 @@ export function ActionSheet({
         </View>
 
         <YStack>
-          {/* <TouchableOpacity
-            style={[styles.actionButton, { borderBottomColor: borderColor }]}
-            onPress={handleShareRoute}
-          >
-            <XStack alignItems="center" gap="$3" justifyContent="space-between">
-              <XStack alignItems="center" gap="$3">
-                <Feather name="share-2" size={24} color="#69e3c4" />
-                <Text fontWeight="500" fontSize={18} color={textColor}>
-                  Share a Route
-                </Text>
-              </XStack>
-              <View
-                style={{
-                  backgroundColor: '#69e3c4',
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                  borderRadius: 12,
-                }}
-              >
-                <Text fontSize={10} fontWeight="bold" color="white">
-                  NEW
-                </Text>
-              </View>
-            </XStack>
-          </TouchableOpacity> */}
-
-          {/* <TouchableOpacity
-            style={[styles.actionButton, { borderBottomColor: borderColor }]}
-            onPress={handleCreateEvent}
-          >
-            <XStack alignItems="center" gap="$3">
-              <Feather name="calendar" size={24} color="#F59E0B" />
-              <Text fontWeight="500" fontSize={18} color={textColor}>
-                Create Event
-              </Text>
-            </XStack>
-          </TouchableOpacity> */}
-
           <TouchableOpacity
             style={[styles.actionButton, { borderBottomColor: borderColor }]}
             onPress={handleRecordDriving}
@@ -364,18 +238,6 @@ export function ActionSheet({
               </YStack>
             </XStack>
           </TouchableOpacity>
-
-          {/* <TouchableOpacity
-            style={[styles.actionButton, { borderBottomColor: 'transparent' }]}
-            onPress={handleCreateRoute}
-          >
-            <XStack alignItems="center" gap="$3">
-              <Feather name="settings" size={24} color={textColor} />
-              <Text fontWeight="500" fontSize={18} color={textColor}>
-                {t('createRoute.advancedCreate') || 'Advanced Create'}
-              </Text>
-            </XStack>
-          </TouchableOpacity> */}
         </YStack>
       </Animated.View>
     </View>

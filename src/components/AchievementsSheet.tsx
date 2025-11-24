@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
-  Animated,
   Pressable,
   View,
   Dimensions,
@@ -21,7 +20,6 @@ import { YStack, XStack, Text, Card } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useThemePreference } from '../hooks/useThemeOverride';
@@ -64,8 +62,7 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
   const { t, language } = useTranslation();
-  const { user } = useAuth();
-  const { activeStudentId, getEffectiveUserId } = useStudentSwitch();
+  const { getEffectiveUserId } = useStudentSwitch();
   const effectiveUserId = getEffectiveUserId();
 
   // Gesture handling
@@ -76,7 +73,7 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
   const snapPoints = useMemo(
     () => ({
       dismissed: height,
-      mini: height * 0.7,  // 30% visible
+      mini: height * 0.7, // 30% visible
       small: height * 0.5, // 50% visible
       medium: height * 0.35, // 65% visible
       large: height * 0.1, // 90% visible (10% from top)
@@ -87,6 +84,7 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
   const [currentSnapPoint, setCurrentSnapPoint] = useState<'large' | 'medium' | 'small' | 'mini'>(
     'large',
   );
+
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [weeklyGoal, setWeeklyGoal] = useState<WeeklyGoal | null>(null);
   const [streakData, setStreakData] = useState<StreakData>({
@@ -114,14 +112,13 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
   // Open/close animations
   useEffect(() => {
     if (visible) {
-      console.log('🏆 [AchievementsSheet] Opening modal at LARGE snap point:', snapPoints.large);
       translateY.value = withSpring(snapPoints.large, { damping: 20 });
       backdropOpacityShared.value = withTiming(1, { duration: 200 });
     } else {
       translateY.value = withTiming(height, { duration: 200 });
       backdropOpacityShared.value = withTiming(0, { duration: 200 });
     }
-  }, [visible]);
+  }, [visible, translateY, backdropOpacityShared, snapPoints.large]);
 
   // Backdrop animated style
   const backdropStyle = useAnimatedStyle(() => ({
@@ -136,7 +133,10 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
   // Pan gesture
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
-      const newY = Math.max(snapPoints.large, Math.min(height, translateY.value + event.translationY));
+      const newY = Math.max(
+        snapPoints.large,
+        Math.min(height, translateY.value + event.translationY),
+      );
       translateY.value = newY;
     })
     .onEnd((event) => {
@@ -164,11 +164,117 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
       }
     });
 
-  // Fetch achievements data
-  const fetchAchievementsData = async () => {
+  const fetchWeeklyGoal = React.useCallback(async () => {
     if (!effectiveUserId) return;
 
-    console.log('🏆 [AchievementsSheet] Fetching data for user:', effectiveUserId);
+    try {
+      // Get completions for this week
+      const startOfWeek = new Date();
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const { data: weekCompletions } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('id')
+        .eq('user_id', effectiveUserId)
+        .gte('completed_at', startOfWeek.toISOString());
+
+      const completed = weekCompletions?.length || 0;
+      const target = 10; // Default weekly goal
+
+      setWeeklyGoal({
+        week: startOfWeek.toISOString(),
+        target,
+        completed,
+        percentage: Math.round((completed / target) * 100),
+      });
+    } catch (error) {
+      console.error('Error fetching weekly goal:', error);
+    }
+  }, [effectiveUserId]);
+
+  const fetchStreakData = React.useCallback(async () => {
+    if (!effectiveUserId) return;
+
+    try {
+      const { data: completions } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('completed_at')
+        .eq('user_id', effectiveUserId)
+        .order('completed_at', { ascending: false });
+
+      if (!completions || completions.length === 0) {
+        setStreakData({ currentStreak: 0, longestStreak: 0, lastActivityDate: null });
+        return;
+      }
+
+      // Calculate current streak
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      let currentStreak = 0;
+      let longestStreak = 0;
+      let tempStreak = 0;
+      let lastDate: Date | null = null;
+
+      const uniqueDates = new Set<string>();
+      completions.forEach((c) => {
+        const date = new Date(c.completed_at);
+        date.setHours(0, 0, 0, 0);
+        uniqueDates.add(date.toISOString());
+      });
+
+      const sortedDates = Array.from(uniqueDates)
+        .map((d) => new Date(d))
+        .sort((a, b) => b.getTime() - a.getTime());
+
+      // Check current streak
+      for (let i = 0; i < sortedDates.length; i++) {
+        const date = sortedDates[i];
+        const daysDiff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysDiff === currentStreak) {
+          currentStreak++;
+          lastDate = date;
+        } else {
+          break;
+        }
+      }
+
+      // Calculate longest streak
+      for (let i = 0; i < sortedDates.length; i++) {
+        if (i === 0) {
+          tempStreak = 1;
+        } else {
+          const prevDate = sortedDates[i - 1];
+          const currDate = sortedDates[i];
+          const diff = Math.floor(
+            (prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24),
+          );
+
+          if (diff === 1) {
+            tempStreak++;
+          } else {
+            longestStreak = Math.max(longestStreak, tempStreak);
+            tempStreak = 1;
+          }
+        }
+      }
+      longestStreak = Math.max(longestStreak, tempStreak);
+
+      setStreakData({
+        currentStreak,
+        longestStreak,
+        lastActivityDate: lastDate ? lastDate.toISOString() : null,
+      });
+    } catch (error) {
+      console.error('Error fetching streak data:', error);
+    }
+  }, [effectiveUserId]);
+
+  // Fetch achievements data
+  const fetchAchievementsData = React.useCallback(async () => {
+    if (!effectiveUserId) return;
 
     try {
       // Fetch all learning paths with exercises (using relationship)
@@ -177,15 +283,11 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
         .select('id, learning_path_exercises(id, repeat_count, learning_path_id)')
         .eq('active', true);
 
-      console.log('🏆 [AchievementsSheet] Raw query result:', { paths, pathsError });
-
       if (pathsError) {
-        console.error('🏆 [AchievementsSheet] Error fetching paths:', pathsError);
         return;
       }
 
       if (!paths || paths.length === 0) {
-        console.warn('🏆 [AchievementsSheet] No paths found!');
         return;
       }
 
@@ -194,47 +296,30 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
 
       // Flatten exercises from all paths
       const exercises = paths?.flatMap((path) => path.learning_path_exercises || []) || [];
-      console.log('🏆 [AchievementsSheet] Found exercises:', exercises.length);
-      console.log('🏆 [AchievementsSheet] Sample path data:', paths[0]);
 
       let totalEx = 0;
       exercises?.forEach((ex) => {
         totalEx += ex.repeat_count || 1;
       });
+
       setTotalExercises(totalEx);
 
       // Fetch completions (match Header.tsx query that works)
-      const { data: completions, error: completionsError } = await supabase
+      const { data: completions } = await supabase
         .from('learning_path_exercise_completions')
         .select('exercise_id')
         .eq('user_id', effectiveUserId);
 
-      console.log('🏆 [AchievementsSheet] Completions query result:', { completions, completionsError });
-
-      if (completionsError) {
-        console.error('🏆 [AchievementsSheet] Error fetching completions:', completionsError);
-      }
-
       // Fetch virtual completions
-      const { data: virtualCompletions, error: virtualError } = await supabase
+      const { data: virtualCompletions } = await supabase
         .from('virtual_repeat_completions')
         .select('exercise_id, repeat_number')
         .eq('user_id', effectiveUserId);
 
-      if (virtualError) {
-        console.error('🏆 [AchievementsSheet] Error fetching virtual completions:', virtualError);
-      }
-
-      console.log('🏆 [AchievementsSheet] Fetched data:', {
-        exercises: exercises?.length,
-        completions: completions?.length,
-        virtualCompletions: virtualCompletions?.length,
-      });
-
       // Calculate completed exercises (count each repeat as one)
       const completedExerciseIds = new Set(completions?.map((c) => c.exercise_id) || []);
       let completedEx = 0;
-      
+
       exercises?.forEach((ex) => {
         if (completedExerciseIds.has(ex.id)) {
           const repeatCount = ex.repeat_count || 1;
@@ -243,22 +328,19 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
             completedEx += 1;
           } else {
             // Exercise with repeats - count base + virtual repeats
-            const virtualDone = virtualCompletions?.filter(
-              (vc) => vc.exercise_id === ex.id,
-            ).length || 0;
+            const virtualDone =
+              virtualCompletions?.filter((vc) => vc.exercise_id === ex.id).length || 0;
             completedEx += 1 + virtualDone; // Base + virtual repeats
           }
         }
       });
-      
-      console.log('🏆 [AchievementsSheet] Calculated completedEx:', completedEx);
-      console.log('🏆 [AchievementsSheet] Setting totalExercises:', totalEx, 'completedExercises:', completedEx);
+
       setCompletedExercises(completedEx);
 
       // Calculate completed paths
       const pathsCompleted = new Set<string>();
       const pathExerciseMap = new Map<string, typeof exercises>();
-      
+
       exercises?.forEach((ex) => {
         if (!pathExerciseMap.has(ex.learning_path_id)) {
           pathExerciseMap.set(ex.learning_path_id, []);
@@ -270,22 +352,20 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
         const allExercisesComplete = pathExercises.every((ex) => {
           const baseCompleted = completedExerciseIds.has(ex.id);
           if (!baseCompleted) return false;
-          
+
           const repeatCount = ex.repeat_count || 1;
           if (repeatCount === 1) return true;
-          
-          const virtualDone = virtualCompletions?.filter(
-            (vc) => vc.exercise_id === ex.id,
-          ).length || 0;
+
+          const virtualDone =
+            virtualCompletions?.filter((vc) => vc.exercise_id === ex.id).length || 0;
           return virtualDone + 1 >= repeatCount;
         });
-        
+
         if (allExercisesComplete && pathExercises.length > 0) {
           pathsCompleted.add(pathId);
         }
       });
-      
-      console.log('🏆 [AchievementsSheet] Completed paths:', pathsCompleted.size);
+
       setCompletedPaths(pathsCompleted.size);
 
       // Fetch route stats
@@ -315,13 +395,6 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
         .eq('user_id', effectiveUserId);
 
       const statusCount = dailyStatuses?.length || 0;
-
-      console.log('🏆 [AchievementsSheet] Route stats:', {
-        created: createdCount,
-        saved: savedCount,
-        driven: drivenCount,
-        statuses: statusCount,
-      });
 
       // Generate achievements
       const achievementsList: Achievement[] = [
@@ -447,7 +520,10 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
           id: 'first_status',
           icon: 'message-circle',
           title: { en: 'First Status', sv: 'Första statusen' },
-          description: { en: 'Share your first daily status', sv: 'Dela din första dagliga status' },
+          description: {
+            en: 'Share your first daily status',
+            sv: 'Dela din första dagliga status',
+          },
           unlocked: statusCount >= 1,
           progress: Math.min((statusCount / 1) * 100, 100),
           target: 1,
@@ -475,140 +551,24 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
     } catch (error) {
       console.error('Error fetching achievements:', error);
     }
-  };
+  }, [effectiveUserId, fetchWeeklyGoal, fetchStreakData, streakData.currentStreak]);
 
-  const fetchWeeklyGoal = async () => {
-    if (!effectiveUserId) return;
-
-    try {
-      // Get completions for this week
-      const startOfWeek = new Date();
-      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
-
-      const { data: weekCompletions } = await supabase
-        .from('learning_path_exercise_completions')
-        .select('id')
-        .eq('user_id', effectiveUserId)
-        .gte('completed_at', startOfWeek.toISOString());
-
-      const completed = weekCompletions?.length || 0;
-      const target = 10; // Default weekly goal
-
-      setWeeklyGoal({
-        week: startOfWeek.toISOString(),
-        target,
-        completed,
-        percentage: Math.round((completed / target) * 100),
-      });
-    } catch (error) {
-      console.error('Error fetching weekly goal:', error);
-    }
-  };
-
-  const fetchStreakData = async () => {
-    if (!effectiveUserId) return;
-
-    try {
-      const { data: completions } = await supabase
-        .from('learning_path_exercise_completions')
-        .select('completed_at')
-        .eq('user_id', effectiveUserId)
-        .order('completed_at', { ascending: false });
-
-      if (!completions || completions.length === 0) {
-        setStreakData({ currentStreak: 0, longestStreak: 0, lastActivityDate: null });
-        return;
-      }
-
-      // Calculate current streak
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      let currentStreak = 0;
-      let longestStreak = 0;
-      let tempStreak = 0;
-      let lastDate: Date | null = null;
-
-      const uniqueDates = new Set<string>();
-      completions.forEach((c) => {
-        const date = new Date(c.completed_at);
-        date.setHours(0, 0, 0, 0);
-        uniqueDates.add(date.toISOString());
-      });
-
-      const sortedDates = Array.from(uniqueDates)
-        .map((d) => new Date(d))
-        .sort((a, b) => b.getTime() - a.getTime());
-
-      // Check current streak
-      for (let i = 0; i < sortedDates.length; i++) {
-        const date = sortedDates[i];
-        const daysDiff = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (daysDiff === currentStreak) {
-          currentStreak++;
-          lastDate = date;
-        } else {
-          break;
-        }
-      }
-
-      // Calculate longest streak
-      for (let i = 0; i < sortedDates.length; i++) {
-        if (i === 0) {
-          tempStreak = 1;
-        } else {
-          const prevDate = sortedDates[i - 1];
-          const currDate = sortedDates[i];
-          const diff = Math.floor(
-            (prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24),
-          );
-
-          if (diff === 1) {
-            tempStreak++;
-          } else {
-            longestStreak = Math.max(longestStreak, tempStreak);
-            tempStreak = 1;
-          }
-        }
-      }
-      longestStreak = Math.max(longestStreak, tempStreak);
-
-      setStreakData({
-        currentStreak,
-        longestStreak,
-        lastActivityDate: lastDate ? lastDate.toISOString() : null,
-      });
-    } catch (error) {
-      console.error('Error fetching streak data:', error);
-    }
-  };
-
-  const handleRefresh = async () => {
+  const handleRefresh = React.useCallback(async () => {
     setRefreshing(true);
     await fetchAchievementsData();
     setRefreshing(false);
-  };
+  }, [fetchAchievementsData]);
 
   useEffect(() => {
     if (visible) {
       fetchAchievementsData();
     }
-  }, [visible, effectiveUserId]);
+  }, [visible, effectiveUserId, fetchAchievementsData]);
 
   if (!visible) return null;
 
   const progressPercentage =
     totalExercises > 0 ? Math.round((completedExercises / totalExercises) * 100) : 0;
-
-  console.log('🏆 [AchievementsSheet] Rendering with:', {
-    totalExercises,
-    completedExercises,
-    totalPaths,
-    completedPaths,
-    progressPercentage,
-  });
 
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
@@ -684,9 +644,7 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
                 padding: 16,
                 paddingBottom: insets.bottom + 80,
               }}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-              }
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
             >
               <YStack gap="$4">
                 {/* Overall Progress */}
@@ -697,7 +655,10 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
                 >
                   <YStack gap="$3">
                     <Text fontSize={18} fontWeight="bold" color={textColor}>
-                      {getT('achievements.overallProgress', language === 'sv' ? 'Total Framsteg' : 'Overall Progress')}
+                      {getT(
+                        'achievements.overallProgress',
+                        language === 'sv' ? 'Total Framsteg' : 'Overall Progress',
+                      )}
                     </Text>
 
                     <XStack alignItems="center" gap="$3">
@@ -746,11 +707,17 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
                       <YStack flex={1}>
                         <Text fontSize={14} color={textColor} opacity={0.7}>
                           {completedExercises} / {totalExercises}{' '}
-                          {getT('achievements.exercisesCompleted', language === 'sv' ? 'övningar' : 'exercises')}
+                          {getT(
+                            'achievements.exercisesCompleted',
+                            language === 'sv' ? 'övningar' : 'exercises',
+                          )}
                         </Text>
                         <Text fontSize={14} color={textColor} opacity={0.7}>
                           {completedPaths} / {totalPaths}{' '}
-                          {getT('achievements.pathsCompleted', language === 'sv' ? 'lektioner' : 'paths')}
+                          {getT(
+                            'achievements.pathsCompleted',
+                            language === 'sv' ? 'lektioner' : 'paths',
+                          )}
                         </Text>
                       </YStack>
                     </XStack>
@@ -777,13 +744,14 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
                           {streakData.currentStreak}
                         </Text>
                         <Text fontSize={12} color={textColor} opacity={0.7}>
-                          {getT('achievements.current', language === 'sv' ? 'Nuvarande' : 'Current')}
+                          {getT(
+                            'achievements.current',
+                            language === 'sv' ? 'Nuvarande' : 'Current',
+                          )}
                         </Text>
                       </YStack>
 
-                      <View
-                        style={{ width: 1, height: '100%', backgroundColor: borderColor }}
-                      />
+                      <View style={{ width: 1, height: '100%', backgroundColor: borderColor }} />
 
                       <YStack alignItems="center" gap="$1">
                         <Text fontSize={32} fontWeight="bold" color="#FFD700">
@@ -809,7 +777,10 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
                         <XStack alignItems="center" gap="$2">
                           <Feather name="target" size={20} color="#4B6BFF" />
                           <Text fontSize={18} fontWeight="bold" color={textColor}>
-                            {getT('achievements.weeklyGoal', language === 'sv' ? 'Veckomål' : 'Weekly Goal')}
+                            {getT(
+                              'achievements.weeklyGoal',
+                              language === 'sv' ? 'Veckomål' : 'Weekly Goal',
+                            )}
                           </Text>
                         </XStack>
                         <Text fontSize={14} color="#4B6BFF" fontWeight="bold">
@@ -840,7 +811,10 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
                 {/* Achievements List */}
                 <YStack gap="$2">
                   <Text fontSize={18} fontWeight="bold" color={textColor} paddingBottom="$2">
-                    {getT('achievements.unlockable', language === 'sv' ? 'Prestationer' : 'Achievements')}
+                    {getT(
+                      'achievements.unlockable',
+                      language === 'sv' ? 'Prestationer' : 'Achievements',
+                    )}
                   </Text>
 
                   {achievements.map((achievement) => (
@@ -879,11 +853,13 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
                               language as keyof typeof achievement.description
                             ] || achievement.description.en}
                           </Text>
-                          {!achievement.unlocked && achievement.target && achievement.current !== undefined && (
-                            <Text fontSize={12} color="#00E6C3">
-                              {achievement.current} / {achievement.target}
-                            </Text>
-                          )}
+                          {!achievement.unlocked &&
+                            achievement.target &&
+                            achievement.current !== undefined && (
+                              <Text fontSize={12} color="#00E6C3">
+                                {achievement.current} / {achievement.target}
+                              </Text>
+                            )}
                         </YStack>
 
                         {achievement.unlocked && (
@@ -901,4 +877,3 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
     </Modal>
   );
 }
-

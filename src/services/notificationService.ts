@@ -26,7 +26,11 @@ class NotificationService {
       throw new Error('User not authenticated');
     }
 
-    console.log('📬 Fetching notifications for user:', user.id, showArchived ? '(archived only)' : '(active only)');
+    console.log(
+      '📬 Fetching notifications for user:',
+      user.id,
+      showArchived ? '(archived only)' : '(active only)',
+    );
 
     let query = supabase
       .from('notifications')
@@ -55,7 +59,12 @@ class NotificationService {
       count: data?.length || 0,
       showArchived,
       error,
-      firstFew: data?.slice(0, 3).map((n) => ({ id: n.id, type: n.type, message: n.message, archived: (n as any).archived })),
+      firstFew: data?.slice(0, 3).map((n) => ({
+        id: n.id,
+        type: n.type,
+        message: n.message,
+        archived: (n as any).archived,
+      })),
     });
 
     if (error) throw error;
@@ -118,6 +127,7 @@ class NotificationService {
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
     if (!user) return 0;
 
     try {

@@ -8,7 +8,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
 } from 'react-native';
 import { YStack, XStack, TextArea, Text } from 'tamagui';
 import { BlurView } from 'expo-blur';

@@ -25,6 +25,7 @@ async function playActionSound() {
       staysActiveInBackground: false,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { sound } = await Audio.Sound.createAsync(require('../../../assets/sounds/ui-done.mp3'), {
       shouldPlay: true,
       volume: 0.5,
@@ -181,7 +182,7 @@ export default function RouteActions({
             returnToRouteDetail: true,
           } as any);
           onClose();
-        } catch (error) {
+        } catch {
           showToast({
             title: t('common.error') || 'Error',
             message:

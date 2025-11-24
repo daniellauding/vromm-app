@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform, PanResponder, Alert } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { Text, YStack, XStack, Button, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../../contexts/TranslationContext';
@@ -32,8 +32,6 @@ export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionS
 
   // Refs for drawing
   const mapRef = useRef<any>(null);
-  const drawingRef = useRef(false);
-  const lastDrawPointRef = useRef<any>(null);
 
   // Drawing mode options
   const drawingModes = [
@@ -70,7 +68,7 @@ export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionS
           });
           break;
 
-        case 'waypoint':
+        case 'waypoint': {
           // Add new waypoint
           const newWaypoint = {
             latitude,
@@ -83,7 +81,7 @@ export function MapInteractionStep({ data, onUpdate, onRecord }: MapInteractionS
           });
           setUndoneWaypoints([]);
           break;
-
+        }
         case 'pen':
           if (!isDrawing) {
             setIsDrawing(true);
