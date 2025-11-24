@@ -49,14 +49,6 @@ type UserProfile = Database['public']['Tables']['profiles']['Row'] & {
   } | null;
 };
 
-interface UserProfileSheetProps {
-  visible: boolean;
-  onClose: () => void;
-  userId: string | null;
-  onViewAllRoutes?: (userId: string) => void;
-  onEditProfile?: () => void;
-}
-
 const relationshipSnapPoints = {
   large: height * 0.2, // Top at 20% of screen (show 80% - largest)
   medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
