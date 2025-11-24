@@ -28,6 +28,9 @@ export interface FeaturedCardVariantProps {
   showMedia?: boolean; // Show image/video
   showActionButton?: boolean; // Show "Start Learning" / "Start Exercise" button
   showLockBadges?: boolean; // Show lock/paywall/quiz badges
+  showTitleIcon?: boolean; // Show chevron/icon on the right side of the title
+  equalHeight?: boolean; // Make all cards the same height (default: false)
+  cardHeight?: number; // Optional fixed card height in pixels (overrides equalHeight calculation)
   // Truncation control - default true
   truncateTitle?: boolean;
   truncateDescription?: boolean;
@@ -36,6 +39,7 @@ export interface FeaturedCardVariantProps {
 // Size configuration
 export interface FeaturedCardSizeConfig {
   cardWidth: number; // Card width based on screen size
+  cardHeight?: number; // Optional fixed card height for equal heights
   padding: string; // Tamagui padding token
   titleFontSize: string; // Tamagui fontSize token
   descriptionFontSize: string;
@@ -100,6 +104,7 @@ export const getFeaturedCardSizeConfig = (
     case 'small':
       return {
         cardWidth: screenWidth * 0.5,
+        cardHeight: 130, // Default height for equal height cards
         padding: '$3',
         titleFontSize: '$4',
         descriptionFontSize: '$2',
@@ -132,6 +137,7 @@ export const resolveFeaturedCardProps = (
   showMedia?: boolean,
   showActionButton?: boolean,
   showLockBadges?: boolean,
+  showTitleIcon?: boolean,
 ): {
   size: FeaturedCardSize;
   showIcon: boolean;
@@ -140,6 +146,7 @@ export const resolveFeaturedCardProps = (
   showMedia: boolean;
   showActionButton: boolean;
   showLockBadges: boolean;
+  showTitleIcon: boolean;
 } => {
   // Start with defaults
   let resolvedSize: FeaturedCardSize = size || 'medium';
@@ -149,6 +156,7 @@ export const resolveFeaturedCardProps = (
   let resolvedShowMedia = showMedia !== undefined ? showMedia : true;
   let resolvedShowActionButton = showActionButton !== undefined ? showActionButton : true;
   let resolvedShowLockBadges = showLockBadges !== undefined ? showLockBadges : true;
+  let resolvedShowTitleIcon = showTitleIcon !== undefined ? showTitleIcon : false;
 
   // Apply preset defaults if preset is provided (individual props can override)
   if (preset && preset !== 'default') {
@@ -254,6 +262,7 @@ export const resolveFeaturedCardProps = (
     showMedia: resolvedShowMedia,
     showActionButton: resolvedShowActionButton,
     showLockBadges: resolvedShowLockBadges,
+    showTitleIcon: resolvedShowTitleIcon,
   };
 };
 

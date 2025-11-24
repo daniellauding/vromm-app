@@ -827,6 +827,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   return (
     <YStack
       space="$4"
+      gap="$0"
       style={[
         // ✅ Tour highlighting for entire ProgressSection when active
         isProgressSectionHighlighted() && {
@@ -840,6 +841,15 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
           shadowOpacity: 0.6,
           shadowRadius: 12,
           elevation: 8,
+        },
+        {
+          padding: 0,
+          height: undefined,
+          minHeight: undefined,
+          flexShrink: 0,
+          flexGrow: 0,
+          alignSelf: 'stretch',
+          position: 'relative',
         },
       ]}
     >
@@ -867,7 +877,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
 
       {/* Viewing indicator (matching ProgressScreen.tsx) */}
       {viewingUserName && (
-        <YStack paddingHorizontal="$4" marginBottom={4}>
+        <YStack paddingHorizontal="$4" paddingVertical={0} marginBottom={0}>
           <YStack padding={10} backgroundColor="#162023" borderRadius={12}>
             <Text color="#00E6C3" fontSize={12}>
               {t('progressSection.viewingAs') || 'Viewing as'}: {viewingUserName}
@@ -886,7 +896,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         </YStack>
       )} */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <XStack space="$3" paddingHorizontal="$4">
+        <XStack space="$4" paddingHorizontal="$4" marginTop="$4" marginBottom={0} paddingVertical={0}>
           {filteredPaths.map((path, index) => {
             const isActive = activePath === path.id;
             const percent = getPathProgress(path);
@@ -924,7 +934,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
                   // shadowOpacity: isNextToUnlock || isPasswordLocked || isPaywallLocked ? 0.5 : 0,
                   // shadowRadius: isNextToUnlock || isPasswordLocked || isPaywallLocked ? 12 : 0,
                   // shadowOffset: { width: 0, height: 0 },
-                  marginBottom: 8,
+                  marginBottom: 0,
                   backgroundColor: colorScheme === 'dark' ? '#232323' : '#f2f1ef',
                 }}
                 disabled={!isEnabled}

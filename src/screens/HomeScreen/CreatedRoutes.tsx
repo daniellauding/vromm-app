@@ -6,7 +6,7 @@ import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
 import { YStack, XStack, Card } from 'tamagui';
-import { FlatList, Image, TouchableOpacity, useColorScheme } from 'react-native';
+import { FlatList, Image, TouchableOpacity, useColorScheme, Dimensions } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { navigateDomain } from '@/src/utils/navigation';
@@ -246,29 +246,72 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
               </YStack>
             </Card>
           </YStack>
-        ) : (
-          <FlatList
-            horizontal
-            data={createdRoutes}
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingVertical: 0 }}
-            renderItem={({ item: route }) => (
-              <XStack marginRight="$3">
-                <RouteCard 
-                  route={route} 
-                  onPress={() => {
-                    if (onRoutePress) {
-                      onRoutePress(route.id);
-                    } else {
-                      navigation.navigate('RouteDetail', { routeId: route.id });
-                    }
-                  }}
+        ) : createdRoutes.length > 3 ? (
+            <FlatList
+              horizontal
+              data={createdRoutes}
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
+              getItemLayout={(data, index) => {
+                const screenWidth = Dimensions.get('window').width;
+                const padding = 32; // 16 on each side
+                const gap = 12; // gap between cards
+                const cardWidth = (screenWidth - padding - gap * 2) / 3.5;
+                return {
+                  length: cardWidth + gap,
+                  offset: (cardWidth + gap) * index,
+                  index,
+                };
+              }}
+              snapToInterval={Dimensions.get('window').width / 3.5 + 12}
+              decelerationRate="fast"
+              snapToAlignment="start"
+              renderItem={({ item: route }) => {
+                const screenWidth = Dimensions.get('window').width;
+                const padding = 32;
+                const gap = 12;
+                const cardWidth = (screenWidth - padding - gap * 2) / 3.5;
+                return (
+                  <XStack marginRight="$3" width={cardWidth} overflow="hidden">
+                    <RouteCard
+                      route={route}
+                      preset="grid"
+                      onPress={() => {
+                        if (onRoutePress) {
+                          onRoutePress(route.id);
+                        } else {
+                          navigation.navigate('RouteDetail', { routeId: route.id });
+                        }
+                      }}
+                    />
+                  </XStack>
+                );
+              }}
             />
-          </XStack>
-            )}
-          />
-        )}
+          ) : (
+            <FlatList
+              horizontal
+              data={createdRoutes}
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingVertical: 0 }}
+              renderItem={({ item: route }) => (
+                <XStack marginRight="$3">
+                  <RouteCard
+                    route={route}
+                    onPress={() => {
+                      if (onRoutePress) {
+                        onRoutePress(route.id);
+                      } else {
+                        navigation.navigate('RouteDetail', { routeId: route.id });
+                      }
+                    }}
+                  />
+                </XStack>
+              )}
+            />
+          )}
       </YStack>
 
       {/* Route List Sheet */}

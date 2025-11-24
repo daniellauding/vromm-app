@@ -107,7 +107,7 @@ export function SectionHeader({
   return (
     <XStack px="$4" pr="$3" py="$0" justifyContent="space-between" alignItems="center">
       <XStack gap="$2" alignItems="center">
-        <Text size="xl" weight="bold">
+        <Text size="md" fontWeight="900" fontStyle="italic">
           {title}
         </Text>
         {(showHelp || helpText) && helpText && <HelpIcon helpText={helpText} size={16} />}

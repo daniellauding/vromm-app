@@ -13,9 +13,20 @@ import { IncompleteFeaturedExercises } from './IncompleteFeaturedExercises';
 import PayWall from './PayWall';
 import PasswordModal from './PasswordModal';
 import { FeaturedExercise, FeaturedLearningPath } from './types';
+import { getFeaturedCardSizeConfig } from './variants';
 
 export const FeaturedContent = React.memo(function FeaturedContent() {
   const { t, language: lang } = useTranslation();
+
+  // Helper function to get translation with fallback when t() returns the key itself
+  const getTranslation = (key: string, fallbackEn: string, fallbackSv: string): string => {
+    const translated = t(key);
+    // If translation is missing, t() returns the key itself - use fallback instead
+    if (translated && translated !== key) {
+      return translated;
+    }
+    return lang === 'sv' ? fallbackSv : fallbackEn;
+  };
   const { user: authUser } = useAuth();
   const { loadUserPayments, loadUnlockedContent, isPathUnlocked, hasPathPayment } = useUnlock();
 
@@ -299,14 +310,17 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
 
   const hasContent = featuredPaths.length > 0 || incompleteFeaturedExercises.length > 0;
 
+  // Calculate consistent height for all cards when equalHeight is enabled
+  const equalCardHeight = React.useMemo(() => {
+    const sizeConfig = getFeaturedCardSizeConfig('small');
+    return sizeConfig.cardHeight || 220; // Default to 220 if not set
+  }, []);
+
   if (loading) {
     return (
       <YStack marginBottom="$4">
         <SectionHeader
-          title={(() => {
-            const translated = t('home.featuredContent');
-            return translated === 'home.featuredContent' ? 'Featured Learning' : translated;
-          })()}
+          title={getTranslation('home.featuredContent', 'Featured Learning', 'Utvalt innehåll')}
         />
         <YStack alignItems="center" justifyContent="center" padding="$4">
           <Text color="$gray11">{t('common.loading') || 'Loading...'}</Text>
@@ -320,18 +334,19 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
   }
 
   return (
-    <YStack marginBottom="$6">
+    <YStack marginBottom="$6" gap="$4">
       <SectionHeader
-        title={(() => {
-          const translated = t('home.featuredContent');
-          return translated === 'home.featuredContent' ? 'Featured Learning' : translated;
-        })()}
+        title={getTranslation('home.featuredContent', 'Featured Learning', 'Utvalt innehåll')}
       />
 
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          gap: 12,
+          alignItems: 'stretch', // Ensure all items have same height
+        }}
       >
         {/* Featured Learning Paths */}
         {featuredPaths.map((path) => (
@@ -339,6 +354,11 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
             key={path.id}
             path={path}
             handleFeaturedPathPress={handleFeaturedPathPress}
+            showIcon={false}
+            showActionButton={false}
+            showTitleIcon={true}
+            equalHeight={true}
+            cardHeight={equalCardHeight}
           />
         ))}
 
@@ -348,6 +368,12 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
             key={exercise.id}
             exercise={exercise}
             handleFeaturedExercisePress={handleFeaturedExercisePress}
+            showIcon={false}
+            showActionButton={false}
+            showLockBadges={false}
+            showTitleIcon={true}
+            equalHeight={true}
+            cardHeight={equalCardHeight}
           />
         ))}
       </ScrollView>

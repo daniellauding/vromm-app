@@ -235,9 +235,9 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
             console.log('🔊 Celebration sound error (may be muted):', error);
           }
         };
-        
+
         playCelebrationFeedback();
-        
+
         // Use global celebration context
         showCelebration({
           learningPathTitle: { en: celebrationTitle, sv: celebrationTitle },
@@ -582,8 +582,8 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                           borderColor:
                             isSelected || isToday
                               ? colorScheme === 'dark'
-                                ? 'rgba(0, 230, 195, 0.3)'
-                                : 'rgba(0, 230, 195, 0.4)'
+                                ? '#0CA17B'
+                                : '#0CA17B'
                               : 'transparent',
                           minWidth: 0, // Allow flex shrinking
                         }}
@@ -626,21 +626,40 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                                   ? '#333'
                                   : '#DDD'
                                 : day.completed
-                                  ? '#01E6C3'
-                                  : '#00E6C3'
+                                  ? '#04C9A6'
+                                  : '#04C9A6'
                             }
                             bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                             completed={!isFuture && day.completed}
                           />
                           {day.exercises > 0 && !isFuture && (
-                            <Text
-                              fontSize={isSmallScreen ? 7 : 8}
-                              fontWeight="bold"
-                              color={day.completed ? '#01E6C3' : '#00E6C3'}
-                              style={{ position: 'absolute', top: circleSize * 0.3 }}
+                            <YStack
+                              position="absolute"
+                              top={circleSize * 0.15}
+                              left={circleSize * 0.15}
+                              width={isSmallScreen ? 14 : 18}
+                              height={isSmallScreen ? 14 : 18}
+                              justifyContent="center"
+                              alignItems="center"
+                              borderRadius={9999}
+                              backgroundColor="#04C9A6"
+                              zIndex={2}
+                              shadowColor="#000"
+                              shadowOffset={{ width: 0, height: 1 }}
+                              shadowOpacity={0.07}
+                              shadowRadius={1}
                             >
-                              {day.exercises}
-                            </Text>
+                              <Feather
+                                name="check"
+                                size={isSmallScreen ? 10 : 12}
+                                color="#222"
+                                style={{
+                                  // Center inside the YStack
+                                  marginTop: 1,
+                                  marginLeft: 1,
+                                }}
+                              />
+                            </YStack>
                           )}
 
                           {/* Day name and date */}
@@ -652,13 +671,15 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                                   ? colorScheme === 'dark'
                                     ? '#444'
                                     : '#999'
-                                  : isToday
-                                    ? '#00E6C3'
+                                  : isToday || isSelected
+                                    ? '#0CA17B'
                                     : colorScheme === 'dark'
                                       ? '#CCC'
                                       : '#333'
                               }
-                              fontWeight={day.completed || isToday ? 'bold' : 'normal'}
+                              fontWeight={
+                                day.completed || isSelected || isToday ? 'bold' : 'normal'
+                              }
                               numberOfLines={1}
                               adjustsFontSizeToFit={true}
                               minimumFontScale={0.8}
@@ -675,8 +696,8 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
                                   ? colorScheme === 'dark'
                                     ? '#333'
                                     : '#999'
-                                  : isToday
-                                    ? '#00E6C3'
+                                  : isToday || isSelected
+                                    ? '#0CA17B'
                                     : colorScheme === 'dark'
                                       ? '#AAA'
                                       : '#333'

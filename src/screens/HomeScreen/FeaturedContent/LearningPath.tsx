@@ -1,9 +1,10 @@
 import React from 'react';
-import { Dimensions, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from '../../../contexts/TranslationContext';
 import { useUnlock } from '../../../contexts/UnlockContext';
+import { useThemePreference } from '../../../hooks/useThemeOverride';
 import { FeaturedLearningPath } from './types';
 import { FeaturedMedia } from './FeaturedMedia';
 import {
@@ -23,6 +24,9 @@ export const LearningPath = React.memo(function LearningPath({
   showMedia = true,
   showActionButton = true,
   showLockBadges = true,
+  showTitleIcon = false,
+  equalHeight = false,
+  cardHeight,
   truncateTitle = true,
   truncateDescription = true,
 }: {
@@ -31,6 +35,8 @@ export const LearningPath = React.memo(function LearningPath({
 } & FeaturedCardVariantProps) {
   const { t, language: lang } = useTranslation();
   const { isPathUnlocked, hasPathPayment } = useUnlock();
+  const { effectiveTheme } = useThemePreference();
+  const colorScheme = effectiveTheme || 'light';
 
   // Resolve props based on preset
   const resolvedProps = React.useMemo(
@@ -44,8 +50,19 @@ export const LearningPath = React.memo(function LearningPath({
         showMedia,
         showActionButton,
         showLockBadges,
+        showTitleIcon,
       ),
-    [preset, size, showIcon, showTitle, showDescription, showMedia, showActionButton, showLockBadges],
+    [
+      preset,
+      size,
+      showIcon,
+      showTitle,
+      showDescription,
+      showMedia,
+      showActionButton,
+      showLockBadges,
+      showTitleIcon,
+    ],
   );
 
   const {
@@ -56,6 +73,7 @@ export const LearningPath = React.memo(function LearningPath({
     showMedia: resolvedShowMedia,
     showActionButton: resolvedShowActionButton,
     showLockBadges: resolvedShowLockBadges,
+    showTitleIcon: resolvedShowTitleIcon,
   } = resolvedProps;
 
   // Get size configuration
@@ -89,25 +107,36 @@ export const LearningPath = React.memo(function LearningPath({
         handleFeaturedPathPress(path);
       }}
       style={({ pressed }) => ({
-        flex: 1,
+        width: sizeConfig.cardWidth,
+        height: cardHeight || (equalHeight ? sizeConfig.cardHeight : undefined),
         transform: [{ scale: pressed ? 0.98 : 1 }],
       })}
     >
       <Card
         width={sizeConfig.cardWidth}
+        height={cardHeight || (equalHeight ? sizeConfig.cardHeight : undefined)}
         padding={sizeConfig.padding}
-        backgroundColor="$backgroundHover"
+        backgroundColor={colorScheme === 'dark' ? '#232323' : '#f2f1ef'}
         borderRadius="$4"
-        borderWidth={1}
-        borderColor={isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : '$borderColor'}
+        borderWidth={2}
+        borderColor={
+          isPasswordLocked
+            ? '#FF9500'
+            : isPaywallLocked
+              ? '#00E6C3'
+              : colorScheme === 'dark'
+                ? '#232323'
+                : '#E5E5E5'
+        }
         style={{
           shadowColor: isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : 'transparent',
           shadowOpacity: isPasswordLocked || isPaywallLocked ? 0.3 : 0,
           shadowRadius: isPasswordLocked || isPaywallLocked ? 8 : 0,
           shadowOffset: { width: 0, height: 0 },
+          overflow: 'hidden',
         }}
       >
-        <YStack gap={sizeConfig.gap} position="relative">
+        <YStack gap={sizeConfig.gap} position="relative" flex={1} height="100%">
           {/* Lock/Payment indicator badges (top-right corner) */}
           {resolvedShowLockBadges && (isPasswordLocked || isPaywallLocked) && (
             <XStack position="absolute" top={0} right={0} zIndex={10} gap="$1">
@@ -140,32 +169,53 @@ export const LearningPath = React.memo(function LearningPath({
           {resolvedShowIcon && (
             <XStack alignItems="center" gap="$2">
               {path.icon && (
-                <Feather
-                  name={path.icon as keyof typeof Feather.glyphMap}
-                  size={sizeConfig.iconSize}
-                  color="#00FFBC"
-                />
+                <>
+                  <Feather
+                    name={path.icon as keyof typeof Feather.glyphMap}
+                    size={sizeConfig.iconSize}
+                    color="#00FFBC"
+                  />
+                  <Text
+                    fontSize={sizeConfig.descriptionFontSize}
+                    fontWeight={600}
+                    color="$primaryCyan"
+                  >
+                    {(() => {
+                      const translated = t('home.learningPath');
+                      return translated === 'home.learningPath' ? 'Learning Path' : translated;
+                    })()}
+                  </Text>
+                </>
               )}
-              <Text fontSize={sizeConfig.descriptionFontSize} fontWeight="600" color="#00FFBC">
-                {(() => {
-                  const translated = t('home.learningPath');
-                  return translated === 'home.learningPath' ? 'Learning Path' : translated;
-                })()}
-              </Text>
             </XStack>
           )}
 
           {/* Title */}
           {resolvedShowTitle && (
-            <Text
-              fontSize={sizeConfig.titleFontSize}
-              fontWeight="bold"
-              color="$color"
-              numberOfLines={truncateTitle ? 2 : undefined}
-              ellipsizeMode={truncateTitle ? 'tail' : undefined}
-            >
-              {path.title?.[lang] || path.title?.en || 'Untitled'}
-            </Text>
+            <XStack alignItems="flex-start" justifyContent="space-between" gap="$2">
+              <Text
+                // fontSize={sizeConfig.titleFontSize}
+                // fontWeight="bold"
+                fontSize={16}
+                fontWeight="900"
+                fontStyle="italic"
+                color="$color"
+                numberOfLines={truncateTitle ? 2 : undefined}
+                ellipsizeMode={truncateTitle ? 'tail' : undefined}
+                flex={1}
+                lineHeight={20}
+              >
+                {path.title?.[lang] || path.title?.en || 'Untitled'}
+              </Text>
+              {resolvedShowTitleIcon && (
+                <Feather
+                  name="chevron-right"
+                  size={20}
+                  color={effectiveTheme === 'dark' ? '#999' : '#666'}
+                  style={{ marginTop: 2 }}
+                />
+              )}
+            </XStack>
           )}
 
           {/* Media (Video/Image) */}

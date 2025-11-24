@@ -1565,10 +1565,10 @@ export const GettingStarted = () => {
   // }
   return (
     <YStack marginBottom="$3">
-      {/* <SectionHeader title={t('home.gettingStarted.title') || 'Getting Started'} variant="chevron" onAction={() => {}} actionLabel="" /> */}
+      <SectionHeader title={t('home.gettingStarted.title') || 'Getting Started'} variant="chevron" onAction={() => {}} actionLabel="" />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <XStack space="$4" paddingHorizontal="$4">
+        <XStack space="$4" paddingHorizontal="$4" marginTop="$4">
           {/* 1. Din körkortsplan */}
           <TouchableOpacity
             ref={licensePlanRef}
@@ -1621,7 +1621,7 @@ export const GettingStarted = () => {
                     position: 'absolute',
                     top: 8,
                     right: 8,
-                    backgroundColor: '#4B6BFF',
+                    backgroundColor: '#000',
                     borderRadius: 10,
                     paddingHorizontal: 6,
                     paddingVertical: 3,
@@ -1648,18 +1648,18 @@ export const GettingStarted = () => {
                 padding="$2"
                 flex={1}
                 justifyContent="flex-start"
-                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                backgroundColor={colorScheme === 'dark' ? '#143929' : '#143929'}
                 borderBottomLeftRadius={8}
                 borderBottomRightRadius={8}
-                borderWidth={1}
+                // borderWidth={1}
                 borderTopWidth={0}
-                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                // borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                 // style prop is NOT needed, use props directly to ensure proper styling with Tamagui/YStack
               >
-                <Text fontSize={12} fontWeight="bold" color="$color">
+                <Text fontSize={12} fontWeight="bold" color={colorScheme === 'dark' ? '#fff' : '#fff'}>
                   {t('home.gettingStarted.licensePlan.title') || 'Your License Plan'}
                 </Text>
-                <Text fontSize={10} color="$gray11" marginTop="$1">
+                <Text fontSize={10} color={colorScheme === 'dark' ? '#fff' : '#fff'} marginTop="$1">
                   {t('home.gettingStarted.licensePlan.description') ||
                     'Tell us about yourself and your goals'}
                 </Text>
@@ -1716,17 +1716,17 @@ export const GettingStarted = () => {
                 padding="$2"
                 flex={1}
                 justifyContent="flex-start"
-                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                backgroundColor={colorScheme === 'dark' ? '#143929' : '#143929'}
                 borderBottomLeftRadius={8}
                 borderBottomRightRadius={8}
-                borderWidth={1}
+                // borderWidth={1}
                 borderTopWidth={0}
-                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                // borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
               >
-                <Text fontSize={12} fontWeight="bold" color="$color">
+                <Text fontSize={12} fontWeight="bold" color={colorScheme === 'dark' ? '#fff' : '#fff'}>
                   {t('home.gettingStarted.firstRoute.title') || 'Add Your First Route'}
                 </Text>
-                <Text fontSize={10} color="$gray11" marginTop="$1">
+                <Text fontSize={10} color={colorScheme === 'dark' ? '#fff' : '#fff'} marginTop="$1">
                   {t('home.gettingStarted.firstRoute.description') ||
                     'Create a route you use often'}
                 </Text>
@@ -1788,17 +1788,17 @@ export const GettingStarted = () => {
                 padding="$2"
                 flex={1}
                 justifyContent="flex-start"
-                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                backgroundColor={colorScheme === 'dark' ? '#143929' : '#143929'}
                 borderBottomLeftRadius={8}
                 borderBottomRightRadius={8}
-                borderWidth={1}
+                // borderWidth={1}
                 borderTopWidth={0}
-                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                // borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
               >
-                <Text fontSize={12} fontWeight="bold" color="$color">
+                <Text fontSize={12} fontWeight="bold" color={colorScheme === 'dark' ? '#fff' : '#fff'}>
                   {t('home.gettingStarted.startLearning.title') || 'Start on Step 1 of 16'}
                 </Text>
-                <Text fontSize={10} color="$gray11" marginTop="$1">
+                <Text fontSize={10} color={colorScheme === 'dark' ? '#fff' : '#fff'} marginTop="$1">
                   {t('home.gettingStarted.startLearning.description') ||
                     'Start your license journey'}
                 </Text>
@@ -1860,17 +1860,17 @@ export const GettingStarted = () => {
                 padding="$2"
                 flex={1}
                 justifyContent="flex-start"
-                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                backgroundColor={colorScheme === 'dark' ? '#143929' : '#143929'}
                 borderBottomLeftRadius={8}
                 borderBottomRightRadius={8}
-                borderWidth={1}
+                // borderWidth={1}
                 borderTopWidth={0}
-                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                // borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
               >
-                <Text fontSize={12} fontWeight="bold" color="$color">
+                <Text fontSize={12} fontWeight="bold" color={colorScheme === 'dark' ? '#fff' : '#fff'}>
                   {t('home.gettingStarted.saveRoute.title') || 'Save a Route'}
                 </Text>
-                <Text fontSize={10} color="$gray11" marginTop="$1">
+                <Text fontSize={10} color={colorScheme === 'dark' ? '#fff' : '#fff'} marginTop="$1">
                   {t('home.gettingStarted.saveRoute.description') ||
                     'Find and save a route from the map'}
                 </Text>
@@ -1944,17 +1944,17 @@ export const GettingStarted = () => {
                 padding="$2"
                 flex={1}
                 justifyContent="flex-start"
-                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                backgroundColor={colorScheme === 'dark' ? '#143929' : '#143929'}
                 borderBottomLeftRadius={8}
                 borderBottomRightRadius={8}
                 borderWidth={1}
                 borderTopWidth={0}
-                borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                // borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
               >
-                <Text fontSize={12} fontWeight="bold" color="$color">
+                <Text fontSize={12} fontWeight="bold" color={colorScheme === 'dark' ? '#fff' : '#fff'}>
                   {t('home.gettingStarted.chooseRole.title') || 'Choose Your Role'}
                 </Text>
-                <Text fontSize={10} color="$gray11" marginTop="$1">
+                <Text fontSize={10} color={colorScheme === 'dark' ? '#fff' : '#fff'} marginTop="$1">
                   {t('home.gettingStarted.chooseRole.description') ||
                     'Student, instructor, or driving school?'}
                 </Text>
@@ -2012,19 +2012,19 @@ export const GettingStarted = () => {
                   padding="$2"
                   flex={1}
                   justifyContent="flex-start"
-                  backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#f2f1ef'}
+                  backgroundColor={colorScheme === 'dark' ? '#143929' : '#143929'}
                   borderBottomLeftRadius={8}
                   borderBottomRightRadius={8}
-                  borderWidth={1}
+                  // borderWidth={1}
                   borderTopWidth={0}
-                  borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                  // borderColor={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
                 >
-                  <Text fontSize={12} fontWeight="bold" color="$color">
+                  <Text fontSize={12} fontWeight="bold" color={colorScheme === 'dark' ? '#fff' : '#fff'}>
                     {typedProfile?.role === 'student'
                       ? t('home.gettingStarted.connectStudent.title') || 'Add Supervisor'
                       : t('home.gettingStarted.connectInstructor.title') || 'Add Students'}
                   </Text>
-                  <Text fontSize={10} color="$gray11" marginTop="$1">
+                  <Text fontSize={10} color={colorScheme === 'dark' ? '#fff' : '#fff'} marginTop="$1">
                     {typedProfile?.role === 'student'
                       ? t('home.gettingStarted.connectStudent.description') ||
                         'Connect with instructors and supervisors'

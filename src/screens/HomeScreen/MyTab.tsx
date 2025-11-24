@@ -156,149 +156,170 @@ export default React.memo(function MyTab({
         iPad Pro Landscape: Maintains special layout with adjustments
       */}
 
-      {/* Getting Started - Always Full Width */}
-      <View style={{ marginTop: 8 }}>
-        <GettingStarted />
-      </View>
+      {/* 
+        NOTE: 
+        The backgroundColor and padding props may not work on YStack if it is not a View underneath,
+        or if the parent is not allowing it to be visible (e.g., parent style is transparent, or overflow: 'hidden'). 
+        Try using backgroundColor, padding, and borderRadius as direct YStack props instead of style.
+        See: https://tamagui.dev/docs/core/stack
 
-      {/* Progress - Always Full Width */}
-      <View style={{ marginTop: cardGap }}>
-        <ProgressSection activeUserId={effectiveUserId} />
-      </View>
+        - Use 'backgroundColor=', 'padding=', 'borderRadius=' as props.  
+        - Only use 'style' for properties Tamagui does not support as props.
+      */}
 
-      {/* Featured & Promo - Conditional width based on content availability */}
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          // paddingHorizontal: horizontalPadding,
-          gap: cardGap,
-          marginTop: cardGap,
-        }}
+      <YStack
+        borderRadius={20}
+        backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#EBEBEB'}
+        paddingVertical={16}
+        paddingHorizontal={4}
+        marginTop={16}
       >
-        {/* Featured Content - Takes full width if no promo, 50% if promo exists */}
-        <View
-          style={{
-            width: isTablet ? (hasPromotionalContent ? '48%' : '100%') : '100%',
-            minWidth: isTablet ? 300 : undefined,
-          }}
-        >
-          <FeaturedContent />
+
+        {/* Getting Started - Always Full Width */}
+        <View style={{ marginTop: 8 }}>
+          <GettingStarted />
         </View>
 
-        {/* Promotional Content - Only rendered if has content */}
-        {hasPromotionalContent && (
-          <View style={{ width: isTablet ? '48%' : '100%', minWidth: isTablet ? 300 : undefined }}>
-            <PromotionalContent
-              onPromotionPress={(promotion) => {
-                setSelectedPromotion(promotion);
-                setShowPromotionSheet(true);
-              }}
-              onContentLoaded={(hasContent) => setHasPromotionalContent(hasContent)}
-            />
-          </View>
-        )}
-      </View>
-
-      {/* Draft Routes - Full Width (separate from 4-col grid) */}
-      <View style={{ marginTop: cardGap }}>
-        <DraftRoutes onRoutePress={handleRoutePress} />
-      </View>
-
-      {/* Saved, Created, Driven Routes - 3 columns on tablet, 1 column on mobile */}
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          // paddingHorizontal: horizontalPadding,
-          gap: cardGap,
-          marginTop: cardGap,
-        }}
-      >
-        {/* Saved Routes */}
-        <View
-          style={{
-            flex: isTablet ? 1 : undefined,
-            width: isTablet ? undefined : '100%',
-            minWidth: isTablet ? 0 : undefined,
-          }}
-        >
-          <SavedRoutes onRoutePress={handleRoutePress} />
+        {/* Progress - Always Full Width */}
+        <View style={{ marginTop: cardGap }}>
+          <ProgressSection activeUserId={effectiveUserId} />
         </View>
 
-        {/* Created Routes */}
+        {/* Featured & Promo - Conditional width based on content availability */}
         <View
           style={{
-            flex: isTablet ? 1 : undefined,
-            width: isTablet ? undefined : '100%',
-            minWidth: isTablet ? 0 : undefined,
-          }}
-        >
-          <CreatedRoutes onRoutePress={handleRoutePress} />
-        </View>
-
-        {/* Driven Routes */}
-        <View
-          style={{
-            flex: isTablet ? 1 : undefined,
-            width: isTablet ? undefined : '100%',
-            minWidth: isTablet ? 0 : undefined,
-          }}
-        >
-          <DrivenRoutes onRoutePress={handleRoutePress} />
-        </View>
-      </View>
-
-      {/* Nearby Routes - Separate full width section */}
-      <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
-        <NearByRoutes onRoutePress={handleRoutePress} />
-      </View>
-
-      <View style={{ marginBottom: 40 }}>
-        {/* Beta Testing Button */}
-        <TouchableOpacity
-          onPress={handleOpenBetaTesting}
-          style={{
-            marginHorizontal: 16,
-            marginTop: 12,
-            marginBottom: 8,
-            padding: 16,
-            backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#F5F5F5',
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: colorScheme === 'dark' ? '#2C2C2E' : '#E5E5EA',
             flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            // paddingHorizontal: horizontalPadding,
+            gap: cardGap,
+            marginTop: cardGap,
           }}
-          activeOpacity={0.7}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Feather
-              name="help-circle"
-              size={20}
-              color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
-            />
-            <RNText
-              style={{
-                fontSize: 16,
-                fontWeight: '500',
-                color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
-              }}
-            >
-              {getTranslation(
-                'home.betaTesting',
-                language === 'sv' ? 'Hjälp oss testa' : 'Help with testing',
-              )}
-            </RNText>
+          {/* Featured Content - Takes full width if no promo, 50% if promo exists */}
+          <View
+            style={{
+              width: isTablet ? (hasPromotionalContent ? '48%' : '100%') : '100%',
+              minWidth: isTablet ? 300 : undefined,
+            }}
+          >
+            <FeaturedContent />
           </View>
-          <Feather
-            name="chevron-right"
-            size={20}
-            color={colorScheme === 'dark' ? '#8E8E93' : '#999'}
-          />
-        </TouchableOpacity>
-      </View>
+
+          {/* Promotional Content - Only rendered if has content */}
+          {hasPromotionalContent && (
+            <View style={{ width: isTablet ? '48%' : '100%', minWidth: isTablet ? 300 : undefined }}>
+              <PromotionalContent
+                onPromotionPress={(promotion) => {
+                  setSelectedPromotion(promotion);
+                  setShowPromotionSheet(true);
+                }}
+                onContentLoaded={(hasContent) => setHasPromotionalContent(hasContent)}
+              />
+            </View>
+          )}
+        </View>
+
+        {/* Draft Routes - Full Width (separate from 4-col grid) */}
+        <View style={{ marginTop: cardGap }}>
+          <DraftRoutes onRoutePress={handleRoutePress} />
+        </View>
+
+        {/* Saved, Created, Driven Routes - 3 columns on tablet, 1 column on mobile */}
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            // paddingHorizontal: horizontalPadding,
+            gap: cardGap,
+            marginTop: cardGap,
+          }}
+        >
+          {/* Saved Routes */}
+          <View
+            style={{
+              flex: isTablet ? 1 : undefined,
+              width: isTablet ? undefined : '100%',
+              minWidth: isTablet ? 0 : undefined,
+            }}
+          >
+            <SavedRoutes onRoutePress={handleRoutePress} />
+          </View>
+
+          {/* Created Routes */}
+          <View
+            style={{
+              flex: isTablet ? 1 : undefined,
+              width: isTablet ? undefined : '100%',
+              minWidth: isTablet ? 0 : undefined,
+            }}
+          >
+            <CreatedRoutes onRoutePress={handleRoutePress} />
+          </View>
+
+          {/* Driven Routes */}
+          <View
+            style={{
+              flex: isTablet ? 1 : undefined,
+              width: isTablet ? undefined : '100%',
+              minWidth: isTablet ? 0 : undefined,
+            }}
+          >
+            <DrivenRoutes onRoutePress={handleRoutePress} />
+          </View>
+        </View>
+
+        {/* Nearby Routes - Separate full width section */}
+        <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
+          <NearByRoutes onRoutePress={handleRoutePress} />
+        </View>
+
+        <View style={{ marginBottom: 40 }}>
+          {/* Beta Testing Button */}
+          <TouchableOpacity
+            onPress={handleOpenBetaTesting}
+            style={{
+              marginHorizontal: 16,
+              marginTop: 12,
+              marginBottom: 8,
+              padding: 16,
+              backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#F5F5F5',
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colorScheme === 'dark' ? '#2C2C2E' : '#E5E5EA',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Feather
+                name="help-circle"
+                size={20}
+                color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
+              />
+              <RNText
+                style={{
+                  fontSize: 16,
+                  fontWeight: '500',
+                  color: colorScheme === 'dark' ? '#ECEDEE' : '#11181C',
+                }}
+              >
+                {getTranslation(
+                  'home.betaTesting',
+                  language === 'sv' ? 'Hjälp oss testa' : 'Help with testing',
+                )}
+              </RNText>
+            </View>
+            <Feather
+              name="chevron-right"
+              size={20}
+              color={colorScheme === 'dark' ? '#8E8E93' : '#999'}
+            />
+          </TouchableOpacity>
+        </View>
+
+      </YStack>
 
       {/* Role Selection and Connections Cards */}
       {/* <YStack gap="$4" marginTop="$6">
