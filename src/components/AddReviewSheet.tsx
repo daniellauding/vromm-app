@@ -80,7 +80,7 @@ export function AddReviewSheet({
       useNativeDriver: true,
     }).start();
     setTimeout(() => onClose(), 200);
-  }, [onClose, snapPoints.dismissed, backdropOpacity]);
+  }, [onClose, snapPoints.dismissed, backdropOpacity, translateY]);
 
   // Pan gesture handler
   const panGesture = Gesture.Pan()
@@ -130,10 +130,7 @@ export function AddReviewSheet({
         );
       }
 
-      const boundedTarget = Math.min(
-        Math.max(targetSnapPoint, snapPoints.large),
-        snapPoints.mini,
-      );
+      const boundedTarget = Math.min(Math.max(targetSnapPoint, snapPoints.large), snapPoints.mini);
 
       translateY.value = withSpring(
         boundedTarget,
@@ -186,7 +183,15 @@ export function AddReviewSheet({
         useNativeDriver: true,
       }).start();
     }
-  }, [visible, backdropOpacity, snapPoints.large, snapPoints.dismissed, currentState, translateY]);
+  }, [
+    visible,
+    backdropOpacity,
+    snapPoints.large,
+    snapPoints.dismissed,
+    currentState,
+    translateY,
+    isAnimating,
+  ]);
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -207,10 +212,10 @@ export function AddReviewSheet({
   if (!visible) return null;
 
   return (
-    <Modal 
-      visible={visible} 
-      transparent 
-      animationType="none" 
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
       onRequestClose={dismissSheet}
       presentationStyle="overFullScreen"
       statusBarTranslucent
@@ -276,7 +281,11 @@ export function AddReviewSheet({
                 style={{ flex: 1 }}
                 keyboardVerticalOffset={0}
               >
-                <YStack flex={1} paddingBottom={insets.bottom || 20} backgroundColor={backgroundColor}>
+                <YStack
+                  flex={1}
+                  paddingBottom={insets.bottom || 20}
+                  backgroundColor={backgroundColor}
+                >
                   {/* Sheet Header */}
                   <XStack
                     justifyContent="space-between"
@@ -285,7 +294,11 @@ export function AddReviewSheet({
                     paddingTop="$2"
                     paddingBottom="$3"
                   >
-                    <Text fontSize="$6" fontWeight="bold" color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}>
+                    <Text
+                      fontSize="$6"
+                      fontWeight="bold"
+                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                    >
                       Add Review
                     </Text>
                     <TouchableOpacity
@@ -326,4 +339,3 @@ export function AddReviewSheet({
     </Modal>
   );
 }
-

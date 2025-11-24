@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
-  StyleSheet,
   TouchableOpacity,
   Dimensions,
   ScrollView,
   Animated,
-  Platform,
   Modal,
   Pressable,
   useColorScheme,
-  TextInput,
 } from 'react-native';
-import { Text, XStack, YStack, SizableText, Input } from 'tamagui';
+import { Text, XStack, YStack, Input } from 'tamagui';
 import { Button } from './Button';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -31,8 +28,7 @@ import ReanimatedAnimated, {
   runOnJS,
 } from 'react-native-reanimated';
 
-const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
-const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
+const { height: screenHeight } = Dimensions.get('window');
 
 // Map Preset types (same as MapPresetSheet)
 interface MapPreset {
@@ -72,7 +68,6 @@ export function AddToPresetSheet({
   onReopen,
 }: AddToPresetSheetProps) {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const { getEffectiveUserId } = useStudentSwitch();
   const { showToast } = useToast();
   const { showModal } = useModal();
@@ -104,7 +99,7 @@ export function AddToPresetSheet({
       dismissed: screenHeight, // Completely off-screen
     };
     return points;
-  }, [screenHeight]);
+  }, []);
 
   const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
   const currentState = useSharedValue(snapPoints.large);
@@ -133,7 +128,6 @@ export function AddToPresetSheet({
 
       // If no global VROMM collection exists, create it
       if (!globalCollection) {
-        console.log('🌍 [AddToPresetSheet] Creating global VROMM collection for all users');
         const { data: newGlobal, error: createError } = await supabase
           .from('map_presets')
           .insert({
@@ -150,7 +144,6 @@ export function AddToPresetSheet({
           .single();
 
         if (createError) throw createError;
-        console.log('✅ [AddToPresetSheet] Created global VROMM collection:', newGlobal.id);
       }
     } catch (error) {
       console.error('Error ensuring global VROMM collection:', error);
@@ -208,15 +201,7 @@ export function AddToPresetSheet({
       restSpeedThreshold: 0.01,
     });
     setTimeout(() => onClose(), 200);
-  }, [onClose, snapPoints.dismissed]);
-
-  const snapTo = useCallback(
-    (point: number) => {
-      currentState.value = point;
-      setCurrentSnapPoint(point);
-    },
-    [currentState],
-  );
+  }, [onClose, snapPoints.dismissed, translateY]);
 
   // Pan gesture for drag-to-dismiss and snap points
   const panGesture = Gesture.Pan()
@@ -284,12 +269,7 @@ export function AddToPresetSheet({
 
   // Load presets and check which ones contain this route
   const loadPresets = useCallback(async () => {
-    console.log('🔍 [AddToPresetSheet] loadPresets called');
-    console.log('🔍 [AddToPresetSheet] effectiveUserId:', effectiveUserId);
-    console.log('🔍 [AddToPresetSheet] routeId:', routeId);
-
     if (!effectiveUserId || !routeId) {
-      console.log('❌ [AddToPresetSheet] Missing effectiveUserId or routeId, returning');
       return;
     }
 
@@ -319,17 +299,6 @@ export function AddToPresetSheet({
           route_count: preset.route_count?.[0]?.count || 0,
         })) || [];
 
-      console.log('🔍 [AddToPresetSheet] Loaded presets:', transformedPresets.length);
-      console.log(
-        '🔍 [AddToPresetSheet] Presets data:',
-        transformedPresets.map((p) => ({
-          name: p.name,
-          id: p.id,
-          creator_id: p.creator_id,
-          visibility: p.visibility,
-          is_default: p.is_default,
-        })),
-      );
       setPresets(transformedPresets);
 
       // Only check which presets contain this route if routeId is a valid UUID
@@ -347,14 +316,9 @@ export function AddToPresetSheet({
         setRoutePresets(routePresetIds);
       } else {
         // For temp route IDs, don't check which presets contain the route
-        console.log(
-          '⚠️ [AddToPresetSheet] Using temp routeId, skipping route preset check:',
-          routeId,
-        );
         setRoutePresets([]);
       }
     } catch (error) {
-      console.error('Error loading presets:', error);
       showToast({
         title: t('common.error') || 'Error',
         message: t('routeCollections.failedToLoad') || 'Failed to load collections',
@@ -363,13 +327,11 @@ export function AddToPresetSheet({
     } finally {
       setLoading(false);
     }
-  }, [effectiveUserId, routeId]);
+  }, [effectiveUserId, routeId, ensureGlobalVrommCollection, showToast, t]);
 
   // Load presets when sheet opens
   useEffect(() => {
-    console.log('🔍 [AddToPresetSheet] useEffect triggered - isVisible:', isVisible);
     if (isVisible) {
-      console.log('🔍 [AddToPresetSheet] Sheet is visible, loading presets...');
       loadPresets();
     }
   }, [isVisible, loadPresets]);
@@ -430,8 +392,7 @@ export function AddToPresetSheet({
           `Collection "${preset.name}" has been deleted`,
         type: 'success',
       });
-    } catch (error) {
-      console.error('Error deleting preset:', error);
+    } catch {
       showToast({
         title: t('common.error') || 'Error',
         message: t('routeCollections.failedToDelete') || 'Failed to delete collection',
@@ -474,70 +435,73 @@ export function AddToPresetSheet({
   };
 
   // Handle adding/removing route from preset
-  const handleTogglePreset = async (preset: MapPreset) => {
-    if (!effectiveUserId) return;
+  const handleTogglePreset = React.useCallback(
+    async (preset: MapPreset) => {
+      if (!effectiveUserId) return;
 
-    // Check if routeId is a valid UUID
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(routeId)) {
-      // For new routes (temp-route-id), just toggle the selection without closing the sheet
-      if (onRouteAdded) {
-        onRouteAdded(preset.id, preset.name);
-        // Don't close the sheet - allow multiple selections
+      // Check if routeId is a valid UUID
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(routeId)) {
+        // For new routes (temp-route-id), just toggle the selection without closing the sheet
+        if (onRouteAdded) {
+          onRouteAdded(preset.id, preset.name);
+          // Don't close the sheet - allow multiple selections
+          return;
+        }
+
+        showToast({
+          title: t('common.info') || 'Info',
+          message:
+            t('routeCollections.saveRouteFirst') ||
+            'Please save the route first before adding it to a collection',
+          type: 'info',
+        });
         return;
       }
 
-      showToast({
-        title: t('common.info') || 'Info',
-        message:
-          t('routeCollections.saveRouteFirst') ||
-          'Please save the route first before adding it to a collection',
-        type: 'info',
-      });
-      return;
-    }
+      const isInPreset = routePresets.includes(preset.id);
 
-    const isInPreset = routePresets.includes(preset.id);
+      try {
+        if (isInPreset) {
+          // Remove route from preset
+          const { error } = await supabase
+            .from('map_preset_routes')
+            .delete()
+            .eq('preset_id', preset.id)
+            .eq('route_id', routeId);
 
-    try {
-      if (isInPreset) {
-        // Remove route from preset
-        const { error } = await supabase
-          .from('map_preset_routes')
-          .delete()
-          .eq('preset_id', preset.id)
-          .eq('route_id', routeId);
+          if (error) throw error;
 
-        if (error) throw error;
+          setRoutePresets((prev) => prev.filter((id) => id !== preset.id));
+          onRouteRemoved?.(preset.id, preset.name);
+        } else {
+          // Add route to preset
+          const { error } = await supabase.from('map_preset_routes').insert({
+            preset_id: preset.id,
+            route_id: routeId,
+            added_by: effectiveUserId,
+            added_at: new Date().toISOString(),
+          });
 
-        setRoutePresets((prev) => prev.filter((id) => id !== preset.id));
-        onRouteRemoved?.(preset.id, preset.name);
-      } else {
-        // Add route to preset
-        const { error } = await supabase.from('map_preset_routes').insert({
-          preset_id: preset.id,
-          route_id: routeId,
-          added_by: effectiveUserId,
-          added_at: new Date().toISOString(),
+          if (error) throw error;
+
+          setRoutePresets((prev) => [...prev, preset.id]);
+          onRouteAdded?.(preset.id, preset.name);
+        }
+      } catch {
+        showToast({
+          title: t('common.error') || 'Error',
+          message: t('routeCollections.failedToUpdate') || 'Failed to update collection',
+          type: 'error',
         });
-
-        if (error) throw error;
-
-        setRoutePresets((prev) => [...prev, preset.id]);
-        onRouteAdded?.(preset.id, preset.name);
       }
-    } catch (error) {
-      console.error('Error toggling preset:', error);
-      showToast({
-        title: t('common.error') || 'Error',
-        message: t('routeCollections.failedToUpdate') || 'Failed to update collection',
-        type: 'error',
-      });
-    }
-  };
+    },
+    [effectiveUserId, routeId, routePresets, onRouteAdded, onRouteRemoved, showToast, t],
+  );
 
   // Handle create or update preset
-  const handleCreateOrUpdatePreset = async () => {
+  const handleCreateOrUpdatePreset = React.useCallback(async () => {
     if (!formData.name.trim() || !effectiveUserId) return;
 
     try {
@@ -629,57 +593,58 @@ export function AddToPresetSheet({
         type: 'error',
       });
     }
-  };
+  }, [
+    effectiveUserId,
+    formData,
+    editingPreset,
+    showToast,
+    t,
+    onPresetCreated,
+    onRouteAdded,
+    routeId,
+  ]);
 
   // Sharing modal functions - now using useModal context
-  const showSharingSheet = (preset?: MapPreset) => {
-    console.log('🎯 [AddToPresetSheet] showSharingSheet called with preset:', preset?.name);
+  const showSharingSheet = React.useCallback(
+    (preset?: MapPreset) => {
+      // Use the passed preset or the current editingPreset
+      const targetPreset = preset || editingPreset;
 
-    // Use the passed preset or the current editingPreset
-    const targetPreset = preset || editingPreset;
+      if (!targetPreset?.id) {
+        showToast({
+          title: t('common.error') || 'Error',
+          message: t('routeCollections.collectionNotFound') || 'Collection not found',
+          type: 'error',
+        });
+        return;
+      }
 
-    if (!targetPreset?.id) {
-      console.error('❌ [AddToPresetSheet] No collection ID available for sharing');
-      showToast({
-        title: t('common.error') || 'Error',
-        message: t('routeCollections.collectionNotFound') || 'Collection not found',
-        type: 'error',
-      });
-      return;
-    }
+      // Close the current sheet first
+      dismissSheet();
 
-    console.log('🎯 [AddToPresetSheet] Closing current sheet and opening sharing modal');
-
-    // Close the current sheet first
-    dismissSheet();
-
-    // Use setTimeout to ensure the current modal is closed before showing the new one
-    setTimeout(() => {
-      console.log('🎯 [AddToPresetSheet] Showing CollectionSharingModal via useModal');
-      showModal(
-        <CollectionSharingModal
-          visible={true}
-          onClose={() => {
-            console.log('🎯 [AddToPresetSheet] CollectionSharingModal closed');
-            // Reopen the AddToPresetSheet after sharing modal closes
-            setTimeout(() => {
-              console.log(
-                '🎯 [AddToPresetSheet] Reopening AddToPresetSheet after sharing modal closed',
-              );
-              if (onReopen) {
-                onReopen();
-              }
-            }, 200);
-          }}
-          preset={targetPreset}
-          onInvitationsSent={() => {
-            // Refresh the presets list when invitations are sent
-            loadPresets();
-          }}
-        />,
-      );
-    }, 500); // Wait for the close animation to complete
-  };
+      // Use setTimeout to ensure the current modal is closed before showing the new one
+      setTimeout(() => {
+        showModal(
+          <CollectionSharingModal
+            visible={true}
+            onClose={() => {
+              setTimeout(() => {
+                if (onReopen) {
+                  onReopen();
+                }
+              }, 200);
+            }}
+            preset={targetPreset}
+            onInvitationsSent={() => {
+              // Refresh the presets list when invitations are sent
+              loadPresets();
+            }}
+          />,
+        );
+      }, 500); // Wait for the close animation to complete
+    },
+    [dismissSheet, showModal, editingPreset, onReopen, loadPresets, t, showToast],
+  );
 
   // Animation effects
   useEffect(() => {
@@ -708,7 +673,15 @@ export function AddToPresetSheet({
         useNativeDriver: true,
       }).start();
     }
-  }, [isVisible, snapPoints.large, currentState]);
+  }, [
+    isVisible,
+    snapPoints.large,
+    currentState,
+    backdropOpacity,
+    snapPoints.dismissed,
+    snapPoints.medium,
+    translateY,
+  ]);
 
   if (!isVisible) return null;
 
@@ -1313,7 +1286,7 @@ export function AddToPresetSheet({
                             {t('routeCollections.createNew') || 'Create New'}
                           </Button>
                           <Button variant="secondary" size="lg" onPress={dismissSheet}>
-                            Done
+                            <Text color="white"> {t('common.done') || 'Done'}</Text>
                           </Button>
                         </YStack>
                       )}
