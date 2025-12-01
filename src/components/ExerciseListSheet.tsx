@@ -334,7 +334,7 @@ export function ExerciseListSheet({
   // Load quiz when exercise with quiz is selected (check both has_quiz and show_quiz)
   const shouldShowQuiz = selectedExercise?.has_quiz && selectedExercise?.show_quiz !== false;
   const shouldShowContent = selectedExercise?.show_exercise_content !== false; // Default to true
-  
+
   useEffect(() => {
     if (shouldShowQuiz && selectedExercise?.id) {
       console.log('🎯 [ExerciseListSheet] Loading quiz for:', selectedExercise.title);
@@ -345,16 +345,18 @@ export function ExerciseListSheet({
 
   const loadQuizQuestions = async () => {
     if (!selectedExercise?.id) return;
-    
+
     setQuizLoading(true);
     try {
       console.log('🎯 [ExerciseListSheet] Fetching quiz questions...');
       const { data, error } = await supabase
         .from('exercise_quiz_questions')
-        .select(`
+        .select(
+          `
           *,
           exercise_quiz_answers(*)
-        `)
+        `,
+        )
         .eq('exercise_id', selectedExercise.id)
         .order('order_index');
 
@@ -382,7 +384,7 @@ export function ExerciseListSheet({
 
       console.log('✅ [ExerciseListSheet] Loaded', formatted.length, 'quiz questions');
       setQuizQuestions(formatted);
-      
+
       // Fetch previous quiz attempts
       if (effectiveUserId) {
         const { data: attempts } = await supabase
@@ -392,7 +394,7 @@ export function ExerciseListSheet({
           .eq('exercise_id', selectedExercise.id)
           .order('completed_at', { ascending: false })
           .limit(5);
-        
+
         if (attempts && attempts.length > 0) {
           console.log(`📊 [ExerciseListSheet] Found ${attempts.length} previous quiz attempts`);
           setQuizAttempts(attempts);
@@ -419,10 +421,10 @@ export function ExerciseListSheet({
         playsInSilentModeIOS: false,
         staysActiveInBackground: false,
       });
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../assets/sounds/ui-done.mp3'),
-        { shouldPlay: true, volume: 0.4 }
-      );
+      const { sound } = await Audio.Sound.createAsync(require('../../assets/sounds/ui-done.mp3'), {
+        shouldPlay: true,
+        volume: 0.4,
+      });
       sound.setOnPlaybackStatusUpdate((status) => {
         if (status.isLoaded && status.didJustFinish) {
           sound.unloadAsync();
@@ -600,14 +602,16 @@ export function ExerciseListSheet({
         }
       }
     }
-    
+
     // Show celebration when marking all as done (LIKE PROGRESSSCREEN)
     if (shouldMarkDone && detailPath) {
       setTimeout(() => {
         const repeatCount = exercise.repeat_count || 1;
-        
-        console.log('🎉 [ExerciseListSheet] 🚀 Main checkbox - showing celebration for completed exercise!');
-        
+
+        console.log(
+          '🎉 [ExerciseListSheet] 🚀 Main checkbox - showing celebration for completed exercise!',
+        );
+
         showCelebration({
           learningPathTitle: detailPath.title || exercise.title,
           completedExercises: repeatCount,
@@ -615,12 +619,14 @@ export function ExerciseListSheet({
           timeSpent: undefined,
           streakDays: undefined,
         });
-        
+
         // Also check if entire path is complete (3 seconds later, like ProgressScreen)
         if (exercise.learning_path_id && detailPath) {
           setTimeout(async () => {
             const updatedCompletedIds = [...completedIds, exerciseId];
-            console.log('🎉 [ExerciseListSheet] Also checking if entire learning path is complete...');
+            console.log(
+              '🎉 [ExerciseListSheet] Also checking if entire learning path is complete...',
+            );
             await checkForCelebration(detailPath, updatedCompletedIds);
           }, 3000);
         }
@@ -705,7 +711,7 @@ export function ExerciseListSheet({
         totalExercises += repeatCount;
 
         // Check if base exercise is completed
-      const idsToCheck = currentCompletedIds || completedIds;
+        const idsToCheck = currentCompletedIds || completedIds;
         const isBaseCompleted = idsToCheck.includes(exercise.id);
 
         if (isBaseCompleted) {
@@ -811,7 +817,10 @@ export function ExerciseListSheet({
       const { data: allExercises, error: exercisesError } = await supabase
         .from('exercises')
         .select('id, learning_path_id, repeat_count')
-        .in('learning_path_id', allPaths.map(p => p.id));
+        .in(
+          'learning_path_id',
+          allPaths.map((p) => p.id),
+        );
 
       if (exercisesError || !allExercises) return;
 
@@ -823,7 +832,7 @@ export function ExerciseListSheet({
 
       if (completionsError) return;
 
-      const completedExerciseIds = new Set(allCompletions?.map(c => c.exercise_id) || []);
+      const completedExerciseIds = new Set(allCompletions?.map((c) => c.exercise_id) || []);
 
       // Get all virtual repeat completions
       const { data: allVirtualCompletions, error: virtualError } = await supabase
@@ -847,9 +856,8 @@ export function ExerciseListSheet({
 
           // Count virtual repeats
           if (repeatCount > 1) {
-            const virtualCompletions = allVirtualCompletions?.filter(
-              vc => vc.exercise_id === exercise.id
-            ) || [];
+            const virtualCompletions =
+              allVirtualCompletions?.filter((vc) => vc.exercise_id === exercise.id) || [];
             totalCompleted += virtualCompletions.length;
           }
         }
@@ -875,7 +883,7 @@ export function ExerciseListSheet({
 
         // Show special "All Complete" celebration
         console.log('🏆 [ExerciseListSheet] 🎉 ALL PATHS COMPLETE! Showing grand celebration!');
-        
+
         showCelebration({
           learningPathTitle: {
             en: '🏆 ALL LESSONS COMPLETE! 🏆',
@@ -926,24 +934,26 @@ export function ExerciseListSheet({
             repeat_number: repeatNumber,
           },
         ]);
-        
+
         // Check for celebration after marking virtual repeat as done (LIKE PROGRESSSCREEN - with delays)
         if (exercise && detailPath) {
           setTimeout(() => {
             console.log('🎉 [ExerciseListSheet] Checking celebration after virtual repeat toggle');
-            
+
             // Wait for state to fully update before checking (extra delay like ProgressScreen)
             setTimeout(() => {
               // Check if THIS exercise is now fully complete (all repeats done)
               const { completed, total } = getRepeatProgress(exercise);
-              console.log('🎉 [ExerciseListSheet] Exercise progress check:', { 
-                completed, 
-                total, 
-                isComplete: completed === total 
+              console.log('🎉 [ExerciseListSheet] Exercise progress check:', {
+                completed,
+                total,
+                isComplete: completed === total,
               });
-              
+
               if (completed === total && total > 1) {
-                console.log('🎉 [ExerciseListSheet] 🚀 Exercise fully complete! Showing celebration!');
+                console.log(
+                  '🎉 [ExerciseListSheet] 🚀 Exercise fully complete! Showing celebration!',
+                );
                 showCelebration({
                   learningPathTitle: detailPath.title || exercise.title,
                   completedExercises: completed,
@@ -951,7 +961,7 @@ export function ExerciseListSheet({
                   timeSpent: undefined,
                   streakDays: undefined,
                 });
-                
+
                 // Also check if entire path is complete (3 seconds later)
                 setTimeout(async () => {
                   await checkForCelebration(detailPath, completedIds);
@@ -1063,7 +1073,7 @@ export function ExerciseListSheet({
     // Try standard regex first
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
     const match = url.match(regExp);
-    
+
     if (match && match[7] && match[7].length === 11) {
       return match[7];
     }
@@ -1466,333 +1476,349 @@ export function ExerciseListSheet({
                           <>
                             {/* Exercise header with icon (exact copy from ProgressScreen) */}
                             <XStack alignItems="center" gap={12} marginBottom={16}>
-                          {selectedExercise.icon && (
-                            <View style={{ marginRight: 8 }}>
-                              <Feather
-                                name={selectedExercise.icon as keyof typeof Feather.glyphMap}
-                                size={28}
-                                color={isPasswordLocked ? '#FF9500' : '#00E6C3'}
-                              />
-                            </View>
-                          )}
-                          <YStack flex={1}>
-                            <XStack alignItems="center" gap={8}>
-                              <Text
-                                fontSize={28}
-                                fontWeight="bold"
-                                color="$color"
-                                numberOfLines={1}
-                              >
-                                {selectedExercise.title?.[lang] ||
-                                  selectedExercise.title?.en ||
-                                  'Untitled'}
-                              </Text>
-
-                              {selectedExercise.isRepeat && (
-                                <XStack
-                                  backgroundColor="#145251"
-                                  paddingHorizontal={8}
-                                  paddingVertical={4}
-                                  borderRadius={12}
-                                  alignItems="center"
-                                  gap={4}
-                                >
-                                  <Feather name="repeat" size={14} color="white" />
-                                  <Text fontSize={12} color="white" fontWeight="bold">
-                                    {selectedExercise.repeatNumber}/{selectedExercise.repeat_count}
-                                  </Text>
-                                </XStack>
-                              )}
-                            </XStack>
-
-                            {!selectedExercise.isRepeat &&
-                              selectedExercise.repeat_count &&
-                              selectedExercise.repeat_count > 1 && (
-                                <XStack alignItems="center" gap={4} marginTop={4}>
-                                  <Feather name="repeat" size={16} color="#00E6C3" />
-                                  <Text color="#00E6C3" fontSize={14}>
-                                    This exercise needs to be repeated{' '}
-                                    {selectedExercise.repeat_count} times
-                                  </Text>
-                                </XStack>
-                              )}
-                          </YStack>
-
-                          {isPasswordLocked ? (
-                            <MaterialIcons name="lock" size={24} color="#FF9500" />
-                          ) : !prevExercisesComplete ? (
-                            <MaterialIcons name="hourglass-empty" size={24} color="#FF9500" />
-                          ) : isDone ? (
-                            <Feather name="check-circle" size={24} color="#00E6C3" />
-                          ) : null}
-                        </XStack>
-
-                        {selectedExercise.description?.[lang] && (
-                          <Text color="$gray11" marginBottom={16}>
-                            {selectedExercise.description[lang]}
-                          </Text>
-                        )}
-
-                        <TouchableOpacity
-                          onPress={() => setReportExerciseId(selectedExercise.id)}
-                          style={{ alignSelf: 'flex-end', marginBottom: 8 }}
-                        >
-                          <Text color="#EF4444">Report Exercise</Text>
-                        </TouchableOpacity>
-
-                        {/* Password Locked Exercise State */}
-                        {isPasswordLocked ? (
-                          <YStack gap={16} padding={24} alignItems="center">
-                            <MaterialIcons name="lock" size={80} color="#FF9500" />
-                            <Text
-                              fontSize={24}
-                              fontWeight="bold"
-                              color="#FF9500"
-                              textAlign="center"
-                            >
-                              This Exercise is Locked
-                            </Text>
-                            {selectedExercise.lock_password ? (
-                              <YStack width="100%" gap={8} marginTop={16} alignItems="center">
-                                <Text color="$gray11" fontSize={16} marginBottom={8}>
-                                  Enter password to unlock:
-                                </Text>
-                                <View
-                                  style={{
-                                    width: '100%',
-                                    maxWidth: 350,
-                                    padding: 8,
-                                    backgroundColor: 'rgba(255, 147, 0, 0.2)',
-                                    borderRadius: 12,
-                                    borderWidth: 1,
-                                    borderColor: '#FF9500',
-                                    marginBottom: 16,
-                                  }}
-                                >
-                                  <TextInput
-                                    value={exercisePasswordInput}
-                                    onChangeText={setExercisePasswordInput}
-                                    secureTextEntry
-                                    style={{
-                                      backgroundColor: '#222',
-                                      color: '#fff',
-                                      padding: 16,
-                                      borderRadius: 8,
-                                      width: '100%',
-                                      fontSize: 18,
-                                    }}
-                                    placeholder="Enter password"
-                                    placeholderTextColor="#666"
-                                    autoCapitalize="none"
+                              {selectedExercise.icon && (
+                                <View style={{ marginRight: 8 }}>
+                                  <Feather
+                                    name={selectedExercise.icon as keyof typeof Feather.glyphMap}
+                                    size={28}
+                                    color={isPasswordLocked ? '#FF9500' : '#00E6C3'}
                                   />
                                 </View>
-                                <Button
-                                  size="lg"
-                                  backgroundColor="#FF9500"
-                                  onPress={async () => {
-                                    if (!selectedExercise.lock_password) return;
-                                    if (exercisePasswordInput === selectedExercise.lock_password) {
-                                      // Use shared context to unlock
-                                      addUnlockedExercise(selectedExercise.id);
-                                      setExercisePasswordInput('');
-                                    } else {
-                                      Alert.alert(
-                                        'Incorrect Password',
-                                        'The password you entered is incorrect.',
-                                      );
-                                    }
-                                  }}
-                                >
-                                  Unlock
-                                </Button>
+                              )}
+                              <YStack flex={1}>
+                                <XStack alignItems="center" gap={8}>
+                                  <Text
+                                    fontSize={28}
+                                    fontWeight="bold"
+                                    color="$color"
+                                    numberOfLines={1}
+                                  >
+                                    {selectedExercise.title?.[lang] ||
+                                      selectedExercise.title?.en ||
+                                      'Untitled'}
+                                  </Text>
+
+                                  {selectedExercise.isRepeat && (
+                                    <XStack
+                                      backgroundColor="#145251"
+                                      paddingHorizontal={8}
+                                      paddingVertical={4}
+                                      borderRadius={12}
+                                      alignItems="center"
+                                      gap={4}
+                                    >
+                                      <Feather name="repeat" size={14} color="white" />
+                                      <Text fontSize={12} color="white" fontWeight="bold">
+                                        {selectedExercise.repeatNumber}/
+                                        {selectedExercise.repeat_count}
+                                      </Text>
+                                    </XStack>
+                                  )}
+                                </XStack>
+
+                                {!selectedExercise.isRepeat &&
+                                  selectedExercise.repeat_count &&
+                                  selectedExercise.repeat_count > 1 && (
+                                    <XStack alignItems="center" gap={4} marginTop={4}>
+                                      <Feather name="repeat" size={16} color="#00E6C3" />
+                                      <Text color="#00E6C3" fontSize={14}>
+                                        This exercise needs to be repeated{' '}
+                                        {selectedExercise.repeat_count} times
+                                      </Text>
+                                    </XStack>
+                                  )}
                               </YStack>
-                            ) : (
-                              <Text color="$gray11" fontSize={16} marginTop={16} textAlign="center">
-                                This exercise is locked and cannot be accessed at this time.
+
+                              {isPasswordLocked ? (
+                                <MaterialIcons name="lock" size={24} color="#FF9500" />
+                              ) : !prevExercisesComplete ? (
+                                <MaterialIcons name="hourglass-empty" size={24} color="#FF9500" />
+                              ) : isDone ? (
+                                <Feather name="check-circle" size={24} color="#00E6C3" />
+                              ) : null}
+                            </XStack>
+
+                            {selectedExercise.description?.[lang] && (
+                              <Text color="$gray11" marginBottom={16}>
+                                {selectedExercise.description[lang]}
                               </Text>
                             )}
-                          </YStack>
-                        ) : (
-                          <>
-                            {/* Media Rendering Section */}
-                            {renderExerciseMedia(selectedExercise)}
 
-                            {/* Repetition Progress */}
-                            {(selectedExercise.isRepeat ||
-                              (selectedExercise.repeat_count &&
-                                selectedExercise.repeat_count > 1)) && (
-                              <YStack
-                                marginTop={16}
-                                marginBottom={8}
-                                backgroundColor="rgba(20, 82, 81, 0.3)"
-                                padding={16}
-                                borderRadius={12}
-                              >
-                                <XStack alignItems="center" gap={8} marginBottom={8}>
-                                  <Feather name="repeat" size={20} color="#00E6C3" />
-                                  <Text fontSize={18} fontWeight="bold" color="#00E6C3">
-                                    {selectedExercise.isRepeat
-                                      ? `Repetition ${selectedExercise.repeatNumber} of ${selectedExercise.repeat_count}`
-                                      : `This exercise requires ${selectedExercise.repeat_count} repetitions`}
-                                  </Text>
-                                </XStack>
-                              </YStack>
-                            )}
+                            <TouchableOpacity
+                              onPress={() => setReportExerciseId(selectedExercise.id)}
+                              style={{ alignSelf: 'flex-end', marginBottom: 8 }}
+                            >
+                              <Text color="#EF4444">Report Exercise</Text>
+                            </TouchableOpacity>
 
-                            {/* List of all repeats */}
-                            {!selectedExercise.isRepeat &&
-                              selectedExercise.repeat_count &&
-                              selectedExercise.repeat_count > 1 && (
-                                <YStack marginTop={16} marginBottom={16} gap={12}>
-                                  <XStack alignItems="center" gap={8} marginBottom={8}>
-                                    <Feather name="list" size={20} color="#00E6C3" />
-                                    <Text fontSize={18} fontWeight="bold" color="#00E6C3">
-                                      All Repetitions
+                            {/* Password Locked Exercise State */}
+                            {isPasswordLocked ? (
+                              <YStack gap={16} padding={24} alignItems="center">
+                                <MaterialIcons name="lock" size={80} color="#FF9500" />
+                                <Text
+                                  fontSize={24}
+                                  fontWeight="bold"
+                                  color="#FF9500"
+                                  textAlign="center"
+                                >
+                                  This Exercise is Locked
+                                </Text>
+                                {selectedExercise.lock_password ? (
+                                  <YStack width="100%" gap={8} marginTop={16} alignItems="center">
+                                    <Text color="$gray11" fontSize={16} marginBottom={8}>
+                                      Enter password to unlock:
                                     </Text>
-                                  </XStack>
-
-                                  <RepeatProgressBar exercise={selectedExercise} />
-
-                                  {/* Show the original exercise first */}
-                                  <TouchableOpacity
-                                    style={{
-                                      backgroundColor: '#222',
-                                      padding: 12,
-                                      borderRadius: 8,
-                                      borderLeftWidth: 4,
-                                      borderLeftColor: completedIds.includes(selectedExercise.id)
-                                        ? '#00E6C3'
-                                        : '#145251',
-                                    }}
-                                    onPress={() => toggleCompletion(selectedExercise.id)}
+                                    <View
+                                      style={{
+                                        width: '100%',
+                                        maxWidth: 350,
+                                        padding: 8,
+                                        backgroundColor: 'rgba(255, 147, 0, 0.2)',
+                                        borderRadius: 12,
+                                        borderWidth: 1,
+                                        borderColor: '#FF9500',
+                                        marginBottom: 16,
+                                      }}
+                                    >
+                                      <TextInput
+                                        value={exercisePasswordInput}
+                                        onChangeText={setExercisePasswordInput}
+                                        secureTextEntry
+                                        style={{
+                                          backgroundColor: '#222',
+                                          color: '#fff',
+                                          padding: 16,
+                                          borderRadius: 8,
+                                          width: '100%',
+                                          fontSize: 18,
+                                        }}
+                                        placeholder="Enter password"
+                                        placeholderTextColor="#666"
+                                        autoCapitalize="none"
+                                      />
+                                    </View>
+                                    <Button
+                                      size="lg"
+                                      backgroundColor="#FF9500"
+                                      onPress={async () => {
+                                        if (!selectedExercise.lock_password) return;
+                                        if (
+                                          exercisePasswordInput === selectedExercise.lock_password
+                                        ) {
+                                          // Use shared context to unlock
+                                          addUnlockedExercise(selectedExercise.id);
+                                          setExercisePasswordInput('');
+                                        } else {
+                                          Alert.alert(
+                                            'Incorrect Password',
+                                            'The password you entered is incorrect.',
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      Unlock
+                                    </Button>
+                                  </YStack>
+                                ) : (
+                                  <Text
+                                    color="$gray11"
+                                    fontSize={16}
+                                    marginTop={16}
+                                    textAlign="center"
                                   >
-                                    <XStack justifyContent="space-between" alignItems="center">
-                                      <XStack gap={8} alignItems="center" flex={1}>
-                                        <TouchableOpacity
-                                          onPress={(e) => {
-                                            e.stopPropagation();
-                                            // Play sound
-                                            playDoneSound();
-                                            toggleCompletion(selectedExercise.id);
-                                          }}
-                                          style={{
-                                            width: 24,
-                                            height: 24,
-                                            borderRadius: 12,
-                                            backgroundColor: completedIds.includes(
-                                              selectedExercise.id,
-                                            )
-                                              ? '#00E6C3'
-                                              : '#333',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderWidth: 2,
-                                            borderColor: completedIds.includes(selectedExercise.id)
-                                              ? '#00E6C3'
-                                              : '#888',
-                                          }}
-                                        >
-                                          {completedIds.includes(selectedExercise.id) && (
-                                            <Feather name="check" size={16} color="#fff" />
-                                          )}
-                                        </TouchableOpacity>
-                                        <Text
-                                          fontSize={16}
-                                          color="$color"
-                                          fontWeight="600"
-                                          numberOfLines={1}
-                                          flex={1}
-                                        >
-                                          {selectedExercise.title?.[lang] ||
-                                            selectedExercise.title?.en ||
-                                            'Original'}
+                                    This exercise is locked and cannot be accessed at this time.
+                                  </Text>
+                                )}
+                              </YStack>
+                            ) : (
+                              <>
+                                {/* Media Rendering Section */}
+                                {renderExerciseMedia(selectedExercise)}
+
+                                {/* Repetition Progress */}
+                                {(selectedExercise.isRepeat ||
+                                  (selectedExercise.repeat_count &&
+                                    selectedExercise.repeat_count > 1)) && (
+                                  <YStack
+                                    marginTop={16}
+                                    marginBottom={8}
+                                    backgroundColor="rgba(20, 82, 81, 0.3)"
+                                    padding={16}
+                                    borderRadius={12}
+                                  >
+                                    <XStack alignItems="center" gap={8} marginBottom={8}>
+                                      <Feather name="repeat" size={20} color="#00E6C3" />
+                                      <Text fontSize={18} fontWeight="bold" color="#00E6C3">
+                                        {selectedExercise.isRepeat
+                                          ? `Repetition ${selectedExercise.repeatNumber} of ${selectedExercise.repeat_count}`
+                                          : `This exercise requires ${selectedExercise.repeat_count} repetitions`}
+                                      </Text>
+                                    </XStack>
+                                  </YStack>
+                                )}
+
+                                {/* List of all repeats */}
+                                {!selectedExercise.isRepeat &&
+                                  selectedExercise.repeat_count &&
+                                  selectedExercise.repeat_count > 1 && (
+                                    <YStack marginTop={16} marginBottom={16} gap={12}>
+                                      <XStack alignItems="center" gap={8} marginBottom={8}>
+                                        <Feather name="list" size={20} color="#00E6C3" />
+                                        <Text fontSize={18} fontWeight="bold" color="#00E6C3">
+                                          All Repetitions
                                         </Text>
                                       </XStack>
-                                      <Text fontSize={14} color="#00E6C3" fontWeight="bold">
-                                        1/{selectedExercise.repeat_count}
-                                      </Text>
-                                      {completedIds.includes(selectedExercise.id) && (
-                                        <Feather name="check-circle" size={18} color="#00E6C3" />
-                                      )}
-                                    </XStack>
-                                  </TouchableOpacity>
 
-                                  {/* Virtual repeats */}
-                                  {Array.from({ length: selectedExercise.repeat_count - 1 }).map(
-                                    (_, i) => {
-                                      const repeatNumber = i + 2;
-                                      const virtualId = `${selectedExercise.id}-virtual-${repeatNumber}`;
-                                      const isDone = virtualRepeatCompletions.includes(virtualId);
+                                      <RepeatProgressBar exercise={selectedExercise} />
 
-                                      return (
-                                        <TouchableOpacity
-                                          key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
-                                          style={{
-                                            backgroundColor: '#222',
-                                            padding: 12,
-                                            borderRadius: 8,
-                                            borderLeftWidth: 4,
-                                            borderLeftColor: isDone ? '#00E6C3' : '#145251',
-                                          }}
-                                          onPress={() => toggleVirtualRepeatCompletion(virtualId)}
-                                        >
-                                          <XStack
-                                            justifyContent="space-between"
-                                            alignItems="center"
-                                          >
-                                            <XStack gap={8} alignItems="center" flex={1}>
-                                              <TouchableOpacity
-                                                onPress={(e) => {
-                                                  e.stopPropagation();
-                                                  // Play sound
-                                                  playDoneSound();
-                                                  toggleVirtualRepeatCompletion(virtualId);
-                                                }}
-                                                style={{
-                                                  width: 24,
-                                                  height: 24,
-                                                  borderRadius: 12,
-                                                  backgroundColor: isDone ? '#00E6C3' : '#333',
-                                                  alignItems: 'center',
-                                                  justifyContent: 'center',
-                                                  borderWidth: 2,
-                                                  borderColor: isDone ? '#00E6C3' : '#888',
-                                                }}
-                                              >
-                                                {isDone && (
-                                                  <Feather name="check" size={16} color="#fff" />
-                                                )}
-                                              </TouchableOpacity>
-                                              <Text
-                                                fontSize={16}
-                                                color="$color"
-                                                fontWeight="600"
-                                                numberOfLines={1}
-                                                flex={1}
-                                              >
-                                                Repetition {repeatNumber}
-                                              </Text>
-                                            </XStack>
-                                            <Text fontSize={14} color="#00E6C3" fontWeight="bold">
-                                              {repeatNumber}/{selectedExercise.repeat_count}
+                                      {/* Show the original exercise first */}
+                                      <TouchableOpacity
+                                        style={{
+                                          backgroundColor: '#222',
+                                          padding: 12,
+                                          borderRadius: 8,
+                                          borderLeftWidth: 4,
+                                          borderLeftColor: completedIds.includes(
+                                            selectedExercise.id,
+                                          )
+                                            ? '#00E6C3'
+                                            : '#145251',
+                                        }}
+                                        onPress={() => toggleCompletion(selectedExercise.id)}
+                                      >
+                                        <XStack justifyContent="space-between" alignItems="center">
+                                          <XStack gap={8} alignItems="center" flex={1}>
+                                            <TouchableOpacity
+                                              onPress={(e) => {
+                                                e.stopPropagation();
+                                                // Play sound
+                                                playDoneSound();
+                                                toggleCompletion(selectedExercise.id);
+                                              }}
+                                              style={{
+                                                width: 24,
+                                                height: 24,
+                                                borderRadius: 12,
+                                                backgroundColor: completedIds.includes(
+                                                  selectedExercise.id,
+                                                )
+                                                  ? '#00E6C3'
+                                                  : '#333',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                borderWidth: 2,
+                                                borderColor: completedIds.includes(
+                                                  selectedExercise.id,
+                                                )
+                                                  ? '#00E6C3'
+                                                  : '#888',
+                                              }}
+                                            >
+                                              {completedIds.includes(selectedExercise.id) && (
+                                                <Feather name="check" size={16} color="#fff" />
+                                              )}
+                                            </TouchableOpacity>
+                                            <Text
+                                              fontSize={16}
+                                              color="$color"
+                                              fontWeight="600"
+                                              numberOfLines={1}
+                                              flex={1}
+                                            >
+                                              {selectedExercise.title?.[lang] ||
+                                                selectedExercise.title?.en ||
+                                                'Original'}
                                             </Text>
-                                            {isDone && (
-                                              <Feather
-                                                name="check-circle"
-                                                size={18}
-                                                color="#00E6C3"
-                                              />
-                                            )}
                                           </XStack>
-                                        </TouchableOpacity>
-                                      );
-                                    },
-                                  )}
-                                </YStack>
-                              )}
+                                          <Text fontSize={14} color="#00E6C3" fontWeight="bold">
+                                            1/{selectedExercise.repeat_count}
+                                          </Text>
+                                          {completedIds.includes(selectedExercise.id) && (
+                                            <Feather
+                                              name="check-circle"
+                                              size={18}
+                                              color="#00E6C3"
+                                            />
+                                          )}
+                                        </XStack>
+                                      </TouchableOpacity>
 
-                            {/* Quiz Button - HIDDEN (quiz auto-opens now) */}
-                            {/* {selectedExercise?.has_quiz && (
+                                      {/* Virtual repeats */}
+                                      {Array.from({
+                                        length: selectedExercise.repeat_count - 1,
+                                      }).map((_, i) => {
+                                        const repeatNumber = i + 2;
+                                        const virtualId = `${selectedExercise.id}-virtual-${repeatNumber}`;
+                                        const isDone = virtualRepeatCompletions.includes(virtualId);
+
+                                        return (
+                                          <TouchableOpacity
+                                            key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
+                                            style={{
+                                              backgroundColor: '#222',
+                                              padding: 12,
+                                              borderRadius: 8,
+                                              borderLeftWidth: 4,
+                                              borderLeftColor: isDone ? '#00E6C3' : '#145251',
+                                            }}
+                                            onPress={() => toggleVirtualRepeatCompletion(virtualId)}
+                                          >
+                                            <XStack
+                                              justifyContent="space-between"
+                                              alignItems="center"
+                                            >
+                                              <XStack gap={8} alignItems="center" flex={1}>
+                                                <TouchableOpacity
+                                                  onPress={(e) => {
+                                                    e.stopPropagation();
+                                                    // Play sound
+                                                    playDoneSound();
+                                                    toggleVirtualRepeatCompletion(virtualId);
+                                                  }}
+                                                  style={{
+                                                    width: 24,
+                                                    height: 24,
+                                                    borderRadius: 12,
+                                                    backgroundColor: isDone ? '#00E6C3' : '#333',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    borderWidth: 2,
+                                                    borderColor: isDone ? '#00E6C3' : '#888',
+                                                  }}
+                                                >
+                                                  {isDone && (
+                                                    <Feather name="check" size={16} color="#fff" />
+                                                  )}
+                                                </TouchableOpacity>
+                                                <Text
+                                                  fontSize={16}
+                                                  color="$color"
+                                                  fontWeight="600"
+                                                  numberOfLines={1}
+                                                  flex={1}
+                                                >
+                                                  Repetition {repeatNumber}
+                                                </Text>
+                                              </XStack>
+                                              <Text fontSize={14} color="#00E6C3" fontWeight="bold">
+                                                {repeatNumber}/{selectedExercise.repeat_count}
+                                              </Text>
+                                              {isDone && (
+                                                <Feather
+                                                  name="check-circle"
+                                                  size={18}
+                                                  color="#00E6C3"
+                                                />
+                                              )}
+                                            </XStack>
+                                          </TouchableOpacity>
+                                        );
+                                      })}
+                                    </YStack>
+                                  )}
+
+                                {/* Quiz Button - HIDDEN (quiz auto-opens now) */}
+                                {/* {selectedExercise?.has_quiz && (
                               <TouchableOpacity
                                 onPress={() => {
                                   setActiveQuizExercise(selectedExercise);
@@ -1817,8 +1843,8 @@ export function ExerciseListSheet({
                               </TouchableOpacity>
                             )} */}
 
-                            {/* Toggle done/not done button - HIDDEN FOR QUIZ EXERCISES */}
-                            {/* {!selectedExercise?.has_quiz && (
+                                {/* Toggle done/not done button - HIDDEN FOR QUIZ EXERCISES */}
+                                {/* {!selectedExercise?.has_quiz && (
                             <TouchableOpacity
                               onPress={async () => {
                                 const shouldMarkDone = !isDone;
@@ -1880,8 +1906,8 @@ export function ExerciseListSheet({
                             </TouchableOpacity>
                             )} */}
 
-                            {/* Comments section - COMMENTED OUT */}
-                            {/* <YStack marginTop={24}>
+                                {/* Comments section - COMMENTED OUT */}
+                                {/* <YStack marginTop={24}>
                               <Text fontSize={18} fontWeight="bold" color="$color" marginBottom={8}>
                                 Comments
                               </Text>
@@ -1890,8 +1916,8 @@ export function ExerciseListSheet({
                                 targetId={selectedExercise.id}
                               />
                             </YStack> */}
-                          </>
-                        )}
+                              </>
+                            )}
                           </>
                         )}
 
@@ -1907,48 +1933,73 @@ export function ExerciseListSheet({
                         )}
 
                         {/* QUIZ UI - Show if exercise has quiz AND show_quiz is enabled */}
-                        {shouldShowQuiz && (
-                          quizLoading ? (
+                        {shouldShowQuiz &&
+                          (quizLoading ? (
                             <YStack padding={24} alignItems="center">
                               <Text color="$color">Loading quiz...</Text>
                             </YStack>
                           ) : showQuizIntro ? (
                             // INTRO SCREEN - Show previous attempts and "Start Quiz" button
                             <YStack gap={20} padding={24}>
-                              <Text fontSize={24} fontWeight="bold" color="$color" textAlign="center">
+                              <Text
+                                fontSize={24}
+                                fontWeight="bold"
+                                color="$color"
+                                textAlign="center"
+                              >
                                 {lang === 'sv' ? 'Quiz Statistik' : 'Quiz Statistics'}
                               </Text>
-                              
+
                               {/* Previous Attempts Stats */}
                               <YStack
                                 padding={16}
-                                backgroundColor={quizAttempts[0]?.passed ? 'rgba(0, 230, 195, 0.1)' : 'rgba(20, 82, 81, 0.3)'}
+                                backgroundColor={
+                                  quizAttempts[0]?.passed
+                                    ? 'rgba(0, 230, 195, 0.1)'
+                                    : 'rgba(20, 82, 81, 0.3)'
+                                }
                                 borderRadius={12}
                                 borderWidth={1}
                                 borderColor={quizAttempts[0]?.passed ? '#00E6C3' : '#145251'}
                                 gap={12}
                               >
                                 <XStack alignItems="center" gap={8}>
-                                  <Feather 
-                                    name={quizAttempts[0]?.passed ? 'check-circle' : 'info'} 
-                                    size={20} 
-                                    color={quizAttempts[0]?.passed ? '#00E6C3' : '#145251'} 
+                                  <Feather
+                                    name={quizAttempts[0]?.passed ? 'check-circle' : 'info'}
+                                    size={20}
+                                    color={quizAttempts[0]?.passed ? '#00E6C3' : '#145251'}
                                   />
                                   <Text fontSize={18} fontWeight="bold" color="$color">
-                                    {lang === 'sv' ? 'Dina Tidigare Resultat' : 'Your Previous Results'}
+                                    {lang === 'sv'
+                                      ? 'Dina Tidigare Resultat'
+                                      : 'Your Previous Results'}
                                   </Text>
                                 </XStack>
-                                
-                                <XStack justifyContent="space-between" padding={12} backgroundColor="#222" borderRadius={8}>
+
+                                <XStack
+                                  justifyContent="space-between"
+                                  padding={12}
+                                  backgroundColor="#222"
+                                  borderRadius={8}
+                                >
                                   <Text fontSize={14} color="$gray11">
                                     {lang === 'sv' ? 'Bästa poäng:' : 'Best score:'}
                                   </Text>
-                                  <Text fontSize={14} color={quizAttempts[0]?.passed ? '#00E6C3' : '#145251'} fontWeight="bold">
+                                  <Text
+                                    fontSize={14}
+                                    color={quizAttempts[0]?.passed ? '#00E6C3' : '#145251'}
+                                    fontWeight="bold"
+                                  >
                                     {Math.round(quizAttempts[0]?.score_percentage || 0)}%
                                   </Text>
                                 </XStack>
-                                
-                                <XStack justifyContent="space-between" padding={12} backgroundColor="#222" borderRadius={8}>
+
+                                <XStack
+                                  justifyContent="space-between"
+                                  padding={12}
+                                  backgroundColor="#222"
+                                  borderRadius={8}
+                                >
                                   <Text fontSize={14} color="$gray11">
                                     {lang === 'sv' ? 'Antal försök:' : 'Total attempts:'}
                                   </Text>
@@ -1956,8 +2007,13 @@ export function ExerciseListSheet({
                                     {quizAttempts.length}
                                   </Text>
                                 </XStack>
-                                
-                                <XStack justifyContent="space-between" padding={12} backgroundColor="#222" borderRadius={8}>
+
+                                <XStack
+                                  justifyContent="space-between"
+                                  padding={12}
+                                  backgroundColor="#222"
+                                  borderRadius={8}
+                                >
                                   <Text fontSize={14} color="$gray11">
                                     {lang === 'sv' ? 'Godkänt poäng:' : 'Pass score:'}
                                   </Text>
@@ -1966,7 +2022,7 @@ export function ExerciseListSheet({
                                   </Text>
                                 </XStack>
                               </YStack>
-                              
+
                               {/* Start Quiz Button */}
                               <TouchableOpacity
                                 onPress={() => setShowQuizIntro(false)}
@@ -1984,7 +2040,12 @@ export function ExerciseListSheet({
                             </YStack>
                           ) : showQuizResults ? (
                             <YStack gap={20} padding={24}>
-                              <Text fontSize={24} fontWeight="bold" color="$color" textAlign="center">
+                              <Text
+                                fontSize={24}
+                                fontWeight="bold"
+                                color="$color"
+                                textAlign="center"
+                              >
                                 Quiz Complete!
                               </Text>
                               <YStack alignItems="center" gap={12} padding={24}>
@@ -1994,7 +2055,10 @@ export function ExerciseListSheet({
                                     height: 120,
                                     borderRadius: 60,
                                     borderWidth: 8,
-                                    borderColor: quizScore >= (selectedExercise.quiz_pass_score || 70) ? '#00E6C3' : '#EF4444',
+                                    borderColor:
+                                      quizScore >= (selectedExercise.quiz_pass_score || 70)
+                                        ? '#00E6C3'
+                                        : '#EF4444',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                   }}
@@ -2004,30 +2068,51 @@ export function ExerciseListSheet({
                                   </Text>
                                 </View>
                                 <Text fontSize={20} fontWeight="bold" color="$color">
-                                  {quizScore >= (selectedExercise.quiz_pass_score || 70) ? '🎉 You Passed!' : '📚 Keep Practicing'}
+                                  {quizScore >= (selectedExercise.quiz_pass_score || 70)
+                                    ? '🎉 You Passed!'
+                                    : '📚 Keep Practicing'}
                                 </Text>
                               </YStack>
                               {/* Points Summary */}
-                              <YStack gap={12} padding={16} backgroundColor="#222" borderRadius={12}>
+                              <YStack
+                                gap={12}
+                                padding={16}
+                                backgroundColor="#222"
+                                borderRadius={12}
+                              >
                                 <XStack justifyContent="space-between">
-                                  <Text color="$gray11">{lang === 'sv' ? 'Frågor:' : 'Questions:'}</Text>
-                                  <Text color="$color" fontWeight="bold">{quizQuestions.length}</Text>
+                                  <Text color="$gray11">
+                                    {lang === 'sv' ? 'Frågor:' : 'Questions:'}
+                                  </Text>
+                                  <Text color="$color" fontWeight="bold">
+                                    {quizQuestions.length}
+                                  </Text>
                                 </XStack>
                                 <XStack justifyContent="space-between">
-                                  <Text color="$gray11">{lang === 'sv' ? 'Godkänt Poäng:' : 'Pass Score:'}</Text>
-                                  <Text color="$color" fontWeight="bold">{selectedExercise?.quiz_pass_score || 70}%</Text>
+                                  <Text color="$gray11">
+                                    {lang === 'sv' ? 'Godkänt Poäng:' : 'Pass Score:'}
+                                  </Text>
+                                  <Text color="$color" fontWeight="bold">
+                                    {selectedExercise?.quiz_pass_score || 70}%
+                                  </Text>
                                 </XStack>
                                 <XStack justifyContent="space-between">
-                                  <Text color="$gray11">{lang === 'sv' ? 'Ditt Resultat:' : 'Your Score:'}</Text>
+                                  <Text color="$gray11">
+                                    {lang === 'sv' ? 'Ditt Resultat:' : 'Your Score:'}
+                                  </Text>
                                   <Text
-                                    color={quizScore >= (selectedExercise?.quiz_pass_score || 70) ? '#00E6C3' : '#EF4444'}
+                                    color={
+                                      quizScore >= (selectedExercise?.quiz_pass_score || 70)
+                                        ? '#00E6C3'
+                                        : '#EF4444'
+                                    }
                                     fontWeight="bold"
                                   >
                                     {Math.round(quizScore)}%
                                   </Text>
                                 </XStack>
                               </YStack>
-                              
+
                               {/* Action Buttons */}
                               <XStack gap={12}>
                                 <TouchableOpacity
@@ -2057,7 +2142,7 @@ export function ExerciseListSheet({
                                     {lang === 'sv' ? 'Stäng' : 'Close'}
                                   </Text>
                                 </TouchableOpacity>
-                                
+
                                 <TouchableOpacity
                                   onPress={() => {
                                     setCurrentQuizIndex(0);
@@ -2091,12 +2176,12 @@ export function ExerciseListSheet({
                               <Text fontSize={16} color="$gray11">
                                 Question {currentQuizIndex + 1} of {quizQuestions.length}
                               </Text>
-                              
+
                               {/* Question */}
                               <YStack gap={12}>
                                 <Text fontSize={20} fontWeight="bold" color="$color">
-                                  {quizQuestions[currentQuizIndex]?.question_text?.[lang] || 
-                                   quizQuestions[currentQuizIndex]?.question_text?.en}
+                                  {quizQuestions[currentQuizIndex]?.question_text?.[lang] ||
+                                    quizQuestions[currentQuizIndex]?.question_text?.en}
                                 </Text>
                               </YStack>
 
@@ -2105,81 +2190,90 @@ export function ExerciseListSheet({
                                 {(() => {
                                   const answers = quizQuestions[currentQuizIndex]?.answers || [];
                                   return answers.map((answer: any) => {
-                                  const isSelected = selectedQuizAnswers.includes(answer.id);
-                                  const isCorrect = correctAnswerIds.includes(answer.id);
-                                  const isWrong = hasSubmittedAnswer && isSelected && !isCorrect;
-                                  const showAsCorrect = hasSubmittedAnswer && isCorrect;
-                                  
-                                  // Determine colors based on state
-                                  let backgroundColor = '#222';
-                                  let borderColor = '#333';
-                                  let iconColor = '#888';
-                                  
-                                  if (showAsCorrect) {
-                                    backgroundColor = 'rgba(0, 230, 195, 0.2)';
-                                    borderColor = '#00E6C3';
-                                    iconColor = '#00E6C3';
-                                  } else if (isWrong) {
-                                    backgroundColor = 'rgba(239, 68, 68, 0.2)';
-                                    borderColor = '#EF4444';
-                                    iconColor = '#EF4444';
-                                  } else if (isSelected && !hasSubmittedAnswer) {
-                                    backgroundColor = 'rgba(0, 230, 195, 0.2)';
-                                    borderColor = '#00E6C3';
-                                    iconColor = '#00E6C3';
-                                  }
-                                  
-                                  return (
-                                    <TouchableOpacity
-                                      key={answer.id}
-                                      disabled={hasSubmittedAnswer}
-                                      onPress={() => {
-                                        if (quizQuestions[currentQuizIndex].question_type === 'multiple_choice') {
-                                          setSelectedQuizAnswers(prev =>
-                                            prev.includes(answer.id)
-                                              ? prev.filter(id => id !== answer.id)
-                                              : [...prev, answer.id]
-                                          );
-                                        } else {
-                                          setSelectedQuizAnswers([answer.id]);
-                                        }
-                                      }}
-                                      style={{
-                                        backgroundColor,
-                                        padding: 16,
-                                        borderRadius: 12,
-                                        borderWidth: 2,
-                                        borderColor,
-                                        opacity: hasSubmittedAnswer ? 1 : 1,
-                                      }}
-                                    >
-                                      <XStack alignItems="center" gap={12}>
-                                        <View
-                                          style={{
-                                            width: 24,
-                                            height: 24,
-                                            borderRadius: 12,
-                                            borderWidth: 2,
-                                            borderColor: iconColor,
-                                            backgroundColor: (isSelected || showAsCorrect) ? iconColor : 'transparent',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                          }}
-                                        >
-                                          {(isSelected || showAsCorrect) && (
-                                            <Feather 
-                                              name={showAsCorrect ? 'check' : isWrong ? 'x' : 'check'} 
-                                              size={16} 
-                                              color="white" 
-                                            />
-                                          )}
-                                        </View>
-                                        <Text fontSize={16} color="$color" flex={1}>
-                                          {answer.answer_label}. {answer.answer_text?.[lang] || answer.answer_text?.en}
-                                        </Text>
-                                      </XStack>
-                                    </TouchableOpacity>
-                                  );
+                                    const isSelected = selectedQuizAnswers.includes(answer.id);
+                                    const isCorrect = correctAnswerIds.includes(answer.id);
+                                    const isWrong = hasSubmittedAnswer && isSelected && !isCorrect;
+                                    const showAsCorrect = hasSubmittedAnswer && isCorrect;
+
+                                    // Determine colors based on state
+                                    let backgroundColor = '#222';
+                                    let borderColor = '#333';
+                                    let iconColor = '#888';
+
+                                    if (showAsCorrect) {
+                                      backgroundColor = 'rgba(0, 230, 195, 0.2)';
+                                      borderColor = '#00E6C3';
+                                      iconColor = '#00E6C3';
+                                    } else if (isWrong) {
+                                      backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                                      borderColor = '#EF4444';
+                                      iconColor = '#EF4444';
+                                    } else if (isSelected && !hasSubmittedAnswer) {
+                                      backgroundColor = 'rgba(0, 230, 195, 0.2)';
+                                      borderColor = '#00E6C3';
+                                      iconColor = '#00E6C3';
+                                    }
+
+                                    return (
+                                      <TouchableOpacity
+                                        key={answer.id}
+                                        disabled={hasSubmittedAnswer}
+                                        onPress={() => {
+                                          if (
+                                            quizQuestions[currentQuizIndex].question_type ===
+                                            'multiple_choice'
+                                          ) {
+                                            setSelectedQuizAnswers((prev) =>
+                                              prev.includes(answer.id)
+                                                ? prev.filter((id) => id !== answer.id)
+                                                : [...prev, answer.id],
+                                            );
+                                          } else {
+                                            setSelectedQuizAnswers([answer.id]);
+                                          }
+                                        }}
+                                        style={{
+                                          backgroundColor,
+                                          padding: 16,
+                                          borderRadius: 12,
+                                          borderWidth: 2,
+                                          borderColor,
+                                          opacity: hasSubmittedAnswer ? 1 : 1,
+                                        }}
+                                      >
+                                        <XStack alignItems="center" gap={12}>
+                                          <View
+                                            style={{
+                                              width: 24,
+                                              height: 24,
+                                              borderRadius: 12,
+                                              borderWidth: 2,
+                                              borderColor: iconColor,
+                                              backgroundColor:
+                                                isSelected || showAsCorrect
+                                                  ? iconColor
+                                                  : 'transparent',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                            }}
+                                          >
+                                            {(isSelected || showAsCorrect) && (
+                                              <Feather
+                                                name={
+                                                  showAsCorrect ? 'check' : isWrong ? 'x' : 'check'
+                                                }
+                                                size={16}
+                                                color="white"
+                                              />
+                                            )}
+                                          </View>
+                                          <Text fontSize={16} color="$color" flex={1}>
+                                            {answer.answer_label}.{' '}
+                                            {answer.answer_text?.[lang] || answer.answer_text?.en}
+                                          </Text>
+                                        </XStack>
+                                      </TouchableOpacity>
+                                    );
                                   });
                                 })()}
                               </YStack>
@@ -2190,7 +2284,7 @@ export function ExerciseListSheet({
                                 {currentQuizIndex > 0 && !hasSubmittedAnswer && (
                                   <TouchableOpacity
                                     onPress={() => {
-                                      setCurrentQuizIndex(prev => prev - 1);
+                                      setCurrentQuizIndex((prev) => prev - 1);
                                       setSelectedQuizAnswers([]);
                                       setHasSubmittedAnswer(false);
                                       setCorrectAnswerIds([]);
@@ -2208,7 +2302,7 @@ export function ExerciseListSheet({
                                     </Text>
                                   </TouchableOpacity>
                                 )}
-                                
+
                                 {/* Main Action Button */}
                                 <TouchableOpacity
                                   disabled={selectedQuizAnswers.length === 0 && !hasSubmittedAnswer}
@@ -2216,33 +2310,42 @@ export function ExerciseListSheet({
                                     if (!hasSubmittedAnswer) {
                                       // Step 1: Check answer
                                       const currentQ = quizQuestions[currentQuizIndex];
-                                      const correctIds = currentQ.answers.filter((a: any) => a.is_correct).map((a: any) => a.id);
-                                      const isCorrect = selectedQuizAnswers.length === correctIds.length &&
-                                        selectedQuizAnswers.every(id => correctIds.includes(id));
-                                      
+                                      const correctIds = currentQ.answers
+                                        .filter((a: any) => a.is_correct)
+                                        .map((a: any) => a.id);
+                                      const isCorrect =
+                                        selectedQuizAnswers.length === correctIds.length &&
+                                        selectedQuizAnswers.every((id) => correctIds.includes(id));
+
                                       if (isCorrect) {
-                                        setQuizScore(prev => prev + (currentQ.points || 10));
+                                        setQuizScore((prev) => prev + (currentQ.points || 10));
                                       }
-                                      
+
                                       setCorrectAnswerIds(correctIds);
                                       setHasSubmittedAnswer(true);
                                     } else {
                                       // Step 2: Move to next question or finish
                                       if (currentQuizIndex < quizQuestions.length - 1) {
-                                        setCurrentQuizIndex(prev => prev + 1);
+                                        setCurrentQuizIndex((prev) => prev + 1);
                                         setSelectedQuizAnswers([]);
                                         setHasSubmittedAnswer(false);
                                         setCorrectAnswerIds([]);
                                       } else {
                                         // Quiz complete - calculate final score and save
-                                        const totalPoints = quizQuestions.reduce((sum, q) => sum + (q.points || 10), 0);
-                                        const finalScorePercentage = (quizScore / totalPoints) * 100;
+                                        const totalPoints = quizQuestions.reduce(
+                                          (sum, q) => sum + (q.points || 10),
+                                          0,
+                                        );
+                                        const finalScorePercentage =
+                                          (quizScore / totalPoints) * 100;
                                         setQuizScore(finalScorePercentage);
                                         setShowQuizResults(true);
-                                        
+
                                         // Save quiz attempt to database
                                         if (effectiveUserId && selectedExercise?.id) {
-                                          const passed = finalScorePercentage >= (selectedExercise.quiz_pass_score || 70);
+                                          const passed =
+                                            finalScorePercentage >=
+                                            (selectedExercise.quiz_pass_score || 70);
                                           supabase
                                             .from('quiz_attempts')
                                             .insert({
@@ -2250,16 +2353,21 @@ export function ExerciseListSheet({
                                               exercise_id: selectedExercise.id,
                                               quiz_type: 'learning_path',
                                               total_questions: quizQuestions.length,
-                                              correct_answers: Math.round((quizScore / totalPoints) * quizQuestions.length),
+                                              correct_answers: Math.round(
+                                                (quizScore / totalPoints) * quizQuestions.length,
+                                              ),
                                               score_percentage: finalScorePercentage,
                                               passed,
                                             })
                                             .then(async ({ error }) => {
                                               if (error) {
-                                                console.error('❌ Error saving quiz attempt:', error);
+                                                console.error(
+                                                  '❌ Error saving quiz attempt:',
+                                                  error,
+                                                );
                                               } else {
                                                 console.log('✅ Quiz attempt saved successfully');
-                                                
+
                                                 // Reload attempts to show updated stats
                                                 const { data: attempts } = await supabase
                                                   .from('quiz_attempts')
@@ -2268,7 +2376,7 @@ export function ExerciseListSheet({
                                                   .eq('exercise_id', selectedExercise.id)
                                                   .order('completed_at', { ascending: false })
                                                   .limit(5);
-                                                
+
                                                 if (attempts && attempts.length > 0) {
                                                   setQuizAttempts(attempts);
                                                   setShowQuizIntro(true); // Enable intro for next time
@@ -2280,27 +2388,41 @@ export function ExerciseListSheet({
                                     }
                                   }}
                                   style={{
-                                    backgroundColor: (selectedQuizAnswers.length > 0 || hasSubmittedAnswer) ? '#00E6C3' : '#333',
+                                    backgroundColor:
+                                      selectedQuizAnswers.length > 0 || hasSubmittedAnswer
+                                        ? '#00E6C3'
+                                        : '#333',
                                     padding: 16,
                                     borderRadius: 12,
                                     alignItems: 'center',
                                     flex: currentQuizIndex > 0 && !hasSubmittedAnswer ? 2 : 1,
                                   }}
                                 >
-                                  <Text color={(selectedQuizAnswers.length > 0 || hasSubmittedAnswer) ? '#000' : 'white'} fontWeight="bold" fontSize={16}>
-                                    {!hasSubmittedAnswer
-                                      ? (lang === 'sv' ? 'Kontrollera Svar' : 'Check Answer')
-                                      : currentQuizIndex < quizQuestions.length - 1
-                                        ? (lang === 'sv' ? 'Nästa Fråga' : 'Next Question')
-                                        : (lang === 'sv' ? 'Avsluta Quiz' : 'Finish Quiz')
+                                  <Text
+                                    color={
+                                      selectedQuizAnswers.length > 0 || hasSubmittedAnswer
+                                        ? '#000'
+                                        : 'white'
                                     }
+                                    fontWeight="bold"
+                                    fontSize={16}
+                                  >
+                                    {!hasSubmittedAnswer
+                                      ? lang === 'sv'
+                                        ? 'Kontrollera Svar'
+                                        : 'Check Answer'
+                                      : currentQuizIndex < quizQuestions.length - 1
+                                        ? lang === 'sv'
+                                          ? 'Nästa Fråga'
+                                          : 'Next Question'
+                                        : lang === 'sv'
+                                          ? 'Avsluta Quiz'
+                                          : 'Finish Quiz'}
                                   </Text>
                                 </TouchableOpacity>
                               </XStack>
                             </YStack>
-                          ) : null
-                        )}
-
+                          ) : null)}
                       </ScrollView>
 
                       {/* Report Dialog */}
@@ -2382,17 +2504,17 @@ export function ExerciseListSheet({
                   {/* Show content only if not in mini mode */}
                   {currentSnapPoint !== snapPoints.mini && (
                     <ScrollView
-                    showsVerticalScrollIndicator={true}
-                    refreshControl={
-                      <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={handleRefresh}
-                        tintColor="#00E6C3"
-                        colors={['#00E6C3']}
-                        progressBackgroundColor="#1a1a1a"
-                      />
-                    }
-                  >
+                      showsVerticalScrollIndicator={true}
+                      refreshControl={
+                        <RefreshControl
+                          refreshing={refreshing}
+                          onRefresh={handleRefresh}
+                          tintColor="#00E6C3"
+                          colors={['#00E6C3']}
+                          progressBackgroundColor="#1a1a1a"
+                        />
+                      }
+                    >
                       <View style={{ flex: 1 }}>
                         {/* Header with Progress Circle */}
                         <YStack gap={16} marginBottom={16}>
@@ -2419,13 +2541,13 @@ export function ExerciseListSheet({
                               {title}
                             </Text>
 
-                            <TouchableOpacity onPress={onClose}>
+                            {/* <TouchableOpacity onPress={onClose}>
                               <Feather
                                 name="x"
                                 size={24}
                                 color={colorScheme === 'dark' ? '#FFF' : '#000'}
                               />
-                            </TouchableOpacity>
+                            </TouchableOpacity> */}
                           </XStack>
 
                           {/* Learning Path Progress Circle */}
@@ -2434,8 +2556,9 @@ export function ExerciseListSheet({
                               <View style={{ position: 'relative' }}>
                                 <ProgressCircle
                                   percent={
-                                    completedIds.filter((id) => exercises.some((ex) => ex.id === id))
-                                      .length / exercises.length
+                                    completedIds.filter((id) =>
+                                      exercises.some((ex) => ex.id === id),
+                                    ).length / exercises.length
                                   }
                                   size={90}
                                   color="#27febe"
@@ -2454,16 +2577,18 @@ export function ExerciseListSheet({
                                   }}
                                   fontSize="$4"
                                   color={
-                                    completedIds.filter((id) => exercises.some((ex) => ex.id === id))
-                                      .length === exercises.length
+                                    completedIds.filter((id) =>
+                                      exercises.some((ex) => ex.id === id),
+                                    ).length === exercises.length
                                       ? '#27febe'
                                       : '$gray10'
                                   }
                                   fontWeight="bold"
                                 >
                                   {Math.round(
-                                    (completedIds.filter((id) => exercises.some((ex) => ex.id === id))
-                                      .length /
+                                    (completedIds.filter((id) =>
+                                      exercises.some((ex) => ex.id === id),
+                                    ).length /
                                       exercises.length) *
                                       100,
                                   )}
@@ -2493,9 +2618,7 @@ export function ExerciseListSheet({
 
                           {/* Learning Path Media (Video/Image) */}
                           {detailPath && (detailPath.youtube_url || detailPath.image) && (
-                            <YStack marginTop={16}>
-                              {renderLearningPathMedia(detailPath)}
-                            </YStack>
+                            <YStack marginTop={16}>{renderLearningPathMedia(detailPath)}</YStack>
                           )}
 
                           {/* Learning Path Description */}
@@ -2546,250 +2669,249 @@ export function ExerciseListSheet({
                               </Text>
                             </YStack>
                           ) : (
-                            
-                              <YStack gap="$4">
-                                {/* Progress Section */}
-                                {exercises.length > 0 && (
-                                  <YStack marginBottom={16}>
-                                    <XStack
-                                      justifyContent="space-between"
-                                      alignItems="center"
-                                      marginBottom={8}
-                                    >
-                                      <Text fontSize={18} fontWeight="bold" color="$color">
-                                        Progress
-                                      </Text>
-                                      <Text fontSize={16} color="$gray11">
-                                        {
-                                          completedIds.filter((id) =>
-                                            exercises.some((ex) => ex.id === id),
-                                          ).length
-                                        }
-                                        /{exercises.length}
-                                      </Text>
-                                    </XStack>
+                            <YStack gap="$4">
+                              {/* Progress Section */}
+                              {exercises.length > 0 && (
+                                <YStack marginBottom={16}>
+                                  <XStack
+                                    justifyContent="space-between"
+                                    alignItems="center"
+                                    marginBottom={8}
+                                  >
+                                    <Text fontSize={18} fontWeight="bold" color="$color">
+                                      Progress
+                                    </Text>
+                                    <Text fontSize={16} color="$gray11">
+                                      {
+                                        completedIds.filter((id) =>
+                                          exercises.some((ex) => ex.id === id),
+                                        ).length
+                                      }
+                                      /{exercises.length}
+                                    </Text>
+                                  </XStack>
+                                  <View
+                                    style={{
+                                      width: '100%',
+                                      height: 8,
+                                      backgroundColor: '#333',
+                                      borderRadius: 4,
+                                      overflow: 'hidden',
+                                    }}
+                                  >
                                     <View
                                       style={{
-                                        width: '100%',
-                                        height: 8,
-                                        backgroundColor: '#333',
+                                        width: `${Math.round((completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length / exercises.length) * 100)}%`,
+                                        height: '100%',
+                                        backgroundColor: '#00E6C3',
                                         borderRadius: 4,
-                                        overflow: 'hidden',
                                       }}
+                                    />
+                                  </View>
+                                </YStack>
+                              )}
+
+                              {/* Exercise List (exact copy from ProgressScreen) */}
+                              {exercises.length === 0 ? (
+                                <Text color="$gray11">No exercises for this learning path.</Text>
+                              ) : (
+                                exercises.map((exercise, exerciseIndex) => {
+                                  const displayIndex = exerciseIndex + 1;
+                                  const main = exercise;
+                                  const mainIsDone = completedIds.includes(main.id);
+                                  const mainIsPasswordLocked = isExercisePasswordLocked(main);
+                                  const mainIsAvailable = !mainIsPasswordLocked;
+
+                                  return (
+                                    <YStack
+                                      key={`exercise-detail-${main.id}-${exerciseIndex}`}
+                                      marginBottom={16}
                                     >
-                                      <View
-                                        style={{
-                                          width: `${Math.round((completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length / exercises.length) * 100)}%`,
-                                          height: '100%',
-                                          backgroundColor: '#00E6C3',
-                                          borderRadius: 4,
-                                        }}
-                                      />
-                                    </View>
-                                  </YStack>
-                                )}
-
-                                {/* Exercise List (exact copy from ProgressScreen) */}
-                                {exercises.length === 0 ? (
-                                  <Text color="$gray11">No exercises for this learning path.</Text>
-                                ) : (
-                                  exercises.map((exercise, exerciseIndex) => {
-                                    const displayIndex = exerciseIndex + 1;
-                                    const main = exercise;
-                                    const mainIsDone = completedIds.includes(main.id);
-                                    const mainIsPasswordLocked = isExercisePasswordLocked(main);
-                                    const mainIsAvailable = !mainIsPasswordLocked;
-
-                                    return (
-                                      <YStack
-                                        key={`exercise-detail-${main.id}-${exerciseIndex}`}
-                                        marginBottom={16}
-                                      >
-                                        <TouchableOpacity onPress={() => setSelectedExercise(main)}>
-                                          <XStack alignItems="center" gap={12}>
-                                            <TouchableOpacity
-                                              onPress={(e) => {
-                                                e.stopPropagation();
-                                                if (mainIsAvailable) {
-                                                  // Play sound
-                                                  playDoneSound();
-                                                  // Use new function that includes repeats for Level 2 checkboxes
-                                                  toggleCompletionWithRepeats(main.id, true);
-                                                }
-                                              }}
-                                              style={{
-                                                width: 28,
-                                                height: 28,
-                                                borderRadius: 6,
-                                                borderWidth: 2,
-                                                borderColor: mainIsDone ? '#00E6C3' : '#888',
-                                                backgroundColor: mainIsDone
-                                                  ? '#00E6C3'
-                                                  : 'transparent',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                marginRight: 8,
-                                              }}
+                                      <TouchableOpacity onPress={() => setSelectedExercise(main)}>
+                                        <XStack alignItems="center" gap={12}>
+                                          <TouchableOpacity
+                                            onPress={(e) => {
+                                              e.stopPropagation();
+                                              if (mainIsAvailable) {
+                                                // Play sound
+                                                playDoneSound();
+                                                // Use new function that includes repeats for Level 2 checkboxes
+                                                toggleCompletionWithRepeats(main.id, true);
+                                              }
+                                            }}
+                                            style={{
+                                              width: 28,
+                                              height: 28,
+                                              borderRadius: 6,
+                                              borderWidth: 2,
+                                              borderColor: mainIsDone ? '#00E6C3' : '#888',
+                                              backgroundColor: mainIsDone
+                                                ? '#00E6C3'
+                                                : 'transparent',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              marginRight: 8,
+                                            }}
+                                          >
+                                            {mainIsDone && (
+                                              <Feather name="check" size={20} color="#fff" />
+                                            )}
+                                          </TouchableOpacity>
+                                          <Card
+                                            padding={16}
+                                            borderRadius={16}
+                                            backgroundColor="$backgroundStrong"
+                                            flex={1}
+                                          >
+                                            <XStack
+                                              justifyContent="space-between"
+                                              alignItems="center"
                                             >
-                                              {mainIsDone && (
-                                                <Feather name="check" size={20} color="#fff" />
-                                              )}
-                                            </TouchableOpacity>
-                                            <Card
-                                              padding={16}
-                                              borderRadius={16}
-                                              backgroundColor="$backgroundStrong"
-                                              flex={1}
-                                            >
-                                              <XStack
-                                                justifyContent="space-between"
-                                                alignItems="center"
-                                              >
-                                                <XStack alignItems="center" gap={8} flex={1}>
-                                                  <Text
-                                                    fontSize={18}
-                                                    fontWeight="900"
-                                                    fontStyle="italic"
-                                                    color="$color"
-                                                    numberOfLines={1}
+                                              <XStack alignItems="center" gap={8} flex={1}>
+                                                <Text
+                                                  fontSize={18}
+                                                  fontWeight="900"
+                                                  fontStyle="italic"
+                                                  color="$color"
+                                                  numberOfLines={1}
+                                                >
+                                                  {displayIndex}.{' '}
+                                                  {main.title?.[lang] ||
+                                                    main.title?.en ||
+                                                    'Untitled'}
+                                                </Text>
+                                                {!!commentCounts[main.id] &&
+                                                  commentCounts[main.id] > 0 && (
+                                                    <XStack
+                                                      alignItems="center"
+                                                      gap={4}
+                                                      backgroundColor="#1f2937"
+                                                      paddingHorizontal={6}
+                                                      paddingVertical={2}
+                                                      borderRadius={10}
+                                                    >
+                                                      <Feather
+                                                        name="message-circle"
+                                                        size={12}
+                                                        color="#00E6C3"
+                                                      />
+                                                      <Text fontSize={10} color="#00E6C3">
+                                                        {commentCounts[main.id]}
+                                                      </Text>
+                                                    </XStack>
+                                                  )}
+
+                                                {main.repeat_count && main.repeat_count > 1 && (
+                                                  <XStack
+                                                    backgroundColor="#145251"
+                                                    paddingHorizontal={8}
+                                                    paddingVertical={4}
+                                                    borderRadius={12}
+                                                    alignItems="center"
+                                                    gap={4}
                                                   >
-                                                    {displayIndex}.{' '}
-                                                    {main.title?.[lang] ||
-                                                      main.title?.en ||
-                                                      'Untitled'}
-                                                  </Text>
-                                                  {!!commentCounts[main.id] &&
-                                                    commentCounts[main.id] > 0 && (
-                                                      <XStack
-                                                        alignItems="center"
-                                                        gap={4}
-                                                        backgroundColor="#1f2937"
-                                                        paddingHorizontal={6}
-                                                        paddingVertical={2}
-                                                        borderRadius={10}
-                                                      >
-                                                        <Feather
-                                                          name="message-circle"
-                                                          size={12}
-                                                          color="#00E6C3"
-                                                        />
-                                                        <Text fontSize={10} color="#00E6C3">
-                                                          {commentCounts[main.id]}
-                                                        </Text>
-                                                      </XStack>
-                                                    )}
-
-                                                  {main.repeat_count && main.repeat_count > 1 && (
-                                                    <XStack
-                                                      backgroundColor="#145251"
-                                                      paddingHorizontal={8}
-                                                      paddingVertical={4}
-                                                      borderRadius={12}
-                                                      alignItems="center"
-                                                      gap={4}
+                                                    <Feather
+                                                      name="repeat"
+                                                      size={14}
+                                                      color="white"
+                                                    />
+                                                    <Text
+                                                      fontSize={12}
+                                                      color="white"
+                                                      fontWeight="bold"
                                                     >
-                                                      <Feather
-                                                        name="repeat"
-                                                        size={14}
-                                                        color="white"
-                                                      />
-                                                      <Text
-                                                        fontSize={12}
-                                                        color="white"
-                                                        fontWeight="bold"
-                                                      >
-                                                        {main.repeat_count}x
-                                                      </Text>
-                                                    </XStack>
-                                                  )}
+                                                      {main.repeat_count}x
+                                                    </Text>
+                                                  </XStack>
+                                                )}
 
-                                                  {/* Show lock icon if exercise is locked */}
-                                                  {mainIsPasswordLocked && (
-                                                    <XStack
-                                                      backgroundColor="#FF9500"
-                                                      paddingHorizontal={8}
-                                                      paddingVertical={4}
-                                                      borderRadius={12}
-                                                      alignItems="center"
-                                                      gap={4}
+                                                {/* Show lock icon if exercise is locked */}
+                                                {mainIsPasswordLocked && (
+                                                  <XStack
+                                                    backgroundColor="#FF9500"
+                                                    paddingHorizontal={8}
+                                                    paddingVertical={4}
+                                                    borderRadius={12}
+                                                    alignItems="center"
+                                                    gap={4}
+                                                  >
+                                                    <MaterialIcons
+                                                      name="lock"
+                                                      size={14}
+                                                      color="white"
+                                                    />
+                                                    <Text
+                                                      fontSize={12}
+                                                      color="white"
+                                                      fontWeight="bold"
                                                     >
-                                                      <MaterialIcons
-                                                        name="lock"
-                                                        size={14}
-                                                        color="white"
-                                                      />
-                                                      <Text
-                                                        fontSize={12}
-                                                        color="white"
-                                                        fontWeight="bold"
-                                                      >
-                                                        LOCKED
-                                                      </Text>
-                                                    </XStack>
-                                                  )}
+                                                      LOCKED
+                                                    </Text>
+                                                  </XStack>
+                                                )}
 
-                                                  {/* Show paywall icon if parent path has paywall */}
-                                                  {detailPath && isPathPaywallLocked(detailPath) && (
-                                                    <XStack
-                                                      backgroundColor="#00E6C3"
-                                                      paddingHorizontal={8}
-                                                      paddingVertical={4}
-                                                      borderRadius={12}
-                                                      alignItems="center"
-                                                      gap={4}
+                                                {/* Show paywall icon if parent path has paywall */}
+                                                {detailPath && isPathPaywallLocked(detailPath) && (
+                                                  <XStack
+                                                    backgroundColor="#00E6C3"
+                                                    paddingHorizontal={8}
+                                                    paddingVertical={4}
+                                                    borderRadius={12}
+                                                    alignItems="center"
+                                                    gap={4}
+                                                  >
+                                                    <Feather
+                                                      name="credit-card"
+                                                      size={14}
+                                                      color="black"
+                                                    />
+                                                    <Text
+                                                      fontSize={12}
+                                                      color="black"
+                                                      fontWeight="bold"
                                                     >
-                                                      <Feather
-                                                        name="credit-card"
-                                                        size={14}
-                                                        color="black"
-                                                      />
-                                                      <Text
-                                                        fontSize={12}
-                                                        color="black"
-                                                        fontWeight="bold"
-                                                      >
-                                                        ${(detailPath as any).price_usd || 1.0}
-                                                      </Text>
-                                                    </XStack>
-                                                  )}
-                                                </XStack>
-
-                                                {mainIsPasswordLocked ? (
-                                                  <MaterialIcons
-                                                    name="lock"
-                                                    size={20}
-                                                    color="#FF9500"
-                                                  />
-                                                ) : mainIsDone ? (
-                                                  <Feather
-                                                    name="check-circle"
-                                                    size={20}
-                                                    color="#00E6C3"
-                                                  />
-                                                ) : (
-                                                  <Feather
-                                                    name="chevron-right"
-                                                    size={20}
-                                                    color="$gray11"
-                                                  />
+                                                      ${(detailPath as any).price_usd || 1.0}
+                                                    </Text>
+                                                  </XStack>
                                                 )}
                                               </XStack>
 
-                                              {main.description?.[lang] && (
-                                                <Text color="$gray11" marginTop={4}>
-                                                  {main.description[lang]}
-                                                </Text>
+                                              {mainIsPasswordLocked ? (
+                                                <MaterialIcons
+                                                  name="lock"
+                                                  size={20}
+                                                  color="#FF9500"
+                                                />
+                                              ) : mainIsDone ? (
+                                                <Feather
+                                                  name="check-circle"
+                                                  size={20}
+                                                  color="#00E6C3"
+                                                />
+                                              ) : (
+                                                <Feather
+                                                  name="chevron-right"
+                                                  size={20}
+                                                  color="$gray11"
+                                                />
                                               )}
+                                            </XStack>
 
-                                              <RepeatProgressBar exercise={main} />
-                                            </Card>
-                                          </XStack>
-                                        </TouchableOpacity>
-                                      </YStack>
-                                    );
-                                  })
-                                )}
-                              </YStack>
+                                            {main.description?.[lang] && (
+                                              <Text color="$gray11" marginTop={4}>
+                                                {main.description[lang]}
+                                              </Text>
+                                            )}
+
+                                            <RepeatProgressBar exercise={main} />
+                                          </Card>
+                                        </XStack>
+                                      </TouchableOpacity>
+                                    </YStack>
+                                  );
+                                })
+                              )}
+                            </YStack>
                           )}
 
                           {/* See More Button */}
@@ -3497,7 +3619,6 @@ export function ExerciseListSheet({
           </TouchableOpacity>
         </Modal>
       </Modal>
-
     </>
   );
 }

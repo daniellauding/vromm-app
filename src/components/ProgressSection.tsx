@@ -1146,11 +1146,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
           setSelectedLearningPath(null);
           setShowLearningPathsSheet(true);
         }}
-        title={
-          selectedPathTitle
-            ? `${t('exercises.learningExercises') || 'Learning Exercises'}: ${selectedPathTitle}`
-            : t('exercises.learningExercises') || 'Learning Exercises'
-        }
+        title={selectedPathTitle || t('exercises.learningExercises') || 'Learning Exercises'}
         learningPathId={selectedPathId || undefined}
         showAllPaths={false}
       />

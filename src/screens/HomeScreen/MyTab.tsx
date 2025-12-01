@@ -350,9 +350,7 @@ export default React.memo(function MyTab({
             setShowExerciseListSheet(false);
             setShowLearningPathsSheet(true);
           }}
-          title={`${t('exercises.learningExercises') || 'Learning Exercises'}: ${
-            language === 'sv' ? selectedLearningPath.title.sv : selectedLearningPath.title.en
-          }`}
+          title={language === 'sv' ? selectedLearningPath.title.sv : selectedLearningPath.title.en}
           learningPathId={selectedLearningPath.id}
           showAllPaths={false}
         />
