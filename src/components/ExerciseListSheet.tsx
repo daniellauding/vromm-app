@@ -1516,7 +1516,7 @@ export function ExerciseListSheet({
                                   )}
                                 </XStack>
 
-                                {!selectedExercise.isRepeat &&
+                                {/* {!selectedExercise.isRepeat &&
                                   selectedExercise.repeat_count &&
                                   selectedExercise.repeat_count > 1 && (
                                     <XStack alignItems="center" gap={4} marginTop={4}>
@@ -1526,7 +1526,7 @@ export function ExerciseListSheet({
                                         {selectedExercise.repeat_count} times
                                       </Text>
                                     </XStack>
-                                  )}
+                                  )} */}
                               </YStack>
 
                               {isPasswordLocked ? (
@@ -1636,7 +1636,7 @@ export function ExerciseListSheet({
                                 {renderExerciseMedia(selectedExercise)}
 
                                 {/* Repetition Progress */}
-                                {(selectedExercise.isRepeat ||
+                                {/* {(selectedExercise.isRepeat ||
                                   (selectedExercise.repeat_count &&
                                     selectedExercise.repeat_count > 1)) && (
                                   <YStack
@@ -1655,55 +1655,56 @@ export function ExerciseListSheet({
                                       </Text>
                                     </XStack>
                                   </YStack>
-                                )}
+                                )} */}
 
                                 {/* List of all repeats */}
                                 {!selectedExercise.isRepeat &&
                                   selectedExercise.repeat_count &&
                                   selectedExercise.repeat_count > 1 && (
                                     <YStack marginTop={16} marginBottom={16} gap={12}>
-                                      <XStack alignItems="center" gap={8} marginBottom={8}>
+                                      {/* <XStack alignItems="center" gap={8} marginBottom={8}>
                                         <Feather name="list" size={20} color="#00E6C3" />
                                         <Text fontSize={18} fontWeight="bold" color="#00E6C3">
                                           All Repetitions
                                         </Text>
-                                      </XStack>
+                                      </XStack> */}
 
                                       <RepeatProgressBar exercise={selectedExercise} />
 
                                       {/* Show the original exercise first */}
                                       <TouchableOpacity
                                         style={{
-                                          backgroundColor: '#222',
-                                          padding: 12,
-                                          borderRadius: 8,
-                                          borderLeftWidth: 4,
-                                          borderLeftColor: completedIds.includes(
-                                            selectedExercise.id,
-                                          )
-                                            ? '#00E6C3'
-                                            : '#145251',
+                                          paddingVertical: 8,
+                                          // borderLeftWidth: 4,
+                                          // borderLeftColor: completedIds.includes(
+                                          //   selectedExercise.id,
+                                          // )
+                                          //   ? '#00E6C3'
+                                          //   : '#333',
+                                          // paddingLeft: 12,
                                         }}
-                                        onPress={() => toggleCompletion(selectedExercise.id)}
+                                        onPress={() => {
+                                          playDoneSound();
+                                          toggleCompletion(selectedExercise.id);
+                                        }}
                                       >
                                         <XStack justifyContent="space-between" alignItems="center">
-                                          <XStack gap={8} alignItems="center" flex={1}>
+                                          <XStack gap={12} alignItems="center" flex={1}>
                                             <TouchableOpacity
                                               onPress={(e) => {
                                                 e.stopPropagation();
-                                                // Play sound
                                                 playDoneSound();
                                                 toggleCompletion(selectedExercise.id);
                                               }}
                                               style={{
                                                 width: 24,
                                                 height: 24,
-                                                borderRadius: 12,
+                                                borderRadius: 6,
                                                 backgroundColor: completedIds.includes(
                                                   selectedExercise.id,
                                                 )
                                                   ? '#00E6C3'
-                                                  : '#333',
+                                                  : 'transparent',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
                                                 borderWidth: 2,
@@ -1715,13 +1716,14 @@ export function ExerciseListSheet({
                                               }}
                                             >
                                               {completedIds.includes(selectedExercise.id) && (
-                                                <Feather name="check" size={16} color="#fff" />
+                                                <Feather name="check" size={16} color="#000" />
                                               )}
                                             </TouchableOpacity>
                                             <Text
                                               fontSize={16}
                                               color="$color"
-                                              fontWeight="600"
+                                              fontWeight="900"
+                                              fontStyle="italic"
                                               numberOfLines={1}
                                               flex={1}
                                             >
@@ -1730,16 +1732,16 @@ export function ExerciseListSheet({
                                                 'Original'}
                                             </Text>
                                           </XStack>
-                                          <Text fontSize={14} color="#00E6C3" fontWeight="bold">
+                                          {/* <Text fontSize={14} color="#00E6C3" fontWeight="bold">
                                             1/{selectedExercise.repeat_count}
-                                          </Text>
-                                          {completedIds.includes(selectedExercise.id) && (
-                                            <Feather
-                                              name="check-circle"
-                                              size={18}
-                                              color="#00E6C3"
-                                            />
-                                          )}
+                                            {completedIds.includes(selectedExercise.id) && (
+                                              <Feather
+                                                name="check-circle"
+                                                size={16}
+                                                color="#00E6C3"
+                                              />
+                                            )}
+                                          </Text> */}
                                         </XStack>
                                       </TouchableOpacity>
 
@@ -1755,31 +1757,32 @@ export function ExerciseListSheet({
                                           <TouchableOpacity
                                             key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
                                             style={{
-                                              backgroundColor: '#222',
-                                              padding: 12,
-                                              borderRadius: 8,
-                                              borderLeftWidth: 4,
-                                              borderLeftColor: isDone ? '#00E6C3' : '#145251',
+                                              paddingVertical: 8,
+                                              // borderLeftWidth: 4,
+                                              // borderLeftColor: isDone ? '#00E6C3' : '#333',
+                                              // paddingLeft: 12,
                                             }}
-                                            onPress={() => toggleVirtualRepeatCompletion(virtualId)}
+                                            onPress={() => {
+                                              playDoneSound();
+                                              toggleVirtualRepeatCompletion(virtualId);
+                                            }}
                                           >
                                             <XStack
                                               justifyContent="space-between"
                                               alignItems="center"
                                             >
-                                              <XStack gap={8} alignItems="center" flex={1}>
+                                              <XStack gap={12} alignItems="center" flex={1}>
                                                 <TouchableOpacity
                                                   onPress={(e) => {
                                                     e.stopPropagation();
-                                                    // Play sound
                                                     playDoneSound();
                                                     toggleVirtualRepeatCompletion(virtualId);
                                                   }}
                                                   style={{
                                                     width: 24,
                                                     height: 24,
-                                                    borderRadius: 12,
-                                                    backgroundColor: isDone ? '#00E6C3' : '#333',
+                                                    borderRadius: 6,
+                                                    backgroundColor: isDone ? '#00E6C3' : 'transparent',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
                                                     borderWidth: 2,
@@ -1787,29 +1790,30 @@ export function ExerciseListSheet({
                                                   }}
                                                 >
                                                   {isDone && (
-                                                    <Feather name="check" size={16} color="#fff" />
+                                                    <Feather name="check" size={16} color="#000" />
                                                   )}
                                                 </TouchableOpacity>
                                                 <Text
                                                   fontSize={16}
                                                   color="$color"
-                                                  fontWeight="600"
+                                                  fontWeight="900"
+                                                  fontStyle="italic"
                                                   numberOfLines={1}
                                                   flex={1}
                                                 >
                                                   Repetition {repeatNumber}
                                                 </Text>
                                               </XStack>
-                                              <Text fontSize={14} color="#00E6C3" fontWeight="bold">
+                                              {/* <Text fontSize={14} color="#00E6C3" fontWeight="bold">
                                                 {repeatNumber}/{selectedExercise.repeat_count}
-                                              </Text>
-                                              {isDone && (
-                                                <Feather
-                                                  name="check-circle"
-                                                  size={18}
-                                                  color="#00E6C3"
-                                                />
-                                              )}
+                                                {isDone && (
+                                                  <Feather
+                                                    name="check-circle"
+                                                    size={16}
+                                                    color="#00E6C3"
+                                                  />
+                                                )}
+                                              </Text> */}
                                             </XStack>
                                           </TouchableOpacity>
                                         );
