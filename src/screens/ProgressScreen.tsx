@@ -3351,9 +3351,9 @@ export function ProgressScreen() {
         {/* YouTube Video */}
         {exercise.youtube_url && (
           <YStack>
-            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+            {/* <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
               Video Tutorial
-            </Text>
+            </Text> */}
             {(() => {
               console.log('🎥 [ProgressScreen] Exercise youtube_url:', exercise.youtube_url);
               const videoId = getYouTubeVideoId(exercise.youtube_url);

@@ -1101,9 +1101,9 @@ export function ExerciseListSheet({
       <YStack gap={16}>
         {exercise.youtube_url && (
           <YStack>
-            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+            {/* <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
               Video Tutorial
-            </Text>
+            </Text> */}
             {(() => {
               const videoId = getYouTubeVideoId(exercise.youtube_url);
               return videoId ? (
@@ -1147,9 +1147,9 @@ export function ExerciseListSheet({
         {/* YouTube Video */}
         {path.youtube_url && (
           <YStack>
-            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+            {/* <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
               Video Tutorial
-            </Text>
+            </Text> */}
             {(() => {
               const videoId = getYouTubeVideoId(path.youtube_url);
               return videoId ? (
@@ -2632,7 +2632,7 @@ export function ExerciseListSheet({
                         </YStack>
 
                         {/* Featured Exercises Quick Access */}
-                        <Button
+                        {/* <Button
                           variant="outlined"
                           size="md"
                           onPress={() => {
@@ -2653,7 +2653,7 @@ export function ExerciseListSheet({
                             </Text>
                             <Feather name="external-link" size={14} color="$color" />
                           </XStack>
-                        </Button>
+                        </Button> */}
 
                         {/* Exercise List */}
                         <YStack flex={1}>
@@ -2670,7 +2670,7 @@ export function ExerciseListSheet({
                             </YStack>
                           ) : (
                             <YStack gap="$4">
-                              {/* Progress Section */}
+                              {/* Progress Section 
                               {exercises.length > 0 && (
                                 <YStack marginBottom={16}>
                                   <XStack
@@ -2710,7 +2710,7 @@ export function ExerciseListSheet({
                                   </View>
                                 </YStack>
                               )}
-
+                              */}
                               {/* Exercise List (exact copy from ProgressScreen) */}
                               {exercises.length === 0 ? (
                                 <Text color="$gray11">No exercises for this learning path.</Text>
