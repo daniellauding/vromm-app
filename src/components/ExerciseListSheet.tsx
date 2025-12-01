@@ -2728,46 +2728,47 @@ export function ExerciseListSheet({
                                       marginBottom={16}
                                     >
                                       <TouchableOpacity onPress={() => setSelectedExercise(main)}>
-                                        <XStack alignItems="center" gap={12}>
-                                          <TouchableOpacity
-                                            onPress={(e) => {
-                                              e.stopPropagation();
-                                              if (mainIsAvailable) {
-                                                // Play sound
-                                                playDoneSound();
-                                                // Use new function that includes repeats for Level 2 checkboxes
-                                                toggleCompletionWithRepeats(main.id, true);
-                                              }
-                                            }}
-                                            style={{
-                                              width: 28,
-                                              height: 28,
-                                              borderRadius: 6,
-                                              borderWidth: 2,
-                                              borderColor: mainIsDone ? '#00E6C3' : '#888',
-                                              backgroundColor: mainIsDone
-                                                ? '#00E6C3'
-                                                : 'transparent',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              marginRight: 8,
-                                            }}
-                                          >
-                                            {mainIsDone && (
-                                              <Feather name="check" size={20} color="#fff" />
-                                            )}
-                                          </TouchableOpacity>
-                                          <Card
-                                            padding={16}
-                                            borderRadius={16}
-                                            backgroundColor="$backgroundStrong"
-                                            flex={1}
-                                          >
-                                            <XStack
-                                              justifyContent="space-between"
-                                              alignItems="center"
+                                        <Card
+                                          padding={16}
+                                          borderRadius={16}
+                                          backgroundColor="$backgroundStrong"
+                                          borderWidth={2}
+                                          borderColor={mainIsDone ? '#00E6C3' : '#333'}
+                                        >
+                                          <XStack alignItems="center" gap={12}>
+                                            <TouchableOpacity
+                                              onPress={(e) => {
+                                                e.stopPropagation();
+                                                if (mainIsAvailable) {
+                                                  // Play sound
+                                                  playDoneSound();
+                                                  // Use new function that includes repeats for Level 2 checkboxes
+                                                  toggleCompletionWithRepeats(main.id, true);
+                                                }
+                                              }}
+                                              style={{
+                                                width: 28,
+                                                height: 28,
+                                                borderRadius: 6,
+                                                borderWidth: 2,
+                                                borderColor: mainIsDone ? '#00E6C3' : '#888',
+                                                backgroundColor: mainIsDone
+                                                  ? '#00E6C3'
+                                                  : 'transparent',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                              }}
                                             >
-                                              <XStack alignItems="center" gap={8} flex={1}>
+                                              {mainIsDone && (
+                                                <Feather name="check" size={20} color="#fff" />
+                                              )}
+                                            </TouchableOpacity>
+                                            <YStack flex={1} gap={4}>
+                                              <XStack
+                                                justifyContent="space-between"
+                                                alignItems="center"
+                                              >
+                                                <XStack alignItems="center" gap={8} flex={1}>
                                                 <Text
                                                   fontSize={18}
                                                   fontWeight="900"
@@ -2892,20 +2893,21 @@ export function ExerciseListSheet({
                                                 <Feather
                                                   name="chevron-right"
                                                   size={20}
-                                                  color="$gray11"
+                                                  color={colorScheme === 'dark' ? '#888' : '#666'}
                                                 />
                                               )}
                                             </XStack>
 
-                                            {main.description?.[lang] && (
-                                              <Text color="$gray11" marginTop={4}>
-                                                {main.description[lang]}
-                                              </Text>
-                                            )}
+                                              {main.description?.[lang] && (
+                                                <Text color="$gray11">
+                                                  {main.description[lang]}
+                                                </Text>
+                                              )}
 
-                                            <RepeatProgressBar exercise={main} />
-                                          </Card>
-                                        </XStack>
+                                              <RepeatProgressBar exercise={main} />
+                                            </YStack>
+                                          </XStack>
+                                        </Card>
                                       </TouchableOpacity>
                                     </YStack>
                                   );
