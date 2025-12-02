@@ -4084,6 +4084,56 @@ export function ProgressScreen() {
             </TouchableOpacity>
           </XStack>
 
+          {/* Exercise Progress Circle - Show for exercises with repeats - HIDDEN (using horizontal bar instead) */}
+          {/* {selectedExercise.repeat_count && selectedExercise.repeat_count > 1 && (
+            <XStack justifyContent="center" alignItems="center" marginTop={8} marginBottom={16}>
+              <View style={{ position: 'relative' }}>
+                <ProgressCircle
+                  percent={(() => {
+                    // Calculate completion percentage for this exercise's repeats
+                    const mainDone = completedIds.includes(selectedExercise.id) ? 1 : 0;
+                    const virtualDone = Array.from({
+                      length: selectedExercise.repeat_count - 1,
+                    }).filter((_, i) => {
+                      const virtualId = `${selectedExercise.id}-virtual-${i + 2}`;
+                      return virtualRepeatCompletions.includes(virtualId);
+                    }).length;
+                    return (mainDone + virtualDone) / selectedExercise.repeat_count;
+                  })()}
+                  size={90}
+                  color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
+                  bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                />
+                <Text
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: 90,
+                    height: 90,
+                    textAlign: 'center',
+                    textAlignVertical: 'center',
+                    lineHeight: 90,
+                  }}
+                  fontSize={20}
+                  color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
+                  fontWeight="bold"
+                >
+                  {(() => {
+                    const mainDone = completedIds.includes(selectedExercise.id) ? 1 : 0;
+                    const virtualDone = Array.from({
+                      length: selectedExercise.repeat_count - 1,
+                    }).filter((_, i) => {
+                      const virtualId = `${selectedExercise.id}-virtual-${i + 2}`;
+                      return virtualRepeatCompletions.includes(virtualId);
+                    }).length;
+                    return `${mainDone + virtualDone}/${selectedExercise.repeat_count}`;
+                  })()}
+                </Text>
+              </View>
+            </XStack>
+          )} */}
+
           {/* Exercise header with icon if available */}
           <XStack alignItems="center" gap={12} marginBottom={16}>
             {selectedExercise.icon && (

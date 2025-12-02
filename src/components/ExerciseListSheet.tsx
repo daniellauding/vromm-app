@@ -1485,8 +1485,8 @@ export function ExerciseListSheet({
                           </TouchableOpacity>
                         </XStack>
 
-                        {/* Exercise Progress Circle - Show for exercises with repeats */}
-                        {selectedExercise.repeat_count && selectedExercise.repeat_count > 1 && (
+                        {/* Exercise Progress Circle - Show for exercises with repeats - HIDDEN (using horizontal bar instead) */}
+                        {/* {selectedExercise.repeat_count && selectedExercise.repeat_count > 1 && (
                           <XStack
                             justifyContent="center"
                             alignItems="center"
@@ -1542,7 +1542,7 @@ export function ExerciseListSheet({
                               </Text>
                             </View>
                           </XStack>
-                        )}
+                        )} */}
 
                         {/* REGULAR EXERCISE CONTENT - Show if show_exercise_content is enabled */}
                         {shouldShowContent && (
