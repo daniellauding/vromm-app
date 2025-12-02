@@ -1474,7 +1474,10 @@ export function ExerciseListSheet({
 
                           <TouchableOpacity
                             onPress={() => {
-                              console.log('🧾 [ExerciseListSheet] open report exercise', selectedExercise.id);
+                              console.log(
+                                '🧾 [ExerciseListSheet] open report exercise',
+                                selectedExercise.id,
+                              );
                               setReportExerciseId(selectedExercise.id);
                             }}
                           >
@@ -1482,75 +1485,90 @@ export function ExerciseListSheet({
                           </TouchableOpacity>
                         </XStack>
 
+                        {/* Exercise Progress Circle - Show for exercises with repeats */}
+                        {selectedExercise.repeat_count && selectedExercise.repeat_count > 1 && (
+                          <XStack
+                            justifyContent="center"
+                            alignItems="center"
+                            marginTop={8}
+                            marginBottom={16}
+                          >
+                            <View style={{ position: 'relative' }}>
+                              <ProgressCircle
+                                percent={(() => {
+                                  // Calculate completion percentage for this exercise's repeats
+                                  const mainDone = completedIds.includes(selectedExercise.id)
+                                    ? 1
+                                    : 0;
+                                  const virtualDone = Array.from({
+                                    length: selectedExercise.repeat_count - 1,
+                                  }).filter((_, i) => {
+                                    const virtualId = `${selectedExercise.id}-virtual-${i + 2}`;
+                                    return virtualRepeatCompletions.includes(virtualId);
+                                  }).length;
+                                  return (mainDone + virtualDone) / selectedExercise.repeat_count;
+                                })()}
+                                size={90}
+                                color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
+                                bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
+                              />
+                              <Text
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: 90,
+                                  height: 90,
+                                  textAlign: 'center',
+                                  textAlignVertical: 'center',
+                                  lineHeight: 90,
+                                }}
+                                fontSize={20}
+                                color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
+                                fontWeight="bold"
+                              >
+                                {(() => {
+                                  const mainDone = completedIds.includes(selectedExercise.id)
+                                    ? 1
+                                    : 0;
+                                  const virtualDone = Array.from({
+                                    length: selectedExercise.repeat_count - 1,
+                                  }).filter((_, i) => {
+                                    const virtualId = `${selectedExercise.id}-virtual-${i + 2}`;
+                                    return virtualRepeatCompletions.includes(virtualId);
+                                  }).length;
+                                  return `${mainDone + virtualDone}/${selectedExercise.repeat_count}`;
+                                })()}
+                              </Text>
+                            </View>
+                          </XStack>
+                        )}
+
                         {/* REGULAR EXERCISE CONTENT - Show if show_exercise_content is enabled */}
                         {shouldShowContent && (
                           <>
-                            {/* Exercise header with icon (exact copy from ProgressScreen) */}
-                            <XStack alignItems="center" gap={12} marginBottom={16}>
-                              {selectedExercise.icon && (
-                                <View style={{ marginRight: 8 }}>
-                                  <Feather
-                                    name={selectedExercise.icon as keyof typeof Feather.glyphMap}
-                                    size={28}
-                                    color={isPasswordLocked ? '#FF9500' : '#00E6C3'}
-                                  />
-                                </View>
-                              )}
-                              <YStack flex={1}>
-                                <XStack alignItems="center" gap={8}>
-                                  <Text
-                                    fontSize={28}
-                                    fontWeight="bold"
-                                    color="$color"
-                                    numberOfLines={1}
-                                  >
-                                    {selectedExercise.title?.[lang] ||
-                                      selectedExercise.title?.en ||
-                                      'Untitled'}
-                                  </Text>
-
-                                  {selectedExercise.isRepeat && (
-                                    <XStack
-                                      backgroundColor="#145251"
-                                      paddingHorizontal={8}
-                                      paddingVertical={4}
-                                      borderRadius={12}
-                                      alignItems="center"
-                                      gap={4}
-                                    >
-                                      <Feather name="repeat" size={14} color="white" />
-                                      <Text fontSize={12} color="white" fontWeight="bold">
-                                        {selectedExercise.repeatNumber}/
-                                        {selectedExercise.repeat_count}
-                                      </Text>
-                                    </XStack>
-                                  )}
-                                </XStack>
-
-                                {/* {!selectedExercise.isRepeat &&
-                                  selectedExercise.repeat_count &&
-                                  selectedExercise.repeat_count > 1 && (
-                                    <XStack alignItems="center" gap={4} marginTop={4}>
-                                      <Feather name="repeat" size={16} color="#00E6C3" />
-                                      <Text color="#00E6C3" fontSize={14}>
-                                        This exercise needs to be repeated{' '}
-                                        {selectedExercise.repeat_count} times
-                                      </Text>
-                                    </XStack>
-                                  )} */}
-                              </YStack>
-
-                              {isPasswordLocked ? (
-                                <MaterialIcons name="lock" size={24} color="#FF9500" />
-                              ) : !prevExercisesComplete ? (
-                                <MaterialIcons name="hourglass-empty" size={24} color="#FF9500" />
-                              ) : isDone ? (
-                                <Feather name="check-circle" size={24} color="#00E6C3" />
-                              ) : null}
-                            </XStack>
+                            {/* Exercise header - centered */}
+                            <YStack alignItems="center" marginBottom={16}>
+                              <Text
+                                fontSize={28}
+                                fontWeight="900"
+                                fontStyle="italic"
+                                color="$color"
+                                textAlign="center"
+                              >
+                                {selectedExercise.title?.[lang] ||
+                                  selectedExercise.title?.en ||
+                                  'Untitled'}
+                              </Text>
+                            </YStack>
 
                             {selectedExercise.description?.[lang] && (
-                              <Text color="$gray11" marginBottom={16}>
+                              <Text
+                                color="$gray11"
+                                marginBottom={16}
+                                textAlign="center"
+                                fontSize={16}
+                              >
                                 {selectedExercise.description[lang]}
                               </Text>
                             )}
@@ -1786,7 +1804,9 @@ export function ExerciseListSheet({
                                                     width: 24,
                                                     height: 24,
                                                     borderRadius: 6,
-                                                    backgroundColor: isDone ? '#00E6C3' : 'transparent',
+                                                    backgroundColor: isDone
+                                                      ? '#00E6C3'
+                                                      : 'transparent',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
                                                     borderWidth: 2,
@@ -2777,134 +2797,135 @@ export function ExerciseListSheet({
                                                 alignItems="center"
                                               >
                                                 <XStack alignItems="center" gap={8} flex={1}>
-                                                <Text
-                                                  fontSize={18}
-                                                  fontWeight="900"
-                                                  fontStyle="italic"
-                                                  color="$color"
-                                                  numberOfLines={1}
-                                                >
-                                                  {displayIndex}.{' '}
-                                                  {main.title?.[lang] ||
-                                                    main.title?.en ||
-                                                    'Untitled'}
-                                                </Text>
-                                                {!!commentCounts[main.id] &&
-                                                  commentCounts[main.id] > 0 && (
+                                                  <Text
+                                                    fontSize={18}
+                                                    fontWeight="900"
+                                                    fontStyle="italic"
+                                                    color="$color"
+                                                    numberOfLines={1}
+                                                  >
+                                                    {displayIndex}.{' '}
+                                                    {main.title?.[lang] ||
+                                                      main.title?.en ||
+                                                      'Untitled'}
+                                                  </Text>
+                                                  {!!commentCounts[main.id] &&
+                                                    commentCounts[main.id] > 0 && (
+                                                      <XStack
+                                                        alignItems="center"
+                                                        gap={4}
+                                                        backgroundColor="#1f2937"
+                                                        paddingHorizontal={6}
+                                                        paddingVertical={2}
+                                                        borderRadius={10}
+                                                      >
+                                                        <Feather
+                                                          name="message-circle"
+                                                          size={12}
+                                                          color="#00E6C3"
+                                                        />
+                                                        <Text fontSize={10} color="#00E6C3">
+                                                          {commentCounts[main.id]}
+                                                        </Text>
+                                                      </XStack>
+                                                    )}
+
+                                                  {main.repeat_count && main.repeat_count > 1 && (
                                                     <XStack
+                                                      backgroundColor="#145251"
+                                                      paddingHorizontal={8}
+                                                      paddingVertical={4}
+                                                      borderRadius={12}
                                                       alignItems="center"
                                                       gap={4}
-                                                      backgroundColor="#1f2937"
-                                                      paddingHorizontal={6}
-                                                      paddingVertical={2}
-                                                      borderRadius={10}
                                                     >
                                                       <Feather
-                                                        name="message-circle"
-                                                        size={12}
-                                                        color="#00E6C3"
+                                                        name="repeat"
+                                                        size={14}
+                                                        color="white"
                                                       />
-                                                      <Text fontSize={10} color="#00E6C3">
-                                                        {commentCounts[main.id]}
+                                                      <Text
+                                                        fontSize={12}
+                                                        color="white"
+                                                        fontWeight="bold"
+                                                      >
+                                                        {main.repeat_count}x
                                                       </Text>
                                                     </XStack>
                                                   )}
 
-                                                {main.repeat_count && main.repeat_count > 1 && (
-                                                  <XStack
-                                                    backgroundColor="#145251"
-                                                    paddingHorizontal={8}
-                                                    paddingVertical={4}
-                                                    borderRadius={12}
-                                                    alignItems="center"
-                                                    gap={4}
-                                                  >
-                                                    <Feather
-                                                      name="repeat"
-                                                      size={14}
-                                                      color="white"
-                                                    />
-                                                    <Text
-                                                      fontSize={12}
-                                                      color="white"
-                                                      fontWeight="bold"
+                                                  {/* Show lock icon if exercise is locked */}
+                                                  {mainIsPasswordLocked && (
+                                                    <XStack
+                                                      backgroundColor="#FF9500"
+                                                      paddingHorizontal={8}
+                                                      paddingVertical={4}
+                                                      borderRadius={12}
+                                                      alignItems="center"
+                                                      gap={4}
                                                     >
-                                                      {main.repeat_count}x
-                                                    </Text>
-                                                  </XStack>
-                                                )}
+                                                      <MaterialIcons
+                                                        name="lock"
+                                                        size={14}
+                                                        color="white"
+                                                      />
+                                                      <Text
+                                                        fontSize={12}
+                                                        color="white"
+                                                        fontWeight="bold"
+                                                      >
+                                                        LOCKED
+                                                      </Text>
+                                                    </XStack>
+                                                  )}
 
-                                                {/* Show lock icon if exercise is locked */}
-                                                {mainIsPasswordLocked && (
-                                                  <XStack
-                                                    backgroundColor="#FF9500"
-                                                    paddingHorizontal={8}
-                                                    paddingVertical={4}
-                                                    borderRadius={12}
-                                                    alignItems="center"
-                                                    gap={4}
-                                                  >
-                                                    <MaterialIcons
-                                                      name="lock"
-                                                      size={14}
-                                                      color="white"
-                                                    />
-                                                    <Text
-                                                      fontSize={12}
-                                                      color="white"
-                                                      fontWeight="bold"
-                                                    >
-                                                      LOCKED
-                                                    </Text>
-                                                  </XStack>
-                                                )}
+                                                  {/* Show paywall icon if parent path has paywall */}
+                                                  {detailPath &&
+                                                    isPathPaywallLocked(detailPath) && (
+                                                      <XStack
+                                                        backgroundColor="#00E6C3"
+                                                        paddingHorizontal={8}
+                                                        paddingVertical={4}
+                                                        borderRadius={12}
+                                                        alignItems="center"
+                                                        gap={4}
+                                                      >
+                                                        <Feather
+                                                          name="credit-card"
+                                                          size={14}
+                                                          color="black"
+                                                        />
+                                                        <Text
+                                                          fontSize={12}
+                                                          color="black"
+                                                          fontWeight="bold"
+                                                        >
+                                                          ${(detailPath as any).price_usd || 1.0}
+                                                        </Text>
+                                                      </XStack>
+                                                    )}
+                                                </XStack>
 
-                                                {/* Show paywall icon if parent path has paywall */}
-                                                {detailPath && isPathPaywallLocked(detailPath) && (
-                                                  <XStack
-                                                    backgroundColor="#00E6C3"
-                                                    paddingHorizontal={8}
-                                                    paddingVertical={4}
-                                                    borderRadius={12}
-                                                    alignItems="center"
-                                                    gap={4}
-                                                  >
-                                                    <Feather
-                                                      name="credit-card"
-                                                      size={14}
-                                                      color="black"
-                                                    />
-                                                    <Text
-                                                      fontSize={12}
-                                                      color="black"
-                                                      fontWeight="bold"
-                                                    >
-                                                      ${(detailPath as any).price_usd || 1.0}
-                                                    </Text>
-                                                  </XStack>
+                                                {mainIsPasswordLocked ? (
+                                                  <MaterialIcons
+                                                    name="lock"
+                                                    size={20}
+                                                    color="#FF9500"
+                                                  />
+                                                ) : mainIsDone ? (
+                                                  <Feather
+                                                    name="check-circle"
+                                                    size={20}
+                                                    color="#00E6C3"
+                                                  />
+                                                ) : (
+                                                  <Feather
+                                                    name="chevron-right"
+                                                    size={20}
+                                                    color={colorScheme === 'dark' ? '#888' : '#666'}
+                                                  />
                                                 )}
                                               </XStack>
-
-                                              {mainIsPasswordLocked ? (
-                                                <MaterialIcons
-                                                  name="lock"
-                                                  size={20}
-                                                  color="#FF9500"
-                                                />
-                                              ) : mainIsDone ? (
-                                                <Feather
-                                                  name="check-circle"
-                                                  size={20}
-                                                  color="#00E6C3"
-                                                />
-                                              ) : (
-                                                <Feather
-                                                  name="chevron-right"
-                                                  size={20}
-                                                  color={colorScheme === 'dark' ? '#888' : '#666'}
-                                                />
-                                              )}
-                                            </XStack>
 
                                               {main.description?.[lang] && (
                                                 <Text color="$gray11">
