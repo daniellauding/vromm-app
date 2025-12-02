@@ -1441,19 +1441,21 @@ export function ExerciseListSheet({
                           />
                         }
                       >
-                        {/* Header with back button */}
+                        {/* Header with back button and report flag */}
                         <XStack
                           justifyContent="space-between"
                           alignItems="center"
                           marginBottom={24}
                         >
-                          {!(fromFeaturedContent && initialExerciseId) && (
+                          {!(fromFeaturedContent && initialExerciseId) ? (
                             <TouchableOpacity onPress={() => setSelectedExercise(null)}>
                               <Feather name="arrow-left" size={28} color={iconColor} />
                             </TouchableOpacity>
+                          ) : (
+                            <View style={{ width: 28 }} />
                           )}
 
-                          {!shouldShowQuiz && totalRepeats > 1 && (
+                          {/* {!shouldShowQuiz && totalRepeats > 1 && (
                             <XStack gap={8} alignItems="center">
                               {Array.from({ length: totalRepeats }).map((_, i) => (
                                 <View
@@ -1468,7 +1470,16 @@ export function ExerciseListSheet({
                                 />
                               ))}
                             </XStack>
-                          )}
+                          )} */}
+
+                          <TouchableOpacity
+                            onPress={() => {
+                              console.log('🧾 [ExerciseListSheet] open report exercise', selectedExercise.id);
+                              setReportExerciseId(selectedExercise.id);
+                            }}
+                          >
+                            <Feather name="flag" size={20} color={iconColor} />
+                          </TouchableOpacity>
                         </XStack>
 
                         {/* REGULAR EXERCISE CONTENT - Show if show_exercise_content is enabled */}
@@ -1543,13 +1554,6 @@ export function ExerciseListSheet({
                                 {selectedExercise.description[lang]}
                               </Text>
                             )}
-
-                            <TouchableOpacity
-                              onPress={() => setReportExerciseId(selectedExercise.id)}
-                              style={{ alignSelf: 'flex-end', marginBottom: 8 }}
-                            >
-                              <Text color="#EF4444">Report Exercise</Text>
-                            </TouchableOpacity>
 
                             {/* Password Locked Exercise State */}
                             {isPasswordLocked ? (
