@@ -11,6 +11,8 @@ import {
   RefreshControl,
   Alert,
   TextInput,
+  Linking,
+  Image,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -35,13 +37,12 @@ import { NavigationProp } from '../types/navigation';
 import { supabase } from '../lib/supabase';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { ListOrdered, ChevronDown } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useThemePreference } from '../hooks/useThemeOverride';
 import { getTabContentPadding } from '../utils/layout';
 // import { CommentsSection } from './CommentsSection';
 import { ReportDialog } from './report/ReportDialog';
-import { Image } from 'react-native';
-import { Linking } from 'react-native';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import YoutubePlayer from 'react-native-youtube-iframe';
@@ -78,6 +79,26 @@ interface PathExercise {
   quiz_pass_score?: number;
   show_quiz?: boolean; // NEW: Control quiz visibility from admin
   show_exercise_content?: boolean; // NEW: Control exercise content visibility
+  
+  // Steps System - NEW
+  steps?: ExerciseStep[];
+}
+
+// Steps-related interfaces (same as ProgressScreen)
+interface ExerciseStep {
+  text: { en: string; sv: string };
+  description?: { en: string; sv: string };
+  media?: StepMedia[];
+  order_index: number;
+}
+
+interface StepMedia {
+  id: string;
+  type: 'image' | 'youtube' | 'embed';
+  url: string;
+  title?: { en: string; sv: string };
+  description?: { en: string; sv: string };
+  order_index: number;
 }
 
 interface LearningPath {
@@ -154,7 +175,7 @@ function ProgressCircle({
   );
 }
 
-export function ExerciseListSheet({
+export function ExerciseListSheet({ // #1099
   visible,
   onClose,
   title,
@@ -1571,6 +1592,16 @@ export function ExerciseListSheet({
                               >
                                 {selectedExercise.description[lang]}
                               </Text>
+                            )}
+
+                            {/* Steps Accordion - Optimized for Performance */}
+                            {selectedExercise.steps && selectedExercise.steps.length > 0 && (
+                              <View style={{ marginBottom: 24 }}>
+                                <ExerciseStepsAccordion 
+                                  exercise={selectedExercise} 
+                                  language={lang}
+                                />
+                              </View>
                             )}
 
                             {/* Password Locked Exercise State */}
@@ -3653,3 +3684,204 @@ export function ExerciseListSheet({
     </>
   );
 }
+
+// Performance-optimized Steps Accordion Component
+interface ExerciseStepsAccordionProps {
+  exercise: PathExercise;
+  language: 'en' | 'sv';
+}
+
+interface StepMediaComponentProps {
+  media: any;
+  language: 'en' | 'sv';
+}
+
+// Memoized component for better performance
+const ExerciseStepsAccordion: React.FC<ExerciseStepsAccordionProps> = React.memo(({ exercise, language }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const steps = exercise.steps || [];
+  
+  if (steps.length === 0) return null;
+  
+  return (
+    <YStack gap={8}>
+      <TouchableOpacity
+        onPress={() => setIsExpanded(!isExpanded)}
+        style={{
+          padding: 16,
+          backgroundColor: 'rgba(255, 149, 0, 0.1)',
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: '#FF9500',
+        }}
+      >
+        <XStack alignItems="center" justifyContent="space-between">
+          <XStack alignItems="center" gap={8}>
+            <ListOrdered size={20} color="#FF9500" />
+            <Text fontSize={16} fontWeight="600" color="#FF9500">
+              {language === 'en' ? 'Step-by-step instructions' : 'Steg-för-steg instruktioner'}
+            </Text>
+          </XStack>
+          <ChevronDown 
+            size={20} 
+            color="#FF9500" 
+            style={{ 
+              transform: [{ rotate: isExpanded ? '180deg' : '0deg' }],
+              transition: 'transform 0.2s ease'
+            }} 
+          />
+        </XStack>
+      </TouchableOpacity>
+      
+      {/* Only render content when expanded for performance */}
+      {isExpanded && (
+        <YStack padding={16} paddingTop={0} gap={12}>
+          {steps.map((step: any, index: number) => (
+            <YStack key={index} gap={8}>
+              <XStack gap={12} alignItems="flex-start">
+                <View 
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    backgroundColor: '#FF9500',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 2,
+                  }}
+                >
+                  <Text fontSize={12} fontWeight="bold" color="white">
+                    {index + 1}
+                  </Text>
+                </View>
+                <YStack flex={1} gap={8}>
+                  <Text fontSize={14} lineHeight={20} fontWeight="600">
+                    {step.text?.[language] || step.text?.en || step.text}
+                  </Text>
+                  
+                  {/* Step Description */}
+                  {step.description && (step.description[language] || step.description.en) && (
+                    <Text fontSize={13} color="$gray11" lineHeight={18}>
+                      {step.description[language] || step.description.en}
+                    </Text>
+                  )}
+                  
+                  {/* Media items for this step */}
+                  {step.media && step.media.length > 0 && (
+                    <YStack gap={8} paddingLeft={8}>
+                      {step.media.map((media: any, mediaIndex: number) => (
+                        <StepMediaComponent
+                          key={media.id || mediaIndex}
+                          media={media}
+                          language={language}
+                        />
+                      ))}
+                    </YStack>
+                  )}
+                </YStack>
+              </XStack>
+              
+              {/* Divider between steps */}
+              {index < steps.length - 1 && (
+                <View 
+                  style={{
+                    height: 1,
+                    backgroundColor: 'rgba(0,0,0,0.1)',
+                    marginTop: 8,
+                    marginLeft: 36,
+                  }}
+                />
+              )}
+            </YStack>
+          ))}
+        </YStack>
+      )}
+    </YStack>
+  );
+});
+
+// Memoized media component for performance
+const StepMediaComponent: React.FC<StepMediaComponentProps> = React.memo(({ media, language }) => {
+  const title = media.title?.[language] || media.title?.en || media.title || '';
+  const description = media.description?.[language] || media.description?.en || media.description || '';
+  
+  const handleMediaPress = () => {
+    if (media.url) {
+      Linking.openURL(media.url);
+    }
+  };
+  
+  const renderMediaContent = () => {
+    switch (media.type) {
+      case 'image':
+        return (
+          <TouchableOpacity onPress={handleMediaPress}>
+            <Image
+              source={{ uri: media.url }}
+              style={{
+                width: '100%',
+                height: 120,
+                borderRadius: 8,
+                resizeMode: 'cover',
+              }}
+            />
+          </TouchableOpacity>
+        );
+      case 'youtube':
+        return (
+          <TouchableOpacity
+            onPress={handleMediaPress}
+            style={{
+              padding: 16,
+              backgroundColor: '#FF0000',
+              borderRadius: 8,
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 60,
+            }}
+          >
+            <Text color="white" fontWeight="bold" fontSize={14}>
+              📹 {title || (language === 'en' ? 'YouTube Video' : 'YouTube Video')}
+            </Text>
+          </TouchableOpacity>
+        );
+      case 'embed':
+        return (
+          <TouchableOpacity
+            onPress={handleMediaPress}
+            style={{
+              padding: 16,
+              backgroundColor: '#007AFF',
+              borderRadius: 8,
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 60,
+            }}
+          >
+            <Text color="white" fontWeight="bold" fontSize={14}>
+              🔗 {title || (language === 'en' ? 'Interactive Content' : 'Interaktivt Innehåll')}
+            </Text>
+          </TouchableOpacity>
+        );
+      default:
+        return null;
+    }
+  };
+  
+  return (
+    <YStack gap={4}>
+      {renderMediaContent()}
+      {title && (
+        <Text fontSize={12} fontWeight="600" paddingHorizontal={4}>
+          {title}
+        </Text>
+      )}
+      {description && (
+        <Text fontSize={11} color="$color11" paddingHorizontal={4} lineHeight={16}>
+          {description}
+        </Text>
+      )}
+    </YStack>
+  );
+});
