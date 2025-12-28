@@ -1410,9 +1410,36 @@ export function ExerciseListSheet({
                   {/* Show content only if not in mini mode */}
                   {currentSnapPoint !== snapPoints.mini && (
                     <View style={{ flex: 1 }}>
+                      {/* Enhanced Header Overlay */}
+                      <HeaderComponent
+                        title=""
+                        variant="smart"
+                        enableBlur={true}
+                        leftElement={
+                          !(fromFeaturedContent && initialExerciseId) ? (
+                            <TouchableOpacity onPress={() => setSelectedExercise(null)}>
+                              <Feather name="arrow-left" size={28} color={iconColor} />
+                            </TouchableOpacity>
+                          ) : undefined
+                        }
+                        rightElement={
+                          <TouchableOpacity
+                            onPress={() => {
+                              console.log(
+                                '🧾 [ExerciseListSheet] open report exercise',
+                                selectedExercise.id,
+                              );
+                              setReportExerciseId(selectedExercise.id);
+                            }}
+                          >
+                            <Feather name="flag" size={20} color={iconColor} />
+                          </TouchableOpacity>
+                        }
+                      />
                       <ScrollView
                         contentContainerStyle={{
-                          padding: 0,
+                          padding: 24,
+                          paddingTop: 120,
                           paddingBottom: getTabContentPadding(),
                         }}
                         refreshControl={
@@ -1427,38 +1454,6 @@ export function ExerciseListSheet({
                         onScroll={headerOnScroll}
                         scrollEventThrottle={16}
                       >
-                        {/* Header with back button and report flag */}
-                        <XStack
-                          justifyContent="space-between"
-                          alignItems="center"
-                          marginBottom={24}
-                          paddingTop={16}
-                        >
-                          {!(fromFeaturedContent && initialExerciseId) ? (
-                            <TouchableOpacity onPress={() => setSelectedExercise(null)}>
-                              <Feather name="arrow-left" size={28} color={iconColor} />
-                            </TouchableOpacity>
-                          ) : (
-                            <View style={{ width: 28 }} />
-                          )}
-
-                          <TouchableOpacity
-                            onPress={() => {
-                              console.log(
-                                '🧾 [ExerciseListSheet] open report exercise',
-                                selectedExercise.id,
-                              );
-                              setReportExerciseId(selectedExercise.id);
-                            }}
-                            style={{
-                              padding: 8,
-                              borderRadius: 8,
-                              backgroundColor: 'transparent',
-                            }}
-                          >
-                            <Feather name="flag" size={22} color={iconColor} />
-                          </TouchableOpacity>
-                        </XStack>
 
                         {/* Exercise Progress Circle - Show for exercises with repeats - HIDDEN (using horizontal bar instead) */}
                         {/* {selectedExercise.repeat_count && selectedExercise.repeat_count > 1 && (
