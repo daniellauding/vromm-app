@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Text, YStack, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
-import { Animated, TouchableOpacity } from 'react-native';
+import { Animated, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -51,7 +51,7 @@ export function Header({
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
   const lastScrollY = useRef(0);
   
-  // Animation values
+  // Animation values - header should be visible by default
   const headerOpacity = useRef(new Animated.Value(1)).current;
   const headerTranslateY = useRef(new Animated.Value(0)).current;
   const backgroundOpacity = useRef(new Animated.Value(0)).current;
@@ -93,7 +93,8 @@ export function Header({
     if (!scrollY || (variant !== 'sticky' && variant !== 'floating')) return;
     
     const listener = scrollY.addListener(({ value }) => {
-      const opacity = Math.min(value / 100, 1);
+      // Only show background/blur when scrolled past threshold
+      const opacity = Math.min(Math.max(value - 50, 0) / 100, 1);
       backgroundOpacity.setValue(opacity);
     });
     
@@ -197,11 +198,13 @@ export function Header({
         }}
       >
         {enableBlur ? (
-          <BlurView
-            intensity={80}
-            tint={resolvedBlurTint}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-          />
+          <Animated.View style={{ opacity: backgroundOpacity }}>
+            <BlurView
+              intensity={80}
+              tint={resolvedBlurTint}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            />
+          </Animated.View>
         ) : (
           <Animated.View
             style={{
@@ -229,8 +232,10 @@ export function Header({
           top: 0,
           left: 0,
           right: 0,
-          zIndex: 1000,
-          paddingTop: insets.top,
+          zIndex: 9999,
+          paddingTop: insets.top + 10,
+          paddingBottom: 10,
+          minHeight: 80,
           opacity: headerOpacity,
           transform: [{ translateY: headerTranslateY }],
         }}
@@ -242,7 +247,7 @@ export function Header({
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           />
         ) : (
-          <Animated.View
+          <View
             style={{
               position: 'absolute',
               top: 0,
@@ -250,7 +255,6 @@ export function Header({
               right: 0,
               bottom: 0,
               backgroundColor: isDark ? 'rgba(26, 26, 26, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-              opacity: 0.95,
             }}
           />
         )}
@@ -306,7 +310,7 @@ export function useHeaderWithScroll() {
   
   const onScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: false },
+    { useNativeDriver: false }
   );
   
   const HeaderComponent = (props: Omit<HeaderProps, 'scrollY'>) => (

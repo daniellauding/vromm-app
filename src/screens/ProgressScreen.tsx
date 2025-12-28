@@ -4022,8 +4022,31 @@ export function ProgressScreen() {
 
     return (
       <YStack flex={1} backgroundColor="$background" paddingHorizontal={0} paddingVertical={40}>
+        {/* Enhanced Header Overlay */}
+        <HeaderComponent
+          title=""
+          variant="smart"
+          enableBlur={true}
+          leftElement={
+            <TouchableOpacity onPress={() => setSelectedExercise(null)}>
+              <Feather name="arrow-left" size={28} color={iconColor} />
+            </TouchableOpacity>
+          }
+          rightElement={
+            <TouchableOpacity
+              onPress={() => {
+                console.log('🧾 [ProgressScreen] open report exercise', selectedExercise.id);
+                setReportExerciseId(selectedExercise.id);
+              }}
+            >
+              <Feather name="flag" size={20} color={iconColor} />
+            </TouchableOpacity>
+          }
+        />
         <ScrollView
-          contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
+          contentContainerStyle={{ padding: 24, paddingTop: 120, paddingBottom: getTabContentPadding() }}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -4034,37 +4057,7 @@ export function ProgressScreen() {
             />
           }
         >
-          {/* Header with back button and repetition indicators */}
-          <XStack justifyContent="space-between" alignItems="center" marginBottom={24}>
-            <TouchableOpacity onPress={() => setSelectedExercise(null)}>
-              <Feather name="arrow-left" size={28} color={iconColor} />
-            </TouchableOpacity>
-
-            {/* {totalRepeats > 1 && (
-              <XStack gap={8} alignItems="center">
-                {Array.from({ length: totalRepeats }).map((_, i) => (
-                  <View
-                    key={`repeat-indicator-${selectedExercise.id}-${i}`}
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: i + 1 === currentRepeatNumber ? '#4B6BFF' : '#444',
-                    }}
-                  />
-                ))}
-              </XStack>
-            )} */}
-
-            <TouchableOpacity
-              onPress={() => {
-                console.log('🧾 [ProgressScreen] open report exercise', selectedExercise.id);
-                setReportExerciseId(selectedExercise.id);
-              }}
-            >
-              <Feather name="flag" size={20} color={iconColor} />
-            </TouchableOpacity>
-          </XStack>
+          {/* Header is now a smart overlay component above */}
 
           {/* Exercise Progress Circle - Show for exercises with repeats - HIDDEN (using horizontal bar instead) */}
           {/* {selectedExercise.repeat_count && selectedExercise.repeat_count > 1 && (
@@ -4631,6 +4624,27 @@ export function ProgressScreen() {
 
     return (
       <YStack flex={1} backgroundColor="$background" paddingHorizontal={0} paddingVertical={40}>
+        {/* Enhanced Header Overlay for Learning Path */}
+        <HeaderComponent
+          title=""
+          variant="smart"
+          enableBlur={true}
+          leftElement={
+            <TouchableOpacity onPress={() => setShowDetailView(false)}>
+              <Feather name="arrow-left" size={28} color={iconColor} />
+            </TouchableOpacity>
+          }
+          rightElement={
+            <TouchableOpacity
+              onPress={() => {
+                console.log('🧾 [ProgressScreen] open report path', detailPath.id);
+                setReportPath(true);
+              }}
+            >
+              <Feather name="flag" size={20} color={iconColor} />
+            </TouchableOpacity>
+          }
+        />
         <ScrollView
           contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding(), paddingTop: 120 }}
           refreshControl={
@@ -4645,25 +4659,6 @@ export function ProgressScreen() {
           onScroll={onScroll}
           scrollEventThrottle={16}
         >
-          <HeaderComponent
-            title={detailPath?.title?.[language] || detailPath?.title?.en || 'Learning Path'}
-            showBack={true}
-            onBackPress={() => setShowDetailView(false)}
-            variant="sticky"
-            enableBlur={true}
-            rightElement={
-              <TouchableOpacity
-                onPress={() => {
-                  console.log('🧾 [ProgressScreen] open report path', detailPath.id);
-                  setReportPath(true);
-                }}
-                style={{ padding: 8 }}
-              >
-                <Feather name="flag" size={20} color={iconColor} />
-              </TouchableOpacity>
-            }
-          />
-
           {viewingUserName && user?.role === 'instructor' && (
             <YStack marginBottom={12} padding={10} backgroundColor="#162023" borderRadius={12}>
               <Text color="#00E6C3" fontSize={12}>
@@ -4986,8 +4981,26 @@ export function ProgressScreen() {
 
   return (
     <YStack flex={1} backgroundColor="$background" paddingHorizontal={0} paddingVertical={40}>
+      {/* Enhanced Header Overlay for Main Screen */}
+      <HeaderComponent
+        title=""
+        variant="smart"
+        enableBlur={true}
+        leftElement={
+          <TouchableOpacity onPress={() => console.log('Settings or menu could go here')}>
+            <Feather name="menu" size={28} color={iconColor} />
+          </TouchableOpacity>
+        }
+        rightElement={
+          <TouchableOpacity onPress={() => setHistoryModalVisible(true)}>
+            <Feather name="clock" size={20} color={iconColor} />
+          </TouchableOpacity>
+        }
+      />
       <ScrollView
-        contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
+        contentContainerStyle={{ padding: 24, paddingTop: 120, paddingBottom: getTabContentPadding() }}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -5289,6 +5302,8 @@ export function ProgressScreen() {
           </YStack>
         )}
       </ScrollView>
+      
+      
       {reportPath && detailPath && (
         <ReportDialog
           reportableId={detailPath.id}
