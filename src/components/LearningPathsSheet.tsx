@@ -29,6 +29,7 @@ import { useUnlock } from '../contexts/UnlockContext';
 import { supabase } from '../lib/supabase';
 import { useThemePreference } from '../hooks/useThemeOverride';
 import { LearningPathCard } from './LearningPathCard';
+import { Header, useHeaderWithScroll } from './Header';
 
 const { height } = Dimensions.get('window');
 
@@ -80,7 +81,6 @@ interface LearningPathsSheetProps {
   onBack?: () => void;
 }
 
-
 export function LearningPathsSheet({
   visible,
   onClose,
@@ -96,6 +96,9 @@ export function LearningPathsSheet({
   const { isPathUnlocked, hasPathPayment, loadUserPayments, loadUnlockedContent } = useUnlock();
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
+
+  // Enhanced header for learning paths
+  const { HeaderComponent, onScroll: headerOnScroll } = useHeaderWithScroll();
 
   // Theme colors - matching ProgressScreen exactly
   const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
@@ -536,134 +539,102 @@ export function LearningPathsSheet({
                 {/* Show content only if not in mini mode */}
                 {currentSnapPoint !== snapPoints.mini && (
                   <View style={{ flex: 1 }}>
-                    {/* Header */}
-                    <XStack justifyContent="space-between" alignItems="center">
-                      {onBack ? (
-                        <TouchableOpacity onPress={onBack}>
-                          <Feather
-                            name="arrow-left"
-                            size={24}
-                            color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                          />
-                        </TouchableOpacity>
-                      ) : (
-                        <View style={{ width: 24 }} />
-                      )}
+                    {/* Enhanced Header Overlay */}
+                    <HeaderComponent
+                      title=""
+                      variant="default"
+                      showBack={!!onBack}
+                      onBackPress={onBack}
+                      enableBlur={false}
+                      rightElement={
+                        <XStack gap={8}>
+                          <TouchableOpacity
+                            onPress={() => {
+                              console.log('🎯 [LearningPathsSheet] Filter button pressed');
+                              setShowFilterDrawer(true);
+                            }}
+                            style={{
+                              backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                              width: 48,
+                              height: 48,
+                              borderRadius: 12,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              position: 'relative',
+                            }}
+                          >
+                            <Feather
+                              name="filter"
+                              size={20}
+                              color={colorScheme === 'dark' ? '#00E6C3' : '#00C9A7'}
+                            />
+                            {/* Show active filter count badge */}
+                            {(() => {
+                              const activeFilters = Object.values(categoryFilters).filter(
+                                (value) => value !== 'all',
+                              ).length;
+                              return activeFilters > 0 ? (
+                                <View
+                                  style={{
+                                    position: 'absolute',
+                                    top: -4,
+                                    right: -4,
+                                    backgroundColor: '#00E6C3',
+                                    borderRadius: 10,
+                                    minWidth: 20,
+                                    height: 20,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    paddingHorizontal: 4,
+                                  }}
+                                >
+                                  <Text fontSize={12} fontWeight="bold" color="#000">
+                                    {activeFilters}
+                                  </Text>
+                                </View>
+                              ) : null;
+                            })()}
+                          </TouchableOpacity>
 
-                      {/* <Text
-                        fontSize="$6"
-                        fontWeight="bold"
-                        color="$color"
-                        textAlign="center"
-                        flex={1}
-                      >
-                        {title}
-                      </Text> */}
-
-                      {/* <TouchableOpacity onPress={onClose}>
-                        <Feather
-                          name="x"
-                          size={24}
-                          color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                        />
-                      </TouchableOpacity> */}
-                    </XStack>
-
-                    {/* Filter and Show All Buttons */}
-                    <XStack gap={12} marginTop={16} marginBottom={16}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          console.log('🎯 [LearningPathsSheet] Filter button pressed');
-                          setShowFilterDrawer(true);
-                        }}
-                        style={{
-                          backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
-                          width: 48,
-                          height: 48,
-                          borderRadius: 12,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          position: 'relative',
-                        }}
-                      >
-                        <Feather
-                          name="filter"
-                          size={20}
-                          color={colorScheme === 'dark' ? '#00E6C3' : '#00C9A7'}
-                        />
-                        {/* Show active filter count badge */}
-                        {(() => {
-                          const activeFilters = Object.values(categoryFilters).filter(
-                            (value) => value !== 'all',
-                          ).length;
-                          return activeFilters > 0 ? (
-                            <View
-                              style={{
-                                position: 'absolute',
-                                top: -4,
-                                right: -4,
-                                backgroundColor: '#00E6C3',
-                                borderRadius: 10,
-                                minWidth: 20,
-                                height: 20,
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                paddingHorizontal: 4,
-                              }}
+                          <TouchableOpacity
+                            onPress={() => {
+                              console.log('🎯 [LearningPathsSheet] Show All toggle pressed');
+                              setShowAllPaths(!showAllPaths);
+                            }}
+                            style={{
+                              backgroundColor: showAllPaths
+                                ? '#4B6BFF'
+                                : colorScheme === 'dark'
+                                  ? '#333'
+                                  : '#E5E5E5',
+                              paddingHorizontal: 12,
+                              paddingVertical: 12,
+                              borderRadius: 12,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <Feather
+                              name={showAllPaths ? 'list' : 'plus'}
+                              size={14}
+                              color={
+                                showAllPaths ? 'white' : colorScheme === 'dark' ? '#888' : '#666'
+                              }
+                            />
+                            <Text
+                              fontSize={12}
+                              fontWeight="600"
+                              color={
+                                showAllPaths ? 'white' : colorScheme === 'dark' ? '#888' : '#666'
+                              }
                             >
-                              <Text fontSize={12} fontWeight="bold" color="#000">
-                                {activeFilters}
-                              </Text>
-                            </View>
-                          ) : null;
-                        })()}
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        onPress={() => {
-                          console.log('🎯 [LearningPathsSheet] Show All toggle pressed');
-                          setShowAllPaths(!showAllPaths);
-                        }}
-                        style={{
-                          backgroundColor: showAllPaths
-                            ? '#4B6BFF'
-                            : colorScheme === 'dark'
-                              ? '#333'
-                              : '#E5E5E5',
-                          paddingHorizontal: 12,
-                          paddingVertical: 12,
-                          borderRadius: 12,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 6,
-                        }}
-                      >
-                        <Feather
-                          name={showAllPaths ? 'list' : 'plus'}
-                          size={14}
-                          color={
-                            showAllPaths
-                              ? 'white'
-                              : colorScheme === 'dark'
-                                ? '#888'
-                                : '#666'
-                          }
-                        />
-                        <Text
-                          fontSize={12}
-                          fontWeight="600"
-                          color={
-                            showAllPaths
-                              ? 'white'
-                              : colorScheme === 'dark'
-                                ? '#888'
-                                : '#666'
-                          }
-                        >
-                          {showAllPaths ? 'All Paths' : 'Show All'}
-                        </Text>
-                      </TouchableOpacity>
-                    </XStack>
+                              {showAllPaths ? 'All Paths' : 'Show All'}
+                            </Text>
+                          </TouchableOpacity>
+                        </XStack>
+                      }
+                    />
 
                     {/* Learning Paths List */}
                     <YStack flex={1}>
@@ -690,6 +661,8 @@ export function LearningPathsSheet({
                               progressBackgroundColor="#1a1a1a"
                             />
                           }
+                          onScroll={headerOnScroll}
+                          scrollEventThrottle={16}
                         >
                           <YStack gap="$3">
                             {displayPaths.map((path, index) => {

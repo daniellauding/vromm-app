@@ -49,6 +49,7 @@ import YoutubePlayer from 'react-native-youtube-iframe';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExerciseCard } from './ExerciseCard';
 import { ExerciseHeader } from './ExerciseHeader';
+import { Header, useHeaderWithScroll } from './Header';
 
 const { height } = Dimensions.get('window');
 
@@ -81,7 +82,7 @@ interface PathExercise {
   quiz_pass_score?: number;
   show_quiz?: boolean; // NEW: Control quiz visibility from admin
   show_exercise_content?: boolean; // NEW: Control exercise content visibility
-  
+
   // Steps System - NEW
   steps?: ExerciseStep[];
 }
@@ -133,8 +134,8 @@ interface ExerciseListSheetProps {
   onExerciseCompleted?: (exerciseId: string, exerciseTitle: string) => void; // Callback when exercise is completed
 }
 
-
-export function ExerciseListSheet({ // #1099
+export function ExerciseListSheet({
+  // #1099
   visible,
   onClose,
   title,
@@ -169,6 +170,9 @@ export function ExerciseListSheet({ // #1099
   const colorScheme = effectiveTheme || 'light';
   const navigation = useNavigation<NavigationProp>();
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+  // Enhanced header for exercise list
+  const { HeaderComponent, onScroll: headerOnScroll } = useHeaderWithScroll();
 
   // Theme colors - matching ProgressScreen exactly
   const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
@@ -1420,12 +1424,15 @@ export function ExerciseListSheet({ // #1099
                             progressBackgroundColor="#1a1a1a"
                           />
                         }
+                        onScroll={headerOnScroll}
+                        scrollEventThrottle={16}
                       >
                         {/* Header with back button and report flag */}
                         <XStack
                           justifyContent="space-between"
                           alignItems="center"
                           marginBottom={24}
+                          paddingTop={16}
                         >
                           {!(fromFeaturedContent && initialExerciseId) ? (
                             <TouchableOpacity onPress={() => setSelectedExercise(null)}>
@@ -1435,23 +1442,6 @@ export function ExerciseListSheet({ // #1099
                             <View style={{ width: 28 }} />
                           )}
 
-                          {/* {!shouldShowQuiz && totalRepeats > 1 && (
-                            <XStack gap={8} alignItems="center">
-                              {Array.from({ length: totalRepeats }).map((_, i) => (
-                                <View
-                                  key={`repeat-indicator-${selectedExercise.id}-${i}`}
-                                  style={{
-                                    width: 10,
-                                    height: 10,
-                                    borderRadius: 5,
-                                    backgroundColor:
-                                      i + 1 === currentRepeatNumber ? '#00E6C3' : '#444',
-                                  }}
-                                />
-                              ))}
-                            </XStack>
-                          )} */}
-
                           <TouchableOpacity
                             onPress={() => {
                               console.log(
@@ -1460,8 +1450,13 @@ export function ExerciseListSheet({ // #1099
                               );
                               setReportExerciseId(selectedExercise.id);
                             }}
+                            style={{
+                              padding: 8,
+                              borderRadius: 8,
+                              backgroundColor: 'transparent',
+                            }}
                           >
-                            <Feather name="flag" size={20} color={iconColor} />
+                            <Feather name="flag" size={22} color={iconColor} />
                           </TouchableOpacity>
                         </XStack>
 
@@ -1556,8 +1551,8 @@ export function ExerciseListSheet({ // #1099
                             {/* Steps Accordion - Optimized for Performance */}
                             {selectedExercise.steps && selectedExercise.steps.length > 0 && (
                               <View style={{ marginBottom: 24 }}>
-                                <ExerciseStepsAccordion 
-                                  exercise={selectedExercise} 
+                                <ExerciseStepsAccordion
+                                  exercise={selectedExercise}
                                   language={lang}
                                 />
                               </View>
@@ -2501,7 +2496,11 @@ export function ExerciseListSheet({ // #1099
                     >
                       <View style={{ flex: 1 }}>
                         {/* Back Button */}
-                        <XStack justifyContent="space-between" alignItems="center" marginBottom={16}>
+                        <XStack
+                          justifyContent="space-between"
+                          alignItems="center"
+                          marginBottom={16}
+                        >
                           {onBackToAllPaths && !fromFeaturedContent ? (
                             <TouchableOpacity onPress={onBackToAllPaths}>
                               <Feather
@@ -3385,121 +3384,124 @@ interface StepMediaComponentProps {
 }
 
 // Memoized component for better performance
-const ExerciseStepsAccordion: React.FC<ExerciseStepsAccordionProps> = React.memo(({ exercise, language }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  const steps = exercise.steps || [];
-  
-  if (steps.length === 0) return null;
-  
-  return (
-    <YStack gap={8}>
-      <TouchableOpacity
-        onPress={() => setIsExpanded(!isExpanded)}
-        style={{
-          padding: 16,
-          backgroundColor: 'rgba(255, 149, 0, 0.1)',
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: '#FF9500',
-        }}
-      >
-        <XStack alignItems="center" justifyContent="space-between">
-          <XStack alignItems="center" gap={8}>
-            <ListOrdered size={20} color="#FF9500" />
-            <Text fontSize={16} fontWeight="600" color="#FF9500">
-              {language === 'en' ? 'Step-by-step instructions' : 'Steg-för-steg instruktioner'}
-            </Text>
+const ExerciseStepsAccordion: React.FC<ExerciseStepsAccordionProps> = React.memo(
+  ({ exercise, language }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    const steps = exercise.steps || [];
+
+    if (steps.length === 0) return null;
+
+    return (
+      <YStack gap={8}>
+        <TouchableOpacity
+          onPress={() => setIsExpanded(!isExpanded)}
+          style={{
+            padding: 16,
+            backgroundColor: 'rgba(255, 149, 0, 0.1)',
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: '#FF9500',
+          }}
+        >
+          <XStack alignItems="center" justifyContent="space-between">
+            <XStack alignItems="center" gap={8}>
+              <ListOrdered size={20} color="#FF9500" />
+              <Text fontSize={16} fontWeight="600" color="#FF9500">
+                {language === 'en' ? 'Step-by-step instructions' : 'Steg-för-steg instruktioner'}
+              </Text>
+            </XStack>
+            <ChevronDown
+              size={20}
+              color="#FF9500"
+              style={{
+                transform: [{ rotate: isExpanded ? '180deg' : '0deg' }],
+                transition: 'transform 0.2s ease',
+              }}
+            />
           </XStack>
-          <ChevronDown 
-            size={20} 
-            color="#FF9500" 
-            style={{ 
-              transform: [{ rotate: isExpanded ? '180deg' : '0deg' }],
-              transition: 'transform 0.2s ease'
-            }} 
-          />
-        </XStack>
-      </TouchableOpacity>
-      
-      {/* Only render content when expanded for performance */}
-      {isExpanded && (
-        <YStack padding={16} paddingTop={0} gap={12}>
-          {steps.map((step: any, index: number) => (
-            <YStack key={index} gap={8}>
-              <XStack gap={12} alignItems="flex-start">
-                <View 
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 12,
-                    backgroundColor: '#FF9500',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginTop: 2,
-                  }}
-                >
-                  <Text fontSize={12} fontWeight="bold" color="white">
-                    {index + 1}
-                  </Text>
-                </View>
-                <YStack flex={1} gap={8}>
-                  <Text fontSize={14} lineHeight={20} fontWeight="600">
-                    {step.text?.[language] || step.text?.en || step.text}
-                  </Text>
-                  
-                  {/* Step Description */}
-                  {step.description && (step.description[language] || step.description.en) && (
-                    <Text fontSize={13} color="$gray11" lineHeight={18}>
-                      {step.description[language] || step.description.en}
+        </TouchableOpacity>
+
+        {/* Only render content when expanded for performance */}
+        {isExpanded && (
+          <YStack padding={16} paddingTop={0} gap={12}>
+            {steps.map((step: any, index: number) => (
+              <YStack key={index} gap={8}>
+                <XStack gap={12} alignItems="flex-start">
+                  <View
+                    style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: '#FF9500',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 2,
+                    }}
+                  >
+                    <Text fontSize={12} fontWeight="bold" color="white">
+                      {index + 1}
                     </Text>
-                  )}
-                  
-                  {/* Media items for this step */}
-                  {step.media && step.media.length > 0 && (
-                    <YStack gap={8} paddingLeft={8}>
-                      {step.media.map((media: any, mediaIndex: number) => (
-                        <StepMediaComponent
-                          key={media.id || mediaIndex}
-                          media={media}
-                          language={language}
-                        />
-                      ))}
-                    </YStack>
-                  )}
-                </YStack>
-              </XStack>
-              
-              {/* Divider between steps */}
-              {index < steps.length - 1 && (
-                <View 
-                  style={{
-                    height: 1,
-                    backgroundColor: 'rgba(0,0,0,0.1)',
-                    marginTop: 8,
-                    marginLeft: 36,
-                  }}
-                />
-              )}
-            </YStack>
-          ))}
-        </YStack>
-      )}
-    </YStack>
-  );
-});
+                  </View>
+                  <YStack flex={1} gap={8}>
+                    <Text fontSize={14} lineHeight={20} fontWeight="600">
+                      {step.text?.[language] || step.text?.en || step.text}
+                    </Text>
+
+                    {/* Step Description */}
+                    {step.description && (step.description[language] || step.description.en) && (
+                      <Text fontSize={13} color="$gray11" lineHeight={18}>
+                        {step.description[language] || step.description.en}
+                      </Text>
+                    )}
+
+                    {/* Media items for this step */}
+                    {step.media && step.media.length > 0 && (
+                      <YStack gap={8} paddingLeft={8}>
+                        {step.media.map((media: any, mediaIndex: number) => (
+                          <StepMediaComponent
+                            key={media.id || mediaIndex}
+                            media={media}
+                            language={language}
+                          />
+                        ))}
+                      </YStack>
+                    )}
+                  </YStack>
+                </XStack>
+
+                {/* Divider between steps */}
+                {index < steps.length - 1 && (
+                  <View
+                    style={{
+                      height: 1,
+                      backgroundColor: 'rgba(0,0,0,0.1)',
+                      marginTop: 8,
+                      marginLeft: 36,
+                    }}
+                  />
+                )}
+              </YStack>
+            ))}
+          </YStack>
+        )}
+      </YStack>
+    );
+  },
+);
 
 // Memoized media component for performance
 const StepMediaComponent: React.FC<StepMediaComponentProps> = React.memo(({ media, language }) => {
   const title = media.title?.[language] || media.title?.en || media.title || '';
-  const description = media.description?.[language] || media.description?.en || media.description || '';
-  
+  const description =
+    media.description?.[language] || media.description?.en || media.description || '';
+
   const handleMediaPress = () => {
     if (media.url) {
       Linking.openURL(media.url);
     }
   };
-  
+
   const renderMediaContent = () => {
     switch (media.type) {
       case 'image':
@@ -3556,7 +3558,7 @@ const StepMediaComponent: React.FC<StepMediaComponentProps> = React.memo(({ medi
         return null;
     }
   };
-  
+
   return (
     <YStack gap={4}>
       {renderMediaContent()}
