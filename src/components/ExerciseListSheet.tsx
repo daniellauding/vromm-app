@@ -2761,22 +2761,14 @@ export function ExerciseListSheet({ // #1099
                                         checked={mainIsDone}
                                         disabled={!mainIsAvailable}
                                         locked={mainIsPasswordLocked}
-                                        repeatCount={main.repeat_count}
-                                        commentCount={commentCounts[main.id]}
-                                        hasQuiz={false}
-                                        paywallEnabled={detailPath && isPathPaywallLocked(detailPath)}
-                                        price={(detailPath as any)?.price_usd}
-                                        currency="USD"
-                                        completedRepeats={(() => {
-                                          const { completed } = getRepeatProgress(main);
-                                          return completed;
-                                        })()}
+                                        showChevron={true}
                                         onCheckboxPress={() => {
                                           if (mainIsAvailable) {
                                             playDoneSound();
                                             toggleCompletionWithRepeats(main.id, true);
                                           }
                                         }}
+                                        onPress={() => setSelectedExercise(main)}
                                         size="md"
                                         variant="default"
                                       />

@@ -4928,13 +4928,7 @@ export function ProgressScreen() {
                     checked={mainIsDone}
                     disabled={!mainIsAvailable}
                     locked={mainIsPasswordLocked}
-                    repeatCount={main.repeat_count}
-                    commentCount={commentCounts[main.id]}
-                    hasQuiz={hasQuizQuestions[main.id]}
-                    completedRepeats={(() => {
-                      const { completed } = getRepeatProgress(main);
-                      return completed;
-                    })()}
+                    showChevron={true}
                     onPress={() => handleExerciseSelect(main)}
                     onCheckboxPress={async () => {
                       if (mainIsAvailable) {
@@ -4998,26 +4992,7 @@ export function ProgressScreen() {
                       }
                     }}
                     size="md"
-                    variant="detailed"
-                    lastAction={lastAuditByExercise[main.id] ? {
-                      action: (() => {
-                        const a = lastAuditByExercise[main.id] as any;
-                        let verb = a.action;
-                        if (verb === 'completed')
-                          verb = t('progressSection.markedComplete') || 'Marked complete';
-                        if (verb === 'uncompleted')
-                          verb = t('progressSection.markedIncomplete') || 'Marked incomplete';
-                        if (verb.includes('virtual')) {
-                          const rep = a.repeat_number
-                            ? `${t('progressSection.repetition') || 'Repetition'} ${a.repeat_number}`
-                            : t('progressSection.repetition') || 'Repetition';
-                          verb = `${rep} ${t('progressSection.completed') || 'completed'}`;
-                        }
-                        return verb;
-                      })(),
-                      actorName: (lastAuditByExercise[main.id] as any).actor_name || t('progressSection.unknown') || 'Unknown',
-                      createdAt: (lastAuditByExercise[main.id] as any).created_at,
-                    } : undefined}
+                    variant="default"
                   />
                 </YStack>
               );

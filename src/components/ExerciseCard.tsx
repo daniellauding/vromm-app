@@ -1,6 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, View } from 'react-native';
-import { XStack, YStack, Text, Card } from 'tamagui';
+import { TouchableOpacity } from 'react-native';
+import { XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { Checkbox } from './Checkbox';
 import { useThemePreference } from '../hooks/useThemeOverride';
@@ -18,20 +18,9 @@ interface ExerciseCardProps {
   checked?: boolean;
   disabled?: boolean;
   locked?: boolean;
-  active?: boolean;
   
   // Features
-  repeatCount?: number;
-  commentCount?: number;
-  hasQuiz?: boolean;
-  
-  // Paywall
-  paywallEnabled?: boolean;
-  price?: number;
-  currency?: string;
-  
-  // Progress
-  completedRepeats?: number;
+  showChevron?: boolean;  // Control chevron visibility
   
   // Actions
   onPress?: () => void;
@@ -41,13 +30,6 @@ interface ExerciseCardProps {
   size?: ExerciseCardSize;
   variant?: ExerciseCardVariant;
   borderColor?: string;
-  
-  // Additional info
-  lastAction?: {
-    action: string;
-    actorName?: string;
-    createdAt: string;
-  };
   
   // Customization
   testID?: string;
@@ -95,20 +77,12 @@ export function ExerciseCard({
   checked = false,
   disabled = false,
   locked = false,
-  active = false,
-  repeatCount,
-  commentCount,
-  hasQuiz = false,
-  paywallEnabled = false,
-  price,
-  currency = 'USD',
-  completedRepeats = 0,
+  showChevron = true,  // Default to showing chevron
   onPress,
   onCheckboxPress,
   size = 'md',
   variant = 'default',
   borderColor,
-  lastAction,
   testID,
 }: ExerciseCardProps) {
   const { effectiveTheme } = useThemePreference();
@@ -116,11 +90,9 @@ export function ExerciseCard({
   const iconColor = isDark ? '#FFFFFF' : '#000000';
   const config = sizeConfig[size];
   
-  // Dynamic border color - automatically highlight when checked
+  // Dynamic border color - simple and clean
   const getBorderColor = () => {
     if (borderColor) return borderColor;
-    if (checked) return '#00E6C3';
-    if (active) return '#00E6C3';
     if (locked) return '#FF9500';
     return isDark ? '#333' : '#E5E5E5';
   };
@@ -144,141 +116,17 @@ export function ExerciseCard({
     }
   };
   
-  // Render progress bar for repeats (only show if repeat count > 1 and we have progress)
-  const renderProgressBar = () => {
-    if (!repeatCount || repeatCount <= 1) return null;
-    const percent = repeatCount > 0 ? completedRepeats / repeatCount : 0;
-    
-    return (
-      <XStack alignItems="center" gap={4} marginTop={4}>
-        <View
-          style={{
-            width: 60,
-            height: 4,
-            backgroundColor: '#333',
-            borderRadius: 2,
-            overflow: 'hidden',
-          }}
-        >
-          <View
-            style={{
-              width: `${Math.round(percent * 100)}%`,
-              height: '100%',
-              backgroundColor: '#00E6C3',
-              borderRadius: 2,
-            }}
-          />
-        </View>
-        <Text fontSize={10} color="$gray11">
-          {completedRepeats}/{repeatCount}
-        </Text>
-      </XStack>
-    );
-  };
+  // Removed progress bar - keeping it simple
   
-  // Render badges (only show if they have values, no need for explicit props)
-  const renderBadges = () => {
-    if (variant === 'compact') return null;
-    
-    // Only render if we have badges to show
-    const hasBadges = (repeatCount && repeatCount > 1) || hasQuiz || 
-                      (commentCount && commentCount > 0) || locked || 
-                      (paywallEnabled && price);
-    
-    if (!hasBadges) return null;
-    
-    return (
-      <XStack gap={6} flexWrap="wrap">
-        {repeatCount && repeatCount > 1 && (
-          <XStack
-            backgroundColor="#145251"
-            paddingHorizontal={8}
-            paddingVertical={4}
-            borderRadius={12}
-            alignItems="center"
-            gap={4}
-          >
-            <Feather name="repeat" size={14} color="white" />
-            <Text fontSize={12} color="white" fontWeight="bold">
-              {repeatCount}x
-            </Text>
-          </XStack>
-        )}
-        
-        {hasQuiz && (
-          <XStack
-            backgroundColor="#00E6C3"
-            paddingHorizontal={8}
-            paddingVertical={4}
-            borderRadius={12}
-            alignItems="center"
-            gap={4}
-          >
-            <MaterialIcons name="quiz" size={14} color="#000" />
-            <Text fontSize={12} color="#000" fontWeight="bold">
-              Quiz
-            </Text>
-          </XStack>
-        )}
-        
-        {commentCount && commentCount > 0 && (
-          <XStack
-            alignItems="center"
-            gap={4}
-            backgroundColor="#1f2937"
-            paddingHorizontal={6}
-            paddingVertical={2}
-            borderRadius={10}
-          >
-            <Feather name="message-circle" size={12} color="#00E6C3" />
-            <Text fontSize={10} color="#00E6C3">
-              {commentCount}
-            </Text>
-          </XStack>
-        )}
-        
-        {locked && (
-          <XStack
-            backgroundColor="#FF9500"
-            paddingHorizontal={8}
-            paddingVertical={4}
-            borderRadius={12}
-            alignItems="center"
-            gap={4}
-          >
-            <MaterialIcons name="lock" size={14} color="white" />
-            <Text fontSize={12} color="white" fontWeight="bold">
-              LOCKED
-            </Text>
-          </XStack>
-        )}
-        
-        {paywallEnabled && price && (
-          <XStack
-            backgroundColor="#00E6C3"
-            paddingHorizontal={8}
-            paddingVertical={4}
-            borderRadius={12}
-            alignItems="center"
-            gap={4}
-          >
-            <Feather name="credit-card" size={14} color="black" />
-            <Text fontSize={12} color="black" fontWeight="bold">
-              {currency === 'USD' ? '$' : currency}{price}
-            </Text>
-          </XStack>
-        )}
-      </XStack>
-    );
-  };
+  // Removed badges - keeping it simple
   
-  // Render right icon - smart detection based on context
+  // Show chevron if prop is true
   const renderRightIcon = () => {
     if (locked) {
       return <MaterialIcons name="lock" size={config.iconSize} color="#FF9500" />;
     }
-    // Show chevron if there's an onPress action (navigable)
-    if (onPress) {
+    // Show chevron only if showChevron prop is true
+    if (showChevron) {
       return (
         <Feather
           name="chevron-right"
@@ -286,10 +134,6 @@ export function ExerciseCard({
           color={isDark ? '#888' : '#666'}
         />
       );
-    }
-    // Show check circle if checked and not navigable
-    if (checked) {
-      return <Feather name="check-circle" size={config.iconSize} color="#00E6C3" />;
     }
     return null;
   };
@@ -357,20 +201,13 @@ export function ExerciseCard({
     >
       <XStack alignItems="flex-start" gap={8}>
         {shouldShowCheckbox && (
-          <YStack alignItems="center" justifyContent="center" gap={8}>
-            <Checkbox
-              checked={checked}
-              disabled={disabled}
-              size={config.checkboxSize}
-              stopPropagation={true}
-              onPress={handleCheckboxPress}
-            />
-            {repeatCount && repeatCount > 1 && (
-              <Text fontSize={10} color="$gray11" textAlign="center">
-                {completedRepeats}/{repeatCount}
-              </Text>
-            )}
-          </YStack>
+          <Checkbox
+            checked={checked}
+            disabled={disabled}
+            size={config.checkboxSize}
+            stopPropagation={true}
+            onPress={handleCheckboxPress}
+          />
         )}
         
         <Card
@@ -402,28 +239,8 @@ export function ExerciseCard({
             </Text>
           )}
           
-          {variant === 'detailed' && (
-            <YStack gap={8} marginTop={12}>
-              {renderBadges()}
-              {renderProgressBar()}
-              
-              {lastAction && (
-                <Text color="$gray11" fontSize={12}>
-                  Last: {lastAction.action} by {lastAction.actorName || 'Unknown'} at{' '}
-                  {new Date(lastAction.createdAt).toLocaleString()}
-                </Text>
-              )}
-            </YStack>
-          )}
         </Card>
         
-        {!shouldShowCheckbox && onPress && (
-          <Feather
-            name="chevron-right"
-            size={config.iconSize}
-            color={isDark ? '#888' : '#666'}
-          />
-        )}
       </XStack>
     </TouchableOpacity>
   );
