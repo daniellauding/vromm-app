@@ -28,6 +28,7 @@ import { useThemeColor } from '../../hooks/useThemeColor';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useTranslation } from '../contexts/TranslationContext';
+import { Checkbox } from './Checkbox';
 import { useToast } from '../contexts/ToastContext';
 import { useUnlock } from '../contexts/UnlockContext';
 import { useCelebration } from '../contexts/CelebrationContext';
@@ -47,6 +48,7 @@ import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ExerciseCard } from './ExerciseCard';
 
 const { height } = Dimensions.get('window');
 
@@ -1743,35 +1745,15 @@ export function ExerciseListSheet({ // #1099
                                       >
                                         <XStack justifyContent="space-between" alignItems="center">
                                           <XStack gap={12} alignItems="center" flex={1}>
-                                            <TouchableOpacity
-                                              onPress={(e) => {
-                                                e.stopPropagation();
+                                            <Checkbox
+                                              checked={completedIds.includes(selectedExercise.id)}
+                                              size="sm"
+                                              stopPropagation={true}
+                                              onPress={() => {
                                                 playDoneSound();
                                                 toggleCompletion(selectedExercise.id);
                                               }}
-                                              style={{
-                                                width: 24,
-                                                height: 24,
-                                                borderRadius: 6,
-                                                backgroundColor: completedIds.includes(
-                                                  selectedExercise.id,
-                                                )
-                                                  ? '#00E6C3'
-                                                  : 'transparent',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                borderWidth: 2,
-                                                borderColor: completedIds.includes(
-                                                  selectedExercise.id,
-                                                )
-                                                  ? '#00E6C3'
-                                                  : '#888',
-                                              }}
-                                            >
-                                              {completedIds.includes(selectedExercise.id) && (
-                                                <Feather name="check" size={16} color="#000" />
-                                              )}
-                                            </TouchableOpacity>
+                                            />
                                             <Text
                                               fontSize={16}
                                               color="$color"
@@ -1825,29 +1807,15 @@ export function ExerciseListSheet({ // #1099
                                               alignItems="center"
                                             >
                                               <XStack gap={12} alignItems="center" flex={1}>
-                                                <TouchableOpacity
-                                                  onPress={(e) => {
-                                                    e.stopPropagation();
+                                                <Checkbox
+                                                  checked={isDone}
+                                                  size="sm"
+                                                  stopPropagation={true}
+                                                  onPress={() => {
                                                     playDoneSound();
                                                     toggleVirtualRepeatCompletion(virtualId);
                                                   }}
-                                                  style={{
-                                                    width: 24,
-                                                    height: 24,
-                                                    borderRadius: 6,
-                                                    backgroundColor: isDone
-                                                      ? '#00E6C3'
-                                                      : 'transparent',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    borderWidth: 2,
-                                                    borderColor: isDone ? '#00E6C3' : '#888',
-                                                  }}
-                                                >
-                                                  {isDone && (
-                                                    <Feather name="check" size={16} color="#000" />
-                                                  )}
-                                                </TouchableOpacity>
+                                                />
                                                 <Text
                                                   fontSize={16}
                                                   color="$color"
@@ -2786,189 +2754,37 @@ export function ExerciseListSheet({ // #1099
                                       key={`exercise-detail-${main.id}-${exerciseIndex}`}
                                       marginBottom={16}
                                     >
-                                      <TouchableOpacity onPress={() => setSelectedExercise(main)}>
-                                        <Card
-                                          padding={16}
-                                          borderRadius={16}
-                                          backgroundColor="$backgroundStrong"
-                                          borderWidth={2}
-                                          borderColor={mainIsDone ? '#00E6C3' : '#333'}
-                                        >
-                                          <XStack alignItems="center" gap={12}>
-                                            <TouchableOpacity
-                                              onPress={(e) => {
-                                                e.stopPropagation();
-                                                if (mainIsAvailable) {
-                                                  // Play sound
-                                                  playDoneSound();
-                                                  // Use new function that includes repeats for Level 2 checkboxes
-                                                  toggleCompletionWithRepeats(main.id, true);
-                                                }
-                                              }}
-                                              style={{
-                                                width: 28,
-                                                height: 28,
-                                                borderRadius: 6,
-                                                borderWidth: 2,
-                                                borderColor: mainIsDone ? '#00E6C3' : '#888',
-                                                backgroundColor: mainIsDone
-                                                  ? '#00E6C3'
-                                                  : 'transparent',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                              }}
-                                            >
-                                              {mainIsDone && (
-                                                <Feather name="check" size={20} color="#fff" />
-                                              )}
-                                            </TouchableOpacity>
-                                            <YStack flex={1} gap={4}>
-                                              <XStack
-                                                justifyContent="space-between"
-                                                alignItems="center"
-                                              >
-                                                <XStack alignItems="center" gap={8} flex={1}>
-                                                  <Text
-                                                    fontSize={18}
-                                                    fontWeight="900"
-                                                    fontStyle="italic"
-                                                    color="$color"
-                                                    numberOfLines={1}
-                                                  >
-                                                    {displayIndex}.{' '}
-                                                    {main.title?.[lang] ||
-                                                      main.title?.en ||
-                                                      'Untitled'}
-                                                  </Text>
-                                                  {!!commentCounts[main.id] &&
-                                                    commentCounts[main.id] > 0 && (
-                                                      <XStack
-                                                        alignItems="center"
-                                                        gap={4}
-                                                        backgroundColor="#1f2937"
-                                                        paddingHorizontal={6}
-                                                        paddingVertical={2}
-                                                        borderRadius={10}
-                                                      >
-                                                        <Feather
-                                                          name="message-circle"
-                                                          size={12}
-                                                          color="#00E6C3"
-                                                        />
-                                                        <Text fontSize={10} color="#00E6C3">
-                                                          {commentCounts[main.id]}
-                                                        </Text>
-                                                      </XStack>
-                                                    )}
-
-                                                  {main.repeat_count && main.repeat_count > 1 && (
-                                                    <XStack
-                                                      backgroundColor="#145251"
-                                                      paddingHorizontal={8}
-                                                      paddingVertical={4}
-                                                      borderRadius={12}
-                                                      alignItems="center"
-                                                      gap={4}
-                                                    >
-                                                      <Feather
-                                                        name="repeat"
-                                                        size={14}
-                                                        color="white"
-                                                      />
-                                                      <Text
-                                                        fontSize={12}
-                                                        color="white"
-                                                        fontWeight="bold"
-                                                      >
-                                                        {main.repeat_count}x
-                                                      </Text>
-                                                    </XStack>
-                                                  )}
-
-                                                  {/* Show lock icon if exercise is locked */}
-                                                  {mainIsPasswordLocked && (
-                                                    <XStack
-                                                      backgroundColor="#FF9500"
-                                                      paddingHorizontal={8}
-                                                      paddingVertical={4}
-                                                      borderRadius={12}
-                                                      alignItems="center"
-                                                      gap={4}
-                                                    >
-                                                      <MaterialIcons
-                                                        name="lock"
-                                                        size={14}
-                                                        color="white"
-                                                      />
-                                                      <Text
-                                                        fontSize={12}
-                                                        color="white"
-                                                        fontWeight="bold"
-                                                      >
-                                                        LOCKED
-                                                      </Text>
-                                                    </XStack>
-                                                  )}
-
-                                                  {/* Show paywall icon if parent path has paywall */}
-                                                  {detailPath &&
-                                                    isPathPaywallLocked(detailPath) && (
-                                                      <XStack
-                                                        backgroundColor="#00E6C3"
-                                                        paddingHorizontal={8}
-                                                        paddingVertical={4}
-                                                        borderRadius={12}
-                                                        alignItems="center"
-                                                        gap={4}
-                                                      >
-                                                        <Feather
-                                                          name="credit-card"
-                                                          size={14}
-                                                          color="black"
-                                                        />
-                                                        <Text
-                                                          fontSize={12}
-                                                          color="black"
-                                                          fontWeight="bold"
-                                                        >
-                                                          ${(detailPath as any).price_usd || 1.0}
-                                                        </Text>
-                                                      </XStack>
-                                                    )}
-                                                </XStack>
-
-                                                {mainIsPasswordLocked ? (
-                                                  <MaterialIcons
-                                                    name="lock"
-                                                    size={20}
-                                                    color="#FF9500"
-                                                  />
-                                                ) : mainIsDone ? (
-                                                  <Feather
-                                                    name="check-circle"
-                                                    size={20}
-                                                    color="#00E6C3"
-                                                  />
-                                                ) : (
-                                                  <Feather
-                                                    name="chevron-right"
-                                                    size={20}
-                                                    color={colorScheme === 'dark' ? '#888' : '#666'}
-                                                  />
-                                                )}
-                                              </XStack>
-
-                                              {main.description?.[lang] && (
-                                                <Text color="$gray11">
-                                                  {main.description[lang]}
-                                                </Text>
-                                              )}
-
-                                              <RepeatProgressBar exercise={main} />
-                                            </YStack>
-                                          </XStack>
-                                        </Card>
-                                      </TouchableOpacity>
+                                      <ExerciseCard
+                                        title={main.title?.[lang] || main.title?.en || 'Untitled'}
+                                        description={main.description?.[lang]}
+                                        displayIndex={displayIndex}
+                                        checked={mainIsDone}
+                                        disabled={!mainIsAvailable}
+                                        locked={mainIsPasswordLocked}
+                                        repeatCount={main.repeat_count}
+                                        commentCount={commentCounts[main.id]}
+                                        hasQuiz={false}
+                                        showCheckbox={true}
+                                        showChevron={false}
+                                        paywallEnabled={detailPath && isPathPaywallLocked(detailPath)}
+                                        price={(detailPath as any)?.price_usd}
+                                        currency="USD"
+                                        completedRepeats={(() => {
+                                          const { completed } = getRepeatProgress(main);
+                                          return completed;
+                                        })()}
+                                        showProgress={true}
+                                        onPress={() => setSelectedExercise(main)}
+                                        onCheckboxPress={() => {
+                                          if (mainIsAvailable) {
+                                            playDoneSound();
+                                            toggleCompletionWithRepeats(main.id, true);
+                                          }
+                                        }}
+                                        size="md"
+                                        variant="default"
+                                        borderHighlight={true}
+                                      />
                                     </YStack>
                                   );
                                 })

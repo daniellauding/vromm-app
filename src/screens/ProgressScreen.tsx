@@ -43,6 +43,8 @@ import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
 import { CommentsSection } from '../components/CommentsSection';
 import { ReportDialog } from '../components/report/ReportDialog';
 import { CelebrationModal } from '../components/CelebrationModal';
+import { Checkbox } from '../components/Checkbox';
+import { ExerciseCard } from '../components/ExerciseCard';
 
 // Define LearningPath type based on the learning_paths table with all fields
 interface LearningPath {
@@ -3440,9 +3442,9 @@ export function ProgressScreen() {
         {/* YouTube Video */}
         {path.youtube_url && (
           <YStack>
-            <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
+            {/* <Text fontSize={16} fontWeight="bold" color="$color" marginBottom={4}>
               Video Tutorial
-            </Text>
+            </Text> */}
             {(() => {
               console.log('🎥 [ProgressScreen] Learning Path youtube_url:', path.youtube_url);
               const videoId = getYouTubeVideoId(path.youtube_url);
@@ -3907,7 +3909,7 @@ export function ProgressScreen() {
                         justifyContent: 'center',
                       }}
                     >
-                      {isSelected && <Feather name="check" size={16} color="red" />}
+                      {isSelected && <Feather name="check" size={16} color="000" />}
                     </View>
 
                     <Text fontSize={16} color="$color" flex={1}>
@@ -4340,31 +4342,14 @@ export function ProgressScreen() {
                 >
                   <XStack justifyContent="space-between" alignItems="center">
                     <XStack gap={28} alignItems="center" flex={1}>
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          // Toggle main exercise completion
+                      <Checkbox
+                        checked={completedIds.includes(selectedExercise.id)}
+                        size="sm"
+                        stopPropagation={true}
+                        onPress={() => {
                           toggleCompletion(selectedExercise.id);
                         }}
-                        style={{
-                          width: 24,
-                          height: 24,
-                          borderRadius: 6,
-                          backgroundColor: completedIds.includes(selectedExercise.id)
-                            ? '#00E6C3'
-                            : 'transparent',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderWidth: 2,
-                          borderColor: completedIds.includes(selectedExercise.id)
-                            ? '#00E6C3'
-                            : '#888',
-                        }}
-                      >
-                        {completedIds.includes(selectedExercise.id) && (
-                          <Feather name="check" size={16} color="#000" />
-                        )}
-                      </TouchableOpacity>
+                      />
                       <Text
                         fontSize={16}
                         color="$color"
@@ -4428,27 +4413,15 @@ export function ProgressScreen() {
                         >
                           <XStack justifyContent="space-between" alignItems="center">
                             <XStack gap={28} alignItems="center" flex={1}>
-                              <TouchableOpacity
-                                onPress={(e) => {
-                                  e.stopPropagation();
-                                  // Play sound
+                              <Checkbox
+                                checked={isDone}
+                                size="sm"
+                                stopPropagation={true}
+                                onPress={() => {
                                   playDoneSound();
-                                  // Toggle individual virtual repeat completion
                                   toggleVirtualRepeatCompletion(virtualId);
                                 }}
-                                style={{
-                                  width: 24,
-                                  height: 24,
-                                  borderRadius: 6,
-                                  backgroundColor: isDone ? '#00E6C3' : 'transparent',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  borderWidth: 2,
-                                  borderColor: isDone ? '#00E6C3' : '#888',
-                                }}
-                              >
-                                {isDone && <Feather name="check" size={16} color="#000" />}
-                              </TouchableOpacity>
+                              />
                               <Text
                                 fontSize={16}
                                 color="$color"
@@ -4490,25 +4463,14 @@ export function ProgressScreen() {
                       >
                         <XStack justifyContent="space-between" alignItems="center">
                           <XStack gap={8} alignItems="center" flex={1}>
-                            <TouchableOpacity
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                // Repeats can be completed in any order
+                            <Checkbox
+                              checked={isDone}
+                              size="sm"
+                              stopPropagation={true}
+                              onPress={() => {
                                 toggleCompletion(repeat.id);
                               }}
-                              style={{
-                                width: 24,
-                                height: 24,
-                                borderRadius: 6,
-                                backgroundColor: isDone ? '#00E6C3' : 'transparent',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderWidth: 2,
-                                borderColor: isDone ? '#00E6C3' : '#888',
-                              }}
-                            >
-                              {isDone && <Feather name="check" size={16} color="#000" />}
-                            </TouchableOpacity>
+                            />
                             <Text
                               fontSize={16}
                               color="$color"
@@ -4959,259 +4921,107 @@ export function ProgressScreen() {
                   marginTop={16}
                 >
                   {/* Main Exercise */}
-                  <TouchableOpacity
-                    // ref={exerciseIndex === 0 ? exerciseItemRef : undefined} // DISABLED
+                  <ExerciseCard
+                    title={main.title?.[language] || main.title?.en || 'Untitled'}
+                    description={main.description?.[language]}
+                    displayIndex={displayIndex}
+                    checked={mainIsDone}
+                    disabled={!mainIsAvailable}
+                    locked={mainIsPasswordLocked}
+                    repeatCount={main.repeat_count}
+                    commentCount={commentCounts[main.id]}
+                    hasQuiz={hasQuizQuestions[main.id]}
+                    showCheckbox={true}
+                    showChevron={true}
+                    completedRepeats={(() => {
+                      const { completed } = getRepeatProgress(main);
+                      return completed;
+                    })()}
+                    showProgress={true}
                     onPress={() => handleExerciseSelect(main)}
+                    onCheckboxPress={async () => {
+                      if (mainIsAvailable) {
+                        // Play sound
+                        playDoneSound();
 
-                    style={{
-                      paddingVertical: 16,
-                      paddingHorizontal: 16,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-                      borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
-                    }}
-                  >
-                    <XStack alignItems="flex-start" gap={8}>
-                      <YStack alignItems="center" justifyContent="center" gap={8}>
-                        <TouchableOpacity
-                          onPress={async (e) => {
-                            e.stopPropagation();
-                            if (mainIsAvailable) {
-                              // Play sound
-                              playDoneSound();
+                        // Toggle main exercise AND all its repeats
+                        const shouldMarkDone = !mainIsDone;
 
-                              // Toggle main exercise AND all its repeats
-                              const shouldMarkDone = !mainIsDone;
+                        // Toggle main exercise
+                        await toggleCompletion(main.id);
 
-                              // Toggle main exercise
-                              await toggleCompletion(main.id);
+                        // Toggle all virtual repeats if this exercise has repeats
+                        if (main.repeat_count && main.repeat_count > 1) {
+                          for (let i = 2; i <= main.repeat_count; i++) {
+                            const virtualId = `${main.id}-virtual-${i}`;
+                            const isVirtualDone = virtualRepeatCompletions.includes(virtualId);
 
-                              // Toggle all virtual repeats if this exercise has repeats
-                              if (main.repeat_count && main.repeat_count > 1) {
-                                for (let i = 2; i <= main.repeat_count; i++) {
-                                  const virtualId = `${main.id}-virtual-${i}`;
-                                  const isVirtualDone =
-                                    virtualRepeatCompletions.includes(virtualId);
-
-                                  // Only toggle if virtual repeat state doesn't match desired state
-                                  if (shouldMarkDone && !isVirtualDone) {
-                                    await toggleVirtualRepeatCompletion(virtualId);
-                                  } else if (!shouldMarkDone && isVirtualDone) {
-                                    await toggleVirtualRepeatCompletion(virtualId);
-                                  }
-                                }
-                              }
-
-                              // Show celebration when marking all as done
-                              if (shouldMarkDone) {
-                                setTimeout(() => {
-                                  const repeatCount = main.repeat_count || 1;
-                                  const learningPath = paths.find(
-                                    (p) => p.id === main.learning_path_id,
-                                  );
-
-                                  console.log(
-                                    '🎉 [ProgressScreen] 🚀 Main checkbox - showing celebration for completed exercise!',
-                                  );
-
-                                  showCelebration({
-                                    learningPathTitle: learningPath?.title || main.title,
-                                    completedExercises: repeatCount,
-                                    totalExercises: repeatCount,
-                                    timeSpent: undefined,
-                                    streakDays: undefined,
-                                  });
-
-                                  // Also check if entire path is complete
-                                  if (main.learning_path_id && learningPath) {
-                                    setTimeout(async () => {
-                                      const updatedCompletedIds = [...completedIds, main.id];
-                                      await checkForCelebration(
-                                        main.learning_path_id,
-                                        learningPath,
-                                        updatedCompletedIds,
-                                      );
-                                    }, 3000);
-                                  }
-                                }, 500);
-                              }
+                            // Only toggle if virtual repeat state doesn't match desired state
+                            if (shouldMarkDone && !isVirtualDone) {
+                              await toggleVirtualRepeatCompletion(virtualId);
+                            } else if (!shouldMarkDone && isVirtualDone) {
+                              await toggleVirtualRepeatCompletion(virtualId);
                             }
-                          }}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 6,
-                            borderWidth: 2,
-                            borderColor: mainIsDone ? '#00E6C3' : '#888',
-                            backgroundColor: mainIsDone ? '#00E6C3' : 'transparent',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            // marginRight: 8,
-                          }}
-                        >
-                          {mainIsDone && <Feather name="check" size={20} color="#000" />}
-                        </TouchableOpacity>
-                        {(() => {
-                          const { completed, total } = getRepeatProgress(main);
-                          if (total <= 1) return null;
-                          return (
-                            <Text fontSize={10} color="$gray11" textAlign="center">
-                              {completed}/{total}
-                            </Text>
-                          );
-                        })()}
+                          }
+                        }
 
-                        {/* {main.repeat_count && main.repeat_count > 1 && (
-                          <XStack
-                            alignItems="center"
-                            gap={4}
-                          >
-                            <Feather name="repeat" size={14} color="white" />
-                            <Text fontSize={12} color="white" fontWeight="bold">
-                              {main.repeat_count}x
-                            </Text>
-                          </XStack>
-                        )} */}
+                        // Show celebration when marking all as done
+                        if (shouldMarkDone) {
+                          setTimeout(() => {
+                            const repeatCount = main.repeat_count || 1;
+                            const learningPath = paths.find(
+                              (p) => p.id === main.learning_path_id,
+                            );
 
-                        {/* {!!commentCounts[main.id] && commentCounts[main.id] > 0 && (
-                          <XStack
-                            alignItems="center"
-                            justifyContent="center"
-                            gap={4}
-                            // backgroundColor="#1f2937"
-                            // paddingHorizontal={6}
-                            // paddingVertical={2}
-                            // borderRadius={10}
-                          >
-                            <Feather name="message-circle" size={12} color={iconColor} />
-                            <Text fontSize={10} color="$gray11">
-                              {commentCounts[main.id]}
-                            </Text>
-                          </XStack>
-                        )} */}
-                      </YStack>
-                      <Card
-                        paddingTop={0}
-                        paddingBottom={0}
-                        paddingLeft={16}
-                        paddingRight={16}
-                        // borderRadius={16}
-                        // backgroundColor="$backgroundStrong"
-                        backgroundColor="transparent"
-                        flex={1}
-                      >
-                        <XStack justifyContent="space-between" alignItems="center" gap={4}>
-                          <XStack alignItems="center" gap={8} flex={1}>
-                            <Text
-                              fontSize={18}
-                              fontWeight="900"
-                              fontStyle="italic"
-                              color="$color"
-                              numberOfLines={1}
-                            >
-                              {displayIndex}.{' '}
-                              {main.title?.[language] || main.title?.en || 'Untitled'}
-                            </Text>
-                          </XStack>
+                            console.log(
+                              '🎉 [ProgressScreen] 🚀 Main checkbox - showing celebration for completed exercise!',
+                            );
 
-                          {/* Show appropriate icon based on state - LOCK gets priority */}
-                          {mainIsPasswordLocked ? (
-                            <MaterialIcons name="lock" size={20} color="#FF9500" />
-                          ) : mainIsDone ? (
-                            // <Feather name="check-circle" size={20} color="#00E6C3" />
-                            <></>
-                          ) : null}
-                        </XStack>
+                            showCelebration({
+                              learningPathTitle: learningPath?.title || main.title,
+                              completedExercises: repeatCount,
+                              totalExercises: repeatCount,
+                              timeSpent: undefined,
+                              streakDays: undefined,
+                            });
 
-                        {main.description?.[language] && (
-                          <Text color="$gray11" marginTop={12} fontSize={14}>
-                            {main.description[language]}
-                          </Text>
-                        )}
-                        {/* <TouchableOpacity
-                          onPress={() => setReportExerciseId(main.id)}
-                          style={{ alignSelf: 'flex-end', marginTop: 6 }}
-                        >
-                          <Text color="#EF4444" fontSize={12}>
-                            Report Exercise
-                          </Text>
-                        </TouchableOpacity> */}
-
-                        {/* Show repeat count if it has repeats */}
-                        {/* {main.repeat_count && main.repeat_count > 1 && (
-                          <XStack
-                            backgroundColor="#4B6BFF"
-                            paddingHorizontal={8}
-                            paddingVertical={4}
-                            borderRadius={12}
-                            alignItems="center"
-                            gap={4}
-                          >
-                            <Feather name="repeat" size={14} color="white" />
-                            <Text fontSize={12} color="white" fontWeight="bold">
-                              {main.repeat_count}x
-                            </Text>
-                          </XStack>
-                        )} */}
-
-                        {/* Show quiz indicator if exercise has quiz */}
-                        {hasQuizQuestions[main.id] && (
-                          <XStack
-                            backgroundColor="#00E6C3"
-                            paddingHorizontal={8}
-                            paddingVertical={4}
-                            borderRadius={12}
-                            alignItems="center"
-                            gap={4}
-                          >
-                            <MaterialIcons name="quiz" size={14} color="#000" />
-                            <Text fontSize={12} color="#000" fontWeight="bold">
-                              Quiz
-                            </Text>
-                          </XStack>
-                        )}
-
-                        {/* {!!commentCounts[main.id] && commentCounts[main.id] > 0 && (
-                          <XStack
-                            alignItems="center"
-                            gap={4}
-                            backgroundColor="#1f2937"
-                            paddingHorizontal={6}
-                            paddingVertical={2}
-                            borderRadius={10}
-                          >
-                            <Feather name="message-circle" size={12} color="#00E6C3" />
-                            <Text fontSize={10} color="#00E6C3">
-                              {commentCounts[main.id]}
-                            </Text>
-                          </XStack>
-                        )} */}
-
-                        {/* <RepeatProgressBar exercise={main} /> */}
-                        {lastAuditByExercise[main.id] && (
-                          <Text color="$gray11" marginTop={4} fontSize={12}>
-                            {(() => {
-                              const a = lastAuditByExercise[main.id] as any;
-                              let verb = a.action;
-                              if (verb === 'completed')
-                                verb = t('progressSection.markedComplete') || 'Marked complete';
-                              if (verb === 'uncompleted')
-                                verb = t('progressSection.markedIncomplete') || 'Marked incomplete';
-                              if (verb.includes('virtual')) {
-                                const rep = a.repeat_number
-                                  ? `${t('progressSection.repetition') || 'Repetition'} ${a.repeat_number}`
-                                  : t('progressSection.repetition') || 'Repetition';
-                                verb = `${rep} ${t('progressSection.completed') || 'completed'}`;
-                              }
-                              return `${t('progressSection.lastAction') || 'Last'}: ${verb} ${t('progressSection.by') || 'by'} ${a.actor_name || t('progressSection.unknown') || 'Unknown'} ${t('progressSection.at') || 'at'} ${new Date(a.created_at).toLocaleString()}`;
-                            })()}
-                          </Text>
-                        )}
-                      </Card>
-                      <Feather name="chevron-right" size={18} color={colorScheme === 'dark' ? '#1a1a1a' : '#666'} />
-                    </XStack>
-                  </TouchableOpacity>
+                            // Also check if entire path is complete
+                            if (main.learning_path_id && learningPath) {
+                              setTimeout(async () => {
+                                const updatedCompletedIds = [...completedIds, main.id];
+                                await checkForCelebration(
+                                  main.learning_path_id,
+                                  learningPath,
+                                  updatedCompletedIds,
+                                );
+                              }, 3000);
+                            }
+                          }, 500);
+                        }
+                      }
+                    }}
+                    size="md"
+                    variant="detailed"
+                    lastAction={lastAuditByExercise[main.id] ? {
+                      action: (() => {
+                        const a = lastAuditByExercise[main.id] as any;
+                        let verb = a.action;
+                        if (verb === 'completed')
+                          verb = t('progressSection.markedComplete') || 'Marked complete';
+                        if (verb === 'uncompleted')
+                          verb = t('progressSection.markedIncomplete') || 'Marked incomplete';
+                        if (verb.includes('virtual')) {
+                          const rep = a.repeat_number
+                            ? `${t('progressSection.repetition') || 'Repetition'} ${a.repeat_number}`
+                            : t('progressSection.repetition') || 'Repetition';
+                          verb = `${rep} ${t('progressSection.completed') || 'completed'}`;
+                        }
+                        return verb;
+                      })(),
+                      actorName: (lastAuditByExercise[main.id] as any).actor_name || t('progressSection.unknown') || 'Unknown',
+                      createdAt: (lastAuditByExercise[main.id] as any).created_at,
+                    } : undefined}
+                  />
                 </YStack>
               );
             })
@@ -5268,7 +5078,9 @@ export function ProgressScreen() {
                       style={{ paddingVertical: 10 }}
                     >
                       <XStack alignItems="center" gap={10}>
-                        <TouchableOpacity
+                        <Checkbox
+                          checked={isChecked}
+                          size="xs"
                           onPress={() => {
                             if (isVirtual && virtualId) {
                               toggleVirtualRepeatCompletion(virtualId);
@@ -5276,19 +5088,7 @@ export function ProgressScreen() {
                               toggleCompletion(e.exercise_id);
                             }
                           }}
-                          style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: 6,
-                            borderWidth: 2,
-                            borderColor: isChecked ? '#00E6C3' : '#888',
-                            backgroundColor: isChecked ? '#00E6C3' : 'transparent',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {isChecked && <Feather name="check" size={14} color="#fff" />}
-                        </TouchableOpacity>
+                        />
                         <YStack flex={1}>
                           <Text color="$color" numberOfLines={2} fontWeight="600">
                             {title}
