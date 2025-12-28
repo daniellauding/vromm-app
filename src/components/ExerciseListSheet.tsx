@@ -188,9 +188,9 @@ export function ExerciseListSheet({
   // Snap points for resizing (top Y coordinates like RouteDetailSheet)
   const snapPoints = useMemo(() => {
     const points = {
-      large: height * 0.25, // Top at 25% of screen (show 75% - largest)
-      medium: height * 0.45, // Top at 45% of screen (show 55% - medium)
-      small: height * 0.7, // Top at 70% of screen (show 30% - small)
+      large: height * 0.1, // Top at 10% of screen (show 90% - largest)
+      medium: height * 0.35, // Top at 35% of screen (show 65% - medium)
+      small: height * 0.6, // Top at 60% of screen (show 40% - small)
       mini: height * 0.85, // Top at 85% of screen (show 15% - just title)
       dismissed: height, // Completely off-screen
     };
@@ -1439,7 +1439,7 @@ export function ExerciseListSheet({
                       <ScrollView
                         contentContainerStyle={{
                           padding: 24,
-                          paddingTop: 120,
+                          paddingTop: 90,
                           paddingBottom: getTabContentPadding(),
                         }}
                         refreshControl={
@@ -2528,7 +2528,7 @@ export function ExerciseListSheet({
                         scrollEventThrottle={16}
                         contentContainerStyle={{
                           padding: 24,
-                          paddingTop: 120,
+                          paddingTop: 90,
                           paddingBottom: getTabContentPadding(),
                         }}
                       >
