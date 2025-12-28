@@ -9,8 +9,9 @@ import {
   Platform,
   Keyboard,
 } from 'react-native';
+import { Text } from './Text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Text, XStack, YStack, Slider, SizableText, Input, useTheme } from 'tamagui';
+import { XStack, YStack, Slider, SizableText, Input, useTheme } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';

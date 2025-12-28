@@ -872,6 +872,11 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
             : t('progressSection.help') ||
               'Track your learning progress across different paths. Each card shows your completion percentage.'
         }
+        helpTextSwedish={
+          lastAudit
+            ? `Senast: ${lastAudit.action.replace('_', ' ')} av ${lastAudit.actor_name || 'Okänd'} kl ${new Date(lastAudit.created_at).toLocaleString('sv-SE')}`
+            : 'Följ dina framsteg genom olika inlärningsvägar. Varje kort visar din slutförandegrad i procent.'
+        }
         showHelp={true}
       />
 

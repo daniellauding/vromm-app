@@ -250,6 +250,10 @@ function AuthenticatedAppContent() {
     }
 
     registerForPushNotificationsAsync(showToast, t).then(async (token) => {
+
+      console.log('Token received:', token);
+      console.log('Error details:', token?.includes('Error') ? token : 'No error');
+
       try {
         if (!token || !authData?.user?.id || token.includes('Error')) {
           return;

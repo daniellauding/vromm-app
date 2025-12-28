@@ -8,7 +8,7 @@ interface IconButtonProps {
   icon: keyof typeof Feather.glyphMap;
   label: string;
   onPress: () => void;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   selected?: boolean;
   disabled?: boolean;
   backgroundColor?: string;
@@ -33,8 +33,9 @@ export function IconButton({
 }: IconButtonProps) {
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
-  const iconSize = size === 'sm' ? 20 : size === 'lg' ? 28 : 24;
-  const containerSize = size === 'sm' ? 40 : size === 'lg' ? 56 : 48;
+  const iconSize = size === 'xs' ? 16 : size === 'sm' ? 20 : size === 'lg' ? 28 : 24;
+  const containerSize = size === 'xs' ? 32 : size === 'sm' ? 40 : size === 'lg' ? 56 : 48;
+  const labelFontSize = size === 'xs' ? 10 : size === 'sm' ? 11 : size === 'lg' ? 13 : 12;
 
   // Dynamic colors based on theme and selection state
   const iconColor = selected ? '#00E6C3' : colorScheme === 'dark' ? '#CCCCCC' : '#666666';
@@ -114,7 +115,13 @@ export function IconButton({
             </View>
           )}
         </View>
-        <Text fontSize={12} fontWeight="600" color={textColor} textAlign="center" numberOfLines={2}>
+        <Text
+          fontSize={labelFontSize}
+          fontWeight="600"
+          color={textColor}
+          textAlign="center"
+          numberOfLines={2}
+        >
           {label}
         </Text>
       </YStack>

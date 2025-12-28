@@ -11,10 +11,14 @@ import {
   Alert,
   KeyboardAvoidingView,
 } from 'react-native';
-import { Text, XStack, YStack, useTheme, Card } from 'tamagui';
+import { Spinner, XStack, YStack, useTheme, Card } from 'tamagui';
+import { Text } from './Text';
+import { Chip } from './Chip';
 import { Button } from './Button';
 import { FormField } from './FormField';
 import { IconButton } from './IconButton';
+import { HelpInfo } from './HelpInfo';
+import { Checkbox } from './Checkbox';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useModal } from '../contexts/ModalContext';
@@ -1657,22 +1661,22 @@ export function BetaTestingSheet({
       {
         key: 'checklist' as const,
         icon: 'check-square' as const,
-        label: getTranslation('beta.checklist', language === 'sv' ? 'Checklista' : 'Checklist'),
+        label: getTranslation('beta.checklist', language === 'sv' ? 'Att testa' : 'To test'),
       },
       {
         key: 'feedback' as const,
         icon: 'message-circle' as const,
-        label: getTranslation('beta.feedback', language === 'sv' ? 'Återkoppling' : 'Feedback'),
+        label: getTranslation('beta.feedback', language === 'sv' ? 'Feedback' : 'Feedback'),
       },
       {
         key: 'pricing' as const,
         icon: 'dollar-sign' as const,
-        label: getTranslation('beta.pricing', language === 'sv' ? 'Prissättning' : 'Pricing'),
+        label: getTranslation('beta.pricing', language === 'sv' ? 'Pris' : 'Pricing'),
       },
       {
         key: 'video' as const,
         icon: 'play-circle' as const,
-        label: getTranslation('beta.resources', language === 'sv' ? 'Resurser' : 'Resources'),
+        label: getTranslation('beta.resources', language === 'sv' ? 'Om' : 'About'),
       },
     ];
 
@@ -1699,127 +1703,68 @@ export function BetaTestingSheet({
   const renderChecklistTab = () => (
     <YStack gap="$4">
       <YStack gap="$2">
-        <Text fontSize="$6" fontWeight="700" color={textColor}>
-          {getTranslation(
-            'beta.testingChecklist',
-            language === 'sv' ? 'Testchecklista' : 'Testing Checklist',
-          )}
-        </Text>
-        <Text fontSize="$4" color={textColor} opacity={0.7}>
-          {getTranslation(
-            'beta.completeTasks',
-            language === 'sv'
-              ? 'Slutför dessa uppgifter för att hjälpa oss testa Vromm effektivt:'
-              : 'Complete these tasks to help us test Vromm effectively:',
-          )}
-        </Text>
+        <XStack alignItems="center" justifyContent="center" gap="$2" marginBottom="$4">
+          <Text size="md" color={textColor} opacity={0.7} textAlign="center" lineHeight={24}>
+            {getTranslation(
+              'beta.completeTasks',
+              language === 'sv'
+                ? 'Slutför dessa uppgifter för att hjälpa oss testa'
+                : 'Complete these tasks to help us test',
+            )}
+          </Text>
+          <HelpInfo
+            helpText="Select your role and complete the assigned tasks. Your progress is saved automatically."
+            helpTextSwedish="Välj din roll och slutför de tilldelade uppgifterna. Din framsteg sparas automatiskt."
+            titleText="Testing Instructions"
+            titleTextSwedish="Testinstruktioner"
+            iconSize={18}
+          />
+        </XStack>
 
-        {/* Role selector for checklist view */}
-        <Card padding="$3" backgroundColor={`${primaryColor}10`} marginTop="$2">
-          <YStack gap="$2">
-            <Text fontSize="$3" fontWeight="600" color={textColor} opacity={0.8}>
-              {getTranslation(
-                'beta.selectChecklist',
-                language === 'sv' ? 'Välj checklista att visa:' : 'Select checklist to view:',
-              )}
-            </Text>
-            <XStack gap="$2" flexWrap="wrap">
-              <TouchableOpacity
-                onPress={() => {
-                  setViewingRole('student');
-                  setChecklistItems([]); // Clear items before loading new ones
-                  loadChecklistItems('student');
-                }}
-                style={{
-                  flex: 1,
-                  minWidth: 100,
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: viewingRole === 'student' ? primaryColor : borderColor,
-                  backgroundColor: viewingRole === 'student' ? primaryColor : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text
-                  fontSize="$4"
-                  fontWeight={viewingRole === 'student' ? '600' : '500'}
-                  color={viewingRole === 'student' ? '#000000' : textColor}
-                >
-                  {getTranslation('beta.student', language === 'sv' ? 'Elev' : 'Student')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  setViewingRole('supervisor');
-                  setChecklistItems([]); // Clear items before loading new ones
-                  loadChecklistItems('supervisor');
-                }}
-                style={{
-                  flex: 1,
-                  minWidth: 100,
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: viewingRole === 'supervisor' ? primaryColor : borderColor,
-                  backgroundColor: viewingRole === 'supervisor' ? primaryColor : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text
-                  fontSize="$4"
-                  fontWeight={viewingRole === 'supervisor' ? '600' : '500'}
-                  color={viewingRole === 'supervisor' ? '#000000' : textColor}
-                >
-                  {getTranslation(
-                    'beta.supervisor',
-                    language === 'sv' ? 'Handledare' : 'Supervisor',
-                  )}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  setViewingRole('other');
-                  setChecklistItems([]); // Clear items before loading new ones
-                  loadChecklistItems('other');
-                }}
-                style={{
-                  flex: 1,
-                  minWidth: 100,
-                  paddingVertical: 10,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: viewingRole === 'other' ? primaryColor : borderColor,
-                  backgroundColor: viewingRole === 'other' ? primaryColor : 'transparent',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text
-                  fontSize="$4"
-                  fontWeight={viewingRole === 'other' ? '600' : '500'}
-                  color={viewingRole === 'other' ? '#000000' : textColor}
-                >
-                  {getTranslation(
-                    'beta.other',
-                    language === 'sv' ? 'Annat / Stresstest' : 'Other / Stress Test',
-                  )}
-                </Text>
-              </TouchableOpacity>
-            </XStack>
-          </YStack>
-        </Card>
+        <XStack gap="$2" flexWrap="wrap">
+          <Chip
+            label={getTranslation('beta.student', language === 'sv' ? 'Elev' : 'Student')}
+            active={viewingRole === 'student'}
+            onPress={() => {
+              setViewingRole('student');
+              setChecklistItems([]); // Clear items before loading new ones
+              loadChecklistItems('student');
+            }}
+            size="sm"
+          />
+          <Chip
+            label={getTranslation(
+              'beta.supervisor',
+              language === 'sv' ? 'Handledare' : 'Supervisor',
+            )}
+            active={viewingRole === 'supervisor'}
+            onPress={() => {
+              setViewingRole('supervisor');
+              setChecklistItems([]); // Clear items before loading new ones
+              loadChecklistItems('supervisor');
+            }}
+            size="sm"
+          />
+          <Chip
+            label={getTranslation(
+              'beta.other',
+              language === 'sv' ? 'Annat / Stresstest' : 'Other / Stress Test',
+            )}
+            active={viewingRole === 'other'}
+            onPress={() => {
+              setViewingRole('other');
+              setChecklistItems([]); // Clear items before loading new ones
+              loadChecklistItems('other');
+            }}
+            size="sm"
+          />
+        </XStack>
       </YStack>
 
       {checklistLoading ? (
-        <Card padding="$4" backgroundColor={`${primaryColor}10`}>
-          <XStack alignItems="center" gap="$3">
-            <Feather name="loader" size={20} color={primaryColor} />
+        <Card padding="$4">
+          <XStack alignItems="center" justifyContent="center" gap="$3">
+            <Spinner size="small" color={primaryColor} />
             <Text fontSize="$4" color={textColor}>
               {getSwedishText('Loading checklist items...')}
             </Text>
@@ -1828,7 +1773,7 @@ export function BetaTestingSheet({
       ) : (
         <YStack gap="$3">
           {checklistItems.length === 0 ? (
-            <Card padding="$4" backgroundColor={`${primaryColor}10`}>
+            <Card padding="$4" alignItems="center" justifyContent="center">
               <Text fontSize="$4" color={textColor} opacity={0.7}>
                 {getSwedishText(
                   'No checklist items available for your role. Please contact support.',
@@ -1837,9 +1782,8 @@ export function BetaTestingSheet({
             </Card>
           ) : (
             checklistItems.map((item, index) => (
-              <TouchableOpacity
+              <View
                 key={`${item.id}-${index}-${item.assignment_id || item.id}`}
-                onPress={() => toggleChecklistItem(item.id)}
                 style={[
                   styles.checklistItem,
                   { backgroundColor, borderColor },
@@ -1847,15 +1791,11 @@ export function BetaTestingSheet({
                 ]}
               >
                 <XStack alignItems="center" gap="$3">
-                  <View
-                    style={[
-                      styles.checkbox,
-                      { borderColor: item.completed ? primaryColor : borderColor },
-                      item.completed && { backgroundColor: primaryColor },
-                    ]}
-                  >
-                    {item.completed && <Feather name="check" size={16} color="#FFFFFF" />}
-                  </View>
+                  <Checkbox
+                    checked={item.completed}
+                    size="sm"
+                    onPress={() => toggleChecklistItem(item.id)}
+                  />
                   <YStack flex={1}>
                     <Text
                       fontSize="$4"
@@ -1889,20 +1829,11 @@ export function BetaTestingSheet({
                     )}
                   </YStack>
                 </XStack>
-              </TouchableOpacity>
+              </View>
             ))
           )}
         </YStack>
       )}
-
-      <Card padding="$4" backgroundColor={`${primaryColor}10`}>
-        <Text fontSize="$3" color={textColor} opacity={0.8}>
-          💡 {language === 'sv' ? 'Tips' : 'Tip'}:{' '}
-          {getSwedishText(
-            'Check off items as you complete them. Your progress is saved automatically to the database!',
-          )}
-        </Text>
-      </Card>
     </YStack>
   );
 
@@ -2242,9 +2173,22 @@ export function BetaTestingSheet({
   // Render pricing tab
   const renderPricingTab = () => (
     <YStack gap="$4">
-      <Text fontSize="$6" fontWeight="700" color={textColor}>
-        {getSwedishText('Help Us Price Vromm')}
-      </Text>
+      <XStack alignItems="center" gap="$2">
+        <Text fontSize="$6" fontWeight="700" color={textColor}>
+          {getSwedishText('Help Us Price Vromm')}
+        </Text>
+        <HelpInfo
+          helpText="Your feedback helps us set the right price. Share what you pay for driving lessons today and what you think Vromm is worth."
+          helpTextSwedish="Din feedback hjälper oss att sätta rätt pris. Dela vad du betalar för körlektioner idag och vad du tycker Vromm är värt."
+          titleText="Why We Ask"
+          titleTextSwedish="Varför vi frågar"
+          buttonText="OK"
+          icon="info"
+          iconSize={20}
+          iconColor={primaryColor}
+          onButtonPress={() => console.log('Pricing help dismissed')}
+        />
+      </XStack>
       <Text fontSize="$4" color={textColor} opacity={0.7}>
         {getSwedishText('Your input on pricing will help us make Vromm accessible to everyone:')}
       </Text>
@@ -2708,12 +2652,12 @@ export function BetaTestingSheet({
             animatedGestureStyle,
           ]}
         >
-          <YStack padding="$3" paddingBottom={20 + BOTTOM_INSET} gap="$3" flex={1}>
+          <YStack padding="$3" paddingBottom={20 + BOTTOM_INSET} gap="$0" flex={1}>
             {/* Drag Handle */}
             <View
               style={{
                 alignItems: 'center',
-                paddingVertical: 8,
+                paddingVertical: 0,
                 paddingBottom: 16,
               }}
             >
@@ -2731,8 +2675,8 @@ export function BetaTestingSheet({
             {currentSnapPoint !== snapPoints.mini && (
               <View style={{ flex: 1 }}>
                 {/* Header */}
-                <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-                  <YStack flex={1}>
+                <XStack justifyContent="space-between" alignItems="center" marginBottom="$0">
+                  <YStack flex={1} display="none">
                     <Text fontSize="$6" fontWeight="700" color={textColor}>
                       {getTranslation(
                         'beta.title',
@@ -2748,17 +2692,24 @@ export function BetaTestingSheet({
                       )}
                     </Text>
                   </YStack>
-                  <XStack gap="$2">
+                  <XStack gap="$2" display="none">
                     {/* Dev-only: Manual translation refresh button */}
                     {__DEV__ && (
                       <Button
                         onPress={handleRefreshTranslations}
-                        variant="outlined"
+                        variant="icon"
                         size="sm"
-                        icon={<Feather name="refresh-cw" size={16} color={textColor} />}
+                        icon={
+                          <Feather
+                            name="refresh-cw"
+                            size={16}
+                            color={textColor}
+                            style={{ display: 'none' }}
+                          />
+                        }
                       />
                     )}
-                    <Button onPress={onClose} variant="outlined" size="sm">
+                    <Button onPress={onClose} variant="icon" size="sm" style={{ display: 'none' }}>
                       <Feather name="x" size={16} />
                     </Button>
                   </XStack>

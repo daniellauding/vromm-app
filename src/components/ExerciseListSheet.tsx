@@ -2764,8 +2764,6 @@ export function ExerciseListSheet({ // #1099
                                         repeatCount={main.repeat_count}
                                         commentCount={commentCounts[main.id]}
                                         hasQuiz={false}
-                                        showCheckbox={true}
-                                        showChevron={false}
                                         paywallEnabled={detailPath && isPathPaywallLocked(detailPath)}
                                         price={(detailPath as any)?.price_usd}
                                         currency="USD"
@@ -2773,8 +2771,6 @@ export function ExerciseListSheet({ // #1099
                                           const { completed } = getRepeatProgress(main);
                                           return completed;
                                         })()}
-                                        showProgress={true}
-                                        onPress={() => setSelectedExercise(main)}
                                         onCheckboxPress={() => {
                                           if (mainIsAvailable) {
                                             playDoneSound();
@@ -2783,7 +2779,6 @@ export function ExerciseListSheet({ // #1099
                                         }}
                                         size="md"
                                         variant="default"
-                                        borderHighlight={true}
                                       />
                                     </YStack>
                                   );

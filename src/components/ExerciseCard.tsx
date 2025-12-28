@@ -24,8 +24,6 @@ interface ExerciseCardProps {
   repeatCount?: number;
   commentCount?: number;
   hasQuiz?: boolean;
-  showCheckbox?: boolean;
-  showChevron?: boolean;
   
   // Paywall
   paywallEnabled?: boolean;
@@ -34,7 +32,6 @@ interface ExerciseCardProps {
   
   // Progress
   completedRepeats?: number;
-  showProgress?: boolean;
   
   // Actions
   onPress?: () => void;
@@ -43,7 +40,6 @@ interface ExerciseCardProps {
   // Styling
   size?: ExerciseCardSize;
   variant?: ExerciseCardVariant;
-  borderHighlight?: boolean;
   borderColor?: string;
   
   // Additional info
@@ -103,18 +99,14 @@ export function ExerciseCard({
   repeatCount,
   commentCount,
   hasQuiz = false,
-  showCheckbox = true,
-  showChevron = true,
   paywallEnabled = false,
   price,
   currency = 'USD',
   completedRepeats = 0,
-  showProgress = false,
   onPress,
   onCheckboxPress,
   size = 'md',
   variant = 'default',
-  borderHighlight = false,
   borderColor,
   lastAction,
   testID,
@@ -124,10 +116,10 @@ export function ExerciseCard({
   const iconColor = isDark ? '#FFFFFF' : '#000000';
   const config = sizeConfig[size];
   
-  // Dynamic border color
+  // Dynamic border color - automatically highlight when checked
   const getBorderColor = () => {
     if (borderColor) return borderColor;
-    if (borderHighlight && checked) return '#00E6C3';
+    if (checked) return '#00E6C3';
     if (active) return '#00E6C3';
     if (locked) return '#FF9500';
     return isDark ? '#333' : '#E5E5E5';
@@ -152,9 +144,9 @@ export function ExerciseCard({
     }
   };
   
-  // Render progress bar for repeats
+  // Render progress bar for repeats (only show if repeat count > 1 and we have progress)
   const renderProgressBar = () => {
-    if (!showProgress || !repeatCount || repeatCount <= 1) return null;
+    if (!repeatCount || repeatCount <= 1) return null;
     const percent = repeatCount > 0 ? completedRepeats / repeatCount : 0;
     
     return (
@@ -184,9 +176,16 @@ export function ExerciseCard({
     );
   };
   
-  // Render badges (quiz, repeats, comments, etc.)
+  // Render badges (only show if they have values, no need for explicit props)
   const renderBadges = () => {
     if (variant === 'compact') return null;
+    
+    // Only render if we have badges to show
+    const hasBadges = (repeatCount && repeatCount > 1) || hasQuiz || 
+                      (commentCount && commentCount > 0) || locked || 
+                      (paywallEnabled && price);
+    
+    if (!hasBadges) return null;
     
     return (
       <XStack gap={6} flexWrap="wrap">
@@ -273,15 +272,13 @@ export function ExerciseCard({
     );
   };
   
-  // Render right icon
+  // Render right icon - smart detection based on context
   const renderRightIcon = () => {
     if (locked) {
       return <MaterialIcons name="lock" size={config.iconSize} color="#FF9500" />;
     }
-    if (checked && !showChevron) {
-      return <Feather name="check-circle" size={config.iconSize} color="#00E6C3" />;
-    }
-    if (showChevron) {
+    // Show chevron if there's an onPress action (navigable)
+    if (onPress) {
       return (
         <Feather
           name="chevron-right"
@@ -290,8 +287,15 @@ export function ExerciseCard({
         />
       );
     }
+    // Show check circle if checked and not navigable
+    if (checked) {
+      return <Feather name="check-circle" size={config.iconSize} color="#00E6C3" />;
+    }
     return null;
   };
+  
+  // Determine if we should show checkbox (smart detection)
+  const shouldShowCheckbox = !!onCheckboxPress;
   
   // Compact variant
   if (variant === 'compact') {
@@ -310,7 +314,7 @@ export function ExerciseCard({
           alignItems="center"
           gap={12}
         >
-          {showCheckbox && (
+          {shouldShowCheckbox && (
             <Checkbox
               checked={checked}
               disabled={disabled}
@@ -352,7 +356,7 @@ export function ExerciseCard({
       }}
     >
       <XStack alignItems="flex-start" gap={8}>
-        {showCheckbox && (
+        {shouldShowCheckbox && (
           <YStack alignItems="center" justifyContent="center" gap={8}>
             <Checkbox
               checked={checked}
@@ -361,7 +365,7 @@ export function ExerciseCard({
               stopPropagation={true}
               onPress={handleCheckboxPress}
             />
-            {showProgress && repeatCount && repeatCount > 1 && (
+            {repeatCount && repeatCount > 1 && (
               <Text fontSize={10} color="$gray11" textAlign="center">
                 {completedRepeats}/{repeatCount}
               </Text>
@@ -413,7 +417,7 @@ export function ExerciseCard({
           )}
         </Card>
         
-        {!showCheckbox && showChevron && (
+        {!shouldShowCheckbox && onPress && (
           <Feather
             name="chevron-right"
             size={config.iconSize}

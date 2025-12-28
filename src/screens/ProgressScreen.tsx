@@ -4931,13 +4931,10 @@ export function ProgressScreen() {
                     repeatCount={main.repeat_count}
                     commentCount={commentCounts[main.id]}
                     hasQuiz={hasQuizQuestions[main.id]}
-                    showCheckbox={true}
-                    showChevron={true}
                     completedRepeats={(() => {
                       const { completed } = getRepeatProgress(main);
                       return completed;
                     })()}
-                    showProgress={true}
                     onPress={() => handleExerciseSelect(main)}
                     onCheckboxPress={async () => {
                       if (mainIsAvailable) {
