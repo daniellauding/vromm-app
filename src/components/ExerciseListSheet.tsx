@@ -188,8 +188,8 @@ export function ExerciseListSheet({
   // Snap points for resizing (top Y coordinates like RouteDetailSheet)
   const snapPoints = useMemo(() => {
     const points = {
-      large: height * 0.1, // Top at 10% of screen (show 90% - largest)
-      medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+      large: height * 0.25, // Top at 25% of screen (show 75% - largest)
+      medium: height * 0.45, // Top at 45% of screen (show 55% - medium)
       small: height * 0.7, // Top at 70% of screen (show 30% - small)
       mini: height * 0.85, // Top at 85% of screen (show 15% - just title)
       dismissed: height, // Completely off-screen
@@ -1454,7 +1454,6 @@ export function ExerciseListSheet({
                         onScroll={headerOnScroll}
                         scrollEventThrottle={16}
                       >
-
                         {/* Exercise Progress Circle - Show for exercises with repeats - HIDDEN (using horizontal bar instead) */}
                         {/* {selectedExercise.repeat_count && selectedExercise.repeat_count > 1 && (
                           <XStack
@@ -2477,68 +2476,64 @@ export function ExerciseListSheet({
 
                   {/* Show content only if not in mini mode */}
                   {currentSnapPoint !== snapPoints.mini && (
-                    <ScrollView
-                      showsVerticalScrollIndicator={true}
-                      refreshControl={
-                        <RefreshControl
-                          refreshing={refreshing}
-                          onRefresh={handleRefresh}
-                          tintColor="#00E6C3"
-                          colors={['#00E6C3']}
-                          progressBackgroundColor="#1a1a1a"
-                        />
-                      }
-                    >
-                      <View style={{ flex: 1 }}>
-                        {/* Back Button */}
-                        <XStack
-                          justifyContent="space-between"
-                          alignItems="center"
-                          marginBottom={16}
-                        >
-                          {onBackToAllPaths && !fromFeaturedContent ? (
+                    <View style={{ flex: 1 }}>
+                      {/* Enhanced Header Overlay for Exercise List */}
+                      <HeaderComponent
+                        title=""
+                        variant="smart"
+                        enableBlur={true}
+                        leftElement={
+                          onBackToAllPaths && !fromFeaturedContent ? (
                             <TouchableOpacity onPress={onBackToAllPaths}>
                               <Feather
                                 name="arrow-left"
-                                size={24}
+                                size={28}
                                 color={colorScheme === 'dark' ? '#FFF' : '#000'}
                               />
                             </TouchableOpacity>
-                          ) : (
-                            <View style={{ width: 24 }} />
+                          ) : undefined
+                        }
+                      />
+                      <ScrollView
+                        showsVerticalScrollIndicator={true}
+                        refreshControl={
+                          <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={handleRefresh}
+                            tintColor="#00E6C3"
+                            colors={['#00E6C3']}
+                            progressBackgroundColor="#1a1a1a"
+                          />
+                        }
+                        onScroll={headerOnScroll}
+                        scrollEventThrottle={16}
+                        contentContainerStyle={{
+                          padding: 24,
+                          paddingTop: 120,
+                          paddingBottom: getTabContentPadding(),
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          {/* Exercise Header Component */}
+                          {detailPath && (
+                            <ExerciseHeader
+                              title={detailPath.title}
+                              description={detailPath.description}
+                              language={lang}
+                              showProgress={true}
+                              exercises={exercises}
+                              completedIds={completedIds}
+                              image={detailPath.image || undefined}
+                              youtube_url={detailPath.youtube_url}
+                              centerAlign={true}
+                              showMediaSection={true}
+                              showDescriptionSection={true}
+                              renderCustomMedia={() => renderLearningPathMedia(detailPath)}
+                            />
                           )}
 
-                          <Text
-                            fontSize="$6"
-                            fontWeight="bold"
-                            color="$color"
-                            textAlign="center"
-                            flex={1}
-                          >
-                            {title}
-                          </Text>
-                        </XStack>
-
-                        {/* Exercise Header Component */}
-                        {detailPath && (
-                          <ExerciseHeader
-                            title={detailPath.title}
-                            description={detailPath.description}
-                            language={lang}
-                            showProgress={true}
-                            exercises={exercises}
-                            completedIds={completedIds}
-                            image={detailPath.image || undefined}
-                            youtube_url={detailPath.youtube_url}
-                            centerAlign={true}
-                            showMediaSection={true}
-                            showDescriptionSection={true}
-                            renderCustomMedia={() => renderLearningPathMedia(detailPath)}
-                          />
-                        )}
-
-                        {/* Featured Exercises Quick Access */}
-                        {/* <Button
+                          {/* Featured Exercises Quick Access */}
+                          {/* <Button
                           variant="outlined"
                           size="md"
                           onPress={() => {
@@ -2561,22 +2556,22 @@ export function ExerciseListSheet({
                           </XStack>
                         </Button> */}
 
-                        {/* Exercise List */}
-                        <YStack flex={1}>
-                          {loading ? (
-                            <YStack alignItems="center" justifyContent="center" flex={1}>
-                              <Text color="$gray11">{t('common.loading') || 'Loading...'}</Text>
-                            </YStack>
-                          ) : !detailPath ? (
-                            <YStack alignItems="center" justifyContent="center" flex={1} gap="$2">
-                              <Feather name="book-open" size={48} color="#666" />
-                              <Text color="$gray11" textAlign="center">
-                                {t('exercises.noExercises') || 'No exercises available'}
-                              </Text>
-                            </YStack>
-                          ) : (
-                            <YStack gap="$4">
-                              {/* Progress Section 
+                          {/* Exercise List */}
+                          <YStack flex={1}>
+                            {loading ? (
+                              <YStack alignItems="center" justifyContent="center" flex={1}>
+                                <Text color="$gray11">{t('common.loading') || 'Loading...'}</Text>
+                              </YStack>
+                            ) : !detailPath ? (
+                              <YStack alignItems="center" justifyContent="center" flex={1} gap="$2">
+                                <Feather name="book-open" size={48} color="#666" />
+                                <Text color="$gray11" textAlign="center">
+                                  {t('exercises.noExercises') || 'No exercises available'}
+                                </Text>
+                              </YStack>
+                            ) : (
+                              <YStack gap="$4">
+                                {/* Progress Section 
                               {exercises.length > 0 && (
                                 <YStack marginBottom={16}>
                                   <XStack
@@ -2617,73 +2612,74 @@ export function ExerciseListSheet({
                                 </YStack>
                               )}
                               */}
-                              {/* Exercise List (exact copy from ProgressScreen) */}
-                              {exercises.length === 0 ? (
-                                <Text color="$gray11">No exercises for this learning path.</Text>
-                              ) : (
-                                exercises.map((exercise, exerciseIndex) => {
-                                  const displayIndex = exerciseIndex + 1;
-                                  const main = exercise;
-                                  const mainIsDone = completedIds.includes(main.id);
-                                  const mainIsPasswordLocked = isExercisePasswordLocked(main);
-                                  const mainIsAvailable = !mainIsPasswordLocked;
+                                {/* Exercise List (exact copy from ProgressScreen) */}
+                                {exercises.length === 0 ? (
+                                  <Text color="$gray11">No exercises for this learning path.</Text>
+                                ) : (
+                                  exercises.map((exercise, exerciseIndex) => {
+                                    const displayIndex = exerciseIndex + 1;
+                                    const main = exercise;
+                                    const mainIsDone = completedIds.includes(main.id);
+                                    const mainIsPasswordLocked = isExercisePasswordLocked(main);
+                                    const mainIsAvailable = !mainIsPasswordLocked;
 
-                                  return (
-                                    <YStack
-                                      key={`exercise-detail-${main.id}-${exerciseIndex}`}
-                                      marginBottom={16}
-                                    >
-                                      <ExerciseCard
-                                        title={main.title?.[lang] || main.title?.en || 'Untitled'}
-                                        description={main.description?.[lang]}
-                                        displayIndex={displayIndex}
-                                        checked={mainIsDone}
-                                        disabled={!mainIsAvailable}
-                                        locked={mainIsPasswordLocked}
-                                        showChevron={true}
-                                        onCheckboxPress={() => {
-                                          if (mainIsAvailable) {
-                                            playDoneSound();
-                                            toggleCompletionWithRepeats(main.id, true);
-                                          }
-                                        }}
-                                        onPress={() => setSelectedExercise(main)}
-                                        size="md"
-                                        variant="default"
-                                      />
-                                    </YStack>
-                                  );
-                                })
-                              )}
-                            </YStack>
-                          )}
+                                    return (
+                                      <YStack
+                                        key={`exercise-detail-${main.id}-${exerciseIndex}`}
+                                        marginBottom={16}
+                                      >
+                                        <ExerciseCard
+                                          title={main.title?.[lang] || main.title?.en || 'Untitled'}
+                                          description={main.description?.[lang]}
+                                          displayIndex={displayIndex}
+                                          checked={mainIsDone}
+                                          disabled={!mainIsAvailable}
+                                          locked={mainIsPasswordLocked}
+                                          showChevron={true}
+                                          onCheckboxPress={() => {
+                                            if (mainIsAvailable) {
+                                              playDoneSound();
+                                              toggleCompletionWithRepeats(main.id, true);
+                                            }
+                                          }}
+                                          onPress={() => setSelectedExercise(main)}
+                                          size="md"
+                                          variant="default"
+                                        />
+                                      </YStack>
+                                    );
+                                  })
+                                )}
+                              </YStack>
+                            )}
 
-                          {/* See More Button */}
-                          <Button
-                            variant="secondary"
-                            size="lg"
-                            onPress={() => {
-                              console.log(
-                                '🎯 [ExerciseListSheet] See more pressed, opening new ExerciseListSheet',
-                              );
-                              onClose();
-                              // Open a new ExerciseListSheet with showAllPaths=true
-                              navigation.navigate('ProgressTab', {
-                                activeUserId: effectiveUserId || undefined,
-                              });
-                            }}
-                            marginTop="$4"
-                          >
-                            <XStack alignItems="center" gap="$2">
-                              <Text color="$color" fontWeight="600">
-                                {t('common.seeMore') || 'See More'}
-                              </Text>
-                              <Feather name="external-link" size={16} color="$color" />
-                            </XStack>
-                          </Button>
-                        </YStack>
-                      </View>
-                    </ScrollView>
+                            {/* See More Button */}
+                            <Button
+                              variant="secondary"
+                              size="lg"
+                              onPress={() => {
+                                console.log(
+                                  '🎯 [ExerciseListSheet] See more pressed, opening new ExerciseListSheet',
+                                );
+                                onClose();
+                                // Open a new ExerciseListSheet with showAllPaths=true
+                                navigation.navigate('ProgressTab', {
+                                  activeUserId: effectiveUserId || undefined,
+                                });
+                              }}
+                              marginTop="$4"
+                            >
+                              <XStack alignItems="center" gap="$2">
+                                <Text color="$color" fontWeight="600">
+                                  {t('common.seeMore') || 'See More'}
+                                </Text>
+                                <Feather name="external-link" size={16} color="$color" />
+                              </XStack>
+                            </Button>
+                          </YStack>
+                        </View>
+                      </ScrollView>
+                    </View>
                   )}
                 </YStack>
               </ReanimatedAnimated.View>
