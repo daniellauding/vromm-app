@@ -4987,13 +4987,45 @@ export function ProgressScreen() {
         variant="smart"
         enableBlur={true}
         leftElement={
-          <TouchableOpacity onPress={() => console.log('Settings or menu could go here')}>
-            <Feather name="menu" size={28} color={iconColor} />
+          <TouchableOpacity onPress={() => setShowFilterDrawer(true)}>
+            <View style={{ position: 'relative' }}>
+              <Feather name="filter" size={20} color={iconColor} />
+              {/* Show active filter count badge */}
+              {(() => {
+                const activeFilters = Object.values(categoryFilters).filter(
+                  (value) => value && value !== 'all',
+                ).length;
+                return activeFilters > 0 ? (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -8,
+                      right: -8,
+                      backgroundColor: '#00E6C3',
+                      borderRadius: 10,
+                      minWidth: 20,
+                      height: 20,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 4,
+                    }}
+                  >
+                    <Text fontSize={11} fontWeight="bold" color="#000">
+                      {activeFilters}
+                    </Text>
+                  </View>
+                ) : null;
+              })()}
+            </View>
           </TouchableOpacity>
         }
         rightElement={
-          <TouchableOpacity onPress={() => setHistoryModalVisible(true)}>
-            <Feather name="clock" size={20} color={iconColor} />
+          <TouchableOpacity onPress={() => setShowAllExercises(!showAllExercises)}>
+            <Feather 
+              name={showAllExercises ? 'list' : 'plus'} 
+              size={20} 
+              color={showAllExercises ? '#00E6C3' : iconColor} 
+            />
           </TouchableOpacity>
         }
       />
