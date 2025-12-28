@@ -2496,10 +2496,12 @@ export function ExerciseListSheet({
                         rightElement={
                           <TouchableOpacity
                             onPress={() => {
-                              console.log('🧾 [ExerciseListSheet] open report learning path', detailPath?.id);
-                              // Report the learning path or first exercise for context
-                              if (detailPath) {
-                                setReportExerciseId(detailPath.id);
+                              console.log('🧾 [ExerciseListSheet] open report for exercise list');
+                              // Report the first exercise in the path as a representative
+                              const firstExercise = exercises.length > 0 ? exercises[0] : null;
+                              if (firstExercise) {
+                                console.log('🧾 Reporting first exercise:', firstExercise.id);
+                                setReportExerciseId(firstExercise.id);
                               }
                             }}
                           >
@@ -2696,6 +2698,15 @@ export function ExerciseListSheet({
                           </YStack>
                         </View>
                       </ScrollView>
+                      
+                      {/* Report Dialog for Exercise List */}
+                      {reportExerciseId && (
+                        <ReportDialog
+                          reportableId={reportExerciseId}
+                          reportableType="exercise"
+                          onClose={() => setReportExerciseId(null)}
+                        />
+                      )}
                     </View>
                   )}
                 </YStack>
