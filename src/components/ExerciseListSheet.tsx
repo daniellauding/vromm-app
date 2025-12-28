@@ -2493,6 +2493,23 @@ export function ExerciseListSheet({
                             </TouchableOpacity>
                           ) : undefined
                         }
+                        rightElement={
+                          <TouchableOpacity
+                            onPress={() => {
+                              console.log('🧾 [ExerciseListSheet] open report learning path', detailPath?.id);
+                              // Report the learning path or first exercise for context
+                              if (detailPath) {
+                                setReportExerciseId(detailPath.id);
+                              }
+                            }}
+                          >
+                            <Feather
+                              name="flag"
+                              size={20}
+                              color={colorScheme === 'dark' ? '#FFF' : '#000'}
+                            />
+                          </TouchableOpacity>
+                        }
                       />
                       <ScrollView
                         showsVerticalScrollIndicator={true}
