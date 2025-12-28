@@ -4981,58 +4981,8 @@ export function ProgressScreen() {
 
   return (
     <YStack flex={1} backgroundColor="$background" paddingHorizontal={0} paddingVertical={40}>
-      {/* Enhanced Header Overlay for Main Screen */}
-      <HeaderComponent
-        title=""
-        variant="smart"
-        enableBlur={true}
-        leftElement={
-          <TouchableOpacity onPress={() => setShowFilterDrawer(true)}>
-            <View style={{ position: 'relative' }}>
-              <Feather name="filter" size={20} color={iconColor} />
-              {/* Show active filter count badge */}
-              {(() => {
-                const activeFilters = Object.values(categoryFilters).filter(
-                  (value) => value && value !== 'all',
-                ).length;
-                return activeFilters > 0 ? (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: -8,
-                      right: -8,
-                      backgroundColor: '#00E6C3',
-                      borderRadius: 10,
-                      minWidth: 20,
-                      height: 20,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingHorizontal: 4,
-                    }}
-                  >
-                    <Text fontSize={11} fontWeight="bold" color="#000">
-                      {activeFilters}
-                    </Text>
-                  </View>
-                ) : null;
-              })()}
-            </View>
-          </TouchableOpacity>
-        }
-        rightElement={
-          <TouchableOpacity onPress={() => setShowAllExercises(!showAllExercises)}>
-            <Feather 
-              name={showAllExercises ? 'list' : 'plus'} 
-              size={20} 
-              color={showAllExercises ? '#00E6C3' : iconColor} 
-            />
-          </TouchableOpacity>
-        }
-      />
       <ScrollView
-        contentContainerStyle={{ padding: 24, paddingTop: 120, paddingBottom: getTabContentPadding() }}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
+        contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
