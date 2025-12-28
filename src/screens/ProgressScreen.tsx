@@ -18,7 +18,6 @@ import {
   YStack,
   XStack,
   Text,
-  Card,
   Select,
   Image as TamaguiImage,
   Button as TamaguiButton,
@@ -45,6 +44,9 @@ import { ReportDialog } from '../components/report/ReportDialog';
 import { CelebrationModal } from '../components/CelebrationModal';
 import { Checkbox } from '../components/Checkbox';
 import { ExerciseCard } from '../components/ExerciseCard';
+import { ExerciseHeader } from '../components/ExerciseHeader';
+import { ProgressCircle } from '../components/ProgressCircle';
+import { LearningPathCard } from '../components/LearningPathCard';
 
 // Define LearningPath type based on the learning_paths table with all fields
 interface LearningPath {
@@ -242,50 +244,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { useScreenTours } from '../utils/screenTours';
 // import { useTour } from '../contexts/TourContext';
 
-// ProgressCircle component
-interface ProgressCircleProps {
-  percent: number;
-  size?: number;
-  color?: string;
-  bg?: string;
-}
-
-function ProgressCircle({
-  percent,
-  size = 56,
-  color = '#00E6C3',
-  bg = '#222',
-}: ProgressCircleProps) {
-  const strokeWidth = 6;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = Math.max(0, Math.min(percent, 1));
-  return (
-    <Svg width={size} height={size}>
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke={bg}
-        strokeWidth={strokeWidth}
-        fill="none"
-      />
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke={color}
-        strokeWidth={strokeWidth}
-        fill="none"
-        strokeDasharray={`${circumference},${circumference}`}
-        strokeDashoffset={circumference * (1 - progress)}
-        strokeLinecap="round"
-        rotation="-90"
-        origin={`${size / 2},${size / 2}`}
-      />
-    </Svg>
-  );
-}
 
 // Define category types based on the learning_path_categories table with new ones
 type CategoryType =
@@ -4717,121 +4675,23 @@ export function ProgressScreen() {
             </YStack>
           )}
 
-          {/* Path header with icon if available */}
-          <YStack alignItems="center" gap={12} marginBottom={16}>
-            {/* {detailPath.icon && (
-              <View style={{ marginRight: 8 }}>
-                <Feather
-                  name={detailPath.icon as keyof typeof Feather.glyphMap}
-                  size={28}
-                  color={isPasswordLocked ? '#FF9500' : '#00E6C3'}
-                />
-              </View>
-            )} */}
-            {/* Learning Path Progress Circle */}
-            {exercises.length > 0 && (
-              <XStack justifyContent="center" alignItems="center" marginTop={8} marginBottom={16}>
-                <View style={{ position: 'relative' }}>
-                  <ProgressCircle
-                    percent={
-                      completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length /
-                      exercises.length
-                    }
-                    size={90}
-                    color="#27febe"
-                    bg="#333"
-                  />
-                  <Text
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: 90,
-                      height: 90,
-                      textAlign: 'center',
-                      textAlignVertical: 'center',
-                      lineHeight: 90,
-                    }}
-                    fontSize="$4"
-                    color={
-                      completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length ===
-                      exercises.length
-                        ? '#27febe'
-                        : '$gray10'
-                    }
-                    fontWeight="bold"
-                  >
-                    {Math.round(
-                      (completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length /
-                        exercises.length) *
-                        100,
-                    )}
-                    %
-                  </Text>
-                  {completedIds.filter((id) => exercises.some((ex) => ex.id === id)).length ===
-                    exercises.length && (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        top: -5,
-                        right: -5,
-                        width: 30,
-                        height: 30,
-                        borderRadius: 15,
-                        backgroundColor: '#27febe',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Feather name="check" size={18} color="#000" />
-                    </View>
-                  )}
-                </View>
-              </XStack>
-            )}
-
-            <XStack alignItems="center" gap={8}>
-              <Text
-                fontSize={28}
-                fontWeight="900"
-                fontStyle="italic"
-                color="$color"
-                textAlign="center"
-              >
-                {detailPath.title[language]}
-              </Text>
-              {/* {pathCommentCount > 0 && (
-                <XStack
-                  alignItems="center"
-                  gap={4}
-                  backgroundColor="#1f2937"
-                  paddingHorizontal={8}
-                  paddingVertical={4}
-                  borderRadius={12}
-                >
-                  <Feather name="message-circle" size={14} color="#00E6C3" />
-                  <Text fontSize={12} color="#00E6C3">
-                    {pathCommentCount}
-                  </Text>
-                </XStack>
-              )} */}
-            </XStack>
-
-            {/* Show appropriate icon for path state */}
-            {isPasswordLocked ? (
-              <MaterialIcons name="lock" size={24} color="#FF9500" />
-            ) : !isAvailable ? (
-              <MaterialIcons name="hourglass-empty" size={24} color="#FF9500" />
-            ) : null}
-          </YStack>
-
-          {(detailPath.image || detailPath.youtube_url) && ( // #3348
-            <YStack marginTop="$4">{renderLearningPathMedia(detailPath)}</YStack>
-          )}
-
-          <Text color="$gray11" marginBottom={16} textAlign="center" fontSize={16}>
-            {detailPath.description[language]}
-          </Text>
+          <ExerciseHeader
+            title={detailPath.title}
+            description={detailPath.description}
+            language={language}
+            showProgress={true}
+            exercises={exercises}
+            completedIds={completedIds}
+            image={detailPath.image || undefined}
+            youtube_url={detailPath.youtube_url}
+            isPasswordLocked={isPasswordLocked}
+            isAvailable={isAvailable}
+            icon={detailPath.icon || undefined}
+            centerAlign={true}
+            showMediaSection={true}
+            showDescriptionSection={true}
+            renderCustomMedia={() => renderLearningPathMedia(detailPath)}
+          />
 
           {/* <TouchableOpacity
             onPress={() => {
@@ -5400,195 +5260,31 @@ export function ProgressScreen() {
                 const alignment =
                   idx % 3 === 0 ? 'center' : idx % 3 === 1 ? 'flex-end' : 'flex-start';
 
+                // Create modified path for LearningPathCard compatibility
+                const pathForCard = {
+                  ...path,
+                  is_locked: isPasswordLocked,
+                  paywall_enabled: isPaywallEnabled,
+                  icon: path.icon || undefined,
+                  image: path.image || undefined,
+                };
+
                 return (
-                  <TouchableOpacity
+                  <View
                     key={`filtered-path-${path.id}-${idx}`}
-                    // ref={isFirstPath ? firstPathRef : undefined} // DISABLED
-                    onPress={() => handlePathPress(path, idx)}
-                    activeOpacity={0.8}
                     style={{
-                      alignSelf: alignment,
-                      marginBottom: 20,
                       opacity: isEnabled ? 1 : 0.5,
-                      borderWidth: isPasswordLocked || isPaywallEnabled ? 2 : 0,
-                      borderColor: isPasswordLocked
-                        ? '#FF9500'
-                        : isPaywallEnabled
-                          ? '#00E6C3'
-                          : 'transparent',
-                      borderRadius: 24,
-                      shadowColor: isPasswordLocked
-                        ? '#FF9500'
-                        : isPaywallEnabled
-                          ? '#00E6C3'
-                          : 'transparent',
-                      shadowOpacity: isPasswordLocked || isPaywallEnabled ? 0 : 0,
-                      shadowRadius: isPasswordLocked || isPaywallEnabled ? 0 : 0,
-                      shadowOffset: { width: 0, height: 0 },
                     }}
                   >
-                    <Card
-                      backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#f2f1ef'}
-                      borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
-                      borderWidth={3}
-                      width="70%"
-                      padding={24}
-                      borderRadius={20}
-                      elevate
-                      shadowOpacity={isPasswordLocked || isPaywallEnabled ? 0 : 0}
-                    >
-                      <YStack alignItems="center" gap={16}>
-                        {/* Large Progress Circle at Top */}
-                        <View
-                          style={{
-                            position: 'relative',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {isPasswordLocked ? (
-                            <View
-                              style={{
-                                width: 90,
-                                height: 90,
-                                borderRadius: 45,
-                                backgroundColor: '#FF9500',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <MaterialIcons name="lock" size={40} color="#fff" />
-                            </View>
-                          ) : (
-                            <>
-                              {/* Large Progress Circle */}
-                              <ProgressCircle
-                                percent={percent}
-                                size={90}
-                                color={colorScheme === 'dark' ? '#27febe' : '#00C9A7'}
-                                bg={colorScheme === 'dark' ? '#333' : '#E5E5E5'}
-                              />
-
-                              {/* Percentage Text Inside Circle */}
-                              <Text
-                                style={{
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  width: 90,
-                                  height: 90,
-                                  textAlign: 'center',
-                                  textAlignVertical: 'center',
-                                  lineHeight: 90,
-                                }}
-                                fontSize="$4"
-                                color={
-                                  percent === 1
-                                    ? colorScheme === 'dark'
-                                      ? '#27febe'
-                                      : '#00C9A7'
-                                    : colorScheme === 'dark'
-                                      ? '$gray10'
-                                      : '#666'
-                                }
-                                fontWeight="bold"
-                              >
-                                {Math.round(percent * 100)}%
-                              </Text>
-
-                              {/* Checkmark if completed */}
-                              {percent === 1 && (
-                                <View
-                                  style={{
-                                    position: 'absolute',
-                                    top: -5,
-                                    right: -5,
-                                    width: 30,
-                                    height: 30,
-                                    borderRadius: 15,
-                                    backgroundColor:
-                                      colorScheme === 'dark' ? '#27febe' : '#00C9A7',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                  }}
-                                >
-                                  <Feather name="check" size={18} color="#000" />
-                                </View>
-                              )}
-                            </>
-                          )}
-                        </View>
-
-                        {/* Title and Badges - Centered */}
-                        <YStack alignItems="center" gap={8} width="100%">
-                          {/* Badges Row */}
-                          <XStack
-                            alignItems="center"
-                            gap={8}
-                            flexWrap="wrap"
-                            justifyContent="center"
-                          >
-                            {/* Password Badge */}
-                            {isPasswordLocked && hasPassword && (
-                              <XStack
-                                backgroundColor="#FF7300"
-                                paddingHorizontal={8}
-                                paddingVertical={4}
-                                borderRadius={12}
-                                alignItems="center"
-                                gap={4}
-                              >
-                                <MaterialIcons name="vpn-key" size={14} color="white" />
-                                <Text fontSize={11} color="white" fontWeight="bold">
-                                  Password
-                                </Text>
-                              </XStack>
-                            )}
-
-                            {/* Paywall Badge */}
-                            {isPaywallEnabled && (
-                              <XStack
-                                backgroundColor="#00E6C3"
-                                paddingHorizontal={8}
-                                paddingVertical={4}
-                                borderRadius={12}
-                                alignItems="center"
-                                gap={4}
-                              >
-                                <Feather name="credit-card" size={12} color="black" />
-                                <Text fontSize={11} color="black" fontWeight="bold">
-                                  ${path.price_usd || 1.0}
-                                </Text>
-                              </XStack>
-                            )}
-                          </XStack>
-
-                          {/* Title - Centered */}
-                          <Text
-                            fontSize={20}
-                            fontWeight="900"
-                            fontStyle="italic"
-                            color={isActive ? '$color' : isPasswordLocked ? '#FF9500' : '$color'}
-                            textAlign="center"
-                            numberOfLines={2}
-                          >
-                            {idx + 1}. {path.title[language]}
-                          </Text>
-
-                          {/* Description - Centered */}
-                          <Text
-                            color="$gray11"
-                            fontSize={14}
-                            textAlign="center"
-                            numberOfLines={2}
-                            paddingHorizontal={8}
-                          >
-                            {path.description[language]}
-                          </Text>
-                        </YStack>
-                      </YStack>
-                    </Card>
-                  </TouchableOpacity>
+                    <LearningPathCard
+                      path={pathForCard}
+                      progress={percent}
+                      language={language}
+                      index={idx}
+                      alignment={alignment}
+                      onPress={() => handlePathPress(path, idx)}
+                    />
+                  </View>
                 );
               })
             )}

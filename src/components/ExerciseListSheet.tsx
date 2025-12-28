@@ -39,7 +39,6 @@ import { supabase } from '../lib/supabase';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { ListOrdered, ChevronDown } from 'lucide-react-native';
-import Svg, { Circle } from 'react-native-svg';
 import { useThemePreference } from '../hooks/useThemeOverride';
 import { getTabContentPadding } from '../utils/layout';
 // import { CommentsSection } from './CommentsSection';
@@ -49,6 +48,7 @@ import * as Haptics from 'expo-haptics';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExerciseCard } from './ExerciseCard';
+import { ExerciseHeader } from './ExerciseHeader';
 
 const { height } = Dimensions.get('window');
 
@@ -133,49 +133,6 @@ interface ExerciseListSheetProps {
   onExerciseCompleted?: (exerciseId: string, exerciseTitle: string) => void; // Callback when exercise is completed
 }
 
-// Progress Circle component (exact copy from ProgressScreen)
-function ProgressCircle({
-  percent,
-  size = 56,
-  color = '#00E6C3',
-  bg = '#222',
-}: {
-  percent: number;
-  size?: number;
-  color?: string;
-  bg?: string;
-}) {
-  const strokeWidth = 6;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = Math.max(0, Math.min(percent, 1));
-
-  return (
-    <Svg width={size} height={size}>
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke={bg}
-        strokeWidth={strokeWidth}
-        fill="none"
-      />
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        stroke={color}
-        strokeWidth={strokeWidth}
-        fill="none"
-        strokeDasharray={`${circumference},${circumference}`}
-        strokeDashoffset={circumference * (1 - progress)}
-        strokeLinecap="round"
-        rotation="-90"
-        origin={`${size / 2},${size / 2}`}
-      />
-    </Svg>
-  );
-}
 
 export function ExerciseListSheet({ // #1099
   visible,
@@ -2543,120 +2500,48 @@ export function ExerciseListSheet({ // #1099
                       }
                     >
                       <View style={{ flex: 1 }}>
-                        {/* Header with Progress Circle */}
-                        <YStack gap={16} marginBottom={16}>
-                          <XStack justifyContent="space-between" alignItems="center">
-                            {onBackToAllPaths && !fromFeaturedContent ? (
-                              <TouchableOpacity onPress={onBackToAllPaths}>
-                                <Feather
-                                  name="arrow-left"
-                                  size={24}
-                                  color={colorScheme === 'dark' ? '#FFF' : '#000'}
-                                />
-                              </TouchableOpacity>
-                            ) : (
-                              <View style={{ width: 24 }} />
-                            )}
-
-                            <Text
-                              fontSize="$6"
-                              fontWeight="bold"
-                              color="$color"
-                              textAlign="center"
-                              flex={1}
-                            >
-                              {title}
-                            </Text>
-
-                            {/* <TouchableOpacity onPress={onClose}>
+                        {/* Back Button */}
+                        <XStack justifyContent="space-between" alignItems="center" marginBottom={16}>
+                          {onBackToAllPaths && !fromFeaturedContent ? (
+                            <TouchableOpacity onPress={onBackToAllPaths}>
                               <Feather
-                                name="x"
+                                name="arrow-left"
                                 size={24}
                                 color={colorScheme === 'dark' ? '#FFF' : '#000'}
                               />
-                            </TouchableOpacity> */}
-                          </XStack>
-
-                          {/* Learning Path Progress Circle */}
-                          {exercises.length > 0 && (
-                            <XStack justifyContent="center" alignItems="center" marginTop={8}>
-                              <View style={{ position: 'relative' }}>
-                                <ProgressCircle
-                                  percent={
-                                    completedIds.filter((id) =>
-                                      exercises.some((ex) => ex.id === id),
-                                    ).length / exercises.length
-                                  }
-                                  size={90}
-                                  color="#27febe"
-                                  bg="#333"
-                                />
-                                <Text
-                                  style={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: 0,
-                                    width: 90,
-                                    height: 90,
-                                    textAlign: 'center',
-                                    textAlignVertical: 'center',
-                                    lineHeight: 90,
-                                  }}
-                                  fontSize="$4"
-                                  color={
-                                    completedIds.filter((id) =>
-                                      exercises.some((ex) => ex.id === id),
-                                    ).length === exercises.length
-                                      ? '#27febe'
-                                      : '$gray10'
-                                  }
-                                  fontWeight="bold"
-                                >
-                                  {Math.round(
-                                    (completedIds.filter((id) =>
-                                      exercises.some((ex) => ex.id === id),
-                                    ).length /
-                                      exercises.length) *
-                                      100,
-                                  )}
-                                  %
-                                </Text>
-                                {completedIds.filter((id) => exercises.some((ex) => ex.id === id))
-                                  .length === exercises.length && (
-                                  <View
-                                    style={{
-                                      position: 'absolute',
-                                      top: -5,
-                                      right: -5,
-                                      width: 30,
-                                      height: 30,
-                                      borderRadius: 15,
-                                      backgroundColor: '#27febe',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                    }}
-                                  >
-                                    <Feather name="check" size={18} color="#000" />
-                                  </View>
-                                )}
-                              </View>
-                            </XStack>
+                            </TouchableOpacity>
+                          ) : (
+                            <View style={{ width: 24 }} />
                           )}
 
-                          {/* Learning Path Media (Video/Image) */}
-                          {detailPath && (detailPath.youtube_url || detailPath.image) && (
-                            <YStack marginTop={16}>{renderLearningPathMedia(detailPath)}</YStack>
-                          )}
+                          <Text
+                            fontSize="$6"
+                            fontWeight="bold"
+                            color="$color"
+                            textAlign="center"
+                            flex={1}
+                          >
+                            {title}
+                          </Text>
+                        </XStack>
 
-                          {/* Learning Path Description */}
-                          {detailPath?.description?.[lang] && (
-                            <YStack marginTop={16}>
-                              <Text fontSize={16} color="$gray11" lineHeight={24}>
-                                {detailPath.description[lang]}
-                              </Text>
-                            </YStack>
-                          )}
-                        </YStack>
+                        {/* Exercise Header Component */}
+                        {detailPath && (
+                          <ExerciseHeader
+                            title={detailPath.title}
+                            description={detailPath.description}
+                            language={lang}
+                            showProgress={true}
+                            exercises={exercises}
+                            completedIds={completedIds}
+                            image={detailPath.image || undefined}
+                            youtube_url={detailPath.youtube_url}
+                            centerAlign={true}
+                            showMediaSection={true}
+                            showDescriptionSection={true}
+                            renderCustomMedia={() => renderLearningPathMedia(detailPath)}
+                          />
+                        )}
 
                         {/* Featured Exercises Quick Access */}
                         {/* <Button
