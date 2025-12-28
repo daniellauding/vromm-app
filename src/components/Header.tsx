@@ -1,8 +1,14 @@
-import { Text, YStack, XStack, Button } from 'tamagui';
+import React, { useState, useRef } from 'react';
+import { Text, YStack, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
-import { useColorScheme } from 'react-native';
+import { Animated, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import { useThemeColor } from '../../hooks/useThemeColor';
+import { useThemePreference } from '../hooks/useThemeOverride';
+
+export type HeaderVariant = 'default' | 'sticky' | 'smart' | 'floating';
 
 export interface HeaderProps {
   title: string;
@@ -10,6 +16,10 @@ export interface HeaderProps {
   rightElement?: React.ReactNode;
   showBack?: boolean;
   onBackPress?: () => void;
+  variant?: HeaderVariant;
+  scrollY?: Animated.Value;
+  enableBlur?: boolean;
+  blurTint?: 'light' | 'dark' | 'default';
 }
 
 export function Header({
@@ -18,15 +28,80 @@ export function Header({
   rightElement,
   showBack = false,
   onBackPress,
+  variant = 'default',
+  scrollY,
+  enableBlur = false,
+  blurTint = 'default',
 }: HeaderProps) {
-  let navigation;
+  // Safe navigation hook - may not be available in all contexts
+  let navigation = null;
   try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     navigation = useNavigation();
-  } catch (error) {
-    navigation = null;
+  } catch {
+    // Navigation not available
   }
 
+  const insets = useSafeAreaInsets();
+  const themePref = useThemePreference();
+  const isDark = themePref?.effectiveTheme === 'dark';
   const iconColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
+  
+  // Smart header state
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const lastScrollY = useRef(0);
+  
+  // Animation values
+  const headerOpacity = useRef(new Animated.Value(1)).current;
+  const headerTranslateY = useRef(new Animated.Value(0)).current;
+  const backgroundOpacity = useRef(new Animated.Value(0)).current;
+  
+  // Configure scroll listener for smart header
+  React.useEffect(() => {
+    if (!scrollY || variant !== 'smart') return;
+    
+    const listener = scrollY.addListener(({ value }) => {
+      const currentScrollY = value;
+      const isScrollingDown = currentScrollY > lastScrollY.current;
+      const shouldHide = isScrollingDown && currentScrollY > 100;
+      
+      if (shouldHide !== !isHeaderVisible) {
+        setIsHeaderVisible(!shouldHide);
+        
+        Animated.parallel([
+          Animated.timing(headerOpacity, {
+            toValue: shouldHide ? 0 : 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(headerTranslateY, {
+            toValue: shouldHide ? -80 : 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+      
+      lastScrollY.current = currentScrollY;
+    });
+    
+    return () => scrollY.removeListener(listener);
+  }, [scrollY, variant, headerOpacity, headerTranslateY, isHeaderVisible]);
+  
+  // Configure background opacity for sticky/floating variants
+  React.useEffect(() => {
+    if (!scrollY || (variant !== 'sticky' && variant !== 'floating')) return;
+    
+    const listener = scrollY.addListener(({ value }) => {
+      const opacity = Math.min(value / 100, 1);
+      backgroundOpacity.setValue(opacity);
+    });
+    
+    return () => scrollY.removeListener(listener);
+  }, [scrollY, variant, backgroundOpacity]);
+  
+  // Determine blur tint
+  const resolvedBlurTint = blurTint === 'default' ? (isDark ? 'dark' : 'light') : blurTint;
 
   const handleBackPress = () => {
     if (onBackPress) {
@@ -37,32 +112,33 @@ export function Header({
       console.warn('No navigation or onBackPress available in Header');
     }
   };
-
-  return (
+  
+  const renderHeaderContent = () => (
     <XStack
-      backgroundColor="$background"
-      paddingHorizontal="$0"
-      paddingVertical="$3"
+      backgroundColor={variant === 'default' ? '$background' : 'transparent'}
+      paddingHorizontal={24}
+      paddingVertical={12}
       alignItems="center"
       justifyContent="space-between"
       borderBottomColor="$borderColor"
-      borderBottomWidth={0}
+      borderBottomWidth={variant === 'default' ? 0 : 0}
     >
       {showBack ? (
-        <YStack gap="$2" width="100%" alignSelf="stretch">
-          <Button
-            size="$10"
-            backgroundColor="transparent"
-            paddingHorizontal="$2"
-            marginLeft={-12}
-            alignSelf="flex-start"
+        <YStack gap={8} width="100%" alignSelf="stretch">
+          <TouchableOpacity
             onPress={handleBackPress}
-            icon={<Feather name="arrow-left" size={24} color={iconColor} />}
-          />
-          <XStack alignItems="center" gap="$2" width="100%" flex={1}>
+            style={{
+              alignSelf: 'flex-start',
+              marginLeft: -8,
+              padding: 8,
+            }}
+          >
+            <Feather name="arrow-left" size={24} color={iconColor} />
+          </TouchableOpacity>
+          <XStack alignItems="center" gap={12} width="100%" flex={1}>
             {leftElement}
             <Text
-              fontSize="$6"
+              fontSize={20}
               fontWeight="800"
               fontStyle="italic"
               color="$color"
@@ -80,10 +156,10 @@ export function Header({
           </XStack>
         </YStack>
       ) : (
-        <XStack alignItems="center" gap="$2" width="100%" flex={1} alignSelf="stretch">
+        <XStack alignItems="center" gap={12} width="100%" flex={1} alignSelf="stretch">
           {leftElement}
           <Text
-            fontSize="$6"
+            fontSize={20}
             fontWeight="800"
             fontStyle="italic"
             color="$color"
@@ -102,4 +178,140 @@ export function Header({
       )}
     </XStack>
   );
+  
+  if (variant === 'default') {
+    return renderHeaderContent();
+  }
+
+  // Sticky header with blur background
+  if (variant === 'sticky') {
+    return (
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          paddingTop: insets.top,
+        }}
+      >
+        {enableBlur ? (
+          <BlurView
+            intensity={80}
+            tint={resolvedBlurTint}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        ) : (
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: isDark ? 'rgba(26, 26, 26, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              opacity: backgroundOpacity,
+            }}
+          />
+        )}
+        {renderHeaderContent()}
+      </Animated.View>
+    );
+  }
+  
+  // Smart header that hides/shows on scroll
+  if (variant === 'smart') {
+    return (
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          paddingTop: insets.top,
+          opacity: headerOpacity,
+          transform: [{ translateY: headerTranslateY }],
+        }}
+      >
+        {enableBlur ? (
+          <BlurView
+            intensity={80}
+            tint={resolvedBlurTint}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        ) : (
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: isDark ? 'rgba(26, 26, 26, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              opacity: 0.95,
+            }}
+          />
+        )}
+        {renderHeaderContent()}
+      </Animated.View>
+    );
+  }
+  
+  // Floating header with blur (always visible, subtle background)
+  if (variant === 'floating') {
+    return (
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: insets.top + 16,
+          left: 16,
+          right: 16,
+          zIndex: 1000,
+          borderRadius: 12,
+          overflow: 'hidden',
+        }}
+      >
+        {enableBlur ? (
+          <BlurView
+            intensity={60}
+            tint={resolvedBlurTint}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        ) : (
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: isDark ? 'rgba(26, 26, 26, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+              opacity: backgroundOpacity,
+            }}
+          />
+        )}
+        {renderHeaderContent()}
+      </Animated.View>
+    );
+  }
+  
+  return renderHeaderContent();
+}
+
+// Hook to create scroll-aware Header
+export function useHeaderWithScroll() {
+  const scrollY = useRef(new Animated.Value(0)).current;
+  
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    { useNativeDriver: false },
+  );
+  
+  const HeaderComponent = (props: Omit<HeaderProps, 'scrollY'>) => (
+    <Header {...props} scrollY={scrollY} />
+  );
+  
+  return { HeaderComponent, onScroll, scrollY };
 }

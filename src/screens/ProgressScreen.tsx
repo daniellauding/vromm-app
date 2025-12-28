@@ -47,6 +47,7 @@ import { ExerciseCard } from '../components/ExerciseCard';
 import { ExerciseHeader } from '../components/ExerciseHeader';
 import { ProgressCircle } from '../components/ProgressCircle';
 import { LearningPathCard } from '../components/LearningPathCard';
+import { Header, useHeaderWithScroll } from '../components/Header';
 
 // Define LearningPath type based on the learning_paths table with all fields
 interface LearningPath {
@@ -266,6 +267,7 @@ interface CategoryOption {
 }
 
 export function ProgressScreen() {
+  const { HeaderComponent, onScroll } = useHeaderWithScroll();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<TabParamList, 'ProgressTab'>>();
   const { language, t } = useTranslation(); // Get user's language preference and t function
@@ -4630,7 +4632,7 @@ export function ProgressScreen() {
     return (
       <YStack flex={1} backgroundColor="$background" paddingHorizontal={0} paddingVertical={40}>
         <ScrollView
-          contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding() }}
+          contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding(), paddingTop: 120 }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -4640,31 +4642,27 @@ export function ProgressScreen() {
               progressBackgroundColor="#1a1a1a"
             />
           }
+          onScroll={onScroll}
+          scrollEventThrottle={16}
         >
-          {/* Back + History Header Row */}
-          <XStack justifyContent="space-between" alignItems="center" marginBottom={8}>
-            <TouchableOpacity onPress={() => setShowDetailView(false)}>
-              <Feather name="arrow-left" size={28} color={iconColor} />
-            </TouchableOpacity>
-            {/* <TouchableOpacity
-              onPress={() => {
-                setHistoryModalVisible(true);
-                loadAudit();
-              }}
-              style={{ backgroundColor: '#333', padding: 8, borderRadius: 16 }}
-            >
-              <Feather name="clock" size={20} color="#fff" />
-            </TouchableOpacity> */}
-
-            <TouchableOpacity
-              onPress={() => {
-                console.log('🧾 [ProgressScreen] open report path', detailPath.id);
-                setReportPath(true);
-              }}
-            >
-              <Feather name="flag" size={20} color={iconColor} />
-            </TouchableOpacity>
-          </XStack>
+          <HeaderComponent
+            title={detailPath?.title?.[language] || detailPath?.title?.en || 'Learning Path'}
+            showBack={true}
+            onBackPress={() => setShowDetailView(false)}
+            variant="sticky"
+            enableBlur={true}
+            rightElement={
+              <TouchableOpacity
+                onPress={() => {
+                  console.log('🧾 [ProgressScreen] open report path', detailPath.id);
+                  setReportPath(true);
+                }}
+                style={{ padding: 8 }}
+              >
+                <Feather name="flag" size={20} color={iconColor} />
+              </TouchableOpacity>
+            }
+          />
 
           {viewingUserName && user?.role === 'instructor' && (
             <YStack marginBottom={12} padding={10} backgroundColor="#162023" borderRadius={12}>
