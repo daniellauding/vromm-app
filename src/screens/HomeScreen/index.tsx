@@ -489,6 +489,11 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
             type: 'created',
           });
         }}
+        onEditProfile={() => {
+          // Close UserProfileSheet and open ProfileSheet for editing
+          setShowUserProfileSheet(false);
+          setShowProfileSheet(true);
+        }}
       />
 
       {/* Route Detail Sheet */}
