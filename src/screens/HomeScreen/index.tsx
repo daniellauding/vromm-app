@@ -572,6 +572,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         onClose={() => setShowAvatarModal(false)}
         onViewProfile={() => {
           setShowAvatarModal(false);
+          setSelectedUserId(profile?.id || null); // Set the current user's ID
           setShowUserProfileSheet(true);
         }}
         onMyProgression={() => {
