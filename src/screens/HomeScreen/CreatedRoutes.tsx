@@ -58,7 +58,8 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
           .from('routes')
           .select('*')
           .eq('creator_id', effectiveUserId)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+        .limit(10); // Limit to prevent home screen flooding
 
         if (createdError) throw createdError;
 
@@ -276,7 +277,11 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
                   <XStack marginRight="$3" width={cardWidth} overflow="hidden">
                     <RouteCard
                       route={route}
-                      preset="grid"
+                      preset="small-clean"
+                      showTitle={false}
+                      showRouteMeta={false}
+                      showAuthor={false}
+                      showDescription={false}
                       onPress={() => {
                         if (onRoutePress) {
                           onRoutePress(route.id);
@@ -300,10 +305,12 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
                 <XStack marginRight="$3">
                   <RouteCard
                     route={route}
-                    // To allow 100% or fixed width, use a wrapper XStack and control its width
-                    // Example: set width to 200, or '100%' for full width within scroll area
-                    // Here, let's allow for 100% width; you can override as needed
-                    style={{ width: '100%', maxWidth: 120, minWidth: 80 }} // change as needed!
+                    preset="small-clean"
+                    showTitle={false}
+                    showRouteMeta={false}
+                    showAuthor={false}
+                    showDescription={false}
+                    style={{ width: '100%', maxWidth: 120, minWidth: 80 }}
                     onPress={() => {
                       if (onRoutePress) {
                         onRoutePress(route.id);

@@ -75,7 +75,10 @@ type RouteCardPreset =
   | 'tall' // Tall portrait format (3:4 aspect ratio)
   | 'square' // Square format (1:1 aspect ratio)
   | 'hero' // Netflix-style: tall, title/text above media, no meta
-  | 'miniature'; // XS, map only, minimal info
+  | 'miniature' // XS, map only, minimal info
+  | 'horizontal' // Horizontal layout: image/map on left, meta on right
+  | 'split' // For 2 cards side by side on screen width
+  | 'small-clean'; // Small size without meta info
 
 interface RouteCardProps {
   route: Route;
@@ -329,6 +332,45 @@ export function RouteCard({
             enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
           };
           break;
+        case 'horizontal':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : true,
+            showImage: showImage !== undefined ? showImage : true,
+            showVideo: showVideo !== undefined ? showVideo : true,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : true,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+        case 'split':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : true,
+            showImage: showImage !== undefined ? showImage : true,
+            showVideo: showVideo !== undefined ? showVideo : true,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : true,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
+        case 'small-clean':
+          presetConfig = {
+            size: size || 'small',
+            showMap: showMap !== undefined ? showMap : true,
+            showImage: showImage !== undefined ? showImage : true,
+            showVideo: showVideo !== undefined ? showVideo : true,
+            showTitle: showTitle !== undefined ? showTitle : true,
+            showDescription: showDescription !== undefined ? showDescription : false,
+            showAuthor: showAuthor !== undefined ? showAuthor : false,
+            showRouteMeta: showRouteMeta !== undefined ? showRouteMeta : false,
+            enableCarousel: enableCarousel !== undefined ? enableCarousel : true,
+          };
+          break;
       }
     }
 
@@ -384,6 +426,12 @@ export function RouteCard({
         return 4 / 3; // 4:3 for grid
       case 'hero':
         return 2 / 3; // Netflix-style tall (3:2 or taller)
+      case 'horizontal':
+        return 3 / 2; // Wider for horizontal layout
+      case 'split':
+        return 5 / 4; // Slightly wider than square
+      case 'small-clean':
+        return 4 / 3; // Same as grid
       default:
         return null; // Use default sizing
     }
@@ -398,6 +446,12 @@ export function RouteCard({
     const getCardWidth = () => {
       if (preset === 'grid') {
         return (screenWidth - 32 - 24) / 3.5; // For 3-4 cards visible
+      }
+      if (preset === 'split') {
+        return (screenWidth - 32 - 12) / 2; // For 2 cards side by side with gap
+      }
+      if (preset === 'horizontal') {
+        return screenWidth - 32; // Full width minus padding for horizontal layout
       }
       if (resolvedSize === 'small') {
         return screenWidth - 32; // Full width minus padding
@@ -618,16 +672,23 @@ export function RouteCard({
     );
   };
 
-  // Hero variant: title/text above media
+  // Special layout variants
   const isHeroVariant = preset === 'hero';
+  const isHorizontalVariant = preset === 'horizontal';
 
   return (
     <Animated.View style={animatedStyle}>
       <Card padding={sizeConfig.padding} onPress={handlePress} borderRadius="$4" overflow="hidden">
-        <YStack space={sizeConfig.space}>
-          {/* Hero variant: Title and description above media */}
-          {isHeroVariant && (
-            <YStack space={sizeConfig.space}>
+        {isHorizontalVariant ? (
+          // Horizontal layout: image/map on left, content on right
+          <XStack space="$4" alignItems="flex-start">
+            {/* Left side: Carousel/Map/Image - small 1/5th size */}
+            <View style={{ width: 80, height: 60, flexShrink: 0, borderRadius: 8, overflow: 'hidden' }}>
+              {renderCarousel()}
+            </View>
+            
+            {/* Right side: Content */}
+            <YStack space={sizeConfig.space} flex={1}>
               {/* Title */}
               {resolvedShowTitle && (
                 <Text
@@ -639,17 +700,7 @@ export function RouteCard({
                   {route.name}
                 </Text>
               )}
-              {/* Description */}
-              {resolvedShowDescription && route.description && !isRecordedRoute(route) && (
-                <Text
-                  numberOfLines={truncateDescription ? 3 : undefined}
-                  fontSize={sizeConfig.textFontSize}
-                  color="$gray11"
-                  ellipsizeMode={truncateDescription ? 'tail' : undefined}
-                >
-                  {route.description}
-                </Text>
-              )}
+
               {/* Author */}
               {resolvedShowAuthor && (
                 <XStack space="$2" alignItems="center" flexShrink={1}>
@@ -692,13 +743,186 @@ export function RouteCard({
                   </Text>
                 </XStack>
               )}
+
+              {/* Driven Date - only for horizontal variant with driven_at */}
+              {(route as any).driven_at && (
+                <XStack space="$1" alignItems="center">
+                  <Feather name="clock" size={sizeConfig.metaIconSize} color={iconColor} />
+                  <Text
+                    fontSize={sizeConfig.textFontSize}
+                    color="$gray11"
+                    numberOfLines={1}
+                  >
+                    {new Date((route as any).driven_at).toLocaleDateString(language === 'sv' ? 'sv-SE' : 'en-US', {
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </Text>
+                </XStack>
+              )}
+
+              {/* Route Meta (Difficulty, Spot Type, Rating) */}
+              {resolvedShowRouteMeta && (
+                <YStack space={sizeConfig.metaSpace}>
+                  <XStack space="$1" alignItems="center" flexShrink={1}>
+                    <Feather name="bar-chart" size={sizeConfig.metaIconSize} color={iconColor} />
+                    <Text
+                      fontSize={sizeConfig.textFontSize}
+                      numberOfLines={truncateMeta ? 1 : undefined}
+                      ellipsizeMode={truncateMeta ? 'tail' : undefined}
+                    >
+                      {route.difficulty === 'beginner'
+                        ? getTranslation(
+                            'filters.difficulty.beginner',
+                            language === 'sv' ? 'Nybörjare' : 'Beginner',
+                          )
+                        : route.difficulty === 'intermediate'
+                          ? getTranslation(
+                              'filters.difficulty.intermediate',
+                              language === 'sv' ? 'Medel' : 'Intermediate',
+                            )
+                          : route.difficulty === 'advanced'
+                            ? getTranslation(
+                                'filters.difficulty.advanced',
+                                language === 'sv' ? 'Avancerad' : 'Advanced',
+                              )
+                            : route.difficulty}
+                    </Text>
+                  </XStack>
+
+                  <XStack space="$1" alignItems="center" flexShrink={1}>
+                    <Feather name="map-pin" size={sizeConfig.metaIconSize} color={iconColor} />
+                    <Text
+                      fontSize={sizeConfig.textFontSize}
+                      numberOfLines={truncateMeta ? 1 : undefined}
+                      ellipsizeMode={truncateMeta ? 'tail' : undefined}
+                      flexShrink={1}
+                    >
+                      {route.spot_type === 'urban'
+                        ? getTranslation(
+                            'filters.spotType.urban',
+                            language === 'sv' ? 'Urban' : 'Urban',
+                          )
+                        : route.spot_type === 'highway'
+                          ? getTranslation(
+                              'filters.spotType.highway',
+                              language === 'sv' ? 'Motorväg' : 'Highway',
+                            )
+                          : route.spot_type === 'rural'
+                            ? getTranslation(
+                                'filters.spotType.rural',
+                                language === 'sv' ? 'Landsbygd' : 'Rural',
+                              )
+                            : route.spot_type === 'residential'
+                              ? getTranslation(
+                                  'filters.spotType.parking',
+                                  language === 'sv' ? 'Parkering' : 'Parking',
+                                )
+                              : route.spot_type}
+                    </Text>
+                  </XStack>
+
+                  <XStack space="$1" alignItems="center" flexShrink={1}>
+                    <Feather name="star" size={sizeConfig.metaIconSize} color={iconColor} />
+                    <Text
+                      fontSize={sizeConfig.textFontSize}
+                      fontWeight="bold"
+                      color="$yellow10"
+                      numberOfLines={truncateMeta ? 1 : undefined}
+                    >
+                      {route.reviews?.[0]?.rating?.toFixed(1) || '0.0'}
+                    </Text>
+                    <Text
+                      fontSize={sizeConfig.textFontSize}
+                      color="$gray11"
+                      numberOfLines={truncateMeta ? 1 : undefined}
+                      ellipsizeMode={truncateMeta ? 'tail' : undefined}
+                      flexShrink={1}
+                    >
+                      ({route.reviews?.length || 0})
+                    </Text>
+                  </XStack>
+                </YStack>
+              )}
             </YStack>
-          )}
-
-          {/* Carousel/Map/Image */}
-          {renderCarousel()}
-
+          </XStack>
+        ) : (
+          // Standard vertical layout
           <YStack space={sizeConfig.space}>
+            {/* Hero variant: Title and description above media */}
+            {isHeroVariant && (
+              <YStack space={sizeConfig.space}>
+                {/* Title */}
+                {resolvedShowTitle && (
+                  <Text
+                    fontSize={sizeConfig.titleFontSize}
+                    fontWeight="bold"
+                    numberOfLines={truncateTitle ? 2 : undefined}
+                    ellipsizeMode={truncateTitle ? 'tail' : undefined}
+                  >
+                    {route.name}
+                  </Text>
+                )}
+                {/* Description */}
+                {resolvedShowDescription && route.description && !isRecordedRoute(route) && (
+                  <Text
+                    numberOfLines={truncateDescription ? 3 : undefined}
+                    fontSize={sizeConfig.textFontSize}
+                    color="$gray11"
+                    ellipsizeMode={truncateDescription ? 'tail' : undefined}
+                  >
+                    {route.description}
+                  </Text>
+                )}
+                {/* Author */}
+                {resolvedShowAuthor && (
+                  <XStack space="$2" alignItems="center" flexShrink={1}>
+                    {(route.creator as unknown as { avatar_url?: string })?.avatar_url ? (
+                      <Image
+                        source={{
+                          uri: (route.creator as unknown as { avatar_url?: string }).avatar_url!,
+                        }}
+                        style={{
+                          width: sizeConfig.iconSize,
+                          height: sizeConfig.iconSize,
+                          borderRadius: sizeConfig.iconSize / 2,
+                        }}
+                      />
+                    ) : (
+                      <Feather name="user" size={sizeConfig.iconSize} color={iconColor} />
+                    )}
+                    <Text
+                      fontSize={sizeConfig.textFontSize}
+                      color="$gray11"
+                      numberOfLines={truncateAuthor ? 1 : undefined}
+                      ellipsizeMode={truncateAuthor ? 'tail' : undefined}
+                      flex={truncateAuthor ? 1 : undefined}
+                      onPress={() => {
+                        console.log('RouteCard: Navigating to profile, creator:', route.creator);
+                        if (route.creator?.id) {
+                          console.log('RouteCard: Using creator.id:', route.creator.id);
+                          navigation.navigate('PublicProfile', { userId: route.creator.id });
+                        } else if (route.creator_id) {
+                          console.log('RouteCard: Using creator_id:', route.creator_id);
+                          navigation.navigate('PublicProfile', { userId: route.creator_id });
+                        } else {
+                          console.log('RouteCard: No creator ID available');
+                        }
+                      }}
+                      pressStyle={{ opacity: 0.7 }}
+                    >
+                      {route.creator?.full_name ||
+                        getTranslation('common.unknown', language === 'sv' ? 'Okänd' : 'Unknown')}
+                    </Text>
+                  </XStack>
+                )}
+              </YStack>
+            )}
+
+            {/* Carousel/Map/Image */}
+            {renderCarousel()}
+
+            <YStack space={sizeConfig.space}>
             {/* Title - only show if not hero variant */}
             {resolvedShowTitle && !isHeroVariant && (
               <Text
@@ -899,8 +1123,9 @@ export function RouteCard({
                   {route.description}
                 </Text>
               )}
+            </YStack>
           </YStack>
-        </YStack>
+        )}
       </Card>
     </Animated.View>
   );
