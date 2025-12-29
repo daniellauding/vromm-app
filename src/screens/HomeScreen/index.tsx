@@ -1,7 +1,7 @@
 import React from 'react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { YStack, XStack, Text } from 'tamagui';
-import { FlatList, TouchableOpacity, Platform } from 'react-native';
+import { FlatList, TouchableOpacity, Platform, Animated } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -24,9 +24,14 @@ import { MessagesSheet } from '../../components/MessagesSheet';
 import { NotificationsSheet } from '../../components/NotificationsSheet';
 // import { EventsSheet } from '../../components/EventsSheet';
 import { ProfileSheet } from '../../components/ProfileSheet';
+import { AchievementsSheet } from '../../components/AchievementsSheet';
 import { HomeHeader } from './Header';
+import { ScrollableHeader } from './ScrollableHeader';
+import { AvatarModal } from './AvatarModal';
+import { WelcomeText } from './WelcomeText';
 import MyTab from './MyTab';
 import CommunityTab from './CommunityTab';
+import { useTourTarget } from '../../components/TourOverlay';
 
 interface HomeScreenProps {
   activeUserId?: string;
@@ -62,6 +67,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   const [showMessagesSheet, setShowMessagesSheet] = useState(false);
   const [showNotificationsSheet, setShowNotificationsSheet] = useState(false);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
+  const [showAchievementsSheet, setShowAchievementsSheet] = useState(false);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'you' | 'community'>('you');
@@ -70,6 +76,10 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
 
   // State declarations
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  
+  // Scroll animation ref
+  const scrollY = useRef(new Animated.Value(0)).current;
   
   // Performance monitoring
   React.useEffect(() => {
@@ -82,6 +92,9 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   
   // Track if UserListSheet was open when opening UserProfileSheet
   const wasUserListSheetOpenRef = React.useRef(false);
+  
+  // Register profile avatar for instructor tour targeting
+  const profileAvatarRef = useTourTarget('Header.ProfileAvatar');
 
   // Onboarding logic - unified with OnboardingInteractive's storage system
   useEffect(() => {
@@ -184,14 +197,30 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         />
       )}
 
-      <FlatList
+      {/* Scrollable Header - positioned absolutely */}
+      <ScrollableHeader
+        scrollY={scrollY}
+        onAvatarPress={() => setShowAvatarModal(true)}
+        onNotificationPress={() => setShowNotificationsSheet(true)}
+        onUsersPress={profile?.role === 'admin' ? () => setShowUserListSheet(true) : undefined}
+        isAdmin={profile?.role === 'admin'}
+        profileAvatarRef={profileAvatarRef}
+      />
+
+      <Animated.FlatList
         data={[1]}
         keyExtractor={() => 'home-content'}
-        contentContainerStyle={{ paddingTop: 72, paddingBottom: 40 + BOTTOM_INSET }}
+        contentContainerStyle={{ paddingTop: 100, paddingBottom: 40 + BOTTOM_INSET }}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
         renderItem={() => (
           <YStack f={1}>
-            <HomeHeader />
+            {/* Welcome Text - fades out on scroll */}
+            <WelcomeText scrollY={scrollY} />
 
             {/* Tab Switcher */}
             {/* <XStack
@@ -403,7 +432,27 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         onClose={() => setShowEventsSheet(false)}
       /> */}
 
+      {/* Avatar Modal */}
+      <AvatarModal
+        visible={showAvatarModal}
+        onClose={() => setShowAvatarModal(false)}
+        onViewProfile={() => {
+          setShowAvatarModal(false);
+          setShowUserProfileSheet(true);
+        }}
+        onLogout={() => {
+          // Logout is handled internally by AvatarModal
+        }}
+      />
+
+      {/* Profile Sheet */}
       <ProfileSheet visible={showProfileSheet} onClose={() => setShowProfileSheet(false)} />
+
+      {/* Achievements Sheet */}
+      <AchievementsSheet
+        visible={showAchievementsSheet}
+        onClose={() => setShowAchievementsSheet(false)}
+      />
     </Screen>
   );
 });
