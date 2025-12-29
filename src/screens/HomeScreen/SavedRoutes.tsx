@@ -57,8 +57,7 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
         .from('saved_routes')
         .select('*, routes(*, creator:creator_id(id, full_name))')
         .eq('user_id', effectiveUserId)
-        .order('saved_at', { ascending: false })
-        .limit(10); // Limit to prevent home screen flooding
+        .order('saved_at', { ascending: false });
 
       if (savedError) throw savedError;
 
@@ -200,13 +199,22 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
           actionLabel={t('common.seeAll')}
           showActionLabel={false}
         />
-        {savedRoutes.length <= 2 ? (
-          <XStack space="$4" paddingHorizontal="$4">
-            {savedRoutes.map((route) => (
-              <YStack key={route.id} flex={1}>
+        <FlatList
+          horizontal
+          data={savedRoutes}
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
+          renderItem={({ item: route }) => {
+            // RouteCard's grid preset calculates: (screenWidth - 32 - 24) / 3.5
+            // We need to match this for proper FlatList layout
+            const screenWidth = require('react-native').Dimensions.get('window').width;
+            const cardWidth = (screenWidth - 32 - 24) / 3.5;
+            return (
+              <XStack marginRight="$3" width={cardWidth} overflow="hidden">
                 <RouteCard
                   route={route as any}
-                  preset="split"
+                  preset="grid"
                   onPress={() => {
                     if (onRoutePress) {
                       onRoutePress(route.id);
@@ -215,39 +223,10 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
                     }
                   }}
                 />
-              </YStack>
-            ))}
-          </XStack>
-        ) : (
-          <FlatList
-            horizontal
-            data={savedRoutes}
-            keyExtractor={(item) => item.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
-            renderItem={({ item: route }) => {
-              // RouteCard's grid preset calculates: (screenWidth - 32 - 24) / 3.5
-              // We need to match this for proper FlatList layout
-              const screenWidth = require('react-native').Dimensions.get('window').width;
-              const cardWidth = (screenWidth - 32 - 24) / 3.5;
-              return (
-                <XStack marginRight="$3" width={cardWidth} overflow="hidden">
-                  <RouteCard
-                    route={route as any}
-                    preset="grid"
-                    onPress={() => {
-                      if (onRoutePress) {
-                        onRoutePress(route.id);
-                      } else {
-                        navigation.navigate('RouteDetail', { routeId: route.id });
-                      }
-                    }}
-                  />
-                </XStack>
-              );
-            }}
-          />
-        )}
+              </XStack>
+            );
+          }}
+        />
       </YStack>
 
       {/* Route List Sheet */}
