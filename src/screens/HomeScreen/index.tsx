@@ -1,7 +1,9 @@
 import React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { YStack, XStack, Text } from 'tamagui';
-import { FlatList, TouchableOpacity, Platform, Animated } from 'react-native';
+import { FlatList, TouchableOpacity, Platform, Animated, Alert, Modal, ScrollView, View, Image, Pressable } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -15,6 +17,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useTour } from '../../contexts/TourContext';
+import { useThemePreference } from '../../hooks/useThemeOverride';
 
 import { UserListSheet } from '../../components/UserListSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
@@ -39,11 +42,15 @@ interface HomeScreenProps {
 
 export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   const { user, profile } = useAuth();
-  const { isViewingAsStudent, activeStudentName } = useStudentSwitch();
+  const { isViewingAsStudent, activeStudentName, activeStudentId, setActiveStudent } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const { t, language } = useTranslation();
   const tourContext = useTour();
   const { startDatabaseTour, shouldShowTour } = tourContext;
+  const { effectiveTheme } = useThemePreference();
+  
+  // Check if user is supervisor
+  const isSupervisorRole = ['instructor', 'admin', 'school'].includes((profile as any)?.role || '');
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -77,6 +84,9 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   // State declarations
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showStudentPicker, setShowStudentPicker] = useState(false);
+  const [students, setStudents] = useState<Array<{ id: string; full_name: string; email: string; created_at?: string }>>([]);
+  const [userProgress, setUserProgress] = useState(0);
   
   // Scroll animation ref
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -95,6 +105,129 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   
   // Register profile avatar for instructor tour targeting
   const profileAvatarRef = useTourTarget('Header.ProfileAvatar');
+  
+  // Load user progress
+  const loadUserProgress = React.useCallback(async () => {
+    const effectiveUserId = activeStudentId || profile?.id;
+    if (!effectiveUserId) {
+      setUserProgress(0);
+      return;
+    }
+
+    try {
+      // Get all learning paths with exercises
+      const { data: paths, error: pathsError } = await supabase
+        .from('learning_paths')
+        .select('id, learning_path_exercises(id, repeat_count, learning_path_id)')
+        .eq('active', true);
+
+      if (pathsError || !paths) {
+        setUserProgress(0);
+        return;
+      }
+
+      // Get user's completed exercises
+      const { data: completions, error: completionsError } = await supabase
+        .from('learning_path_exercise_completions')
+        .select('exercise_id')
+        .eq('user_id', effectiveUserId);
+
+      if (completionsError) {
+        setUserProgress(0);
+        return;
+      }
+
+      // Get user's virtual repeat completions
+      const { data: virtualCompletions } = await supabase
+        .from('virtual_repeat_completions')
+        .select('exercise_id, repeat_number')
+        .eq('user_id', effectiveUserId);
+
+      // Calculate overall progress
+      const completedExerciseIds = new Set(completions?.map((c) => c.exercise_id) || []);
+      let totalExercises = 0;
+      let completedExercises = 0;
+
+      paths.forEach((path) => {
+        path.learning_path_exercises.forEach((ex) => {
+          const repeatCount = ex.repeat_count || 1;
+          totalExercises += repeatCount;
+
+          if (completedExerciseIds.has(ex.id)) {
+            completedExercises += 1;
+            if (repeatCount > 1) {
+              const virtualDone = virtualCompletions?.filter((vc) => vc.exercise_id === ex.id).length || 0;
+              completedExercises += virtualDone;
+            }
+          }
+        });
+      });
+
+      const progress = totalExercises > 0 ? completedExercises / totalExercises : 0;
+      setUserProgress(progress);
+    } catch (error) {
+      console.error('Error calculating progress:', error);
+      setUserProgress(0);
+    }
+  }, [activeStudentId, profile?.id]);
+  
+  // Load supervised students
+  const loadSupervisedStudents = React.useCallback(async (): Promise<
+    Array<{ id: string; full_name: string; email: string; created_at?: string }>
+  > => {
+    if (!profile?.id) {
+      setStudents([]);
+      return [];
+    }
+    try {
+      const { data: rels, error: relErr } = await supabase
+        .from('student_supervisor_relationships')
+        .select('student_id, created_at')
+        .eq('supervisor_id', profile.id)
+        .order('created_at', { ascending: false });
+      if (relErr) throw relErr;
+
+      const studentIds = (rels || []).map((r: any) => r.student_id);
+      if (studentIds.length === 0) {
+        setStudents([]);
+        return [];
+      }
+
+      const { data: profs, error: profErr } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, avatar_url')
+        .in('id', studentIds);
+      if (profErr) throw profErr;
+
+      const createdAtById = Object.fromEntries(
+        (rels || []).map((r: any) => [r.student_id, r.created_at]),
+      );
+      const list: Array<{
+        id: string;
+        full_name: string;
+        email: string;
+        avatar_url?: string;
+        created_at?: string;
+      }> = (profs || []).map((p: any) => ({
+        id: p.id,
+        full_name: p.full_name || 'Unknown',
+        email: p.email || '',
+        avatar_url: p.avatar_url,
+        created_at: createdAtById[p.id],
+      }));
+      setStudents(list);
+      return list;
+    } catch (e) {
+      console.warn('Failed to load supervised students', e);
+      setStudents([]);
+      return [];
+    }
+  }, [profile?.id]);
+  
+  // Load progress when user changes
+  useEffect(() => {
+    loadUserProgress();
+  }, [loadUserProgress]);
 
   // Onboarding logic - unified with OnboardingInteractive's storage system
   useEffect(() => {
@@ -205,6 +338,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         onUsersPress={profile?.role === 'admin' ? () => setShowUserListSheet(true) : undefined}
         isAdmin={profile?.role === 'admin'}
         profileAvatarRef={profileAvatarRef}
+        userProgress={userProgress}
       />
 
       <Animated.FlatList
@@ -440,6 +574,23 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
           setShowAvatarModal(false);
           setShowUserProfileSheet(true);
         }}
+        onMyProgression={() => {
+          setShowAvatarModal(false);
+          setShowAchievementsSheet(true);
+        }}
+        onSelectStudent={async () => {
+          setShowAvatarModal(false);
+          try {
+            const list = (await loadSupervisedStudents()) || [];
+            if ((list?.length || 0) > 0) {
+              setShowStudentPicker(true);
+            } else {
+              Alert.alert('No Students', "You don't have any students yet.");
+            }
+          } catch {
+            Alert.alert('Error', 'Failed to load students.');
+          }
+        }}
         onLogout={() => {
           // Logout is handled internally by AvatarModal
         }}
@@ -453,6 +604,102 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         visible={showAchievementsSheet}
         onClose={() => setShowAchievementsSheet(false)}
       />
+
+      {/* Student Picker Modal */}
+      <Modal
+        visible={showStudentPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowStudentPicker(false)}
+      >
+        <BlurView
+          style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
+          intensity={10}
+          tint={effectiveTheme === 'dark' ? 'dark' : 'light'}
+          pointerEvents="none"
+        />
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setShowStudentPicker(false)}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{ backgroundColor: '#1a1a1a', borderRadius: 12, maxHeight: '70%', padding: 16 }}
+          >
+            <Text size="lg" weight="bold" color="#fff" style={{ marginBottom: 12 }}>
+              Select student to view
+            </Text>
+            <ScrollView>
+              <TouchableOpacity
+                onPress={() => {
+                  setActiveStudent(null);
+                  setShowStudentPicker(false);
+                }}
+                style={{ paddingVertical: 10 }}
+              >
+                <XStack alignItems="center" gap={8}>
+                  <Feather name="user" size={16} color="#888" />
+                  <Text color="#fff">My own profile</Text>
+                </XStack>
+              </TouchableOpacity>
+              {students.length === 0 ? (
+                <Text color="#ddd" style={{ paddingVertical: 10 }}>
+                  {isSupervisorRole ? 'No students yet' : 'Not available for your role'}
+                </Text>
+              ) : (
+                students.map((s) => (
+                  <TouchableOpacity
+                    key={s.id}
+                    onPress={() => {
+                      setActiveStudent(s.id, s.full_name || null);
+                      setShowStudentPicker(false);
+                    }}
+                    style={{ paddingVertical: 10 }}
+                  >
+                    <XStack alignItems="center" gap={8}>
+                      <View
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 14,
+                          backgroundColor: '#333',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderWidth: activeStudentId === s.id ? 2 : 0,
+                          borderColor: '#00E6C3',
+                        }}
+                      >
+                        {s.avatar_url ? (
+                          <Image
+                            source={{ uri: s.avatar_url }}
+                            style={{ width: 28, height: 28, borderRadius: 14 }}
+                          />
+                        ) : (
+                          <Feather name="user" size={14} color="#fff" />
+                        )}
+                      </View>
+                      <YStack flex={1}>
+                        <Text color="#fff" weight="semibold" size="sm">
+                          {s.full_name || 'Unknown'}
+                        </Text>
+                        <Text color="#ccc" size="xs">
+                          {s.email}
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </Screen>
   );
 });

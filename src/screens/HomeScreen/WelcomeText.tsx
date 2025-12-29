@@ -35,7 +35,7 @@ export const WelcomeText: React.FC<WelcomeTextProps> = ({ scrollY }) => {
   
   return (
     <Animated.View style={{ opacity: welcomeOpacity }}>
-      <YStack paddingHorizontal="$4" marginBottom="$3">
+      <YStack paddingHorizontal="$4" marginTop="$2" marginBottom="$4">
         <Text 
           fontSize="$6" 
           fontWeight="800" 

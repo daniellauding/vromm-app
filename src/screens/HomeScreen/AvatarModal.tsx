@@ -12,6 +12,8 @@ interface AvatarModalProps {
   visible: boolean;
   onClose: () => void;
   onViewProfile: () => void;
+  onMyProgression: () => void;
+  onSelectStudent: () => void;
   onLogout: () => void;
 }
 
@@ -19,13 +21,18 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
   visible,
   onClose,
   onViewProfile,
+  onMyProgression,
+  onSelectStudent,
   onLogout,
 }) => {
   const insets = useSafeAreaInsets();
   const { effectiveTheme } = useThemePreference();
   const isDark = effectiveTheme === 'dark';
-  const { signOut } = useAuth();
+  const { profile, signOut } = useAuth();
   const { t, language } = useTranslation();
+  
+  // Check if user is supervisor
+  const isSupervisorRole = ['instructor', 'admin', 'school'].includes((profile as any)?.role || '');
   
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -106,6 +113,46 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
             >
               {/* Menu Options */}
               <YStack gap="$2">
+                {/* My Progression */}
+                <TouchableOpacity
+                  onPress={() => {
+                    onClose();
+                    onMyProgression();
+                  }}
+                  style={{
+                    paddingVertical: 16,
+                    paddingHorizontal: 20,
+                    borderBottomWidth: 1,
+                    borderBottomColor: borderColor,
+                  }}
+                >
+                  <XStack alignItems="center" gap="$3">
+                    <Feather name="trending-up" size={24} color={textColor} />
+                    <YStack flex={1}>
+                      <Text fontWeight="600" fontSize={18} color={textColor}>
+                        {(() => {
+                          const translated = t('profile.myProgression');
+                          return translated === 'profile.myProgression'
+                            ? language === 'sv'
+                              ? 'Min Progression'
+                              : 'My Progression'
+                            : translated;
+                        })()}
+                      </Text>
+                      <Text fontSize={14} color={isDark ? '#999' : '#666'}>
+                        {(() => {
+                          const translated = t('profile.myProgressionDescription');
+                          return translated === 'profile.myProgressionDescription'
+                            ? language === 'sv'
+                              ? 'Visa din inlärningsframsteg och prestationer'
+                              : 'View your learning progress and achievements'
+                            : translated;
+                        })()}
+                      </Text>
+                    </YStack>
+                  </XStack>
+                </TouchableOpacity>
+
                 {/* View Profile */}
                 <TouchableOpacity
                   onPress={() => {
@@ -131,6 +178,34 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
                     </YStack>
                   </XStack>
                 </TouchableOpacity>
+
+                {/* Select Student (only for instructors) */}
+                {isSupervisorRole && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      onSelectStudent();
+                    }}
+                    style={{
+                      paddingVertical: 16,
+                      paddingHorizontal: 20,
+                      borderBottomWidth: 1,
+                      borderBottomColor: borderColor,
+                    }}
+                  >
+                    <XStack alignItems="center" gap="$3">
+                      <Feather name="users" size={24} color={textColor} />
+                      <YStack flex={1}>
+                        <Text fontWeight="600" fontSize={18} color={textColor}>
+                          {t('profile.switchStudent') || 'Switch Student View'}
+                        </Text>
+                        <Text fontSize={14} color={isDark ? '#999' : '#666'}>
+                          {t('profile.switchStudentDescription') || 'View progress as a student'}
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  </TouchableOpacity>
+                )}
 
                 {/* Logout */}
                 <TouchableOpacity

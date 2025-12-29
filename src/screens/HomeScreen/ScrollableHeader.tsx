@@ -1,11 +1,48 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Animated, View, TouchableOpacity } from 'react-native';
+import { Animated, View, TouchableOpacity, Image } from 'react-native';
 import { XStack } from 'tamagui';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
+import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemePreference } from '../../hooks/useThemeOverride';
 import { NotificationBell } from '../../components/NotificationBell';
+import { useAuth } from '@/src/context/AuthContext';
+import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
+import { supabase } from '../../lib/supabase';
+
+// Progress Circle Component
+const ProgressCircle = ({ percent, size = 44, color = '#00E6C3', bg = '#333' }) => {
+  const strokeWidth = 3;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = Math.max(0, Math.min(percent, 1));
+  return (
+    <Svg width={size} height={size} style={{ position: 'absolute' }}>
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={bg}
+        strokeWidth={strokeWidth}
+        fill="none"
+      />
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeDasharray={`${circumference},${circumference}`}
+        strokeDashoffset={circumference * (1 - progress)}
+        strokeLinecap="round"
+        rotation="-90"
+        origin={`${size / 2},${size / 2}`}
+      />
+    </Svg>
+  );
+};
 
 interface ScrollableHeaderProps {
   scrollY: Animated.Value;
@@ -14,6 +51,7 @@ interface ScrollableHeaderProps {
   onUsersPress?: () => void;
   isAdmin?: boolean;
   profileAvatarRef?: any;
+  userProgress?: number;
 }
 
 export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
@@ -23,10 +61,13 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
   onUsersPress,
   isAdmin = false,
   profileAvatarRef,
+  userProgress = 0,
 }) => {
   const insets = useSafeAreaInsets();
   const { effectiveTheme } = useThemePreference();
   const isDark = effectiveTheme === 'dark';
+  const { profile } = useAuth();
+  const { activeStudentId } = useStudentSwitch();
   
   // State for blur intensity
   const [blurIntensity, setBlurIntensity] = useState(0);
@@ -124,22 +165,44 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
         alignItems="center"
         justifyContent="space-between"
       >
-        {/* Left side - Avatar */}
-        <TouchableOpacity
-          ref={profileAvatarRef}
-          onPress={onAvatarPress}
-          activeOpacity={0.7}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: '#333',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Feather name="user" size={20} color="#fff" />
-        </TouchableOpacity>
+        {/* Left side - Avatar with Progress */}
+        <View style={{ position: 'relative' }}>
+          {/* Progress Circle */}
+          {userProgress > 0 && (
+            <ProgressCircle
+              percent={userProgress}
+              size={44}
+              color="#00E6C3"
+              bg={isDark ? '#333' : '#E5E5E5'}
+            />
+          )}
+          
+          <TouchableOpacity
+            ref={profileAvatarRef}
+            onPress={onAvatarPress}
+            activeOpacity={0.7}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: '#333',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: activeStudentId ? 2 : 0,
+              borderColor: activeStudentId ? '#00E6C3' : 'transparent',
+              margin: 2, // Small margin to show progress circle
+            }}
+          >
+            {profile?.avatar_url ? (
+              <Image
+                source={{ uri: profile.avatar_url }}
+                style={{ width: 40, height: 40, borderRadius: 20 }}
+              />
+            ) : (
+              <Feather name="user" size={20} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </View>
         
         {/* Right side - Notifications and Users */}
         <XStack gap={12} alignItems="center">
