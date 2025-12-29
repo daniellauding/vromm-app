@@ -189,8 +189,8 @@ export function ExerciseListSheet({
   const snapPoints = useMemo(() => {
     const points = {
       large: height * 0.1, // Top at 10% of screen (show 90% - largest)
-      medium: height * 0.35, // Top at 35% of screen (show 65% - medium)
-      small: height * 0.6, // Top at 60% of screen (show 40% - small)
+      medium: height * 0.4, // Top at 40% of screen (show 60% - medium)
+      small: height * 0.7, // Top at 70% of screen (show 30% - small)
       mini: height * 0.85, // Top at 85% of screen (show 15% - just title)
       dismissed: height, // Completely off-screen
     };
@@ -1357,7 +1357,7 @@ export function ExerciseListSheet({
         <Animated.View
           style={{
             flex: 1,
-            backgroundColor: 'transparent',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
             opacity: backdropOpacity,
           }}
         >
@@ -1384,8 +1384,8 @@ export function ExerciseListSheet({
                   <View
                     style={{
                       alignItems: 'center',
-                      paddingVertical: 8,
-                      paddingBottom: 16,
+                      paddingVertical: 4,
+                      paddingBottom: 8,
                     }}
                   >
                     <View
@@ -1439,7 +1439,7 @@ export function ExerciseListSheet({
                       <ScrollView
                         contentContainerStyle={{
                           padding: 24,
-                          paddingTop: 90,
+                          paddingTop: 60,
                           paddingBottom: getTabContentPadding(),
                         }}
                         refreshControl={
@@ -2424,7 +2424,7 @@ export function ExerciseListSheet({
         <Animated.View
           style={{
             flex: 1,
-            backgroundColor: 'transparent',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
             opacity: backdropOpacity,
           }}
         >
@@ -2451,8 +2451,8 @@ export function ExerciseListSheet({
                   <View
                     style={{
                       alignItems: 'center',
-                      paddingVertical: 8,
-                      paddingBottom: 16,
+                      paddingVertical: 4,
+                      paddingBottom: 8,
                     }}
                   >
                     <View
@@ -2528,7 +2528,7 @@ export function ExerciseListSheet({
                         scrollEventThrottle={16}
                         contentContainerStyle={{
                           padding: 24,
-                          paddingTop: 90,
+                          paddingTop: 60,
                           paddingBottom: getTabContentPadding(),
                         }}
                       >

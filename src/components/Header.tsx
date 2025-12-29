@@ -46,28 +46,40 @@ export function Header({
   const themePref = useThemePreference();
   const isDark = themePref?.effectiveTheme === 'dark';
   const iconColor = useThemeColor({ light: '#11181C', dark: '#ECEDEE' }, 'text');
-  
+
   // Smart header state
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [blurIntensity, setBlurIntensity] = useState(0);
   const lastScrollY = useRef(0);
-  
+
   // Animation values - header should be visible by default
   const headerOpacity = useRef(new Animated.Value(1)).current;
   const headerTranslateY = useRef(new Animated.Value(0)).current;
   const backgroundOpacity = useRef(new Animated.Value(0)).current;
-  
+
   // Configure scroll listener for smart header
   React.useEffect(() => {
     if (!scrollY || variant !== 'smart') return;
-    
+
     const listener = scrollY.addListener(({ value }) => {
       const currentScrollY = value;
       const isScrollingDown = currentScrollY > lastScrollY.current;
       const shouldHide = isScrollingDown && currentScrollY > 100;
-      
+
+      // Update blur intensity based on scroll position
+      if (currentScrollY <= 50) {
+        setBlurIntensity(0);
+      } else if (currentScrollY >= 150) {
+        setBlurIntensity(80);
+      } else {
+        // Gradual increase between 50 and 150
+        const intensity = ((currentScrollY - 50) / 100) * 80;
+        setBlurIntensity(Math.round(intensity));
+      }
+
       if (shouldHide !== !isHeaderVisible) {
         setIsHeaderVisible(!shouldHide);
-        
+
         Animated.parallel([
           Animated.timing(headerOpacity, {
             toValue: shouldHide ? 0 : 1,
@@ -81,26 +93,47 @@ export function Header({
           }),
         ]).start();
       }
-      
+
       lastScrollY.current = currentScrollY;
     });
-    
+
     return () => scrollY.removeListener(listener);
   }, [scrollY, variant, headerOpacity, headerTranslateY, isHeaderVisible]);
-  
+
   // Configure background opacity for sticky/floating variants
   React.useEffect(() => {
     if (!scrollY || (variant !== 'sticky' && variant !== 'floating')) return;
-    
+
     const listener = scrollY.addListener(({ value }) => {
       // Only show background/blur when scrolled past threshold
       const opacity = Math.min(Math.max(value - 50, 0) / 100, 1);
-      backgroundOpacity.setValue(opacity);
+      
+      try {
+        backgroundOpacity.setValue(opacity);
+      } catch (error) {
+        // Ignore frozen object errors
+      }
+      
+      // Update blur intensity for sticky/floating variants too
+      if (value <= 50) {
+        setBlurIntensity(0);
+      } else if (value >= 150) {
+        setBlurIntensity(80);
+      } else {
+        const intensity = ((value - 50) / 100) * 80;
+        setBlurIntensity(Math.round(intensity));
+      }
     });
-    
-    return () => scrollY.removeListener(listener);
+
+    return () => {
+      try {
+        scrollY.removeListener(listener);
+      } catch (error) {
+        // Ignore if listener already removed
+      }
+    };
   }, [scrollY, variant, backgroundOpacity]);
-  
+
   // Determine blur tint
   const resolvedBlurTint = blurTint === 'default' ? (isDark ? 'dark' : 'light') : blurTint;
 
@@ -113,7 +146,7 @@ export function Header({
       console.warn('No navigation or onBackPress available in Header');
     }
   };
-  
+
   const renderHeaderContent = () => (
     <XStack
       backgroundColor={variant === 'default' ? '$background' : 'transparent'}
@@ -179,7 +212,7 @@ export function Header({
       )}
     </XStack>
   );
-  
+
   if (variant === 'default') {
     return renderHeaderContent();
   }
@@ -200,7 +233,7 @@ export function Header({
         {enableBlur ? (
           <Animated.View style={{ opacity: backgroundOpacity }}>
             <BlurView
-              intensity={80}
+              intensity={blurIntensity}
               tint={resolvedBlurTint}
               style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
             />
@@ -222,7 +255,7 @@ export function Header({
       </Animated.View>
     );
   }
-  
+
   // Smart header that hides/shows on scroll
   if (variant === 'smart') {
     return (
@@ -242,9 +275,16 @@ export function Header({
       >
         {enableBlur ? (
           <BlurView
-            intensity={80}
+            intensity={blurIntensity}
             tint={resolvedBlurTint}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'transparent',
+            }}
           />
         ) : (
           <View
@@ -254,7 +294,7 @@ export function Header({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: isDark ? 'rgba(26, 26, 26, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+              backgroundColor: isDark ? 'rgba(26, 26, 26, 0)' : 'rgba(255, 255, 255, 0.95)',
             }}
           />
         )}
@@ -262,7 +302,7 @@ export function Header({
       </Animated.View>
     );
   }
-  
+
   // Floating header with blur (always visible, subtle background)
   if (variant === 'floating') {
     return (
@@ -300,22 +340,21 @@ export function Header({
       </Animated.View>
     );
   }
-  
+
   return renderHeaderContent();
 }
 
 // Hook to create scroll-aware Header
 export function useHeaderWithScroll() {
   const scrollY = useRef(new Animated.Value(0)).current;
-  
-  const onScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    { useNativeDriver: false }
-  );
-  
+
+  const onScroll = Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+    useNativeDriver: false,
+  });
+
   const HeaderComponent = (props: Omit<HeaderProps, 'scrollY'>) => (
     <Header {...props} scrollY={scrollY} />
   );
-  
+
   return { HeaderComponent, onScroll, scrollY };
 }

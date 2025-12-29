@@ -879,8 +879,7 @@ export function SplashScreen() {
             flexGrow: 1,
             paddingHorizontal: 24,
             paddingTop: 60,
-            paddingBottom: 200, // Space for dots and buttons
-            backgroundColor,
+            paddingBottom: 200,
           }}
           showsVerticalScrollIndicator={false}
           bounces={false}

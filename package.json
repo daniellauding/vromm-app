@@ -118,6 +118,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@expo/webpack-config": "^19.0.1",
+    "@react-native-community/cli": "^20.0.2",
     "@tamagui/babel-plugin": "1.121.12",
     "@types/jest": "^29.5.12",
     "@types/node": "^24.7.0",
