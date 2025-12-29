@@ -173,7 +173,11 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
   }, []);
 
   return (
-    <YStack gap="$0">
+    <YStack 
+      gap="$0"
+      onTouchStart={() => console.log('🚗 DRIVENROUTES: Touch started')}
+      onTouchEnd={() => console.log('🚗 DRIVENROUTES: Touch ended')}
+    >
       <SectionHeader
         title={
           isViewingAsStudent
@@ -186,17 +190,37 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
         showActionLabel={false}
       />
       {drivenRoutes.length > 0 ? (
-        <FlatList
-          horizontal
-          data={drivenRoutes}
-          keyExtractor={(item) => item.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 0 }}
-          renderItem={({ item: route }) => (
-            <XStack marginRight="$3">
+        drivenRoutes.length > 3 ? (
+          <FlatList
+            horizontal
+            data={drivenRoutes}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={drivenRoutes.length > 3}
+            contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
+            renderItem={({ item: route }) => (
+              <XStack marginRight="$3">
+                <RouteCard
+                  route={route as any}
+                  preset="horizontal"
+                  onPress={() => {
+                    if (onRoutePress) {
+                      onRoutePress(route.id);
+                    } else {
+                      navigation.navigate('RouteDetail', { routeId: route.id });
+                    }
+                  }}
+                />
+              </XStack>
+            )}
+          />
+        ) : (
+          <YStack space="$3" paddingHorizontal="$4">
+            {drivenRoutes.slice(0, 3).map((route) => (
               <RouteCard
+                key={route.id}
                 route={route as any}
-                // preset="compact"
+                preset="horizontal"
                 onPress={() => {
                   if (onRoutePress) {
                     onRoutePress(route.id);
@@ -205,9 +229,9 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
                   }
                 }}
               />
-            </XStack>
-          )}
-        />
+            ))}
+          </YStack>
+        )
       ) : (
         <YStack px="$4">
           <Card

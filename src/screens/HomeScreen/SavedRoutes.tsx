@@ -223,10 +223,40 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
                     }
                   }}
                 />
-              </XStack>
-            );
-          }}
-        />
+              </YStack>
+            ))}
+          </XStack>
+        ) : (
+          <FlatList
+            horizontal
+            data={savedRoutes}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={savedRoutes.length > 3}
+            contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
+            renderItem={({ item: route }) => {
+              // RouteCard's grid preset calculates: (screenWidth - 32 - 24) / 3.5
+              // We need to match this for proper FlatList layout
+              const screenWidth = require('react-native').Dimensions.get('window').width;
+              const cardWidth = (screenWidth - 32 - 24) / 3.5;
+              return (
+                <XStack marginRight="$3" width={cardWidth} overflow="hidden">
+                  <RouteCard
+                    route={route as any}
+                    preset="grid"
+                    onPress={() => {
+                      if (onRoutePress) {
+                        onRoutePress(route.id);
+                      } else {
+                        navigation.navigate('RouteDetail', { routeId: route.id });
+                      }
+                    }}
+                  />
+                </XStack>
+              );
+            }}
+          />
+        )}
       </YStack>
 
       {/* Route List Sheet */}

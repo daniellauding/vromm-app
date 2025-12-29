@@ -258,16 +258,31 @@ export function LearningPathsSheet({
 
       setPaths(pathsData || []);
 
-      // Load exercises mapping for progress calculation
+      // Load exercises mapping for progress calculation (optimized single query)
       const exerciseMap: { [pathId: string]: string[] } = {};
-      if (pathsData) {
-        for (const path of pathsData) {
-          const { data: exerciseData } = await supabase
-            .from('learning_path_exercises')
-            .select('id')
-            .eq('learning_path_id', path.id);
-          exerciseMap[path.id] = exerciseData ? exerciseData.map((e: { id: string }) => e.id) : [];
+      if (pathsData && pathsData.length > 0) {
+        const pathIds = pathsData.map(p => p.id);
+        const { data: exerciseData } = await supabase
+          .from('learning_path_exercises')
+          .select('id, learning_path_id')
+          .in('learning_path_id', pathIds);
+        
+        // Group exercises by path
+        if (exerciseData) {
+          exerciseData.forEach((exercise: { id: string; learning_path_id: string }) => {
+            if (!exerciseMap[exercise.learning_path_id]) {
+              exerciseMap[exercise.learning_path_id] = [];
+            }
+            exerciseMap[exercise.learning_path_id].push(exercise.id);
+          });
         }
+        
+        // Ensure all paths have at least empty arrays
+        pathsData.forEach(path => {
+          if (!exerciseMap[path.id]) {
+            exerciseMap[path.id] = [];
+          }
+        });
       }
       setExercisesByPath(exerciseMap);
     } catch (error) {
@@ -669,7 +684,8 @@ export function LearningPathsSheet({
                     {/* Learning Paths List */}
                     <YStack flex={1}>
                       {loading ? (
-                        <YStack alignItems="center" justifyContent="center" flex={1}>
+                        <YStack alignItems="center" justifyContent="center" flex={1} gap="$3">
+                          <Spinner size="large" color="$primary" />
                           <Text color="$gray11">{t('common.loading') || 'Loading...'}</Text>
                         </YStack>
                       ) : displayPaths.length === 0 ? (
