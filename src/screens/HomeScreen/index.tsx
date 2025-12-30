@@ -341,7 +341,9 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         userProgress={userProgress}
       />
 
-      <Animated.ScrollView
+      <Animated.FlatList
+        data={[1]}
+        keyExtractor={() => 'home-content'}
         contentContainerStyle={{ paddingTop: 100, paddingBottom: 40 + BOTTOM_INSET }}
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event(
@@ -349,110 +351,107 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
           { useNativeDriver: false }
         )}
         scrollEventThrottle={16}
-        onTouchStart={(e) => console.log('🟢 SCROLLVIEW: Touch started at', Math.round(e.nativeEvent.pageY))}
-        onTouchEnd={(e) => console.log('🔵 SCROLLVIEW: Touch ended at', Math.round(e.nativeEvent.pageY))}
-        onScrollBeginDrag={() => console.log('🟡 SCROLLVIEW: Scroll begin drag')}
-        onScrollEndDrag={() => console.log('🟠 SCROLLVIEW: Scroll end drag')}
-      >
-        <YStack f={1}>
-          {/* Welcome Text - fades out on scroll */}
-          <WelcomeText scrollY={scrollY} />
+        renderItem={() => (
+          <YStack f={1}>
+            {/* Welcome Text - fades out on scroll */}
+            <WelcomeText scrollY={scrollY} />
 
-          {/* Tab Switcher */}
-          {/* <XStack
-            paddingHorizontal="$4"
-            paddingVertical="$3"
-            gap="$2"
-            // borderBottomWidth={1}
-            // borderBottomColor="rgba(255, 255, 255, 0.1)"
-          >
-            <TouchableOpacity
-              onPress={() => setActiveTab('you')}
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                borderRadius: 8,
-                backgroundColor: activeTab === 'you' ? 'rgba(0, 230, 195, 0.15)' : 'transparent',
-                borderWidth: 1,
-                borderColor:
-                  activeTab === 'you' ? 'rgba(0, 230, 195, 0.5)' : 'rgba(255, 255, 255, 0.1)',
-              }}
+            {/* Tab Switcher */}
+            {/* <XStack
+              paddingHorizontal="$4"
+              paddingVertical="$3"
+              gap="$2"
+              // borderBottomWidth={1}
+              // borderBottomColor="rgba(255, 255, 255, 0.1)"
             >
-              <Text
-                textAlign="center"
-                fontWeight={activeTab === 'you' ? '700' : '500'}
-                color={activeTab === 'you' ? '$primary' : '$gray11'}
-                fontSize="$4"
+              <TouchableOpacity
+                onPress={() => setActiveTab('you')}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  backgroundColor: activeTab === 'you' ? 'rgba(0, 230, 195, 0.15)' : 'transparent',
+                  borderWidth: 1,
+                  borderColor:
+                    activeTab === 'you' ? 'rgba(0, 230, 195, 0.5)' : 'rgba(255, 255, 255, 0.1)',
+                }}
               >
-                You
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  textAlign="center"
+                  fontWeight={activeTab === 'you' ? '700' : '500'}
+                  color={activeTab === 'you' ? '$primary' : '$gray11'}
+                  fontSize="$4"
+                >
+                  You
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => setActiveTab('community')}
-              style={{
-                flex: 1,
-                paddingVertical: 12,
-                borderRadius: 8,
-                backgroundColor:
-                  activeTab === 'community' ? 'rgba(0, 230, 195, 0.15)' : 'transparent',
-                borderWidth: 1,
-                borderColor:
-                  activeTab === 'community'
-                    ? 'rgba(0, 230, 195, 0.5)'
-                    : 'rgba(255, 255, 255, 0.1)',
-              }}
-            >
-              <Text
-                textAlign="center"
-                fontWeight={activeTab === 'community' ? '700' : '500'}
-                color={activeTab === 'community' ? '$primary' : '$gray11'}
-                fontSize="$4"
+              <TouchableOpacity
+                onPress={() => setActiveTab('community')}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  backgroundColor:
+                    activeTab === 'community' ? 'rgba(0, 230, 195, 0.15)' : 'transparent',
+                  borderWidth: 1,
+                  borderColor:
+                    activeTab === 'community'
+                      ? 'rgba(0, 230, 195, 0.5)'
+                      : 'rgba(255, 255, 255, 0.1)',
+                }}
               >
-                Community
-              </Text>
-            </TouchableOpacity>
-          </XStack> */}
+                <Text
+                  textAlign="center"
+                  fontWeight={activeTab === 'community' ? '700' : '500'}
+                  color={activeTab === 'community' ? '$primary' : '$gray11'}
+                  fontSize="$4"
+                >
+                  Community
+                </Text>
+              </TouchableOpacity>
+            </XStack> */}
 
-          {isViewingAsStudent && (
-            <YStack
-              backgroundColor="$blue3"
-              padding="$2"
-              marginHorizontal="$4"
-              marginBottom="$2"
-              borderRadius="$2"
-            >
-              <Text color="$blue11" textAlign="center">
-                {getTranslation(
-                  'common.viewingAs',
-                  language === 'sv' ? 'Visar som' : 'Viewing as'
-                )}
-                :{' '}
-                {activeStudentName ||
-                  getTranslation('common.student', language === 'sv' ? 'Elev' : 'Student')}
-              </Text>
-            </YStack>
-          )}
+            {isViewingAsStudent && (
+              <YStack
+                backgroundColor="$blue3"
+                padding="$2"
+                marginHorizontal="$4"
+                marginBottom="$2"
+                borderRadius="$2"
+              >
+                <Text color="$blue11" textAlign="center">
+                  {getTranslation(
+                    'common.viewingAs',
+                    language === 'sv' ? 'Visar som' : 'Viewing as'
+                  )}
+                  :{' '}
+                  {activeStudentName ||
+                    getTranslation('common.student', language === 'sv' ? 'Elev' : 'Student')}
+                </Text>
+              </YStack>
+            )}
 
-          {/* Content based on active tab */}
-          {activeTab === 'you' ? (
-            <MyTab
-              activeUserId={activeUserId}
-              handleRoutePress={handleRoutePress}
-              setShowCommunityFeedSheet={setShowCommunityFeedSheet}
-              setSelectedUserId={setSelectedUserId}
-              setShowUserProfileSheet={setShowUserProfileSheet}
-              setShowUserListSheet={setShowUserListSheet}
-            />
-          ) : (
-            <CommunityTab
-              handleRoutePress={handleRoutePress}
-              setSelectedUserId={setSelectedUserId}
-              setShowUserProfileSheet={setShowUserProfileSheet}
-            />
-          )}
-        </YStack>
-      </Animated.ScrollView>
+            {/* Content based on active tab */}
+            {activeTab === 'you' ? (
+              <MyTab
+                activeUserId={activeUserId}
+                handleRoutePress={handleRoutePress}
+                setShowCommunityFeedSheet={setShowCommunityFeedSheet}
+                setSelectedUserId={setSelectedUserId}
+                setShowUserProfileSheet={setShowUserProfileSheet}
+                setShowUserListSheet={setShowUserListSheet}
+              />
+            ) : (
+              <CommunityTab
+                handleRoutePress={handleRoutePress}
+                setSelectedUserId={setSelectedUserId}
+                setShowUserProfileSheet={setShowUserProfileSheet}
+              />
+            )}
+          </YStack>
+        )}
+      />
 
       {/* User List Sheet */}
       <UserListSheet

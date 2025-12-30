@@ -252,7 +252,6 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
               data={createdRoutes}
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
-              scrollEnabled={createdRoutes.length > 3}
               contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
               getItemLayout={(data, index) => {
                 const screenWidth = Dimensions.get('window').width;
@@ -296,7 +295,6 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
               data={createdRoutes}
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
-              scrollEnabled={createdRoutes.length > 3}
               contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
               renderItem={({ item: route }) => (
                 <XStack marginRight="$3">
