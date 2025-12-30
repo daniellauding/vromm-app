@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
-import { XStack, YStack, Text } from 'tamagui';
+import { XStack, YStack, Text, Spinner } from 'tamagui';
 import { supabase } from '../lib/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
@@ -22,6 +22,8 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { useThemePreference } from '../hooks/useThemeOverride';
 import { Modal as RNModal, TextInput, Alert, Dimensions } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { Button } from './Button';
+import { Chip } from './Chip';
 
 interface LearningPath {
   id: string;
@@ -518,17 +520,28 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     fetch();
   }, [profile, getProfilePreference, loadFilterPreferences]); // Reload when profile changes
 
-  // Add useFocusEffect to refresh data when screen comes into focus
+  // Add useFocusEffect to refresh data and filters when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('ProgressSection: Screen focused, refreshing data');
+      console.log('ProgressSection: Screen focused, refreshing data and filters');
+      
+      // Reload filter preferences to sync with any changes from ProgressScreen or LearningPathsSheet
+      const reloadFilters = async () => {
+        const savedFilters = await loadFilterPreferences();
+        if (savedFilters) {
+          setCategoryFilters(savedFilters);
+          console.log('🔄 [ProgressSection] Reloaded filters on focus:', savedFilters);
+        }
+      };
+      reloadFilters();
+      
       if (effectiveUserId) {
         fetchCompletions(effectiveUserId).then(({ regular, virtual }) => {
           setCompletedIds(regular);
           setVirtualRepeatCompletions(virtual);
         });
       }
-    }, [effectiveUserId]),
+    }, [effectiveUserId, loadFilterPreferences]),
   );
 
   // Populate allPathExercises for consistent progress calculation (like ProgressScreen)
@@ -714,43 +727,71 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     [lang, checkPathPaywall, checkPathPassword],
   );
 
+  // Save filter preferences to AsyncStorage - USER-SPECIFIC
+  const saveFilterPreferences = React.useCallback(async (filters: Record<CategoryType, string>) => {
+    try {
+      // Make filter saving user-specific for supervisors viewing different students
+      const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
+      await AsyncStorage.setItem(filterKey, JSON.stringify(filters));
+      console.log('💾 [ProgressSection] Saved filter preferences for user:', effectiveUserId, filters);
+    } catch (error) {
+      console.error('Error saving filter preferences:', error);
+    }
+  }, [effectiveUserId]);
+
+  // Handle filter select and save
+  const handleFilterSelect = React.useCallback((filterType: CategoryType, value: string) => {
+    console.log(`🎛️ [ProgressSection] Filter selected: ${filterType} = ${value}`);
+    const newFilters = { ...categoryFilters, [filterType]: value };
+    setCategoryFilters(newFilters);
+    saveFilterPreferences(newFilters); // Save immediately when filter changes
+  }, [categoryFilters, saveFilterPreferences]);
+
   // Filter paths based on user preferences (same logic as ProgressScreen)
   const filteredPaths = React.useMemo(() => {
     setLoading(false);
     return paths.filter((path) => {
-      // Handle variations in data values and allow null values
+      // Handle variations in data values with case-insensitive matching
       const matchesVehicleType =
+        categoryFilters.vehicle_type === '' ||
         categoryFilters.vehicle_type === 'all' ||
         !path.vehicle_type ||
         path.vehicle_type?.toLowerCase() === categoryFilters.vehicle_type?.toLowerCase();
 
       const matchesTransmission =
+        categoryFilters.transmission_type === '' ||
         categoryFilters.transmission_type === 'all' ||
         !path.transmission_type ||
         path.transmission_type?.toLowerCase() === categoryFilters.transmission_type?.toLowerCase();
 
       const matchesLicense =
+        categoryFilters.license_type === '' ||
         categoryFilters.license_type === 'all' ||
         !path.license_type ||
         path.license_type?.toLowerCase() === categoryFilters.license_type?.toLowerCase();
 
       const matchesExperience =
+        categoryFilters.experience_level === '' ||
         categoryFilters.experience_level === 'all' ||
         !path.experience_level ||
         path.experience_level?.toLowerCase() === categoryFilters.experience_level?.toLowerCase();
 
       const matchesPurpose =
+        categoryFilters.purpose === '' ||
         categoryFilters.purpose === 'all' ||
         !path.purpose ||
         path.purpose?.toLowerCase() === categoryFilters.purpose?.toLowerCase();
 
       const matchesUserProfile =
+        categoryFilters.user_profile === '' ||
         categoryFilters.user_profile === 'all' ||
         !path.user_profile ||
         path.user_profile?.toLowerCase() === categoryFilters.user_profile?.toLowerCase() ||
-        path.user_profile === 'All'; // "All" user profile matches any filter
+        path.user_profile === 'All' ||
+        path.user_profile === 'all'; // "All" user profile matches any filter
 
       const matchesPlatform =
+        categoryFilters.platform === '' ||
         categoryFilters.platform === 'all' ||
         !path.platform ||
         path.platform === 'both' || // "both" platform matches any filter
@@ -758,6 +799,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
         path.platform === 'mobile'; // Always show mobile content
 
       const matchesType =
+        categoryFilters.type === '' ||
         categoryFilters.type === 'all' ||
         !path.type ||
         path.type?.toLowerCase() === categoryFilters.type?.toLowerCase();
@@ -819,10 +861,8 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
     return null;
   }
 
-  if (filteredPaths.length === 0) {
-    console.log('🔍 [ProgressSection] No filtered paths found, not rendering');
-    return null;
-  }
+  // Show empty state instead of hiding the section completely
+  const hasFilteredPaths = filteredPaths.length > 0;
 
   return (
     <YStack
@@ -900,9 +940,103 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
           </XStack>
         </YStack>
       )} */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <XStack space="$4" paddingHorizontal="$4" marginTop="$4" marginBottom={0} paddingVertical={0}>
-          {filteredPaths.map((path, index) => {
+      {!hasFilteredPaths ? (
+        // Empty state when no paths match filters
+        <YStack
+          paddingHorizontal="$4"
+          paddingVertical="$6"
+          alignItems="center"
+          justifyContent="center"
+          gap="$3"
+        >
+          {loading ? (
+            <>
+              <Spinner size="large" color="#00E6C3" />
+              <Text
+                fontSize={14}
+                color={colorScheme === 'dark' ? '#999' : '#666'}
+                textAlign="center"
+              >
+                {t('progressSection.loadingFilters') || 'Loading suggested filters...'}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Feather name="filter" size={32} color={colorScheme === 'dark' ? '#666' : '#999'} />
+              <Text
+                fontSize={14}
+                color={colorScheme === 'dark' ? '#999' : '#666'}
+                textAlign="center"
+              >
+                {t('progressSection.noMatchingPaths') || 'No learning paths match your current filters'}
+              </Text>
+              
+              {/* Active Filter Chips */}
+              {Object.entries(categoryFilters).some(([key, value]) => value && value !== 'all') && (
+                <YStack gap="$2" alignItems="center">
+                  <Text
+                    fontSize={12}
+                    color={colorScheme === 'dark' ? '#999' : '#666'}
+                    textAlign="center"
+                  >
+                    {t('progressSection.activeFilters') || 'Active filters:'}
+                  </Text>
+                  <XStack flexWrap="wrap" gap={8} justifyContent="center">
+                    {Object.entries(categoryFilters).map(([key, value]) => {
+                      if (!value || value === 'all') return null;
+                      const displayValue = value.charAt(0).toUpperCase() + value.slice(1);
+                      return (
+                        <Chip
+                          key={key}
+                          label={displayValue}
+                          size="sm"
+                          variant="default"
+                          active={true}
+                          iconRight="x"
+                          onPress={() => {
+                            handleFilterSelect(key as CategoryType, '');
+                          }}
+                        />
+                      );
+                    })}
+                  </XStack>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onPress={() => {
+                      const resetFilters: Record<CategoryType, string> = {
+                        vehicle_type: 'all',
+                        transmission_type: 'all',
+                        license_type: 'all',
+                        experience_level: 'all',
+                        purpose: 'all',
+                        user_profile: 'all',
+                        platform: 'all',
+                        type: 'all',
+                      };
+                      setCategoryFilters(resetFilters);
+                      saveFilterPreferences(resetFilters);
+                    }}
+                  >
+                    {t('progressScreen.clearAllFilters') || 'Clear All Filters'}
+                  </Button>
+                </YStack>
+              )}
+
+              <Button
+                variant="primary"
+                size="sm"
+                onPress={() => setShowLearningPathsSheet(true)}
+              >
+                {t('progressSection.viewAllPaths') || 'View All Paths'}
+              </Button>
+            </>
+          )}
+        </YStack>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <XStack space="$4" paddingHorizontal="$4" marginTop="$4" marginBottom={0} paddingVertical={0}>
+            {filteredPaths.map((path, index) => {
             const isActive = activePath === path.id;
             const percent = getPathProgress(path);
             // Check access controls
@@ -1110,15 +1244,23 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
               </TouchableOpacity>
             );
           })}
-        </XStack>
-      </ScrollView>
+          </XStack>
+        </ScrollView>
+      )}
 
       {/* Learning Paths Overview Sheet Modal (Level 0) */}
       <LearningPathsSheet
         visible={showLearningPathsSheet}
-        onClose={() => {
+        onClose={async () => {
           console.log('🎯 [ProgressSection] LearningPathsSheet closed');
           setShowLearningPathsSheet(false);
+          
+          // Reload filters after sheet closes to sync any changes
+          const savedFilters = await loadFilterPreferences();
+          if (savedFilters) {
+            setCategoryFilters(savedFilters);
+            console.log('🔄 [ProgressSection] Reloaded filters after sheet close:', savedFilters);
+          }
         }}
         onPathSelected={(path) => {
           console.log(
