@@ -217,14 +217,14 @@ export function LearningPathsSheet({
   // Filter and display state - matching ProgressScreen defaults
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [categoryFilters, setCategoryFilters] = useState<Record<CategoryType, string>>({
-    vehicle_type: 'all',
-    transmission_type: 'all',
-    license_type: 'all',
-    experience_level: 'all',
-    purpose: 'all',
-    user_profile: 'all',
-    platform: 'all',
-    type: 'all',
+    vehicle_type: '',
+    transmission_type: '',
+    license_type: '',
+    experience_level: '',
+    purpose: '',
+    user_profile: '',
+    platform: '',
+    type: '',
   });
   const [categoryOptions, setCategoryOptions] = useState<Record<CategoryType, CategoryOption[]>>({
     vehicle_type: [],
@@ -478,59 +478,59 @@ export function LearningPathsSheet({
     );
 
     const filtered = paths.filter((path: LearningPath) => {
-      // Handle variations in data values and allow null values - matching ProgressScreen logic
+      // Match ProgressScreen's exact filter logic (empty string means show all)
       const matchesVehicleType =
-        categoryFilters.vehicle_type === 'all' ||
         categoryFilters.vehicle_type === '' ||
+        categoryFilters.vehicle_type === 'all' ||
         !path.vehicle_type ||
-        path.vehicle_type?.toLowerCase() === categoryFilters.vehicle_type?.toLowerCase();
+        path.vehicle_type === categoryFilters.vehicle_type;
         
       const matchesTransmission =
-        categoryFilters.transmission_type === 'all' ||
         categoryFilters.transmission_type === '' ||
+        categoryFilters.transmission_type === 'all' ||
         !path.transmission_type ||
-        path.transmission_type?.toLowerCase() === categoryFilters.transmission_type?.toLowerCase();
+        path.transmission_type === categoryFilters.transmission_type;
         
       const matchesLicense =
-        categoryFilters.license_type === 'all' ||
         categoryFilters.license_type === '' ||
+        categoryFilters.license_type === 'all' ||
         !path.license_type ||
-        path.license_type?.toLowerCase() === categoryFilters.license_type?.toLowerCase();
+        path.license_type === categoryFilters.license_type;
         
       const matchesExperience =
-        categoryFilters.experience_level === 'all' ||
         categoryFilters.experience_level === '' ||
+        categoryFilters.experience_level === 'all' ||
         !path.experience_level ||
-        path.experience_level?.toLowerCase() === categoryFilters.experience_level?.toLowerCase();
+        path.experience_level === categoryFilters.experience_level;
         
       const matchesPurpose =
-        categoryFilters.purpose === 'all' ||
         categoryFilters.purpose === '' ||
+        categoryFilters.purpose === 'all' ||
         !path.purpose ||
-        path.purpose?.toLowerCase() === categoryFilters.purpose?.toLowerCase();
+        path.purpose === categoryFilters.purpose;
         
       const matchesUserProfile =
+        categoryFilters.user_profile === '' ||
         categoryFilters.user_profile === 'all' ||
         categoryFilters.user_profile === 'All' ||
-        categoryFilters.user_profile === '' ||
         !path.user_profile ||
-        path.user_profile?.toLowerCase() === categoryFilters.user_profile?.toLowerCase() ||
+        path.user_profile === categoryFilters.user_profile ||
         // "All" user profile matches any filter
         path.user_profile === 'All';
         
       const matchesPlatform =
+        categoryFilters.platform === '' ||
         categoryFilters.platform === 'all' ||
         categoryFilters.platform === 'both' ||
-        categoryFilters.platform === '' ||
         !path.platform ||
         path.platform === 'both' || // "both" platform matches any filter
-        path.platform?.toLowerCase() === categoryFilters.platform?.toLowerCase();
+        path.platform === categoryFilters.platform;
         
       const matchesType =
-        categoryFilters.type === 'all' ||
         categoryFilters.type === '' ||
+        categoryFilters.type === 'all' ||
         !path.type ||
-        path.type?.toLowerCase() === categoryFilters.type?.toLowerCase();
+        path.type === categoryFilters.type;
 
       const matches =
         matchesVehicleType &&
@@ -654,7 +654,7 @@ export function LearningPathsSheet({
                           {/* Show active filter count badge */}
                           {(() => {
                             const activeFilters = Object.values(categoryFilters).filter(
-                              (value) => value !== 'all' && value !== '' && value !== 'All' && value !== 'both',
+                              (value) => value !== '' && value !== 'all' && value !== 'All' && value !== 'both',
                             ).length;
                             return activeFilters > 0 ? (
                               <View
@@ -781,14 +781,14 @@ export function LearningPathsSheet({
                 onPress={() => {
                   console.log('🔄 [LearningPathsSheet] Reset filters pressed');
                   setCategoryFilters({
-                    vehicle_type: 'all',
-                    transmission_type: 'all',
-                    license_type: 'all',
-                    experience_level: 'all',
-                    purpose: 'all',
-                    user_profile: 'all',
-                    platform: 'all',
-                    type: 'all',
+                    vehicle_type: '',
+                    transmission_type: '',
+                    license_type: '',
+                    experience_level: '',
+                    purpose: '',
+                    user_profile: '',
+                    platform: '',
+                    type: '',
                   });
                 }}
               >
@@ -814,9 +814,9 @@ export function LearningPathsSheet({
                   <XStack flexWrap="wrap" gap={8}>
                     {/* All option */}
                     <TouchableOpacity
-                      onPress={() => handleFilterSelect('vehicle_type', 'all')}
+                      onPress={() => handleFilterSelect('vehicle_type', '')}
                       style={{
-                        backgroundColor: categoryFilters.vehicle_type === 'all' ? '#00E6C3' : '#333',
+                        backgroundColor: (categoryFilters.vehicle_type === '' || categoryFilters.vehicle_type === 'all') ? '#00E6C3' : '#333',
                         paddingHorizontal: 12,
                         paddingVertical: 8,
                         borderRadius: 8,
@@ -825,7 +825,7 @@ export function LearningPathsSheet({
                     >
                       <Text
                         fontSize={14}
-                        color={categoryFilters.vehicle_type === 'all' ? '#000' : '#fff'}
+                        color={(categoryFilters.vehicle_type === '' || categoryFilters.vehicle_type === 'all') ? '#000' : '#fff'}
                       >
                         {t('common.all') || 'All'}
                       </Text>
@@ -865,10 +865,10 @@ export function LearningPathsSheet({
                     <XStack flexWrap="wrap" gap={8}>
                       {/* All option */}
                       <TouchableOpacity
-                        onPress={() => handleFilterSelect('transmission_type', 'all')}
+                        onPress={() => handleFilterSelect('transmission_type', '')}
                         style={{
                           backgroundColor:
-                            categoryFilters.transmission_type === 'all' ? '#00E6C3' : '#333',
+                            (categoryFilters.transmission_type === '' || categoryFilters.transmission_type === 'all') ? '#00E6C3' : '#333',
                           paddingHorizontal: 12,
                           paddingVertical: 8,
                           borderRadius: 8,
@@ -877,7 +877,7 @@ export function LearningPathsSheet({
                       >
                         <Text
                           fontSize={14}
-                          color={categoryFilters.transmission_type === 'all' ? '#000' : '#fff'}
+                          color={(categoryFilters.transmission_type === '' || categoryFilters.transmission_type === 'all') ? '#000' : '#fff'}
                         >
                           {t('common.all') || 'All'}
                         </Text>
@@ -920,9 +920,9 @@ export function LearningPathsSheet({
                   <XStack flexWrap="wrap" gap={8}>
                     {/* All option */}
                     <TouchableOpacity
-                      onPress={() => handleFilterSelect('license_type', 'all')}
+                      onPress={() => handleFilterSelect('license_type', '')}
                       style={{
-                        backgroundColor: categoryFilters.license_type === 'all' ? '#00E6C3' : '#333',
+                        backgroundColor: (categoryFilters.license_type === '' || categoryFilters.license_type === 'all') ? '#00E6C3' : '#333',
                         paddingHorizontal: 12,
                         paddingVertical: 8,
                         borderRadius: 8,
@@ -931,7 +931,7 @@ export function LearningPathsSheet({
                     >
                       <Text
                         fontSize={14}
-                        color={categoryFilters.license_type === 'all' ? '#000' : '#fff'}
+                        color={(categoryFilters.license_type === '' || categoryFilters.license_type === 'all') ? '#000' : '#fff'}
                       >
                         {t('common.all') || 'All'}
                       </Text>
@@ -970,9 +970,9 @@ export function LearningPathsSheet({
                   <XStack flexWrap="wrap" gap={8}>
                     {/* All option */}
                     <TouchableOpacity
-                      onPress={() => handleFilterSelect('experience_level', 'all')}
+                      onPress={() => handleFilterSelect('experience_level', '')}
                       style={{
-                        backgroundColor: categoryFilters.experience_level === 'all' ? '#00E6C3' : '#333',
+                        backgroundColor: (categoryFilters.experience_level === '' || categoryFilters.experience_level === 'all') ? '#00E6C3' : '#333',
                         paddingHorizontal: 12,
                         paddingVertical: 8,
                         borderRadius: 8,
@@ -981,7 +981,7 @@ export function LearningPathsSheet({
                     >
                       <Text
                         fontSize={14}
-                        color={categoryFilters.experience_level === 'all' ? '#000' : '#fff'}
+                        color={(categoryFilters.experience_level === '' || categoryFilters.experience_level === 'all') ? '#000' : '#fff'}
                       >
                         {t('common.all') || 'All'}
                       </Text>
@@ -1022,9 +1022,9 @@ export function LearningPathsSheet({
                   <XStack flexWrap="wrap" gap={8}>
                     {/* All option */}
                     <TouchableOpacity
-                      onPress={() => handleFilterSelect('purpose', 'all')}
+                      onPress={() => handleFilterSelect('purpose', '')}
                       style={{
-                        backgroundColor: categoryFilters.purpose === 'all' ? '#00E6C3' : '#333',
+                        backgroundColor: (categoryFilters.purpose === '' || categoryFilters.purpose === 'all') ? '#00E6C3' : '#333',
                         paddingHorizontal: 12,
                         paddingVertical: 8,
                         borderRadius: 8,
@@ -1033,7 +1033,7 @@ export function LearningPathsSheet({
                     >
                       <Text
                         fontSize={14}
-                        color={categoryFilters.purpose === 'all' ? '#000' : '#fff'}
+                        color={(categoryFilters.purpose === '' || categoryFilters.purpose === 'all') ? '#000' : '#fff'}
                       >
                         {t('common.all') || 'All'}
                       </Text>
@@ -1072,9 +1072,9 @@ export function LearningPathsSheet({
                   <XStack flexWrap="wrap" gap={8}>
                     {/* All option */}
                     <TouchableOpacity
-                      onPress={() => handleFilterSelect('user_profile', 'all')}
+                      onPress={() => handleFilterSelect('user_profile', '')}
                       style={{
-                        backgroundColor: categoryFilters.user_profile === 'all' ? '#00E6C3' : '#333',
+                        backgroundColor: (categoryFilters.user_profile === '' || categoryFilters.user_profile === 'all') ? '#00E6C3' : '#333',
                         paddingHorizontal: 12,
                         paddingVertical: 8,
                         borderRadius: 8,
@@ -1083,7 +1083,7 @@ export function LearningPathsSheet({
                     >
                       <Text
                         fontSize={14}
-                        color={categoryFilters.user_profile === 'all' ? '#000' : '#fff'}
+                        color={(categoryFilters.user_profile === '' || categoryFilters.user_profile === 'all') ? '#000' : '#fff'}
                       >
                         {t('common.all') || 'All'}
                       </Text>
@@ -1122,9 +1122,9 @@ export function LearningPathsSheet({
                   <XStack flexWrap="wrap" gap={8}>
                     {/* All option */}
                     <TouchableOpacity
-                      onPress={() => handleFilterSelect('platform', 'all')}
+                      onPress={() => handleFilterSelect('platform', '')}
                       style={{
-                        backgroundColor: categoryFilters.platform === 'all' ? '#00E6C3' : '#333',
+                        backgroundColor: (categoryFilters.platform === '' || categoryFilters.platform === 'all') ? '#00E6C3' : '#333',
                         paddingHorizontal: 12,
                         paddingVertical: 8,
                         borderRadius: 8,
@@ -1133,7 +1133,7 @@ export function LearningPathsSheet({
                     >
                       <Text
                         fontSize={14}
-                        color={categoryFilters.platform === 'all' ? '#000' : '#fff'}
+                        color={(categoryFilters.platform === '' || categoryFilters.platform === 'all') ? '#000' : '#fff'}
                       >
                         {t('common.all') || 'All'}
                       </Text>
@@ -1172,9 +1172,9 @@ export function LearningPathsSheet({
                   <XStack flexWrap="wrap" gap={8}>
                     {/* All option */}
                     <TouchableOpacity
-                      onPress={() => handleFilterSelect('type', 'all')}
+                      onPress={() => handleFilterSelect('type', '')}
                       style={{
-                        backgroundColor: categoryFilters.type === 'all' ? '#00E6C3' : '#333',
+                        backgroundColor: (categoryFilters.type === '' || categoryFilters.type === 'all') ? '#00E6C3' : '#333',
                         paddingHorizontal: 12,
                         paddingVertical: 8,
                         borderRadius: 8,
@@ -1183,7 +1183,7 @@ export function LearningPathsSheet({
                     >
                       <Text
                         fontSize={14}
-                        color={categoryFilters.type === 'all' ? '#000' : '#fff'}
+                        color={(categoryFilters.type === '' || categoryFilters.type === 'all') ? '#000' : '#fff'}
                       >
                         {t('common.all') || 'All'}
                       </Text>
