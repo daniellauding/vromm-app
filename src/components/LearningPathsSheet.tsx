@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -21,7 +20,6 @@ import ReanimatedAnimated, {
 import { YStack, XStack, Text, Spinner } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useThemeColor } from '../../hooks/useThemeColor';
 import { useAuth } from '../context/AuthContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -29,31 +27,17 @@ import { useUnlock } from '../contexts/UnlockContext';
 import { supabase } from '../lib/supabase';
 import { useThemePreference } from '../hooks/useThemeOverride';
 import { LearningPathCard } from './LearningPathCard';
-import { Header, useHeaderWithScroll } from './Header';
+import { useHeaderWithScroll } from './Header';
+import { LearningPathsFilterModal, CategoryType, CategoryOption } from './LearningPathsFilterModal';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Button } from './Button';
+import { Chip } from './Chip';
 
 const { height } = Dimensions.get('window');
 
-// Category types for filtering
-type CategoryType =
-  | 'vehicle_type'
-  | 'transmission_type'
-  | 'license_type'
-  | 'experience_level'
-  | 'purpose'
-  | 'user_profile'
-  | 'platform'
-  | 'type';
+// Category types and options are now imported from LearningPathsFilterModal
 
-interface CategoryOption {
-  id: string;
-  category: CategoryType;
-  value: string;
-  label: { en: string; sv: string };
-  order_index: number;
-  is_default: boolean;
-}
-
-// Learning path interface (exact copy from ProgressScreen)
+// Learning path interface with filter properties
 interface LearningPath {
   id: string;
   title: { en: string; sv: string };
@@ -70,6 +54,16 @@ interface LearningPath {
   price_sek?: number;
   created_at: string;
   updated_at: string;
+  
+  // Filter properties
+  vehicle_type?: string;
+  transmission_type?: string;
+  license_type?: string;
+  experience_level?: string;
+  purpose?: string;
+  user_profile?: string;
+  platform?: string;
+  type?: string;
 }
 
 interface LearningPathsSheetProps {
@@ -90,7 +84,7 @@ export function LearningPathsSheet({
   onBack,
 }: LearningPathsSheetProps) {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { activeStudentId } = useStudentSwitch();
   const { language: lang, t } = useTranslation();
   const { isPathUnlocked, hasPathPayment, loadUserPayments, loadUnlockedContent } = useUnlock();
@@ -214,17 +208,17 @@ export function LearningPathsSheet({
   const [exercisesByPath, setExercisesByPath] = useState<{ [pathId: string]: string[] }>({});
   const [completedIds, setCompletedIds] = useState<string[]>([]);
 
-  // Filter and display state - matching ProgressScreen defaults
+  // Filter and display state - start with "all" to show everything until database loads
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [categoryFilters, setCategoryFilters] = useState<Record<CategoryType, string>>({
-    vehicle_type: '',
-    transmission_type: '',
-    license_type: '',
-    experience_level: '',
-    purpose: '',
-    user_profile: '',
-    platform: '',
-    type: '',
+    vehicle_type: 'all',
+    transmission_type: 'all',
+    license_type: 'all',
+    experience_level: 'all',
+    purpose: 'all',
+    user_profile: 'all',
+    platform: 'all',
+    type: 'all',
   });
   const [categoryOptions, setCategoryOptions] = useState<Record<CategoryType, CategoryOption[]>>({
     vehicle_type: [],
@@ -244,6 +238,7 @@ export function LearningPathsSheet({
   const loadLearningPaths = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('🔍 [LearningPathsSheet] Loading learning paths from database...');
 
       const { data: pathsData, error } = await supabase
         .from('learning_paths')
@@ -252,10 +247,11 @@ export function LearningPathsSheet({
         .order('order_index', { ascending: true });
 
       if (error) {
-        console.error('Error loading learning paths:', error);
+        console.error('❌ [LearningPathsSheet] Error loading learning paths:', error);
         return;
       }
 
+      console.log('✅ [LearningPathsSheet] Loaded learning paths:', pathsData?.length || 0);
       setPaths(pathsData || []);
 
       // Load exercises mapping for progress calculation (optimized single query)
@@ -329,59 +325,27 @@ export function LearningPathsSheet({
     return !hasPathPayment(path.id);
   };
 
-  // Load categories from database
+  // Load categories from database - using same table and logic as ProgressScreen
   const fetchCategories = useCallback(async () => {
     try {
+      console.log('🔍 [LearningPathsSheet] Fetching categories from database...');
+
       const { data, error } = await supabase
-        .from('learning_path_category_options')
-        .select('*')
-        .order('category', { ascending: true })
+        .from('learning_path_categories')
+        .select('category, value, label, is_default, created_at, order_index')
         .order('order_index', { ascending: true });
 
       if (error) {
-        // Table doesn't exist or other error - fail gracefully
-        console.log('📚 [LearningPathsSheet] Category options table not available:', error.code);
-        // Set empty options so filter drawer doesn't show any categories
-        setCategoryOptions({
-          vehicle_type: [],
-          transmission_type: [],
-          license_type: [],
-          experience_level: [],
-          purpose: [],
-          user_profile: [],
-          platform: [],
-          type: [],
-        });
+        console.error('❌ [LearningPathsSheet] Error fetching categories:', error);
+        // Use fallback defaults if database fails
+        setDefaultFilters();
         return;
       }
 
-      if (data) {
-        const grouped: Record<CategoryType, CategoryOption[]> = {
-          vehicle_type: [],
-          transmission_type: [],
-          license_type: [],
-          experience_level: [],
-          purpose: [],
-          user_profile: [],
-          platform: [],
-          type: [],
-        };
+      console.log('✅ [LearningPathsSheet] Successfully fetched categories:', data?.length || 0);
 
-        data.forEach((option: CategoryOption) => {
-          if (grouped[option.category as CategoryType]) {
-            grouped[option.category as CategoryType].push(option);
-          }
-        });
-
-        setCategoryOptions(grouped);
-      }
-    } catch (error) {
-      console.log(
-        '📚 [LearningPathsSheet] Error fetching categories (table may not exist):',
-        error,
-      );
-      // Set empty options as fallback
-      setCategoryOptions({
+      // Group by category type with deduplication
+      const groupedCategories: Record<CategoryType, CategoryOption[]> = {
         vehicle_type: [],
         transmission_type: [],
         license_type: [],
@@ -390,24 +354,248 @@ export function LearningPathsSheet({
         user_profile: [],
         platform: [],
         type: [],
+      };
+
+      // Track which categories have "all" options from database
+      const categoriesWithAll = new Set<CategoryType>();
+
+      // Process categories from database first (with deduplication)
+      const processedItems = new Map<string, CategoryOption>();
+
+      data?.forEach((item) => {
+        const category = item.category as CategoryType;
+        const uniqueKey = `${category}-${item.value}`;
+
+        // Skip if we already processed this exact category-value combination
+        if (processedItems.has(uniqueKey)) {
+          console.log(`🔄 [LearningPathsSheet] Skipping duplicate: ${uniqueKey}`);
+          return;
+        }
+
+        // Add to processed items (with proper typing)
+        const categoryOption: CategoryOption = {
+          id: (item as any).id || `generated-${category}-${item.value}`,
+          category: category,
+          value: item.value,
+          label: item.label,
+          order_index: item.order_index || 0,
+          is_default: item.is_default || false,
+        };
+        processedItems.set(uniqueKey, categoryOption);
+
+        // Track if this category has an "all" option
+        if (item.value.toLowerCase() === 'all') {
+          categoriesWithAll.add(category);
+        }
+
+        if (groupedCategories[category]) {
+          groupedCategories[category].push(categoryOption);
+        }
       });
+
+      // Add missing "All" options for categories that don't have them from database
+      for (const key of Object.keys(groupedCategories) as CategoryType[]) {
+        if (!categoriesWithAll.has(key)) {
+          console.log(`➕ [LearningPathsSheet] Adding missing 'all' option for: ${key}`);
+          groupedCategories[key].unshift({
+            id: `generated-all-${key}`,
+            category: key,
+            value: 'all',
+            label: { en: 'All', sv: 'Alla' },
+            order_index: 0,
+            is_default: false,
+          });
+        }
+      }
+
+      // Sort each category by order_index
+      for (const key of Object.keys(groupedCategories) as CategoryType[]) {
+        groupedCategories[key].sort((a, b) => (a.order_index || 0) - (b.order_index || 0));
+      }
+
+      setCategoryOptions(groupedCategories);
+
+      // Try to load saved filter preferences first (matching ProgressScreen behavior)
+      const savedFilters = await loadFilterPreferences();
+
+      if (savedFilters) {
+        // Use saved preferences
+        setCategoryFilters(savedFilters);
+        console.log('✅ [LearningPathsSheet] Using saved filter preferences for user:', effectiveUserId, savedFilters);
+      } else {
+        // Set defaults based on most recent is_default=true values from database (like ProgressScreen)
+        const defaultVehicle = data
+          .filter((item) => item.category === 'vehicle_type' && item.is_default)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        const defaultTransmission = data
+          .filter((item) => item.category === 'transmission_type' && item.is_default)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        const defaultLicense = data
+          .filter((item) => item.category === 'license_type' && item.is_default)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        const defaultExperience = data
+          .filter((item) => item.category === 'experience_level' && item.is_default)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        const defaultPurpose = data
+          .filter((item) => item.category === 'purpose' && item.is_default)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        const defaultUserProfile = data
+          .filter((item) => item.category === 'user_profile' && item.is_default)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        const defaultPlatform = data
+          .filter((item) => item.category === 'platform' && item.is_default)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        const defaultType = data
+          .filter((item) => item.category === 'type' && item.is_default)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+
+        const defaultFilters: Record<CategoryType, string> = {
+          vehicle_type: getProfilePreference('vehicle_type', defaultVehicle?.value || 'all'),
+          transmission_type: getProfilePreference('transmission_type', defaultTransmission?.value || 'all'),
+          license_type: getProfilePreference('license_type', defaultLicense?.value || 'all'),
+          experience_level: getProfilePreference('experience_level', defaultExperience?.value || 'all'),
+          purpose: getProfilePreference('purpose', defaultPurpose?.value || 'all'),
+          user_profile: getProfilePreference('user_profile', defaultUserProfile?.value || 'all'),
+          platform: defaultPlatform?.value || 'all',
+          type: defaultType?.value || 'all',
+        };
+
+        setCategoryFilters(defaultFilters);
+        console.log('✅ [LearningPathsSheet] Set default category filters from database defaults:', defaultFilters);
+
+        // Save defaults for next time
+        saveFilterPreferences(defaultFilters);
+      }
+    } catch (err) {
+      console.error('💥 [LearningPathsSheet] Exception fetching categories:', err);
+      setDefaultFilters();
     }
   }, []);
 
-  // Handle filter selection
-  const handleFilterSelect = useCallback((filterType: CategoryType, value: string) => {
-    setCategoryFilters((prev) => ({
-      ...prev,
-      [filterType]: value,
-    }));
-  }, []);
+  // Helper function to set fallback defaults
+  const setDefaultFilters = () => {
+    console.log('⚠️ [LearningPathsSheet] Using fallback category filters');
+    setCategoryFilters({
+      vehicle_type: 'all',
+      transmission_type: 'all',
+      license_type: 'all',
+      experience_level: 'all',
+      purpose: 'all',
+      user_profile: 'all',
+      platform: 'all',
+      type: 'all',
+    });
 
-  // Load categories when modal opens
+    // Set empty category options as fallback
+    setCategoryOptions({
+      vehicle_type: [],
+      transmission_type: [],
+      license_type: [],
+      experience_level: [],
+      purpose: [],
+      user_profile: [],
+      platform: [],
+      type: [],
+    });
+  };
+
+  // Handle filter selection and save to preferences
+  const handleFilterSelect = useCallback((filterType: CategoryType, value: string) => {
+    const newFilters = {
+      ...categoryFilters,
+      [filterType]: value,
+    };
+    setCategoryFilters(newFilters);
+    
+    // Save to preferences immediately for persistence across sessions
+    saveFilterPreferences(newFilters);
+    
+    console.log(`🎛️ [LearningPathsSheet] Filter selected: ${filterType} = ${value}`);
+  }, [categoryFilters, saveFilterPreferences]);
+
+  // Load filter preferences from AsyncStorage - USER-SPECIFIC (matching ProgressScreen)
+  const loadFilterPreferences = useCallback(async (): Promise<Record<CategoryType, string> | null> => {
+    try {
+      // Make filter loading user-specific for supervisors viewing different students
+      const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
+      const saved = await AsyncStorage.getItem(filterKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('✅ [LearningPathsSheet] Loaded saved filter preferences for user:', effectiveUserId, parsed);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading filter preferences:', error);
+    }
+    return null;
+  }, [effectiveUserId]);
+
+  // Save filter preferences to AsyncStorage - USER-SPECIFIC (matching ProgressScreen)
+  const saveFilterPreferences = useCallback(async (filters: Record<CategoryType, string>) => {
+    try {
+      // Make filter storage user-specific for supervisors viewing different students
+      const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
+      await AsyncStorage.setItem(filterKey, JSON.stringify(filters));
+      console.log('✅ [LearningPathsSheet] Saved filter preferences for user:', effectiveUserId, filters);
+    } catch (error) {
+      console.error('Error saving filter preferences:', error);
+    }
+  }, [effectiveUserId]);
+
+  // Helper function to get user profile preferences (matching ProgressScreen)
+  const getProfilePreference = useCallback((key: string, defaultValue: string): string => {
+    // Check if we're viewing a student (either from navigation params or StudentSwitchContext)
+    const isViewingStudent = (activeStudentId && activeStudentId !== user?.id);
+    const activeProfile = isViewingStudent ? null : profile; // For now, use current user's profile
+    if (!activeProfile) return defaultValue;
+
+    try {
+      // Check if profile has license_plan_data from onboarding
+      const licenseData = (activeProfile as any)?.license_plan_data;
+      if (licenseData && typeof licenseData === 'object') {
+        const value = licenseData[key];
+        console.log(
+          `🔍 [LearningPathsSheet] Reading profile preference ${key}:`,
+          value,
+          'from user:',
+          effectiveUserId,
+          'isStudent:',
+          isViewingStudent,
+        );
+        return value || defaultValue;
+      }
+
+      // Fallback to direct profile properties
+      const value = (activeProfile as any)[key];
+      console.log(
+        `🔍 [LearningPathsSheet] Reading profile preference ${key}:`,
+        value,
+        'from direct profile for user:',
+        effectiveUserId,
+      );
+      return value || defaultValue;
+    } catch (error) {
+      console.log('Error getting profile preference:', error);
+      return defaultValue;
+    }
+  }, [profile, activeStudentId, user?.id, effectiveUserId]);
+
+  // Load categories and sync with ProgressScreen filters when modal opens
   useEffect(() => {
     if (visible) {
-      fetchCategories();
+      // Always reload filter preferences when sheet opens to sync with ProgressScreen
+      const loadAndSyncFilters = async () => {
+        await fetchCategories();
+        // Force reload of saved filters to ensure sync
+        const savedFilters = await loadFilterPreferences();
+        if (savedFilters) {
+          setCategoryFilters(savedFilters);
+          console.log('🔄 [LearningPathsSheet] Reloaded filters on open:', savedFilters);
+        }
+      };
+      loadAndSyncFilters();
     }
-  }, [visible, fetchCategories]);
+  }, [visible, fetchCategories, loadFilterPreferences]);
 
   // Load data when modal opens
   useEffect(() => {
@@ -470,7 +658,10 @@ export function LearningPathsSheet({
 
   // Apply filters to paths - enhanced logic matching ProgressScreen
   const filteredPaths = useMemo(() => {
-    if (!paths || paths.length === 0) return [];
+    if (!paths || paths.length === 0) {
+      console.log('🔍 [LearningPathsSheet] No paths to filter, paths:', paths?.length || 0);
+      return [];
+    }
 
     console.log(
       `🔍 [LearningPathsSheet] Filtering ${paths.length} paths with filters:`,
@@ -558,6 +749,20 @@ export function LearningPathsSheet({
     });
 
     console.log(`✅ [LearningPathsSheet] Filtered from ${paths.length} to ${filtered.length} paths`);
+    
+    // Safety mechanism: if no paths match and we have active filters, show a warning
+    if (filtered.length === 0 && paths.length > 0) {
+      const activeFilterCount = Object.values(categoryFilters).filter(
+        (value) => value !== '' && value !== 'all' && value !== 'All' && value !== 'both',
+      ).length;
+      
+      if (activeFilterCount > 0) {
+        console.warn('⚠️ [LearningPathsSheet] No paths match current filters! Consider resetting filters.');
+        console.warn('Current filters:', categoryFilters);
+        // You could auto-reset here if desired: setCategoryFilters(all 'all' values)
+      }
+    }
+    
     return filtered;
   }, [paths, categoryFilters, lang]);
 
@@ -656,6 +861,7 @@ export function LearningPathsSheet({
                             const activeFilters = Object.values(categoryFilters).filter(
                               (value) => value !== '' && value !== 'all' && value !== 'All' && value !== 'both',
                             ).length;
+                            console.log('🔍 [LearningPathsSheet] Active filters count:', activeFilters, 'Filters:', categoryFilters);
                             return activeFilters > 0 ? (
                               <View
                                 style={{
@@ -689,11 +895,132 @@ export function LearningPathsSheet({
                           <Text color="$gray11">{t('common.loading') || 'Loading...'}</Text>
                         </YStack>
                       ) : displayPaths.length === 0 ? (
-                        <YStack alignItems="center" justifyContent="center" flex={1} gap="$2">
+                        <YStack alignItems="center" justifyContent="center" flex={1} gap="$4" paddingHorizontal="$4">
                           <Feather name="book-open" size={48} color="#666" />
-                          <Text color="$gray11" textAlign="center">
+                          <Text color="$gray11" textAlign="center" fontSize={16}>
                             {t('progressScreen.noLearningPaths') || 'No learning paths available'}
                           </Text>
+                          <Text fontSize={14} color="$gray10" textAlign="center">
+                            {t('progressScreen.tryAdjustingFilters') || 'Try adjusting your filter settings to see more learning paths.'}
+                          </Text>
+                          
+                          {/* Show active filters as chips if any */}
+                          {(() => {
+                            const activeFilters = Object.entries(categoryFilters).filter(
+                              ([key, value]) => value && value !== '' && value !== 'all' && value !== 'All'
+                            );
+                            
+                            if (activeFilters.length > 0) {
+                              return (
+                                <>
+                                  <Text fontSize={12} color="$gray10" marginTop={8} marginBottom={8}>
+                                    {t('progressScreen.activeFilters') || 'Active filters:'}
+                                  </Text>
+                                  <XStack flexWrap="wrap" gap={8} justifyContent="center" marginBottom={16}>
+                                    {activeFilters.map(([key, value]) => {
+                                      const categoryOption = categoryOptions[key as CategoryType]?.find(
+                                        opt => opt.value === value
+                                      );
+                                      const label = categoryOption?.label?.[lang] || 
+                                                   categoryOption?.label?.en || 
+                                                   value;
+                                      
+                                      return (
+                                        <Chip
+                                          key={key}
+                                          label={label}
+                                          size="sm"
+                                          variant="default"
+                                          active={true}
+                                          iconRight="x"
+                                          onPress={() => {
+                                            // Clear this specific filter
+                                            handleFilterSelect(key as CategoryType, '');
+                                          }}
+                                        />
+                                      );
+                                    })}
+                                  </XStack>
+                                  
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onPress={() => {
+                                      // Reset all filters to ''
+                                      const resetFilters: Record<CategoryType, string> = {
+                                        vehicle_type: '',
+                                        transmission_type: '',
+                                        license_type: '',
+                                        experience_level: '',
+                                        purpose: '',
+                                        user_profile: '',
+                                        platform: '',
+                                        type: '',
+                                      };
+                                      setCategoryFilters(resetFilters);
+                                      saveFilterPreferences(resetFilters);
+                                    }}
+                                  >
+                                    {t('progressScreen.clearAllFilters') || 'Clear All Filters'}
+                                  </Button>
+                                </>
+                              );
+                            }
+                            return null;
+                          })()}
+                          
+                          {/* Suggested Filter Chips */}
+                          <Text fontSize={12} color="$gray10" marginTop={8} marginBottom={8} textAlign="center">
+                            {t('progressScreen.suggestedFilters') || 'Try these filters:'}
+                          </Text>
+                          <XStack flexWrap="wrap" gap={8} justifyContent="center">
+                            {(() => {
+                              // Get actual filter options from categoryOptions
+                              const suggestions = [];
+                              
+                              // Add top 2-3 options from each category that has data
+                              ['vehicle_type', 'transmission_type', 'license_type'].forEach((filterType) => {
+                                const options = categoryOptions[filterType as CategoryType] || [];
+                                options.slice(0, 3).forEach((option) => {
+                                  if (option.value && option.value !== 'all') {
+                                    suggestions.push({
+                                      type: filterType,
+                                      value: option.value,
+                                      label: option.label?.[lang] || option.label?.en || option.value,
+                                    });
+                                  }
+                                });
+                              });
+                              
+                              return suggestions.map(({ type, value, label }) => {
+                                // Count learning paths that match this filter
+                                const pathCount = paths.filter(path => {
+                                  if (type === 'vehicle_type') {
+                                    return !path.vehicle_type || path.vehicle_type?.toLowerCase() === value?.toLowerCase();
+                                  } else if (type === 'transmission_type') {
+                                    return !path.transmission_type || path.transmission_type?.toLowerCase() === value?.toLowerCase();
+                                  } else if (type === 'license_type') {
+                                    return !path.license_type || path.license_type?.toLowerCase() === value?.toLowerCase();
+                                  }
+                                  return false;
+                                }).length;
+                                
+                                if (pathCount === 0) return null;
+                                
+                                return (
+                                  <Chip
+                                    key={`suggestion-${type}-${value}`}
+                                    label={`${label} (${pathCount})`}
+                                    size="sm"
+                                    variant="outline"
+                                    onPress={() => {
+                                      handleFilterSelect(type as CategoryType, value);
+                                    }}
+                                  />
+                                );
+                              }).filter(Boolean);
+                            })()}
+                          </XStack>
                         </YStack>
                       ) : (
                         <ScrollView
@@ -752,486 +1079,43 @@ export function LearningPathsSheet({
         </View>
       </Animated.View>
 
-      {/* Filter Drawer Modal */}
-      <Modal
+      {/* Filter Modal */}
+      <LearningPathsFilterModal
         visible={showFilterDrawer}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowFilterDrawer(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <Pressable style={{ flex: 1 }} onPress={() => setShowFilterDrawer(false)} />
-          <YStack
-            backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
-            borderTopLeftRadius={20}
-            borderTopRightRadius={20}
-            padding={20}
-            paddingBottom={insets.bottom + 20}
-            maxHeight="80%"
-          >
-            {/* Header */}
-            <XStack justifyContent="space-between" alignItems="center" marginBottom={16}>
-              <TouchableOpacity
-                onPress={() => {
-                  console.log('🔄 [LearningPathsSheet] Reset filters pressed');
-                  setCategoryFilters({
-                    vehicle_type: '',
-                    transmission_type: '',
-                    license_type: '',
-                    experience_level: '',
-                    purpose: '',
-                    user_profile: '',
-                    platform: '',
-                    type: '',
-                  });
-                }}
-              >
-                <Text color="#00E6C3">Reset</Text>
-              </TouchableOpacity>
-
-              <Text fontWeight="600" fontSize={18} color="white">
-                {t('filters.filterLearningPaths') || 'Filter Learning Paths'}
-              </Text>
-
-              <TouchableOpacity onPress={() => setShowFilterDrawer(false)}>
-                <Feather name="x" size={24} color="white" />
-              </TouchableOpacity>
-            </XStack>
-
-            <ScrollView style={{ maxHeight: 400 }} showsVerticalScrollIndicator={true}>
-              {/* Vehicle Type */}
-              {categoryOptions.vehicle_type && categoryOptions.vehicle_type.length > 0 && (
-                <YStack marginBottom={16}>
-                  <Text fontWeight="600" fontSize={16} color="white" marginBottom={8}>
-                    {t('filters.vehicleType') || 'Vehicle Type'}
-                  </Text>
-                  <XStack flexWrap="wrap" gap={8}>
-                    {/* All option */}
-                    <TouchableOpacity
-                      onPress={() => handleFilterSelect('vehicle_type', '')}
-                      style={{
-                        backgroundColor: (categoryFilters.vehicle_type === '' || categoryFilters.vehicle_type === 'all') ? '#00E6C3' : '#333',
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text
-                        fontSize={14}
-                        color={(categoryFilters.vehicle_type === '' || categoryFilters.vehicle_type === 'all') ? '#000' : '#fff'}
-                      >
-                        {t('common.all') || 'All'}
-                      </Text>
-                    </TouchableOpacity>
-                    {categoryOptions.vehicle_type.map((option) => (
-                      <TouchableOpacity
-                        key={option.id}
-                        onPress={() => handleFilterSelect('vehicle_type', option.value)}
-                        style={{
-                          backgroundColor:
-                            categoryFilters.vehicle_type === option.value ? '#00E6C3' : '#333',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text
-                          fontSize={14}
-                          color={categoryFilters.vehicle_type === option.value ? '#000' : '#fff'}
-                        >
-                          {option.label?.[lang] || option.label?.en || option.value}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </XStack>
-                </YStack>
-              )}
-
-              {/* Transmission Type */}
-              {categoryOptions.transmission_type &&
-                categoryOptions.transmission_type.length > 0 && (
-                  <YStack marginBottom={16}>
-                    <Text fontWeight="600" fontSize={16} color="white" marginBottom={8}>
-                      {t('filters.transmissionType') || 'Transmission Type'}
-                    </Text>
-                    <XStack flexWrap="wrap" gap={8}>
-                      {/* All option */}
-                      <TouchableOpacity
-                        onPress={() => handleFilterSelect('transmission_type', '')}
-                        style={{
-                          backgroundColor:
-                            (categoryFilters.transmission_type === '' || categoryFilters.transmission_type === 'all') ? '#00E6C3' : '#333',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text
-                          fontSize={14}
-                          color={(categoryFilters.transmission_type === '' || categoryFilters.transmission_type === 'all') ? '#000' : '#fff'}
-                        >
-                          {t('common.all') || 'All'}
-                        </Text>
-                      </TouchableOpacity>
-                      {categoryOptions.transmission_type.map((option) => (
-                        <TouchableOpacity
-                          key={option.id}
-                          onPress={() => handleFilterSelect('transmission_type', option.value)}
-                          style={{
-                            backgroundColor:
-                              categoryFilters.transmission_type === option.value
-                                ? '#00E6C3'
-                                : '#333',
-                            paddingHorizontal: 12,
-                            paddingVertical: 8,
-                            borderRadius: 8,
-                            marginBottom: 8,
-                          }}
-                        >
-                          <Text
-                            fontSize={14}
-                            color={
-                              categoryFilters.transmission_type === option.value ? '#000' : '#fff'
-                            }
-                          >
-                            {option.label?.[lang] || option.label?.en || option.value}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </XStack>
-                  </YStack>
-                )}
-
-              {/* License Type */}
-              {categoryOptions.license_type && categoryOptions.license_type.length > 0 && (
-                <YStack marginBottom={16}>
-                  <Text fontWeight="600" fontSize={16} color="white" marginBottom={8}>
-                    {t('filters.licenseType') || 'License Type'}
-                  </Text>
-                  <XStack flexWrap="wrap" gap={8}>
-                    {/* All option */}
-                    <TouchableOpacity
-                      onPress={() => handleFilterSelect('license_type', '')}
-                      style={{
-                        backgroundColor: (categoryFilters.license_type === '' || categoryFilters.license_type === 'all') ? '#00E6C3' : '#333',
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text
-                        fontSize={14}
-                        color={(categoryFilters.license_type === '' || categoryFilters.license_type === 'all') ? '#000' : '#fff'}
-                      >
-                        {t('common.all') || 'All'}
-                      </Text>
-                    </TouchableOpacity>
-                    {categoryOptions.license_type.map((option) => (
-                      <TouchableOpacity
-                        key={option.id}
-                        onPress={() => handleFilterSelect('license_type', option.value)}
-                        style={{
-                          backgroundColor:
-                            categoryFilters.license_type === option.value ? '#00E6C3' : '#333',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text
-                          fontSize={14}
-                          color={categoryFilters.license_type === option.value ? '#000' : '#fff'}
-                        >
-                          {option.label?.[lang] || option.label?.en || option.value}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </XStack>
-                </YStack>
-              )}
-
-              {/* Experience Level */}
-              {categoryOptions.experience_level && categoryOptions.experience_level.length > 0 && (
-                <YStack marginBottom={16}>
-                  <Text fontWeight="600" fontSize={16} color="white" marginBottom={8}>
-                    {t('filters.experienceLevel') || 'Experience Level'}
-                  </Text>
-                  <XStack flexWrap="wrap" gap={8}>
-                    {/* All option */}
-                    <TouchableOpacity
-                      onPress={() => handleFilterSelect('experience_level', '')}
-                      style={{
-                        backgroundColor: (categoryFilters.experience_level === '' || categoryFilters.experience_level === 'all') ? '#00E6C3' : '#333',
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text
-                        fontSize={14}
-                        color={(categoryFilters.experience_level === '' || categoryFilters.experience_level === 'all') ? '#000' : '#fff'}
-                      >
-                        {t('common.all') || 'All'}
-                      </Text>
-                    </TouchableOpacity>
-                    {categoryOptions.experience_level.map((option) => (
-                      <TouchableOpacity
-                        key={option.id}
-                        onPress={() => handleFilterSelect('experience_level', option.value)}
-                        style={{
-                          backgroundColor:
-                            categoryFilters.experience_level === option.value ? '#00E6C3' : '#333',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text
-                          fontSize={14}
-                          color={
-                            categoryFilters.experience_level === option.value ? '#000' : '#fff'
-                          }
-                        >
-                          {option.label?.[lang] || option.label?.en || option.value}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </XStack>
-                </YStack>
-              )}
-
-              {/* Purpose */}
-              {categoryOptions.purpose && categoryOptions.purpose.length > 0 && (
-                <YStack marginBottom={16}>
-                  <Text fontWeight="600" fontSize={16} color="white" marginBottom={8}>
-                    {t('filters.purpose') || 'Purpose'}
-                  </Text>
-                  <XStack flexWrap="wrap" gap={8}>
-                    {/* All option */}
-                    <TouchableOpacity
-                      onPress={() => handleFilterSelect('purpose', '')}
-                      style={{
-                        backgroundColor: (categoryFilters.purpose === '' || categoryFilters.purpose === 'all') ? '#00E6C3' : '#333',
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text
-                        fontSize={14}
-                        color={(categoryFilters.purpose === '' || categoryFilters.purpose === 'all') ? '#000' : '#fff'}
-                      >
-                        {t('common.all') || 'All'}
-                      </Text>
-                    </TouchableOpacity>
-                    {categoryOptions.purpose.map((option) => (
-                      <TouchableOpacity
-                        key={option.id}
-                        onPress={() => handleFilterSelect('purpose', option.value)}
-                        style={{
-                          backgroundColor:
-                            categoryFilters.purpose === option.value ? '#00E6C3' : '#333',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text
-                          fontSize={14}
-                          color={categoryFilters.purpose === option.value ? '#000' : '#fff'}
-                        >
-                          {option.label?.[lang] || option.label?.en || option.value}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </XStack>
-                </YStack>
-              )}
-
-              {/* User Profile */}
-              {categoryOptions.user_profile && categoryOptions.user_profile.length > 0 && (
-                <YStack marginBottom={16}>
-                  <Text fontWeight="600" fontSize={16} color="white" marginBottom={8}>
-                    {t('filters.userProfile') || 'User Profile'}
-                  </Text>
-                  <XStack flexWrap="wrap" gap={8}>
-                    {/* All option */}
-                    <TouchableOpacity
-                      onPress={() => handleFilterSelect('user_profile', '')}
-                      style={{
-                        backgroundColor: (categoryFilters.user_profile === '' || categoryFilters.user_profile === 'all') ? '#00E6C3' : '#333',
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text
-                        fontSize={14}
-                        color={(categoryFilters.user_profile === '' || categoryFilters.user_profile === 'all') ? '#000' : '#fff'}
-                      >
-                        {t('common.all') || 'All'}
-                      </Text>
-                    </TouchableOpacity>
-                    {categoryOptions.user_profile.map((option) => (
-                      <TouchableOpacity
-                        key={option.id}
-                        onPress={() => handleFilterSelect('user_profile', option.value)}
-                        style={{
-                          backgroundColor:
-                            categoryFilters.user_profile === option.value ? '#00E6C3' : '#333',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text
-                          fontSize={14}
-                          color={categoryFilters.user_profile === option.value ? '#000' : '#fff'}
-                        >
-                          {option.label?.[lang] || option.label?.en || option.value}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </XStack>
-                </YStack>
-              )}
-
-              {/* Platform */}
-              {categoryOptions.platform && categoryOptions.platform.length > 0 && (
-                <YStack marginBottom={16}>
-                  <Text fontWeight="600" fontSize={16} color="white" marginBottom={8}>
-                    {t('filters.platform') || 'Platform'}
-                  </Text>
-                  <XStack flexWrap="wrap" gap={8}>
-                    {/* All option */}
-                    <TouchableOpacity
-                      onPress={() => handleFilterSelect('platform', '')}
-                      style={{
-                        backgroundColor: (categoryFilters.platform === '' || categoryFilters.platform === 'all') ? '#00E6C3' : '#333',
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text
-                        fontSize={14}
-                        color={(categoryFilters.platform === '' || categoryFilters.platform === 'all') ? '#000' : '#fff'}
-                      >
-                        {t('common.all') || 'All'}
-                      </Text>
-                    </TouchableOpacity>
-                    {categoryOptions.platform.map((option) => (
-                      <TouchableOpacity
-                        key={option.id}
-                        onPress={() => handleFilterSelect('platform', option.value)}
-                        style={{
-                          backgroundColor:
-                            categoryFilters.platform === option.value ? '#00E6C3' : '#333',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text
-                          fontSize={14}
-                          color={categoryFilters.platform === option.value ? '#000' : '#fff'}
-                        >
-                          {option.label?.[lang] || option.label?.en || option.value}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </XStack>
-                </YStack>
-              )}
-
-              {/* Content Type */}
-              {categoryOptions.type && categoryOptions.type.length > 0 && (
-                <YStack marginBottom={16}>
-                  <Text fontWeight="600" fontSize={16} color="white" marginBottom={8}>
-                    {t('filters.contentType') || 'Content Type'}
-                  </Text>
-                  <XStack flexWrap="wrap" gap={8}>
-                    {/* All option */}
-                    <TouchableOpacity
-                      onPress={() => handleFilterSelect('type', '')}
-                      style={{
-                        backgroundColor: (categoryFilters.type === '' || categoryFilters.type === 'all') ? '#00E6C3' : '#333',
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 8,
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text
-                        fontSize={14}
-                        color={(categoryFilters.type === '' || categoryFilters.type === 'all') ? '#000' : '#fff'}
-                      >
-                        {t('common.all') || 'All'}
-                      </Text>
-                    </TouchableOpacity>
-                    {categoryOptions.type.map((option) => (
-                      <TouchableOpacity
-                        key={option.id}
-                        onPress={() => handleFilterSelect('type', option.value)}
-                        style={{
-                          backgroundColor:
-                            categoryFilters.type === option.value ? '#00E6C3' : '#333',
-                          paddingHorizontal: 12,
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text
-                          fontSize={14}
-                          color={categoryFilters.type === option.value ? '#000' : '#fff'}
-                        >
-                          {option.label?.[lang] || option.label?.en || option.value}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </XStack>
-                </YStack>
-              )}
-            </ScrollView>
-
-            {/* Apply Button */}
-            <TouchableOpacity
-              onPress={() => setShowFilterDrawer(false)}
-              style={{
-                backgroundColor: '#00E6C3',
-                padding: 16,
-                borderRadius: 12,
-                alignItems: 'center',
-                marginTop: 16,
-              }}
-            >
-              <Text color="#000" fontWeight="bold" fontSize={16}>
-                {t('filters.applyFilters') || 'Apply Filters'}
-              </Text>
-            </TouchableOpacity>
-          </YStack>
-        </View>
-      </Modal>
+        onClose={() => setShowFilterDrawer(false)}
+        categoryFilters={categoryFilters}
+        categoryOptions={categoryOptions}
+        onFilterSelect={handleFilterSelect}
+        language={lang}
+        colorScheme={colorScheme}
+        mode="drawer"
+        t={(key: string, fallback?: string) => {
+          const translated = t(key);
+          return (translated && translated !== key) ? translated : (fallback || key);
+        }}
+        onSaveFilters={() => {
+          // Filters are already saved in handleFilterSelect, just close modal
+          setShowFilterDrawer(false);
+        }}
+        onResetToDefaults={async () => {
+          // Reset all filters to correct profile-based defaults (matching ProgressScreen)
+          const defaultFilters: Record<CategoryType, string> = {
+            vehicle_type: getProfilePreference('vehicle_type', 'all'),
+            transmission_type: getProfilePreference('transmission_type', 'all'),
+            license_type: getProfilePreference('license_type', 'all'),
+            experience_level: getProfilePreference('experience_level', 'all'),
+            purpose: getProfilePreference('purpose', 'all'),
+            user_profile: getProfilePreference('user_profile', 'all'),
+            platform: 'all',
+            type: 'all',
+          };
+          
+          setCategoryFilters(defaultFilters);
+          await saveFilterPreferences(defaultFilters);
+          
+          console.log('🔄 [LearningPathsSheet] Reset filters to profile-based defaults:', defaultFilters);
+        }}
+      />
     </Modal>
   );
 }

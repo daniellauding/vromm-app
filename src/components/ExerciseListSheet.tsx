@@ -2633,7 +2633,28 @@ export function ExerciseListSheet({
                               */}
                                 {/* Exercise List (exact copy from ProgressScreen) */}
                                 {exercises.length === 0 ? (
-                                  <Text color="$gray11">No exercises for this learning path.</Text>
+                                  <YStack alignItems="center" justifyContent="center" flex={1} gap="$3" padding="$4">
+                                    <Feather name="book-open" size={48} color="#666" />
+                                    <Text color="$gray11" textAlign="center" fontSize={16}>
+                                      {t('exercises.noExercises') || 'No exercises for this learning path.'}
+                                    </Text>
+                                    {onBackToAllPaths && (
+                                      <TouchableOpacity
+                                        onPress={onBackToAllPaths}
+                                        style={{
+                                          backgroundColor: '#00E6C3',
+                                          paddingHorizontal: 20,
+                                          paddingVertical: 12,
+                                          borderRadius: 8,
+                                          marginTop: 8,
+                                        }}
+                                      >
+                                        <Text color="#000" fontWeight="bold" fontSize={16}>
+                                          {t('progressSection.viewAllPaths') || 'View All Paths'}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    )}
+                                  </YStack>
                                 ) : (
                                   exercises.map((exercise, exerciseIndex) => {
                                     const displayIndex = exerciseIndex + 1;
