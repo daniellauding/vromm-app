@@ -201,6 +201,9 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   } | null>(null);
   const [completedExerciseIds, setCompletedExerciseIds] = useState<Set<string>>(new Set());
   const [allExercisesCompleted, setAllExercisesCompleted] = useState(false);
+  const [practiceMode, setPracticeMode] = useState(false);
+  const [learningPathCompletions, setLearningPathCompletions] = useState<Map<string, boolean>>(new Map());
+  const [suggestedStartIndex, setSuggestedStartIndex] = useState(0);
 
   // Exercise detail modal state - Removed, now navigates directly to RouteExerciseScreen
 
@@ -301,6 +304,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
   useEffect(() => {
     if (routeData?.exercises && user) {
       loadExerciseStats();
+      loadLearningPathCompletions();
     }
   }, [routeData?.exercises, user]);
 
@@ -1173,17 +1177,70 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
     }
   };
 
-  const handleStartExercises = () => {
+  const loadLearningPathCompletions = async () => {
+    try {
+      if (!user || !routeData?.exercises) return;
+
+      const lpCompletions = new Map<string, boolean>();
+      let firstIncompleteIndex = 0;
+      let allLpCompleted = true;
+
+      // Check learning path completions for exercises that have learning_path_exercise_id
+      for (let i = 0; i < routeData.exercises.length; i++) {
+        const exercise = routeData.exercises[i];
+        
+        if (exercise.learning_path_exercise_id) {
+          // Check if completed in learning path
+          const { data: completion } = await supabase
+            .from('learning_path_exercise_completions')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('exercise_id', exercise.learning_path_exercise_id)
+            .single();
+
+          const isCompleted = !!completion;
+          lpCompletions.set(exercise.id, isCompleted);
+          
+          // Track first incomplete exercise for smart starting
+          if (!isCompleted && allLpCompleted) {
+            firstIncompleteIndex = i;
+            allLpCompleted = false;
+          }
+        } else {
+          // Custom exercise - check route completion
+          lpCompletions.set(exercise.id, completedExerciseIds.has(exercise.id));
+        }
+      }
+
+      setLearningPathCompletions(lpCompletions);
+      setSuggestedStartIndex(firstIncompleteIndex);
+
+      console.log('🎯 Learning path completions loaded:', {
+        totalExercises: routeData.exercises.length,
+        completedInLearningPath: Array.from(lpCompletions.values()).filter(Boolean).length,
+        suggestedStartIndex: firstIncompleteIndex,
+        allCompleted: allLpCompleted,
+      });
+    } catch (error) {
+      console.error('Error loading learning path completions:', error);
+    }
+  };
+
+  const handleStartExercises = (startAtIndex?: number) => {
     if (!routeData?.exercises || !Array.isArray(routeData.exercises)) {
       Alert.alert('Error', 'No exercises available for this route');
       return;
     }
 
+    // Use provided index, suggested index, or 0
+    const startIndex = startAtIndex ?? (practiceMode ? 0 : suggestedStartIndex);
+
     navigation.navigate('RouteExercise', {
       routeId,
       exercises: routeData.exercises,
       routeName: routeData.name,
-      startIndex: 0,
+      startIndex,
+      practiceMode,
     });
   };
 
@@ -1195,6 +1252,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         exercises: routeData.exercises,
         routeName: routeData.name || 'Route',
         startIndex: index,
+        practiceMode,
       });
     }
   };
@@ -1690,17 +1748,21 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                         {t('routeDetail.exercises')}
                       </Text>
                       <Button
-                        onPress={handleStartExercises}
-                        backgroundColor="$blue10"
+                        onPress={() => handleStartExercises()}
+                        backgroundColor={practiceMode ? "$green10" : "$blue10"}
                         icon={<Feather name="play" size={18} color="white" />}
                         size="md"
                       >
                         <Text color="white" fontSize={14} fontWeight="600">
-                          {allExercisesCompleted
+                          {practiceMode 
+                            ? t('routeDetail.practiceExercises')
+                            : allExercisesCompleted
                             ? t('routeDetail.reviewExercises')
+                            : suggestedStartIndex > 0
+                            ? `Continue from #${suggestedStartIndex + 1}`
                             : t('routeDetail.startExercises')}
                         </Text>
-                        {allExercisesCompleted && (
+                        {allExercisesCompleted && !practiceMode && (
                           <View
                             style={{
                               backgroundColor: '#10B981',
@@ -1721,10 +1783,72 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       </Button>
                     </XStack>
 
+                    {/* Practice Mode Toggle - Show when exercises are from learning paths */}
+                    {routeData.exercises.some(ex => ex.learning_path_exercise_id) && (
+                      <Card backgroundColor="$gray2" padding="$3" borderRadius="$4">
+                        <XStack justifyContent="space-between" alignItems="center">
+                          <YStack flex={1} marginRight="$3">
+                            <XStack alignItems="center" gap="$2" marginBottom="$1">
+                              <Feather name="refresh-cw" size={16} color="#6B7280" />
+                              <Text fontSize={14} fontWeight="600" color="$color">
+                                Practice Mode
+                              </Text>
+                            </XStack>
+                            <Text fontSize={12} color="$gray11">
+                              {practiceMode 
+                                ? "Exercises won't update your learning path progress"
+                                : "Exercises will count towards learning path completion"}
+                            </Text>
+                          </YStack>
+                          <TouchableOpacity
+                            onPress={() => setPracticeMode(!practiceMode)}
+                            style={{
+                              width: 56,
+                              height: 32,
+                              borderRadius: 16,
+                              backgroundColor: practiceMode ? '#10B981' : '#CBD5E1',
+                              padding: 2,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <View
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 14,
+                                backgroundColor: 'white',
+                                transform: [{ translateX: practiceMode ? 24 : 0 }],
+                                transition: 'transform 0.2s',
+                              }}
+                            />
+                          </TouchableOpacity>
+                        </XStack>
+                      </Card>
+                    )}
+
+                    {/* Show learning path progress summary */}
+                    {learningPathCompletions.size > 0 && (
+                      <Card backgroundColor="$blue2" padding="$3" borderRadius="$4">
+                        <XStack alignItems="center" gap="$2">
+                          <Feather name="trending-up" size={16} color="#3B82F6" />
+                          <Text fontSize={12} color="#3B82F6" fontWeight="500">
+                            {Array.from(learningPathCompletions.values()).filter(Boolean).length} of {learningPathCompletions.size} exercises completed in learning paths
+                          </Text>
+                        </XStack>
+                        {suggestedStartIndex > 0 && !practiceMode && (
+                          <Text fontSize={11} color="#3B82F6" marginTop="$2" marginLeft="$6">
+                            Suggested: Continue from exercise #{suggestedStartIndex + 1}
+                          </Text>
+                        )}
+                      </Card>
+                    )}
+
                     {/* Exercise List Preview */}
                     <RouteExerciseList
                       exercises={routeData.exercises}
                       completedIds={completedExerciseIds}
+                      learningPathCompletions={learningPathCompletions}
                       maxPreview={3}
                       onExercisePress={handleExercisePress}
                     />
