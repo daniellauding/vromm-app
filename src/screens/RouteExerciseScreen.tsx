@@ -52,6 +52,7 @@ type RouteExerciseScreenProps = {
       exercises: Exercise[];
       routeName?: string;
       startIndex?: number; // Allow starting at a specific exercise
+      practiceMode?: boolean; // Whether to update learning path progress
     };
   };
 };
@@ -97,7 +98,7 @@ interface QuizAnswer {
 }
 
 export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
-  const { routeId, exercises, routeName, startIndex = 0 } = route.params;
+  const { routeId, exercises, routeName, startIndex = 0, practiceMode = false } = route.params;
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const { language, t } = useTranslation();
@@ -842,8 +843,9 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
       console.log('✅ [RouteExercise] Route completion saved successfully');
 
       // If this is a learning path exercise, also mark it in the learning path system
-      if (currentExercise.learning_path_exercise_id) {
-        console.log('🔗 [RouteExercise] Syncing to learning path:', {
+      // ONLY if not in practice mode
+      if (currentExercise.learning_path_exercise_id && !practiceMode) {
+        console.log('🔗 [RouteExercise] Syncing to learning path (not in practice mode):', {
           exerciseId: currentExercise.learning_path_exercise_id,
           routeId,
           isRepeat: currentExercise.isRepeat,
@@ -865,6 +867,8 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
           );
           console.log('🔗 [RouteExercise] Exercise sync result:', success);
         }
+      } else if (practiceMode) {
+        console.log('🔄 [RouteExercise] Practice mode - NOT syncing to learning path');
       } else {
         console.log('📝 [RouteExercise] Route exercise not linked to learning path');
       }
@@ -1919,10 +1923,83 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         <Header
           title={`${routeName || t('common.route')} ${t('routeDetail.exercises')}`}
           showBack
+          rightElement={
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert(
+                  'Exercise Options',
+                  'What would you like to do?',
+                  [
+                    {
+                      text: 'Report Issue',
+                      onPress: () => {
+                        Alert.alert(
+                          'Report Exercise',
+                          'Please describe the issue with this exercise',
+                          [
+                            {
+                              text: 'Cancel',
+                              style: 'cancel',
+                            },
+                            {
+                              text: 'Report',
+                              onPress: async () => {
+                                // TODO: Implement report functionality
+                                console.log('Report exercise:', currentExercise?.id);
+                                Alert.alert('Success', 'Thank you for your feedback. The exercise has been reported.');
+                              },
+                            },
+                          ],
+                        );
+                      },
+                    },
+                    {
+                      text: 'View Instructions',
+                      onPress: () => {
+                        Alert.alert(
+                          'How to Complete',
+                          practiceMode
+                            ? 'You are in PRACTICE MODE. Completions will not update your learning path progress. Use this mode to review exercises you\'ve already completed.'
+                            : 'Complete each exercise to progress. Your completions will be saved to both this route and your learning path progress.',
+                          [{ text: 'Got it' }],
+                        );
+                      },
+                    },
+                    {
+                      text: 'Cancel',
+                      style: 'cancel',
+                    },
+                  ],
+                );
+              }}
+            >
+              <Feather name="more-vertical" size={20} color={iconColor} />
+            </TouchableOpacity>
+          }
         />
 
+        {/* Practice Mode Indicator */}
+        {practiceMode && (
+          <View
+            style={{
+              backgroundColor: '#10B981',
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            <Feather name="refresh-cw" size={14} color="white" />
+            <Text fontSize={12} color="white" fontWeight="600">
+              PRACTICE MODE - Progress won't affect learning paths
+            </Text>
+          </View>
+        )}
+
         {/* Previous completion notice */}
-        {hasCompletedBefore && (
+        {hasCompletedBefore && !practiceMode && (
           <View
             style={{
               backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#F3F4F6',
