@@ -2737,7 +2737,12 @@ export function ProgressScreen() {
     const videoWidth = screenWidth - 48; // Account for padding
     const videoHeight = videoWidth * 0.5625; // 16:9 aspect ratio
 
-    console.log('🎥 [ProgressScreen] Rendering YouTube embed with video ID:', videoId, 'startTime:', startTime);
+    console.log(
+      '🎥 [ProgressScreen] Rendering YouTube embed with video ID:',
+      videoId,
+      'startTime:',
+      startTime,
+    );
 
     return (
       <View
@@ -2831,7 +2836,9 @@ export function ProgressScreen() {
   };
 
   // Parse YouTube URL to extract video ID and start time
-  const parseYouTubeUrl = (url: string | undefined): { videoId: string | null; startTime: number | undefined } => {
+  const parseYouTubeUrl = (
+    url: string | undefined,
+  ): { videoId: string | null; startTime: number | undefined } => {
     if (!url) return { videoId: null, startTime: undefined };
 
     console.log('🎥 [ProgressScreen] Extracting video ID and start time from URL:', url);
@@ -2903,10 +2910,15 @@ export function ProgressScreen() {
           }
           startTime = seconds > 0 ? seconds : undefined;
         }
-        if (startTime) console.log('✅ [ProgressScreen] Extracted start time:', startTime, 'seconds');
+        if (startTime)
+          console.log('✅ [ProgressScreen] Extracted start time:', startTime, 'seconds');
       } else if (startParam) {
         startTime = parseInt(startParam, 10);
-        console.log('✅ [ProgressScreen] Extracted start time from start param:', startTime, 'seconds');
+        console.log(
+          '✅ [ProgressScreen] Extracted start time from start param:',
+          startTime,
+          'seconds',
+        );
       }
     } catch (e) {
       console.log('⚠️ [ProgressScreen] URL parsing failed:', e);
@@ -2961,7 +2973,12 @@ export function ProgressScreen() {
             {(() => {
               console.log('🎥 [ProgressScreen] Exercise youtube_url:', exercise.youtube_url);
               const { videoId, startTime } = parseYouTubeUrl(exercise.youtube_url);
-              console.log('🎥 [ProgressScreen] Extracted videoId:', videoId, 'startTime:', startTime);
+              console.log(
+                '🎥 [ProgressScreen] Extracted videoId:',
+                videoId,
+                'startTime:',
+                startTime,
+              );
 
               return videoId ? (
                 <YouTubeEmbed videoId={videoId} startTime={startTime} />
@@ -3037,7 +3054,12 @@ export function ProgressScreen() {
             {(() => {
               console.log('🎥 [ProgressScreen] Learning Path youtube_url:', path.youtube_url);
               const { videoId, startTime } = parseYouTubeUrl(path.youtube_url);
-              console.log('🎥 [ProgressScreen] Extracted videoId:', videoId, 'startTime:', startTime);
+              console.log(
+                '🎥 [ProgressScreen] Extracted videoId:',
+                videoId,
+                'startTime:',
+                startTime,
+              );
 
               return videoId ? (
                 <YouTubeEmbed videoId={videoId} startTime={startTime} />
@@ -3893,7 +3915,11 @@ export function ProgressScreen() {
           {/* Steps Section - Accordion Style */}
           {selectedExercise.steps && selectedExercise.steps.length > 0 && (
             <YStack marginBottom={24}>
-              <ExerciseStepsAccordion exercise={selectedExercise} language={language} />
+              <ExerciseStepsAccordion
+                exercise={selectedExercise}
+                language={language}
+                variant="sheet"
+              />
             </YStack>
           )}
 

@@ -95,7 +95,7 @@ export function LearningPathsSheet({
   const { HeaderComponent, onScroll: headerOnScroll } = useHeaderWithScroll();
 
   // Theme colors - matching ProgressScreen exactly
-  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
+  const backgroundColor = colorScheme === 'dark' ? '#151515' : '#FFFFFF';
 
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;

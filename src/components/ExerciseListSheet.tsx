@@ -181,6 +181,9 @@ export function ExerciseListSheet({
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(300)).current; // For exercise detail modal
 
+  // ScrollView ref to reset scroll position
+  const exerciseScrollRef = useRef<ScrollView>(null);
+
   // Gesture handling for drag-to-resize and snap points (like RouteDetailSheet)
   const translateY = useSharedValue(height);
   const isDragging = useRef(false);
@@ -1365,6 +1368,13 @@ export function ExerciseListSheet({
     }
   }, [visible, selectedExercise, backdropOpacity, sheetTranslateY, snapPoints.large, currentState]);
 
+  // Reset scroll position when sheet opens or exercise changes
+  useEffect(() => {
+    if (visible && exerciseScrollRef.current) {
+      exerciseScrollRef.current.scrollTo({ y: 0, animated: false });
+    }
+  }, [visible, selectedExercise]);
+
   // Refresh function
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -1485,9 +1495,10 @@ export function ExerciseListSheet({
                         }
                       />
                       <ScrollView
+                        ref={exerciseScrollRef}
                         contentContainerStyle={{
                           padding: 24,
-                          paddingTop: 60,
+                          paddingTop: insets.top + 20,
                           paddingBottom: getTabContentPadding(),
                         }}
                         refreshControl={
@@ -2750,7 +2761,7 @@ export function ExerciseListSheet({
                             )}
 
                             {/* See More Button */}
-                            <Button
+                            {/* <Button
                               variant="secondary"
                               size="lg"
                               onPress={() => {
@@ -2771,7 +2782,7 @@ export function ExerciseListSheet({
                                 </Text>
                                 <Feather name="external-link" size={16} color="$color" />
                               </XStack>
-                            </Button>
+                            </Button> */}
                           </YStack>
                         </View>
                       </ScrollView>

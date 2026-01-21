@@ -60,11 +60,7 @@ export function LearningPathCard({
       style={{
         alignSelf: alignment,
         borderWidth: isPasswordLocked || isPaywallLocked ? 2 : 0,
-        borderColor: isPasswordLocked
-          ? '#FF9500'
-          : isPaywallLocked
-            ? '#00E6C3'
-            : 'transparent',
+        borderColor: isPasswordLocked ? '#FF9500' : isPaywallLocked ? '#00E6C3' : 'transparent',
         borderRadius: 24,
         marginBottom: 20,
         shadowOpacity: 0,
@@ -127,13 +123,7 @@ export function LearningPathCard({
                   }}
                   fontSize={20}
                   color={
-                    progress === 1
-                      ? isDark
-                        ? '#27febe'
-                        : '#00C9A7'
-                      : isDark
-                        ? '$gray10'
-                        : '#666'
+                    progress === 1 ? (isDark ? '#27febe' : '#00C9A7') : isDark ? '$gray10' : '#666'
                   }
                   fontWeight="bold"
                 >
@@ -165,12 +155,7 @@ export function LearningPathCard({
           {/* Title and Badges - Centered */}
           <YStack alignItems="center" gap={8} width="100%">
             {/* Badges Row */}
-            <XStack
-              alignItems="center"
-              gap={8}
-              flexWrap="wrap"
-              justifyContent="center"
-            >
+            <XStack alignItems="center" gap={8} flexWrap="wrap" justifyContent="center">
               {/* Password Badge */}
               {isPasswordLocked && (
                 <XStack
@@ -181,11 +166,7 @@ export function LearningPathCard({
                   alignItems="center"
                   gap={4}
                 >
-                  <MaterialIcons
-                    name="vpn-key"
-                    size={14}
-                    color="white"
-                  />
+                  <MaterialIcons name="vpn-key" size={14} color="white" />
                   <Text fontSize={11} color="white" fontWeight="bold">
                     Password
                   </Text>
