@@ -3940,17 +3940,14 @@ export function ProgressScreen() {
 
                 {/* Show the original exercise first */}
                 <TouchableOpacity
-                  style={
-                    {
-                      // backgroundColor: '#222',
-                      // padding: 12,
-                      // borderRadius: 8,
-                      // borderLeftWidth: 4,
-                      // borderLeftColor: completedIds.includes(selectedExercise.id)
-                      //   ? '#00E6C3'
-                      //   : '#4B6BFF',
-                    }
-                  }
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 12,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                    borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                  }}
                   onPress={() => {
                     // Toggle the main exercise completion
                     toggleCompletion(selectedExercise.id);
@@ -4011,15 +4008,14 @@ export function ProgressScreen() {
                       return (
                         <TouchableOpacity
                           key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
-                          style={
-                            {
-                              // backgroundColor: '#222',
-                              // padding: 12,
-                              // borderRadius: 8,
-                              // borderLeftWidth: 4,
-                              // borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
-                            }
-                          }
+                          style={{
+                            paddingVertical: 12,
+                            paddingHorizontal: 12,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                            borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                          }}
                           onPress={() => {
                             // Play sound
                             playDoneSound();
@@ -4066,15 +4062,14 @@ export function ProgressScreen() {
                     return (
                       <TouchableOpacity
                         key={`repeat-${repeat.id}-${repeatIndex}`}
-                        style={
-                          {
-                            // backgroundColor: '#222',
-                            // padding: 12,
-                            // borderRadius: 8,
-                            // borderLeftWidth: 4,
-                            // borderLeftColor: isDone ? '#00E6C3' : '#4B6BFF',
-                          }
-                        }
+                        style={{
+                          paddingVertical: 12,
+                          paddingHorizontal: 12,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                          borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                        }}
                         onPress={() => setSelectedExercise(repeat)}
                       >
                         <XStack justifyContent="space-between" alignItems="center">

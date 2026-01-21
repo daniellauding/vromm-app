@@ -1735,14 +1735,12 @@ export function ExerciseListSheet({
                                       {/* Show the original exercise first */}
                                       <TouchableOpacity
                                         style={{
-                                          paddingVertical: 8,
-                                          // borderLeftWidth: 4,
-                                          // borderLeftColor: completedIds.includes(
-                                          //   selectedExercise.id,
-                                          // )
-                                          //   ? '#00E6C3'
-                                          //   : '#333',
-                                          // paddingLeft: 12,
+                                          paddingVertical: 12,
+                                          paddingHorizontal: 12,
+                                          borderRadius: 8,
+                                          borderWidth: 1,
+                                          backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                                          borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
                                         }}
                                         onPress={() => {
                                           playDoneSound();
@@ -1798,10 +1796,12 @@ export function ExerciseListSheet({
                                           <TouchableOpacity
                                             key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
                                             style={{
-                                              paddingVertical: 8,
-                                              // borderLeftWidth: 4,
-                                              // borderLeftColor: isDone ? '#00E6C3' : '#333',
-                                              // paddingLeft: 12,
+                                              paddingVertical: 12,
+                                              paddingHorizontal: 12,
+                                              borderRadius: 8,
+                                              borderWidth: 1,
+                                              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                                              borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
                                             }}
                                             onPress={() => {
                                               playDoneSound();
