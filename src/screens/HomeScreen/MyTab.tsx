@@ -13,6 +13,7 @@ import { useTabletLayout } from '../../hooks/useTabletLayout';
 
 import { WeeklyGoal } from './WeeklyGoal';
 import { DailyStatus } from './DailyStatus';
+import { MapPreview } from './MapPreview';
 // import { JumpBackInSection } from '../../components/JumpBackInSection';
 import { GettingStarted } from './GettingStarted';
 import { FeaturedContent } from './FeaturedContent';
@@ -135,6 +136,9 @@ export default React.memo(function MyTab({
 
   return (
     <YStack>
+      {/* Map Preview - Sneak peek to the map screen */}
+      <MapPreview />
+
       {/* Weekly Goal & Daily Status - Fluid width container */}
       <View style={{ paddingHorizontal: horizontalPadding }}>
         <WeeklyGoal

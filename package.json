@@ -109,6 +109,7 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.10.0",
     "react-native-svg": "15.11.2",
+    "react-native-watch-connectivity": "^1.1.0",
     "react-native-web": "^0.20.0",
     "react-native-webview": "13.13.5",
     "react-native-youtube-iframe": "^2.4.1",

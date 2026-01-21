@@ -2,10 +2,12 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { supabase, db } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { Database } from '../lib/database.types';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { AppAnalytics } from '../utils/analytics';
 import { clearContentCache } from '../services/contentService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// TODO: Re-enable after running `cd ios && pod install` for watch connectivity
+// import { WatchService } from '../services/watchService';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type UserRole = Database['public']['Enums']['user_role'];
@@ -94,6 +96,65 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
     }
   }, [user?.id, user?.email]);
+
+  // TODO: Re-enable after running `cd ios && pod install` for watch connectivity
+  // Sync user state with Apple Watch (iOS only)
+  // useEffect(() => {
+  //   if (Platform.OS !== 'ios') return;
+  //   if (user?.id) {
+  //     WatchService.setCurrentUser(user.id);
+  //     console.log('⌚ [AuthContext] Watch user synced:', user.id);
+  //   } else {
+  //     WatchService.setCurrentUser(null);
+  //     console.log('⌚ [AuthContext] Watch user cleared');
+  //   }
+  // }, [user?.id]);
+
+  // Trigger full Watch sync when profile loads
+  // useEffect(() => {
+  //   if (Platform.OS !== 'ios') return;
+  //   if (!user?.id || !profile) return;
+  //   WatchService.sendFullSync().catch((err) => {
+  //     console.warn('⌚ [AuthContext] Watch sync failed:', err);
+  //   });
+  // }, [user?.id, profile?.id]);
+
+  // Real-time subscription for profile changes (sync across platforms)
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const profileSubscription = supabase
+      .channel(`profile-sync-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          // Only update if the change came from another device/session
+          const newProfile = payload.new as Profile;
+          setProfile((currentProfile) => {
+            // Merge to preserve any local state while updating from remote
+            if (currentProfile && newProfile) {
+              return { ...currentProfile, ...newProfile };
+            }
+            return newProfile;
+          });
+          console.log('🔄 Profile synced from remote:', {
+            avatar: newProfile.avatar_url ? 'updated' : 'unchanged',
+            name: newProfile.full_name,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      profileSubscription.unsubscribe();
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     // Get initial session

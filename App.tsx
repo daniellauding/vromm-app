@@ -23,6 +23,8 @@ import { UnlockProvider } from './src/contexts/UnlockContext';
 import { CelebrationProvider } from './src/contexts/CelebrationContext';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { googleSignInService } from './src/services/googleSignInService';
+// TODO: Re-enable after running `cd ios && pod install` for watch connectivity
+// import { WatchService } from './src/services/watchService';
 import * as WebBrowser from 'expo-web-browser';
 import AppContent from './src/AppContent';
 import { StripeProvider } from '@stripe/stripe-react-native';
@@ -88,6 +90,24 @@ export default function App() {
 
     initializeGoogleSignIn();
     initializeStripe();
+
+    // TODO: Re-enable after running `cd ios && pod install` for watch connectivity
+    // const initializeWatchService = async () => {
+    //   try {
+    //     if (Platform.OS === 'ios') {
+    //       await WatchService.initialize('en');
+    //       console.log('⌚ [App] Watch Service initialized');
+    //     }
+    //   } catch (error) {
+    //     console.error('⌚ [App] Watch Service initialization failed:', error);
+    //   }
+    // };
+    // initializeWatchService();
+
+    // Cleanup on unmount
+    return () => {
+      // WatchService.destroy();
+    };
   }, []);
 
   if (!fontsLoaded) {
