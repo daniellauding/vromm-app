@@ -226,12 +226,12 @@ export default function RouteActions({
           borderColor="transparent"
           flex={1}
         />
-        {/* {routeData?.exercises &&
+        {routeData?.exercises &&
           Array.isArray(routeData.exercises) &&
           routeData.exercises.length > 0 && (
             <IconButton
               icon="play"
-              label={t('routeDetail.startExercises') || 'Start'}
+              label={t('routeDetail.exercises') || 'Exercises'}
               onPress={() => {
                 if (routeData?.exercises) {
                   if (navigation) {
@@ -243,7 +243,7 @@ export default function RouteActions({
                         startIndex: 0,
                       });
                       onClose();
-                    } catch (error) {
+                    } catch {
                       showToast({
                         title: t('common.error') || 'Error',
                         message:
@@ -263,11 +263,11 @@ export default function RouteActions({
                   }
                 }
               }}
-              backgroundColor={isSaved ? 'transparent' : 'transparent'}
-              borderColor={isSaved ? 'transparent' : 'transparent'}
+              backgroundColor="transparent"
+              borderColor="transparent"
               flex={1}
             />
-          )} */}
+          )}
         {user?.id === routeData?.creator_id && (
           <IconButton
             icon="edit-2"

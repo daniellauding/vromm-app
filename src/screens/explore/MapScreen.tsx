@@ -146,6 +146,26 @@ export function MapScreen({
     );
   }, [routes]);
 
+  // Handle reopening route detail sheet when returning from exercises
+  useFocusEffect(
+    useCallback(() => {
+      const checkReopenSheet = async () => {
+        try {
+          const pendingRouteId = await AsyncStorage.getItem('vromm_reopen_route_sheet');
+          if (pendingRouteId) {
+            console.log('🎯 [MapScreen] Reopening route detail sheet for:', pendingRouteId);
+            await AsyncStorage.removeItem('vromm_reopen_route_sheet');
+            setSelectedRouteId(pendingRouteId);
+            setShowRouteDetailSheet(true);
+          }
+        } catch (error) {
+          console.error('Error checking reopen sheet flag:', error);
+        }
+      };
+      checkReopenSheet();
+    }, []),
+  );
+
   const availableFilters = useRoutesFilters(routes);
 
   // Loading animation effect (similar to OnboardingInteractive)

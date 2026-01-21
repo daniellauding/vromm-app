@@ -970,12 +970,22 @@ export function RouteDetailSheet({
                                         }
                                       }}
                                       variant="primary"
-                                      icon={<Feather name="play" size={16} color="#145251" />}
                                       size="sm"
                                     >
-                                      {allExercisesCompleted
-                                        ? t('routeDetail.reviewExercises') || 'Review'
-                                        : t('routeDetail.startExercises') || 'Start'}
+                                      <XStack alignItems="center" gap="$2">
+                                        <Feather name="play" size={14} color="#145251" />
+                                        <Text
+                                          fontSize={12}
+                                          fontWeight="700"
+                                          fontStyle="italic"
+                                          color="#145251"
+                                          textTransform="uppercase"
+                                        >
+                                          {allExercisesCompleted
+                                            ? t('routeDetail.reviewExercises') || 'Review'
+                                            : t('routeDetail.startExercises') || 'Start'}
+                                        </Text>
+                                      </XStack>
                                     </Button>
                                   </XStack>
 

@@ -132,6 +132,7 @@ export type TabParamList = {
   MapTab: {
     fromOnboarding?: boolean;
     onboardingStep?: string;
+    reopenRouteId?: string;
   };
   BetaTestingTab: undefined;
   ProfileTab: undefined;

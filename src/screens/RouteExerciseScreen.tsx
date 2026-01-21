@@ -24,6 +24,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { Exercise } from '../types/route';
 import { ExerciseProgressService } from '../services/exerciseProgressService';
 import { WebView } from 'react-native-webview';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Helper function to extract text from multilingual fields (updated to use language context)
 const getDisplayTextWithLanguage = (
@@ -1969,10 +1970,15 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         <Header
           title={`${routeName || t('common.route')} ${t('routeDetail.exercises')}`}
           showBack
-          onBackPress={() => {
-            // Navigate to RouteDetail to show the route with exercises, not just goBack
-            // This ensures we return to the route context, not MapScreen
-            navigation.navigate('RouteDetail', { routeId });
+          onBackPress={async () => {
+            // Store flag to reopen route detail sheet when MapScreen receives focus
+            try {
+              await AsyncStorage.setItem('vromm_reopen_route_sheet', routeId);
+            } catch (error) {
+              console.error('Error setting reopen flag:', error);
+            }
+            // Navigate back to the previous screen
+            navigation.goBack();
           }}
           rightElement={
             <TouchableOpacity

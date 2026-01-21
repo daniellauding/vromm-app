@@ -63,6 +63,7 @@ export function RouteExerciseList({
           padding="$4"
           borderRadius={12}
           opacity={isCompletedInLearningPath && !isCompletedInRoute ? 0.85 : 1}
+          minHeight={isHorizontal ? 180 : undefined}
         >
           <YStack gap="$3">
             {/* Header Row with Number and Status */}
