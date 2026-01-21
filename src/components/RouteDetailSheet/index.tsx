@@ -979,27 +979,47 @@ export function RouteDetailSheet({
                                     </Button>
                                   </XStack>
 
-                                  {/* Exercise List Preview */}
-                                  <RouteExerciseList
-                                    exercises={routeData.exercises}
-                                    completedIds={completedExerciseIds}
-                                    maxPreview={3}
-                                    onExercisePress={(exercise, index) => {
-                                      if (routeData?.exercises) {
-                                        if (navigation) {
-                                          try {
-                                            navigation.navigate('RouteExercise', {
-                                              routeId: routeId!,
-                                              exercises: routeData.exercises,
-                                              routeName: routeData.name || 'Route',
-                                              startIndex: index,
-                                            });
-                                            onClose();
-                                          } catch (error) {
-                                            console.warn(
-                                              'Navigation not available in modal context:',
-                                              error,
-                                            );
+                                  {/* Exercise List - Horizontal Swipable */}
+                                  <View
+                                    style={{
+                                      marginHorizontal: -16,
+                                      paddingVertical: 12,
+                                      backgroundColor:
+                                        colorScheme === 'dark'
+                                          ? 'rgba(255,255,255,0.03)'
+                                          : 'rgba(0,0,0,0.02)',
+                                    }}
+                                  >
+                                    <RouteExerciseList
+                                      exercises={routeData.exercises}
+                                      completedIds={completedExerciseIds}
+                                      variant="horizontal"
+                                      onExercisePress={(exercise, index) => {
+                                        if (routeData?.exercises) {
+                                          if (navigation) {
+                                            try {
+                                              navigation.navigate('RouteExercise', {
+                                                routeId: routeId!,
+                                                exercises: routeData.exercises,
+                                                routeName: routeData.name || 'Route',
+                                                startIndex: index,
+                                              });
+                                              onClose();
+                                            } catch (error) {
+                                              console.warn(
+                                                'Navigation not available in modal context:',
+                                                error,
+                                              );
+                                              showToast({
+                                                title: t('common.error') || 'Error',
+                                                message:
+                                                  t('routeDetail.navigationNotAvailable') ||
+                                                  'Navigation not available in this context',
+                                                type: 'error',
+                                              });
+                                            }
+                                          } else {
+                                            console.warn('Navigation not available in modal context');
                                             showToast({
                                               title: t('common.error') || 'Error',
                                               message:
@@ -1008,19 +1028,10 @@ export function RouteDetailSheet({
                                               type: 'error',
                                             });
                                           }
-                                        } else {
-                                          console.warn('Navigation not available in modal context');
-                                          showToast({
-                                            title: t('common.error') || 'Error',
-                                            message:
-                                              t('routeDetail.navigationNotAvailable') ||
-                                              'Navigation not available in this context',
-                                            type: 'error',
-                                          });
                                         }
-                                      }
-                                    }}
-                                  />
+                                      }}
+                                    />
+                                  </View>
 
                                   {/* Exercise Statistics */}
                                   {exerciseStats && (

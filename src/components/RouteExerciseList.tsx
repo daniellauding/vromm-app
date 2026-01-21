@@ -230,7 +230,7 @@ export function RouteExerciseList({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 4 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingRight: 24 }}
         decelerationRate="fast"
         snapToInterval={CARD_WIDTH + CARD_GAP}
         snapToAlignment="start"
