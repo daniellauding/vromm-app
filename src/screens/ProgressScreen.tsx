@@ -3927,7 +3927,7 @@ export function ProgressScreen() {
           {!selectedExercise.isRepeat &&
             selectedExercise.repeat_count &&
             selectedExercise.repeat_count > 1 && (
-              <YStack /* ref={repeatSectionRef} */ marginTop={16} marginBottom={16} gap={32}>
+              <YStack /* ref={repeatSectionRef} */ marginTop={16} marginBottom={16} gap={12}>
                 {/* <XStack alignItems="center" gap={8} marginBottom={8}>
                   <Feather name="list" size={20} color="#4B6BFF" />
                   <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
@@ -3936,13 +3936,13 @@ export function ProgressScreen() {
                 </XStack> */}
 
                 {/* Progress bar for all repetitions */}
-                <RepeatProgressBar exercise={selectedExercise} />
+                {/* <RepeatProgressBar exercise={selectedExercise} /> */}
 
                 {/* Show the original exercise first */}
                 <TouchableOpacity
                   style={{
-                    paddingVertical: 12,
-                    paddingHorizontal: 12,
+                    paddingVertical: 16,
+                    paddingHorizontal: 16,
                     borderRadius: 8,
                     borderWidth: 1,
                     backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
@@ -3954,7 +3954,7 @@ export function ProgressScreen() {
                   }}
                 >
                   <XStack justifyContent="space-between" alignItems="center">
-                    <XStack gap={28} alignItems="center" flex={1}>
+                    <XStack gap={12} alignItems="center" flex={1}>
                       <Checkbox
                         checked={completedIds.includes(selectedExercise.id)}
                         size="sm"
@@ -3964,7 +3964,7 @@ export function ProgressScreen() {
                         }}
                       />
                       <Text
-                        fontSize={16}
+                        fontSize={18}
                         color="$color"
                         fontWeight="900"
                         fontStyle="italic"
@@ -4009,8 +4009,8 @@ export function ProgressScreen() {
                         <TouchableOpacity
                           key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
                           style={{
-                            paddingVertical: 12,
-                            paddingHorizontal: 12,
+                            paddingVertical: 16,
+                            paddingHorizontal: 16,
                             borderRadius: 8,
                             borderWidth: 1,
                             backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
@@ -4024,7 +4024,7 @@ export function ProgressScreen() {
                           }}
                         >
                           <XStack justifyContent="space-between" alignItems="center">
-                            <XStack gap={28} alignItems="center" flex={1}>
+                            <XStack gap={12} alignItems="center" flex={1}>
                               <Checkbox
                                 checked={isDone}
                                 size="sm"
@@ -4035,7 +4035,7 @@ export function ProgressScreen() {
                                 }}
                               />
                               <Text
-                                fontSize={16}
+                                fontSize={18}
                                 color="$color"
                                 fontWeight="900"
                                 fontStyle="italic"

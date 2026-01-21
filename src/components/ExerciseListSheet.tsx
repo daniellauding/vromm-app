@@ -1028,14 +1028,14 @@ export function ExerciseListSheet({
   // Media rendering functions - using react-native-youtube-iframe for proper playback
   const YouTubeEmbed = ({ videoId, startTime }: { videoId: string; startTime?: number }) => {
     const screenWidth = Dimensions.get('window').width;
-    const videoWidth = screenWidth - 48;
+    const videoWidth = screenWidth - 48; // Fallback width
     const videoHeight = videoWidth * 0.5625; // 16:9 aspect ratio
 
     return (
       <View
         style={{
-          width: videoWidth,
-          height: videoHeight,
+          width: '100%',
+          aspectRatio: 16 / 9,
           marginVertical: 12,
           borderRadius: 8,
           overflow: 'hidden',
@@ -1043,12 +1043,13 @@ export function ExerciseListSheet({
         }}
       >
         <YoutubePlayer
-          height={videoHeight}
+          height={300}
           videoId={videoId}
           play={false}
           initialPlayerParams={startTime ? { start: startTime } : undefined}
           webViewProps={{
             androidLayerType: 'hardware',
+            style: { flex: 1 },
           }}
         />
       </View>
@@ -1730,16 +1731,17 @@ export function ExerciseListSheet({
                                         </Text>
                                       </XStack> */}
 
-                                      <RepeatProgressBar exercise={selectedExercise} />
+                                      {/* <RepeatProgressBar exercise={selectedExercise} /> */}
 
                                       {/* Show the original exercise first */}
                                       <TouchableOpacity
                                         style={{
-                                          paddingVertical: 12,
-                                          paddingHorizontal: 12,
+                                          paddingVertical: 16,
+                                          paddingHorizontal: 16,
                                           borderRadius: 8,
                                           borderWidth: 1,
-                                          backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                                          backgroundColor:
+                                            colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
                                           borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
                                         }}
                                         onPress={() => {
@@ -1759,7 +1761,7 @@ export function ExerciseListSheet({
                                               }}
                                             />
                                             <Text
-                                              fontSize={16}
+                                              fontSize={18}
                                               color="$color"
                                               fontWeight="900"
                                               fontStyle="italic"
@@ -1796,12 +1798,14 @@ export function ExerciseListSheet({
                                           <TouchableOpacity
                                             key={`virtual-repeat-${selectedExercise.id}-${i}-${repeatNumber}`}
                                             style={{
-                                              paddingVertical: 12,
-                                              paddingHorizontal: 12,
+                                              paddingVertical: 16,
+                                              paddingHorizontal: 16,
                                               borderRadius: 8,
                                               borderWidth: 1,
-                                              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-                                              borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                                              backgroundColor:
+                                                colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                                              borderColor:
+                                                colorScheme === 'dark' ? '#333' : '#E5E5E5',
                                             }}
                                             onPress={() => {
                                               playDoneSound();
@@ -1823,7 +1827,7 @@ export function ExerciseListSheet({
                                                   }}
                                                 />
                                                 <Text
-                                                  fontSize={16}
+                                                  fontSize={18}
                                                   color="$color"
                                                   fontWeight="900"
                                                   fontStyle="italic"
