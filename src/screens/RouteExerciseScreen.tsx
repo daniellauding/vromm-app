@@ -9,10 +9,12 @@ import {
   TouchableOpacity,
   Linking,
 } from 'react-native';
-import { YStack, XStack, Card, Progress, Button } from 'tamagui';
+import { YStack, XStack, Card, Progress } from 'tamagui';
 import { Text } from '../components/Text';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
+import { Button } from '../components/Button';
+import { useThemePreference } from '../hooks/useThemeOverride';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
@@ -102,9 +104,9 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const { language, t } = useTranslation();
-  const colorScheme = useColorScheme();
-  const iconColor = colorScheme === 'dark' ? 'white' : 'black';
-  const { width: screenWidth } = Dimensions.get('window');
+  const { effectiveTheme } = useThemePreference();
+  const isDark = effectiveTheme === 'dark';
+  const iconColor = isDark ? 'white' : 'black';
 
   // State
   const [currentIndex, setCurrentIndex] = useState(startIndex);
@@ -1338,7 +1340,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#f8f9fa',
+                    backgroundColor: isDark ? '#1F2937' : '#f8f9fa',
                     padding: 12,
                     borderRadius: 8,
                     borderLeftWidth: 4,
@@ -1419,7 +1421,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
-                        backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#f8f9fa',
+                        backgroundColor: isDark ? '#1F2937' : '#f8f9fa',
                         padding: 12,
                         borderRadius: 8,
                         borderLeftWidth: 4,
@@ -1640,7 +1642,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
                   return (
                     <YStack
                       key={questionIndex}
-                      backgroundColor={colorScheme === 'dark' ? '#1F2937' : '#f8f9fa'}
+                      backgroundColor={isDark ? '#1F2937' : '#f8f9fa'}
                       padding={16}
                       borderRadius={12}
                       marginBottom={12}
@@ -1713,7 +1715,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
                               let borderColor = '#e5e7eb';
                               let textColor = '#374151';
 
-                              if (colorScheme === 'dark') {
+                              if (isDark) {
                                 backgroundColor = '#374151';
                                 borderColor = '#6B7280';
                                 textColor = '#F9FAFB';
@@ -1967,6 +1969,11 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         <Header
           title={`${routeName || t('common.route')} ${t('routeDetail.exercises')}`}
           showBack
+          onBackPress={() => {
+            // Navigate to RouteDetail to show the route with exercises, not just goBack
+            // This ensures we return to the route context, not MapScreen
+            navigation.navigate('RouteDetail', { routeId });
+          }}
           rightElement={
             <TouchableOpacity
               onPress={() => {
@@ -2046,7 +2053,7 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         {hasCompletedBefore && !practiceMode && (
           <View
             style={{
-              backgroundColor: colorScheme === 'dark' ? '#1F2937' : '#F3F4F6',
+              backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
               padding: 12,
               marginHorizontal: 16,
               marginVertical: 8,
@@ -2070,8 +2077,8 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
             </Text>
           </XStack>
 
-          <Progress value={Math.round(progress)} backgroundColor="$gray5" size="$1">
-            <Progress.Indicator backgroundColor="$blue10" />
+          <Progress value={Math.round(progress)} backgroundColor={isDark ? '#333' : '#E5E5E5'} size="$1">
+            <Progress.Indicator backgroundColor="#00FFBC" />
           </Progress>
         </YStack>
 
@@ -2107,107 +2114,102 @@ export function RouteExerciseScreen({ route }: RouteExerciseScreenProps) {
         {!showCongrats && (
           <View
             style={{
-              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+              backgroundColor: isDark ? '#151515' : '#FFFFFF',
               borderTopWidth: 1,
-              borderTopColor: colorScheme === 'dark' ? '#333' : '#E5E7EB',
+              borderTopColor: isDark ? '#333' : '#E5E7EB',
               padding: 16,
+              paddingBottom: 24,
             }}
           >
-            <YStack gap="$3">
-              {/* Action Buttons */}
-              <XStack gap="$3">
-                <Button
-                  onPress={async () => {
-                    const isCompleted = completedExercises.has(currentExercise?.id || '');
+            <YStack gap="$4">
+              {/* Main Action Button */}
+              <Button
+                onPress={async () => {
+                  const isCompleted = completedExercises.has(currentExercise?.id || '');
 
-                    console.log('🎯 [RouteExercise] Complete/Incomplete button pressed:', {
-                      exerciseId: currentExercise.id,
-                      exerciseTitle: getDisplayText(currentExercise.title),
-                      currentlyCompleted: isCompleted,
-                      actionToTake: isCompleted ? 'MARK_INCOMPLETE' : 'MARK_COMPLETE',
-                      isRepeatExercise: currentExercise.isRepeat,
-                      hasRepeats:
-                        !!currentExercise.repeat_count && currentExercise.repeat_count > 1,
-                    });
+                  console.log('🎯 [RouteExercise] Complete/Incomplete button pressed:', {
+                    exerciseId: currentExercise.id,
+                    exerciseTitle: getDisplayText(currentExercise.title),
+                    currentlyCompleted: isCompleted,
+                    actionToTake: isCompleted ? 'MARK_INCOMPLETE' : 'MARK_COMPLETE',
+                    isRepeatExercise: currentExercise.isRepeat,
+                    hasRepeats: !!currentExercise.repeat_count && currentExercise.repeat_count > 1,
+                  });
 
-                    if (isCompleted) {
-                      // Toggle to incomplete - remove from local state
-                      const newCompleted = new Set(completedExercises);
-                      newCompleted.delete(currentExercise.id);
-                      setCompletedExercises(newCompleted);
+                  if (isCompleted) {
+                    // Toggle to incomplete - remove from local state
+                    const newCompleted = new Set(completedExercises);
+                    newCompleted.delete(currentExercise.id);
+                    setCompletedExercises(newCompleted);
 
-                      console.log('🔴 [RouteExercise] Marking exercise as incomplete');
+                    console.log('🔴 [RouteExercise] Marking exercise as incomplete');
 
-                      // Remove from database
-                      await supabase
-                        .from('route_exercise_completions')
-                        .delete()
-                        .eq('session_id', sessionId)
-                        .eq('exercise_id', currentExercise.id);
-                    } else {
+                    // Remove from database
+                    await supabase
+                      .from('route_exercise_completions')
+                      .delete()
+                      .eq('session_id', sessionId)
+                      .eq('exercise_id', currentExercise.id);
+                  } else {
+                    console.log(
+                      '🟢 [RouteExercise] Marking exercise as complete (NOT affecting virtual repeats)',
+                    );
+
+                    // Complete the exercise
+                    await completeExercise();
+
+                    // DON'T auto-advance if this exercise has repeats - user should decide when to move on
+                    if (currentExercise.repeat_count && currentExercise.repeat_count > 1) {
                       console.log(
-                        '🟢 [RouteExercise] Marking exercise as complete (NOT affecting virtual repeats)',
+                        '🚫 [RouteExercise] Exercise has repeats - NOT auto-advancing to next exercise',
                       );
-
-                      // Complete the exercise
-                      await completeExercise();
-
-                      // DON'T auto-advance if this exercise has repeats - user should decide when to move on
-                      if (currentExercise.repeat_count && currentExercise.repeat_count > 1) {
-                        console.log(
-                          '🚫 [RouteExercise] Exercise has repeats - NOT auto-advancing to next exercise',
-                        );
-                      }
                     }
-                  }}
-                  backgroundColor={
-                    completedExercises.has(currentExercise?.id || '') ? '$gray10' : '$green10'
                   }
-                  flex={1}
-                  size="lg"
-                  icon={
-                    <Feather
-                      name={completedExercises.has(currentExercise?.id || '') ? 'x' : 'check'}
-                      size={20}
-                      color="white"
-                    />
-                  }
+                }}
+                variant={completedExercises.has(currentExercise?.id || '') ? 'secondary' : 'primary'}
+                size="lg"
+                icon={
+                  <Feather
+                    name={completedExercises.has(currentExercise?.id || '') ? 'x' : 'check'}
+                    size={20}
+                    color={completedExercises.has(currentExercise?.id || '') ? 'white' : '#145251'}
+                  />
+                }
+              >
+                {completedExercises.has(currentExercise?.id || '')
+                  ? t('routeExercise.markIncomplete')
+                  : t('routeExercise.complete')}
+              </Button>
+
+              {/* Navigation Row */}
+              <XStack justifyContent="space-between" gap="$3">
+                <Button
+                  onPress={handlePrevious}
+                  disabled={currentIndex === 0}
+                  variant="tertiary"
+                  size="md"
+                  icon={<Feather name="arrow-left" size={18} color={currentIndex === 0 ? '#666' : '#00FFBC'} />}
                 >
-                  <Text color="white" fontSize={16} fontWeight="600">
-                    {completedExercises.has(currentExercise?.id || '')
-                      ? t('routeExercise.markIncomplete')
-                      : t('routeExercise.complete')}
-                  </Text>
+                  {t('routeExercise.previous')}
                 </Button>
 
                 {!isLastExercise && (
                   <Button
                     onPress={handleSkip}
                     variant="outlined"
-                    size="lg"
-                    icon={<Feather name="skip-forward" size={20} color={iconColor} />}
+                    size="md"
+                    icon={<Feather name="skip-forward" size={18} color={iconColor} />}
                   >
                     {t('routeExercise.skip')}
                   </Button>
                 )}
-              </XStack>
-
-              {/* Navigation Buttons */}
-              <XStack justifyContent="space-between">
-                <Button
-                  onPress={handlePrevious}
-                  disabled={currentIndex === 0}
-                  variant="outlined"
-                  icon={<Feather name="arrow-left" size={20} color={iconColor} />}
-                >
-                  {t('routeExercise.previous')}
-                </Button>
 
                 <Button
                   onPress={handleNext}
                   disabled={isLastExercise}
-                  variant="outlined"
-                  icon={<Feather name="arrow-right" size={20} color={iconColor} />}
+                  variant="tertiary"
+                  size="md"
+                  icon={<Feather name="arrow-right" size={18} color={isLastExercise ? '#666' : '#00FFBC'} />}
                 >
                   {t('routeExercise.next')}
                 </Button>

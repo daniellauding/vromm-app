@@ -969,15 +969,13 @@ export function RouteDetailSheet({
                                           }
                                         }
                                       }}
-                                      backgroundColor="$blue10"
-                                      icon={<Feather name="play" size={16} color="white" />}
+                                      variant="primary"
+                                      icon={<Feather name="play" size={16} color="#145251" />}
                                       size="sm"
                                     >
-                                      <Text color="white" fontSize="$3" fontWeight="600">
-                                        {allExercisesCompleted
-                                          ? t('routeDetail.reviewExercises') || 'Review'
-                                          : t('routeDetail.startExercises') || 'Start'}
-                                      </Text>
+                                      {allExercisesCompleted
+                                        ? t('routeDetail.reviewExercises') || 'Review'
+                                        : t('routeDetail.startExercises') || 'Start'}
                                     </Button>
                                   </XStack>
 
@@ -1056,7 +1054,7 @@ export function RouteDetailSheet({
                                           backgroundColor="$gray6"
                                           size="$0.5"
                                         >
-                                          <Progress.Indicator backgroundColor="$blue10" />
+                                          <Progress.Indicator backgroundColor="#00FFBC" />
                                         </Progress>
                                       </YStack>
                                     </Card>
