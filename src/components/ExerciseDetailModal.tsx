@@ -502,11 +502,55 @@ export function ExerciseDetailModal({
   };
 
   // Helper functions (copied from ProgressScreen)
-  const getYouTubeVideoId = (url: string): string | null => {
+  // Parse YouTube URL to extract video ID and start time
+  const parseYouTubeUrl = (url: string | undefined): { videoId: string | null; startTime: number | undefined } => {
+    if (!url) return { videoId: null, startTime: undefined };
+
+    let videoId: string | null = null;
+    let startTime: number | undefined = undefined;
+
+    // Extract video ID
     const regex =
       /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const match = url.match(regex);
-    return match ? match[1] : null;
+    if (match) videoId = match[1];
+
+    // Extract start time from URL parameters
+    try {
+      const urlObj = new URL(url);
+      const tParam = urlObj.searchParams.get('t');
+      const startParam = urlObj.searchParams.get('start');
+
+      if (tParam) {
+        const timeStr = tParam.replace(/s$/, '');
+        if (/^\d+$/.test(timeStr)) {
+          startTime = parseInt(timeStr, 10);
+        } else {
+          let seconds = 0;
+          const hourMatch = timeStr.match(/(\d+)h/);
+          const minMatch = timeStr.match(/(\d+)m/);
+          const secMatch = timeStr.match(/(\d+)(?:s|$)/);
+          if (hourMatch) seconds += parseInt(hourMatch[1], 10) * 3600;
+          if (minMatch) seconds += parseInt(minMatch[1], 10) * 60;
+          if (secMatch && !timeStr.includes('m') && !timeStr.includes('h')) {
+            seconds = parseInt(secMatch[1], 10);
+          } else if (secMatch) {
+            seconds += parseInt(secMatch[1], 10);
+          }
+          startTime = seconds > 0 ? seconds : undefined;
+        }
+      } else if (startParam) {
+        startTime = parseInt(startParam, 10);
+      }
+    } catch (e) {
+      // URL parsing failed
+    }
+
+    return { videoId, startTime };
+  };
+
+  const getYouTubeVideoId = (url: string): string | null => {
+    return parseYouTubeUrl(url).videoId;
   };
 
   const getTypeformId = (url: string): string | null => {
@@ -515,9 +559,9 @@ export function ExerciseDetailModal({
     return match ? match[1] : null;
   };
 
-  const YouTubeEmbed = ({ videoId }: { videoId: string }) => (
+  const YouTubeEmbed = ({ videoId, startTime }: { videoId: string; startTime?: number }) => (
     <WebView
-      source={{ uri: `https://www.youtube.com/embed/${videoId}` }}
+      source={{ uri: `https://www.youtube.com/embed/${videoId}${startTime ? `?start=${startTime}` : ''}` }}
       style={{ width: '100%', height: 200 }}
       allowsInlineMediaPlayback
       mediaPlaybackRequiresUserAction={false}
@@ -536,11 +580,11 @@ export function ExerciseDetailModal({
 
     // YouTube videos
     if (exercise.youtube_url) {
-      const videoId = getYouTubeVideoId(exercise.youtube_url);
+      const { videoId, startTime } = parseYouTubeUrl(exercise.youtube_url);
       if (videoId) {
         media.push(
           <View key="youtube" style={{ marginBottom: 16 }}>
-            <YouTubeEmbed videoId={videoId} />
+            <YouTubeEmbed videoId={videoId} startTime={startTime} />
           </View>,
         );
       }

@@ -47,7 +47,11 @@ import { ExerciseHeader } from '../components/ExerciseHeader';
 import { ProgressCircle } from '../components/ProgressCircle';
 import { LearningPathCard } from '../components/LearningPathCard';
 import { Header, useHeaderWithScroll } from '../components/Header';
-import { LearningPathsFilterModal, CategoryType, CategoryOption } from '../components/LearningPathsFilterModal';
+import {
+  LearningPathsFilterModal,
+  CategoryType,
+  CategoryOption,
+} from '../components/LearningPathsFilterModal';
 import { ExerciseStepsAccordion } from '../components/ExerciseStepsAccordion';
 
 // Define LearningPath type based on the learning_paths table with all fields
@@ -121,7 +125,7 @@ interface PathExercise {
   has_quiz?: boolean;
   quiz_required?: boolean;
   quiz_pass_score?: number;
-  
+
   // Steps System - NEW
   steps?: ExerciseStep[];
 }
@@ -245,7 +249,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { useTourTarget } from '../components/TourOverlay';
 // import { useScreenTours } from '../utils/screenTours';
 // import { useTour } from '../contexts/TourContext';
-
 
 // Category types and options are now imported from LearningPathsFilterModal
 
@@ -719,7 +722,6 @@ export function ProgressScreen() {
   // Filter drawer state
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
-
   // Modal state for category filter selection (legacy - kept for compatibility)
   const [activeFilterType, setActiveFilterType] = useState<CategoryType | null>(null);
 
@@ -773,7 +775,6 @@ export function ProgressScreen() {
     }
   };
 
-
   // Save filter preferences to AsyncStorage - USER-SPECIFIC
   const saveFilterPreferences = async (filters: Record<CategoryType, string>) => {
     try {
@@ -819,7 +820,6 @@ export function ProgressScreen() {
 
     // Don't close drawer automatically - let user save when done
   };
-
 
   // Load accessible paths and exercises using helper functions
   const loadUserAccess = async () => {
@@ -2368,7 +2368,7 @@ export function ProgressScreen() {
     const unsubscribe = navigation.addListener('focus', async () => {
       console.log('🔄 [ProgressScreen] Screen focused - refreshing data and filters');
       fetchCompletions();
-      
+
       // Reload filter preferences to sync with any changes from other screens
       const savedFilters = await loadFilterPreferences();
       if (savedFilters) {
@@ -2731,14 +2731,13 @@ export function ProgressScreen() {
 
   // Filter drawer functionality moved to LearningPathsFilterModal component
 
-
   // Youtube video component
-  const YouTubeEmbed = ({ videoId }: { videoId: string }) => {
+  const YouTubeEmbed = ({ videoId, startTime }: { videoId: string; startTime?: number }) => {
     const screenWidth = Dimensions.get('window').width;
     const videoWidth = screenWidth - 48; // Account for padding
     const videoHeight = videoWidth * 0.5625; // 16:9 aspect ratio
 
-    console.log('🎥 [ProgressScreen] Rendering YouTube embed with video ID:', videoId);
+    console.log('🎥 [ProgressScreen] Rendering YouTube embed with video ID:', videoId, 'startTime:', startTime);
 
     return (
       <View
@@ -2755,6 +2754,7 @@ export function ProgressScreen() {
           height={videoHeight}
           videoId={videoId}
           play={false}
+          initialPlayerParams={startTime ? { start: startTime } : undefined}
           webViewProps={{
             androidLayerType: 'hardware',
           }}
@@ -2830,11 +2830,14 @@ export function ProgressScreen() {
     );
   };
 
-  // Extract YouTube video ID from URL
-  const getYouTubeVideoId = (url: string | undefined): string | null => {
-    if (!url) return null;
+  // Parse YouTube URL to extract video ID and start time
+  const parseYouTubeUrl = (url: string | undefined): { videoId: string | null; startTime: number | undefined } => {
+    if (!url) return { videoId: null, startTime: undefined };
 
-    console.log('🎥 [ProgressScreen] Extracting video ID from URL:', url);
+    console.log('🎥 [ProgressScreen] Extracting video ID and start time from URL:', url);
+
+    let videoId: string | null = null;
+    let startTime: number | undefined = undefined;
 
     // Handle different YouTube URL formats
     // 1. https://www.youtube.com/watch?v=VIDEO_ID
@@ -2846,38 +2849,76 @@ export function ProgressScreen() {
     // Try standard regex first
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
     const match = url.match(regExp);
-    
+
     if (match && match[7] && match[7].length === 11) {
       console.log('✅ [ProgressScreen] Extracted video ID:', match[7]);
-      return match[7];
+      videoId = match[7];
     }
 
-    // Try alternative extraction methods
+    // Try alternative extraction methods and extract start time
     try {
       const urlObj = new URL(url);
-      
-      // Check query parameter
-      const vParam = urlObj.searchParams.get('v');
-      if (vParam && vParam.length === 11) {
-        console.log('✅ [ProgressScreen] Extracted video ID from query param:', vParam);
-        return vParam;
+
+      // Check query parameter for video ID
+      if (!videoId) {
+        const vParam = urlObj.searchParams.get('v');
+        if (vParam && vParam.length === 11) {
+          console.log('✅ [ProgressScreen] Extracted video ID from query param:', vParam);
+          videoId = vParam;
+        }
       }
 
       // Check pathname for youtu.be or embed format
-      const pathParts = urlObj.pathname.split('/').filter(Boolean);
-      if (pathParts.length > 0) {
-        const lastPart = pathParts[pathParts.length - 1];
-        if (lastPart.length === 11) {
-          console.log('✅ [ProgressScreen] Extracted video ID from path:', lastPart);
-          return lastPart;
+      if (!videoId) {
+        const pathParts = urlObj.pathname.split('/').filter(Boolean);
+        if (pathParts.length > 0) {
+          const lastPart = pathParts[pathParts.length - 1];
+          if (lastPart.length === 11) {
+            console.log('✅ [ProgressScreen] Extracted video ID from path:', lastPart);
+            videoId = lastPart;
+          }
         }
+      }
+
+      // Extract start time from URL parameters
+      // Supports: ?t=233, &t=233, ?t=233s, ?t=3m53s, ?start=233
+      const tParam = urlObj.searchParams.get('t');
+      const startParam = urlObj.searchParams.get('start');
+
+      if (tParam) {
+        const timeStr = tParam.replace(/s$/, '');
+        if (/^\d+$/.test(timeStr)) {
+          startTime = parseInt(timeStr, 10);
+        } else {
+          let seconds = 0;
+          const hourMatch = timeStr.match(/(\d+)h/);
+          const minMatch = timeStr.match(/(\d+)m/);
+          const secMatch = timeStr.match(/(\d+)(?:s|$)/);
+          if (hourMatch) seconds += parseInt(hourMatch[1], 10) * 3600;
+          if (minMatch) seconds += parseInt(minMatch[1], 10) * 60;
+          if (secMatch && !timeStr.includes('m') && !timeStr.includes('h')) {
+            seconds = parseInt(secMatch[1], 10);
+          } else if (secMatch) {
+            seconds += parseInt(secMatch[1], 10);
+          }
+          startTime = seconds > 0 ? seconds : undefined;
+        }
+        if (startTime) console.log('✅ [ProgressScreen] Extracted start time:', startTime, 'seconds');
+      } else if (startParam) {
+        startTime = parseInt(startParam, 10);
+        console.log('✅ [ProgressScreen] Extracted start time from start param:', startTime, 'seconds');
       }
     } catch (e) {
       console.log('⚠️ [ProgressScreen] URL parsing failed:', e);
     }
 
-    console.log('❌ [ProgressScreen] Could not extract video ID from URL');
-    return null;
+    if (!videoId) console.log('❌ [ProgressScreen] Could not extract video ID from URL');
+    return { videoId, startTime };
+  };
+
+  // Legacy function for backwards compatibility
+  const getYouTubeVideoId = (url: string | undefined): string | null => {
+    return parseYouTubeUrl(url).videoId;
   };
 
   // Extract TypeForm ID from embed code or URL
@@ -2919,11 +2960,11 @@ export function ProgressScreen() {
             </Text> */}
             {(() => {
               console.log('🎥 [ProgressScreen] Exercise youtube_url:', exercise.youtube_url);
-              const videoId = getYouTubeVideoId(exercise.youtube_url);
-              console.log('🎥 [ProgressScreen] Extracted videoId:', videoId);
-              
+              const { videoId, startTime } = parseYouTubeUrl(exercise.youtube_url);
+              console.log('🎥 [ProgressScreen] Extracted videoId:', videoId, 'startTime:', startTime);
+
               return videoId ? (
-                <YouTubeEmbed videoId={videoId} />
+                <YouTubeEmbed videoId={videoId} startTime={startTime} />
               ) : (
                 <YStack gap={8}>
                   <Text color="$gray11" fontSize={12}>
@@ -2931,9 +2972,16 @@ export function ProgressScreen() {
                   </Text>
                   <TouchableOpacity
                     onPress={() => exercise.youtube_url && Linking.openURL(exercise.youtube_url)}
-                    style={{ padding: 12, backgroundColor: '#FF0000', borderRadius: 8, alignItems: 'center' }}
+                    style={{
+                      padding: 12,
+                      backgroundColor: '#FF0000',
+                      borderRadius: 8,
+                      alignItems: 'center',
+                    }}
                   >
-                    <Text color="white" fontWeight="600">Watch on YouTube</Text>
+                    <Text color="white" fontWeight="600">
+                      Watch on YouTube
+                    </Text>
                   </TouchableOpacity>
                 </YStack>
               );
@@ -2988,11 +3036,11 @@ export function ProgressScreen() {
             </Text> */}
             {(() => {
               console.log('🎥 [ProgressScreen] Learning Path youtube_url:', path.youtube_url);
-              const videoId = getYouTubeVideoId(path.youtube_url);
-              console.log('🎥 [ProgressScreen] Extracted videoId:', videoId);
-              
+              const { videoId, startTime } = parseYouTubeUrl(path.youtube_url);
+              console.log('🎥 [ProgressScreen] Extracted videoId:', videoId, 'startTime:', startTime);
+
               return videoId ? (
-                <YouTubeEmbed videoId={videoId} />
+                <YouTubeEmbed videoId={videoId} startTime={startTime} />
               ) : (
                 <YStack gap={8}>
                   <Text color="$gray11" fontSize={12}>
@@ -3000,9 +3048,16 @@ export function ProgressScreen() {
                   </Text>
                   <TouchableOpacity
                     onPress={() => path.youtube_url && Linking.openURL(path.youtube_url)}
-                    style={{ padding: 12, backgroundColor: '#FF0000', borderRadius: 8, alignItems: 'center' }}
+                    style={{
+                      padding: 12,
+                      backgroundColor: '#FF0000',
+                      borderRadius: 8,
+                      alignItems: 'center',
+                    }}
                   >
-                    <Text color="white" fontWeight="600">Watch on YouTube</Text>
+                    <Text color="white" fontWeight="600">
+                      Watch on YouTube
+                    </Text>
                   </TouchableOpacity>
                 </YStack>
               );
@@ -3625,7 +3680,11 @@ export function ProgressScreen() {
           }
         />
         <ScrollView
-          contentContainerStyle={{ padding: 24, paddingTop: 120, paddingBottom: getTabContentPadding() }}
+          contentContainerStyle={{
+            padding: 24,
+            paddingTop: 120,
+            paddingBottom: getTabContentPadding(),
+          }}
           onScroll={onScroll}
           scrollEventThrottle={16}
           refreshControl={
@@ -3761,16 +3820,6 @@ export function ProgressScreen() {
             </Text>
           )}
 
-          {/* Steps Section - Accordion Style */}
-          {selectedExercise.steps && selectedExercise.steps.length > 0 && (
-            <YStack marginBottom={24}>
-              <ExerciseStepsAccordion 
-                exercise={selectedExercise} 
-                language={language}
-              />
-            </YStack>
-          )}
-
           {/* <TouchableOpacity
             onPress={() => {
               console.log('🧾 [ProgressScreen] open report exercise', selectedExercise.id);
@@ -3840,6 +3889,13 @@ export function ProgressScreen() {
               )}
             </YStack>
           )} */}
+
+          {/* Steps Section - Accordion Style */}
+          {selectedExercise.steps && selectedExercise.steps.length > 0 && (
+            <YStack marginBottom={24}>
+              <ExerciseStepsAccordion exercise={selectedExercise} language={language} />
+            </YStack>
+          )}
 
           {/* List of all repeats if viewing the base exercise */}
           {!selectedExercise.isRepeat &&
@@ -4227,7 +4283,11 @@ export function ProgressScreen() {
           }
         />
         <ScrollView
-          contentContainerStyle={{ padding: 24, paddingBottom: getTabContentPadding(), paddingTop: 120 }}
+          contentContainerStyle={{
+            padding: 24,
+            paddingBottom: getTabContentPadding(),
+            paddingTop: 120,
+          }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -4394,9 +4454,7 @@ export function ProgressScreen() {
                         if (shouldMarkDone) {
                           setTimeout(() => {
                             const repeatCount = main.repeat_count || 1;
-                            const learningPath = paths.find(
-                              (p) => p.id === main.learning_path_id,
-                            );
+                            const learningPath = paths.find((p) => p.id === main.learning_path_id);
 
                             console.log(
                               '🎉 [ProgressScreen] 🚀 Main checkbox - showing celebration for completed exercise!',
@@ -4850,24 +4908,21 @@ export function ProgressScreen() {
           >
             {filteredPaths.length === 0 ? (
               <YStack padding={16} alignItems="center" justifyContent="center" gap={8}>
-                <Feather 
-                  name="info" 
-                  size={32} 
-                  color={colorScheme === 'dark' ? '#999' : '#666'} 
-                />
+                <Feather name="info" size={32} color={colorScheme === 'dark' ? '#999' : '#666'} />
                 <Text fontSize={20} fontWeight="bold" color="$color" textAlign="center">
                   {t('progressScreen.noLearningPaths') || 'No learning paths found'}
                 </Text>
                 <Text fontSize={16} color="$gray11" textAlign="center" marginBottom={8}>
-                  {t('progressScreen.tryAdjustingFilters') || 'Try adjusting your filter settings to see more learning paths.'}
+                  {t('progressScreen.tryAdjustingFilters') ||
+                    'Try adjusting your filter settings to see more learning paths.'}
                 </Text>
-                
+
                 {/* Show active filters as chips */}
                 {(() => {
                   const activeFilters = Object.entries(categoryFilters).filter(
-                    ([key, value]) => value && value !== '' && value !== 'all' && value !== 'All'
+                    ([key, value]) => value && value !== '' && value !== 'all' && value !== 'All',
                   );
-                  
+
                   if (activeFilters.length > 0) {
                     return (
                       <>
@@ -4877,42 +4932,70 @@ export function ProgressScreen() {
                         <XStack flexWrap="wrap" gap={8} justifyContent="center" marginBottom={16}>
                           {activeFilters.map(([key, value]) => {
                             const categoryOption = categoryOptions[key as CategoryType]?.find(
-                              opt => opt.value === value
+                              (opt) => opt.value === value,
                             );
-                            const label = categoryOption?.label?.[language] || 
-                                         categoryOption?.label?.en || 
-                                         value;
-                            
+                            const label =
+                              categoryOption?.label?.[language] ||
+                              categoryOption?.label?.en ||
+                              value;
+
                             // Count exercises that match this specific filter
                             const exerciseCount = (() => {
                               // Get learning paths that match this specific filter
                               if (!paths || !allPathExercises) return 0;
-                              const matchingPaths = paths.filter(path => {
+                              const matchingPaths = paths.filter((path) => {
                                 if (key === 'vehicle_type') {
-                                  return !path.vehicle_type || path.vehicle_type?.toLowerCase() === value?.toLowerCase();
+                                  return (
+                                    !path.vehicle_type ||
+                                    path.vehicle_type?.toLowerCase() === value?.toLowerCase()
+                                  );
                                 } else if (key === 'transmission_type') {
-                                  return !path.transmission_type || path.transmission_type?.toLowerCase() === value?.toLowerCase();
+                                  return (
+                                    !path.transmission_type ||
+                                    path.transmission_type?.toLowerCase() === value?.toLowerCase()
+                                  );
                                 } else if (key === 'license_type') {
-                                  return !path.license_type || path.license_type?.toLowerCase() === value?.toLowerCase();
+                                  return (
+                                    !path.license_type ||
+                                    path.license_type?.toLowerCase() === value?.toLowerCase()
+                                  );
                                 } else if (key === 'experience_level') {
-                                  return !path.experience_level || path.experience_level?.toLowerCase() === value?.toLowerCase();
+                                  return (
+                                    !path.experience_level ||
+                                    path.experience_level?.toLowerCase() === value?.toLowerCase()
+                                  );
                                 } else if (key === 'purpose') {
-                                  return !path.purpose || path.purpose?.toLowerCase() === value?.toLowerCase();
+                                  return (
+                                    !path.purpose ||
+                                    path.purpose?.toLowerCase() === value?.toLowerCase()
+                                  );
                                 } else if (key === 'user_profile') {
-                                  return !path.user_profile || path.user_profile?.toLowerCase() === value?.toLowerCase();
+                                  return (
+                                    !path.user_profile ||
+                                    path.user_profile?.toLowerCase() === value?.toLowerCase()
+                                  );
                                 } else if (key === 'platform') {
-                                  return !path.platform || path.platform === 'both' || path.platform?.toLowerCase() === value?.toLowerCase() || path.platform === 'mobile';
+                                  return (
+                                    !path.platform ||
+                                    path.platform === 'both' ||
+                                    path.platform?.toLowerCase() === value?.toLowerCase() ||
+                                    path.platform === 'mobile'
+                                  );
                                 } else if (key === 'type') {
-                                  return !path.type || path.type?.toLowerCase() === value?.toLowerCase();
+                                  return (
+                                    !path.type || path.type?.toLowerCase() === value?.toLowerCase()
+                                  );
                                 }
                                 return false;
                               });
-                              
+
                               // Count exercises from matching paths
-                              const pathIds = matchingPaths.map(p => p.id);
-                              return allPathExercises.filter(ex => pathIds.includes(ex.learning_path_id)).length;
+                              const pathIds = matchingPaths.map((p) => p.id);
+                              return allPathExercises.filter((ex) =>
+                                pathIds.includes(ex.learning_path_id),
+                              ).length;
                             })();
-                            
+
                             return (
                               <Chip
                                 key={key}
@@ -4929,7 +5012,7 @@ export function ProgressScreen() {
                             );
                           })}
                         </XStack>
-                        
+
                         <Button
                           variant="primary"
                           size="sm"
@@ -4951,68 +5034,93 @@ export function ProgressScreen() {
                         >
                           {t('progressScreen.clearAllFilters') || 'Clear All Filters'}
                         </Button>
-                        
+
                         {/* Suggested Filter Chips */}
-                        <Text fontSize={12} color="$gray10" marginTop={16} marginBottom={8} textAlign="center">
+                        <Text
+                          fontSize={12}
+                          color="$gray10"
+                          marginTop={16}
+                          marginBottom={8}
+                          textAlign="center"
+                        >
                           {t('progressScreen.suggestedFilters') || 'Try these filters:'}
                         </Text>
                         <XStack flexWrap="wrap" gap={8} justifyContent="center">
                           {(() => {
                             // Get actual filter options from categoryOptions
                             const suggestions = [];
-                            
+
                             // Add top 2-3 options from each category that has data
-                            ['vehicle_type', 'transmission_type', 'license_type'].forEach((filterType) => {
-                              const options = categoryOptions[filterType as CategoryType] || [];
-                              options.slice(0, 3).forEach((option) => {
-                                if (option.value && option.value !== 'all') {
-                                  suggestions.push({
-                                    type: filterType,
-                                    value: option.value,
-                                    label: option.label?.[language] || option.label?.en || option.value,
-                                  });
-                                }
-                              });
-                            });
-                            
-                            return suggestions.map(({ type, value, label }) => {
-                              // Count exercises that match this filter
-                              const exerciseCount = (() => {
-                                if (!paths || !allPathExercises) return 0;
-                                const matchingPaths = paths.filter(path => {
-                                  if (type === 'vehicle_type') {
-                                    return !path.vehicle_type || path.vehicle_type?.toLowerCase() === value?.toLowerCase();
-                                  } else if (type === 'transmission_type') {
-                                    return !path.transmission_type || path.transmission_type?.toLowerCase() === value?.toLowerCase();
-                                  } else if (type === 'license_type') {
-                                    return !path.license_type || path.license_type?.toLowerCase() === value?.toLowerCase();
+                            ['vehicle_type', 'transmission_type', 'license_type'].forEach(
+                              (filterType) => {
+                                const options = categoryOptions[filterType as CategoryType] || [];
+                                options.slice(0, 3).forEach((option) => {
+                                  if (option.value && option.value !== 'all') {
+                                    suggestions.push({
+                                      type: filterType,
+                                      value: option.value,
+                                      label:
+                                        option.label?.[language] ||
+                                        option.label?.en ||
+                                        option.value,
+                                    });
                                   }
-                                  return false;
                                 });
-                                const pathIds = matchingPaths.map(p => p.id);
-                                return allPathExercises.filter(ex => pathIds.includes(ex.learning_path_id)).length;
-                              })();
-                              
-                              if (exerciseCount === 0) return null;
-                              
-                              return (
-                                <Chip
-                                  key={`suggestion-${type}-${value}`}
-                                  label={`${label} (${exerciseCount})`}
-                                  size="sm"
-                                  variant="outline"
-                                  onPress={() => {
-                                    handleFilterSelect(type as CategoryType, value);
-                                  }}
-                                />
-                              );
-                            }).filter(Boolean);
+                              },
+                            );
+
+                            return suggestions
+                              .map(({ type, value, label }) => {
+                                // Count exercises that match this filter
+                                const exerciseCount = (() => {
+                                  if (!paths || !allPathExercises) return 0;
+                                  const matchingPaths = paths.filter((path) => {
+                                    if (type === 'vehicle_type') {
+                                      return (
+                                        !path.vehicle_type ||
+                                        path.vehicle_type?.toLowerCase() === value?.toLowerCase()
+                                      );
+                                    } else if (type === 'transmission_type') {
+                                      return (
+                                        !path.transmission_type ||
+                                        path.transmission_type?.toLowerCase() ===
+                                          value?.toLowerCase()
+                                      );
+                                    } else if (type === 'license_type') {
+                                      return (
+                                        !path.license_type ||
+                                        path.license_type?.toLowerCase() === value?.toLowerCase()
+                                      );
+                                    }
+                                    return false;
+                                  });
+                                  const pathIds = matchingPaths.map((p) => p.id);
+                                  return allPathExercises.filter((ex) =>
+                                    pathIds.includes(ex.learning_path_id),
+                                  ).length;
+                                })();
+
+                                if (exerciseCount === 0) return null;
+
+                                return (
+                                  <Chip
+                                    key={`suggestion-${type}-${value}`}
+                                    label={`${label} (${exerciseCount})`}
+                                    size="sm"
+                                    variant="outline"
+                                    onPress={() => {
+                                      handleFilterSelect(type as CategoryType, value);
+                                    }}
+                                  />
+                                );
+                              })
+                              .filter(Boolean);
                           })()}
                         </XStack>
                       </>
                     );
                   }
-                  
+
                   return null;
                 })()}
               </YStack>
@@ -5063,8 +5171,7 @@ export function ProgressScreen() {
           </YStack>
         )}
       </ScrollView>
-      
-      
+
       {reportPath && detailPath && (
         <ReportDialog
           reportableId={detailPath.id}

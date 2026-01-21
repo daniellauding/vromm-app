@@ -175,7 +175,7 @@ export function ExerciseListSheet({
   const { HeaderComponent, onScroll: headerOnScroll } = useHeaderWithScroll();
 
   // Theme colors - matching ProgressScreen exactly
-  const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
+  const backgroundColor = colorScheme === 'dark' ? '#151515' : '#FFFFFF';
 
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -1023,7 +1023,7 @@ export function ExerciseListSheet({
   };
 
   // Media rendering functions - using react-native-youtube-iframe for proper playback
-  const YouTubeEmbed = ({ videoId }: { videoId: string }) => {
+  const YouTubeEmbed = ({ videoId, startTime }: { videoId: string; startTime?: number }) => {
     const screenWidth = Dimensions.get('window').width;
     const videoWidth = screenWidth - 48;
     const videoHeight = videoWidth * 0.5625; // 16:9 aspect ratio
@@ -1043,6 +1043,7 @@ export function ExerciseListSheet({
           height={videoHeight}
           videoId={videoId}
           play={false}
+          initialPlayerParams={startTime ? { start: startTime } : undefined}
           webViewProps={{
             androidLayerType: 'hardware',
           }}
@@ -1051,33 +1052,80 @@ export function ExerciseListSheet({
     );
   };
 
-  const getYouTubeVideoId = (url: string | undefined): string | null => {
-    if (!url) return null;
+  // Parse YouTube URL to extract video ID and start time
+  const parseYouTubeUrl = (
+    url: string | undefined,
+  ): { videoId: string | null; startTime: number | undefined } => {
+    if (!url) return { videoId: null, startTime: undefined };
 
-    // Try standard regex first
+    let videoId: string | null = null;
+    let startTime: number | undefined = undefined;
+
+    // Try standard regex first for video ID
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
     const match = url.match(regExp);
 
     if (match && match[7] && match[7].length === 11) {
-      return match[7];
+      videoId = match[7];
     }
 
     // Try alternative extraction methods
     try {
       const urlObj = new URL(url);
-      const vParam = urlObj.searchParams.get('v');
-      if (vParam && vParam.length === 11) return vParam;
 
-      const pathParts = urlObj.pathname.split('/').filter(Boolean);
-      if (pathParts.length > 0) {
-        const lastPart = pathParts[pathParts.length - 1];
-        if (lastPart.length === 11) return lastPart;
+      // Get video ID
+      if (!videoId) {
+        const vParam = urlObj.searchParams.get('v');
+        if (vParam && vParam.length === 11) videoId = vParam;
+      }
+
+      if (!videoId) {
+        const pathParts = urlObj.pathname.split('/').filter(Boolean);
+        if (pathParts.length > 0) {
+          const lastPart = pathParts[pathParts.length - 1];
+          if (lastPart.length === 11) videoId = lastPart;
+        }
+      }
+
+      // Extract start time from URL parameters
+      // Supports: ?t=233, &t=233, ?t=233s, ?t=3m53s, ?start=233
+      const tParam = urlObj.searchParams.get('t');
+      const startParam = urlObj.searchParams.get('start');
+
+      if (tParam) {
+        // Handle formats: "233", "233s", "3m53s", "1h2m3s"
+        const timeStr = tParam.replace(/s$/, ''); // Remove trailing 's' if present
+        if (/^\d+$/.test(timeStr)) {
+          // Pure seconds
+          startTime = parseInt(timeStr, 10);
+        } else {
+          // Parse h/m/s format
+          let seconds = 0;
+          const hourMatch = timeStr.match(/(\d+)h/);
+          const minMatch = timeStr.match(/(\d+)m/);
+          const secMatch = timeStr.match(/(\d+)(?:s|$)/);
+          if (hourMatch) seconds += parseInt(hourMatch[1], 10) * 3600;
+          if (minMatch) seconds += parseInt(minMatch[1], 10) * 60;
+          if (secMatch && !timeStr.includes('m') && !timeStr.includes('h')) {
+            seconds = parseInt(secMatch[1], 10);
+          } else if (secMatch) {
+            seconds += parseInt(secMatch[1], 10);
+          }
+          startTime = seconds > 0 ? seconds : undefined;
+        }
+      } else if (startParam) {
+        startTime = parseInt(startParam, 10);
       }
     } catch (e) {
       // URL parsing failed
     }
 
-    return null;
+    return { videoId, startTime };
+  };
+
+  // Legacy function for backwards compatibility
+  const getYouTubeVideoId = (url: string | undefined): string | null => {
+    return parseYouTubeUrl(url).videoId;
   };
 
   const renderExerciseMedia = (exercise: PathExercise) => {
@@ -1089,9 +1137,9 @@ export function ExerciseListSheet({
               Video Tutorial
             </Text> */}
             {(() => {
-              const videoId = getYouTubeVideoId(exercise.youtube_url);
+              const { videoId, startTime } = parseYouTubeUrl(exercise.youtube_url);
               return videoId ? (
-                <YouTubeEmbed videoId={videoId} />
+                <YouTubeEmbed videoId={videoId} startTime={startTime} />
               ) : (
                 <TouchableOpacity
                   onPress={() => exercise.youtube_url && Linking.openURL(exercise.youtube_url)}
@@ -1135,9 +1183,9 @@ export function ExerciseListSheet({
               Video Tutorial
             </Text> */}
             {(() => {
-              const videoId = getYouTubeVideoId(path.youtube_url);
+              const { videoId, startTime } = parseYouTubeUrl(path.youtube_url);
               return videoId ? (
-                <YouTubeEmbed videoId={videoId} />
+                <YouTubeEmbed videoId={videoId} startTime={startTime} />
               ) : (
                 <TouchableOpacity
                   onPress={() => path.youtube_url && Linking.openURL(path.youtube_url)}
@@ -1448,7 +1496,7 @@ export function ExerciseListSheet({
                             onRefresh={handleRefresh}
                             tintColor="#00E6C3"
                             colors={['#00E6C3']}
-                            progressBackgroundColor="#1a1a1a"
+                            progressBackgroundColor="#151515"
                           />
                         }
                         onScroll={headerOnScroll}
@@ -1540,16 +1588,6 @@ export function ExerciseListSheet({
                               >
                                 {selectedExercise.description[lang]}
                               </Text>
-                            )}
-
-                            {/* Steps Accordion - Optimized for Performance */}
-                            {selectedExercise.steps && selectedExercise.steps.length > 0 && (
-                              <View style={{ marginBottom: 24 }}>
-                                <ExerciseStepsAccordion
-                                  exercise={selectedExercise}
-                                  language={lang}
-                                />
-                              </View>
                             )}
 
                             {/* Password Locked Exercise State */}
@@ -1657,6 +1695,17 @@ export function ExerciseListSheet({
                                     </XStack>
                                   </YStack>
                                 )} */}
+
+                                {/* Steps Accordion - Optimized for Performance */}
+                                {selectedExercise.steps && selectedExercise.steps.length > 0 && (
+                                  <View style={{ marginBottom: 24 }}>
+                                    <ExerciseStepsAccordion
+                                      exercise={selectedExercise}
+                                      language={lang}
+                                      variant="sheet"
+                                    />
+                                  </View>
+                                )}
 
                                 {/* List of all repeats */}
                                 {!selectedExercise.isRepeat &&
@@ -2521,7 +2570,7 @@ export function ExerciseListSheet({
                             onRefresh={handleRefresh}
                             tintColor="#00E6C3"
                             colors={['#00E6C3']}
-                            progressBackgroundColor="#1a1a1a"
+                            progressBackgroundColor="#151515"
                           />
                         }
                         onScroll={headerOnScroll}
@@ -2633,10 +2682,17 @@ export function ExerciseListSheet({
                               */}
                                 {/* Exercise List (exact copy from ProgressScreen) */}
                                 {exercises.length === 0 ? (
-                                  <YStack alignItems="center" justifyContent="center" flex={1} gap="$3" padding="$4">
+                                  <YStack
+                                    alignItems="center"
+                                    justifyContent="center"
+                                    flex={1}
+                                    gap="$3"
+                                    padding="$4"
+                                  >
                                     <Feather name="book-open" size={48} color="#666" />
                                     <Text color="$gray11" textAlign="center" fontSize={16}>
-                                      {t('exercises.noExercises') || 'No exercises for this learning path.'}
+                                      {t('exercises.noExercises') ||
+                                        'No exercises for this learning path.'}
                                     </Text>
                                     {onBackToAllPaths && (
                                       <TouchableOpacity
@@ -2719,7 +2775,7 @@ export function ExerciseListSheet({
                           </YStack>
                         </View>
                       </ScrollView>
-                      
+
                       {/* Report Dialog for Exercise List */}
                       {reportExerciseId && (
                         <ReportDialog
@@ -2768,7 +2824,7 @@ export function ExerciseListSheet({
                 showsVerticalScrollIndicator={false}
               >
                 <YStack
-                  backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
+                  backgroundColor={colorScheme === 'dark' ? '#151515' : '#FFFFFF'}
                   borderRadius={24}
                   padding={20}
                   gap={16}
@@ -3112,7 +3168,7 @@ export function ExerciseListSheet({
                                 appearance: {
                                   colors: {
                                     primary: '#00E6C3',
-                                    background: colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF',
+                                    background: colorScheme === 'dark' ? '#151515' : '#FFFFFF',
                                     componentBackground:
                                       colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
                                     componentText: colorScheme === 'dark' ? '#FFFFFF' : '#000000',
@@ -3278,7 +3334,7 @@ export function ExerciseListSheet({
               style={{ width: '100%', maxWidth: 350 }}
             >
               <YStack
-                backgroundColor={colorScheme === 'dark' ? '#1A1A1A' : '#FFFFFF'}
+                backgroundColor={colorScheme === 'dark' ? '#151515' : '#FFFFFF'}
                 borderRadius={24}
                 padding={20}
                 gap={16}
