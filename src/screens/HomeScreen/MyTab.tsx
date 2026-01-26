@@ -13,6 +13,7 @@ import { useTabletLayout } from '../../hooks/useTabletLayout';
 
 import { WeeklyGoal } from './WeeklyGoal';
 import { DailyStatus } from './DailyStatus';
+import { MapPreview } from './MapPreview';
 // import { JumpBackInSection } from '../../components/JumpBackInSection';
 import { GettingStarted } from './GettingStarted';
 import { FeaturedContent } from './FeaturedContent';
@@ -149,6 +150,9 @@ export default React.memo(function MyTab({
         />
       </View>
 
+      {/* Map Preview - Sneak peek to the map screen */}
+      <MapPreview />
+
       {/* 
         📱 RESPONSIVE GRID LAYOUT
         Mobile: 1 column (full width)
@@ -175,7 +179,6 @@ export default React.memo(function MyTab({
         paddingRight={0}
         marginTop={16}
       >
-
         {/* Getting Started - Always Full Width */}
         <View style={{ marginTop: 8 }}>
           <GettingStarted />
@@ -208,7 +211,9 @@ export default React.memo(function MyTab({
 
           {/* Promotional Content - Only rendered if has content */}
           {hasPromotionalContent && (
-            <View style={{ width: isTablet ? '48%' : '100%', minWidth: isTablet ? 300 : undefined }}>
+            <View
+              style={{ width: isTablet ? '48%' : '100%', minWidth: isTablet ? 300 : undefined }}
+            >
               <PromotionalContent
                 onPromotionPress={(promotion) => {
                   setSelectedPromotion(promotion);
@@ -319,7 +324,6 @@ export default React.memo(function MyTab({
             />
           </TouchableOpacity>
         </View>
-
       </YStack>
 
       {/* Role Selection and Connections Cards */}
