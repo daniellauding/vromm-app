@@ -68,25 +68,25 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
   const isDark = effectiveTheme === 'dark';
   const { profile } = useAuth();
   const { activeStudentId } = useStudentSwitch();
-  
+
   // State for blur intensity
   const [blurIntensity, setBlurIntensity] = useState(0);
-  
+
   // Animation values
   const headerOpacity = useRef(new Animated.Value(1)).current;
   const headerTranslateY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
-  
+
   // Configure scroll listener
   useEffect(() => {
     if (!scrollY) return;
-    
+
     const listener = scrollY.addListener(({ value }) => {
       const currentScrollY = value;
       const isScrollingDown = currentScrollY > lastScrollY.current;
       const shouldHide = isScrollingDown && currentScrollY > 100;
-      
+
       // Update blur intensity
       if (currentScrollY <= 50) {
         setBlurIntensity(0);
@@ -96,11 +96,11 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
         const intensity = ((currentScrollY - 50) / 100) * 80;
         setBlurIntensity(Math.round(intensity));
       }
-      
+
       // Handle header hide/show on scroll
       if (shouldHide !== !isHeaderVisible) {
         setIsHeaderVisible(!shouldHide);
-        
+
         Animated.parallel([
           Animated.timing(headerOpacity, {
             toValue: shouldHide ? 0 : 1,
@@ -114,10 +114,10 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
           }),
         ]).start();
       }
-      
+
       lastScrollY.current = currentScrollY;
     });
-    
+
     return () => {
       try {
         scrollY.removeListener(listener);
@@ -126,9 +126,9 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
       }
     };
   }, [scrollY, headerOpacity, headerTranslateY, isHeaderVisible]);
-  
+
   const iconColor = isDark ? '#ECEDEE' : '#11181C';
-  
+
   return (
     <Animated.View
       style={{
@@ -157,7 +157,7 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
           backgroundColor: 'transparent',
         }}
       />
-      
+
       {/* Header content */}
       <XStack
         paddingHorizontal={24}
@@ -176,7 +176,7 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
               bg={isDark ? '#333' : '#E5E5E5'}
             />
           )}
-          
+
           <TouchableOpacity
             ref={profileAvatarRef}
             onPress={onAvatarPress}
@@ -203,7 +203,7 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
             )}
           </TouchableOpacity>
         </View>
-        
+
         {/* Right side - Notifications and Users */}
         <XStack gap={12} alignItems="center">
           {isAdmin && onUsersPress && (
@@ -220,7 +220,7 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
               <Feather name="users" size={20} color={iconColor} />
             </TouchableOpacity>
           )}
-          
+
           <NotificationBell onPress={onNotificationPress} />
         </XStack>
       </XStack>

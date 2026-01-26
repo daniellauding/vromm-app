@@ -11,19 +11,19 @@ interface WelcomeTextProps {
 export const WelcomeText: React.FC<WelcomeTextProps> = ({ scrollY }) => {
   const { profile } = useAuth();
   const { t } = useTranslation();
-  
+
   // Animation value for fading out the welcome text
   const welcomeOpacity = useRef(new Animated.Value(1)).current;
-  
+
   useEffect(() => {
     if (!scrollY) return;
-    
+
     const listener = scrollY.addListener(({ value }) => {
       // Fade out welcome text as user scrolls
-      const opacity = Math.max(0, 1 - (value / 100));
+      const opacity = Math.max(0, 1 - value / 100);
       welcomeOpacity.setValue(opacity);
     });
-    
+
     return () => {
       try {
         scrollY.removeListener(listener);
@@ -32,17 +32,11 @@ export const WelcomeText: React.FC<WelcomeTextProps> = ({ scrollY }) => {
       }
     };
   }, [scrollY, welcomeOpacity]);
-  
+
   return (
     <Animated.View style={{ opacity: welcomeOpacity }}>
-      <YStack paddingHorizontal="$4" marginTop="$2" marginBottom="$4">
-        <Text 
-          fontSize="$6" 
-          fontWeight="800" 
-          fontStyle="italic" 
-          color="$color"
-          numberOfLines={5}
-        >
+      <YStack paddingHorizontal="$4" marginTop="$8" marginBottom="$4">
+        <Text fontSize="$8" fontWeight="800" fontStyle="italic" color="$color" numberOfLines={5}>
           {profile?.full_name &&
           !profile.full_name.includes('@') &&
           profile.full_name !== 'Unknown' &&
