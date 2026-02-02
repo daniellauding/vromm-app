@@ -28,6 +28,8 @@ import { supabase } from '../../lib/supabase';
 import { Feather } from '@expo/vector-icons';
 import { Database } from '../../lib/database.types';
 import { ReviewSection } from './../ReviewSection';
+import { Chip } from './../Chip';
+import { Image } from 'react-native';
 import { CommentsSection } from './../CommentsSection';
 import { AppAnalytics } from '../../utils/analytics';
 import {
@@ -109,6 +111,7 @@ interface SupabaseRouteResponse
   creator: {
     id: string;
     full_name: string;
+    avatar_url: string | null;
   } | null;
   waypoint_details: RawWaypointDetail[];
   media_attachments: RawMediaAttachment[];
@@ -416,6 +419,7 @@ export function RouteDetailSheet({
   const [reviews, setReviews] = useState<Review[]>([]);
   const [routeCollections, setRouteCollections] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [showReviewsDetails, setShowReviewsDetails] = useState(false);
   const [showCommentsDetails, setShowCommentsDetails] = useState(false);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
@@ -440,7 +444,7 @@ export function RouteDetailSheet({
       .select(
         `
         *,
-        creator:creator_id(id, full_name),
+        creator:creator_id(id, full_name, avatar_url),
         waypoint_details,
         media_attachments,
         suggested_exercises,
@@ -655,6 +659,8 @@ export function RouteDetailSheet({
       if (user) {
         await Promise.all([checkRouteCollections()]);
       }
+      // Increment refresh key to trigger child component status re-checks
+      setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error('Error refreshing route data:', error);
     } finally {
@@ -783,6 +789,7 @@ export function RouteDetailSheet({
                             onClose={onClose}
                             handleRefresh={handleRefresh}
                             onOpenReviewSheet={() => setShowReviewSheet(true)}
+                            refreshKey={refreshKey}
                           />
 
                           {/* Basic Info Card */}
@@ -792,58 +799,86 @@ export function RouteDetailSheet({
                             bordered
                             padding="$4"
                           >
-                            <YStack gap="$2">
-                              <XStack gap="$2" alignItems="center" flexWrap="wrap">
-                                <Text fontSize="$5" fontWeight="600" color="$color">
-                                  {routeData.difficulty?.toUpperCase() || ''}
-                                </Text>
-                                <Text fontSize="$4" color="$gray11">
-                                  •
-                                </Text>
-                                <Text fontSize="$5" color="$gray11">
-                                  {routeData.spot_type || ''}
-                                </Text>
-                                {routeData.spot_subtype && (
-                                  <>
-                                    <Text fontSize="$4" color="$gray11">
-                                      •
-                                    </Text>
-                                    <Text fontSize="$5" color="$gray11">
-                                      {routeData.spot_subtype}
-                                    </Text>
-                                  </>
+                            <YStack gap="$3">
+                              {/* Tags using Chip components (non-interactive) */}
+                              <XStack gap="$2" alignItems="center" flexWrap="wrap" pointerEvents="none">
+                                {routeData.difficulty && (
+                                  <Chip
+                                    label={routeData.difficulty.toUpperCase()}
+                                    size="sm"
+                                    variant="tag"
+                                  />
                                 )}
-                                <Text fontSize="$4" color="$gray11">
-                                  •
-                                </Text>
-                                <Text fontSize="$5" color="$gray11">
-                                  {routeData.category || ''}
-                                </Text>
+                                {routeData.spot_type && (
+                                  <Chip
+                                    label={routeData.spot_type}
+                                    size="sm"
+                                    variant="tag"
+                                  />
+                                )}
+                                {routeData.spot_subtype && (
+                                  <Chip
+                                    label={routeData.spot_subtype}
+                                    size="sm"
+                                    variant="tag"
+                                  />
+                                )}
+                                {routeData.category && (
+                                  <Chip
+                                    label={routeData.category}
+                                    size="sm"
+                                    variant="tag"
+                                  />
+                                )}
                               </XStack>
 
-                              {/* Creator info with clickable name */}
+                              {/* Creator info with avatar */}
                               {routeData.creator && (
-                                <XStack alignItems="center" gap="$2" marginTop="$2">
-                                  <TouchableOpacity
-                                    onPress={() =>
-                                      handleNavigateToProfile(routeData.creator?.id || '')
-                                    }
-                                    style={{
-                                      flexDirection: 'row',
-                                      alignItems: 'center',
-                                      gap: 8,
-                                      backgroundColor: theme.backgroundHover?.val || '#F5F5F5',
-                                      paddingHorizontal: 12,
-                                      paddingVertical: 8,
-                                      borderRadius: 8,
-                                    }}
-                                  >
-                                    <Feather name="user" size={16} color={iconColor} />
-                                    <Text fontSize="$3" color="$color">
-                                      {routeData.creator.full_name || 'Unknown Creator'}
-                                    </Text>
-                                  </TouchableOpacity>
-                                </XStack>
+                                <TouchableOpacity
+                                  onPress={() =>
+                                    handleNavigateToProfile(routeData.creator?.id || '')
+                                  }
+                                  style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 10,
+                                  }}
+                                >
+                                  {/* Avatar */}
+                                  {routeData.creator.avatar_url ? (
+                                    <Image
+                                      source={{ uri: routeData.creator.avatar_url }}
+                                      style={{
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: 18,
+                                        backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                                      }}
+                                    />
+                                  ) : (
+                                    <View
+                                      style={{
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: 18,
+                                        backgroundColor: '#00E6C3',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                      }}
+                                    >
+                                      <Text
+                                        fontSize={16}
+                                        fontWeight="700"
+                                        color="#000"
+                                      >
+                                        {(routeData.creator.full_name || 'U').charAt(0).toUpperCase()}
+                                      </Text>
+                                    </View>
+                                  )}
+                                  <Text fontSize="$4" color="$color" fontWeight="500">
+                                    {routeData.creator.full_name || 'Unknown Creator'}
+                                  </Text>
+                                </TouchableOpacity>
                               )}
 
                               {routeData.description && (
@@ -1116,13 +1151,14 @@ export function RouteDetailSheet({
                                     routeId={routeId!}
                                     reviews={reviews}
                                     onReviewAdded={loadReviews}
+                                    onOpenReviewSheet={() => setShowReviewSheet(true)}
                                   />
                                 </YStack>
                               )}
                             </YStack>
                           </Card>
 
-                          {/* Comments Section */}
+                          {/* Comments Section - Hidden for now
                           <Card
                             backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
                             borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
@@ -1158,6 +1194,7 @@ export function RouteDetailSheet({
                               )}
                             </YStack>
                           </Card>
+                          */}
                         </YStack>
                       </ScrollView>
                     )}

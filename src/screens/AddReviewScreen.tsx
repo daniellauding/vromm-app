@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { YStack, XStack, Image, Card, TextArea } from 'tamagui';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
@@ -16,10 +16,18 @@ import { decode } from 'base64-arraybuffer';
 import { Feather } from '@expo/vector-icons';
 import { Alert, TouchableOpacity, ScrollView, StyleSheet, View } from 'react-native';
 import { useThemePreference } from '../hooks/useThemeOverride';
+import { MaterialIcons } from '@expo/vector-icons';
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 
 type Step = 'rating' | 'content' | 'details';
+
+// Helper function to get translation with fallback (like ProgressScreen)
+const getTranslation = (t: (key: string) => string, key: string, fallback: string): string => {
+  const translated = t(key);
+  // If translation is missing, t() returns the key itself - use fallback instead
+  return translated && translated !== key ? translated : fallback;
+};
 
 type Props = {
   route: {
@@ -46,11 +54,62 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
   const [currentStep, setCurrentStep] = useState<Step>('rating');
   const [rating, setRating] = useState(0);
   const [content, setContent] = useState('');
-  const [images, setImages] = useState<{ uri: string; fileName: string }[]>([]);
+  const [images, setImages] = useState<{ uri: string; fileName: string; isExisting?: boolean }[]>([]);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('beginner');
   const [visitDate, setVisitDate] = useState<string>(new Date().toISOString());
   const [loading, setLoading] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load existing review data if user has already reviewed this route
+  useEffect(() => {
+    const loadExistingReview = async () => {
+      if (!user?.id || !routeId) {
+        setLoadingExisting(false);
+        return;
+      }
+
+      try {
+        const { data: existingReview, error: fetchError } = await supabase
+          .from('route_reviews')
+          .select('*')
+          .eq('route_id', routeId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          // PGRST116 = no rows returned (no existing review)
+          console.error('Error fetching existing review:', fetchError);
+        }
+
+        if (existingReview) {
+          setIsEditing(true);
+          setRating(existingReview.rating || 0);
+          setContent(existingReview.content || '');
+          setDifficulty(existingReview.difficulty || 'beginner');
+          if (existingReview.visited_at) {
+            setVisitDate(existingReview.visited_at);
+          }
+          // Load existing images (they're stored as URLs, not local files)
+          if (existingReview.images && Array.isArray(existingReview.images)) {
+            const existingImages = existingReview.images.map((img: any, index: number) => ({
+              uri: img.url || img,
+              fileName: `existing-image-${index}.jpg`,
+              isExisting: true, // Flag to identify pre-existing images
+            }));
+            setImages(existingImages);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading existing review:', err);
+      } finally {
+        setLoadingExisting(false);
+      }
+    };
+
+    loadExistingReview();
+  }, [user?.id, routeId]);
 
   const handleBackPress = () => {
     if (returnToRouteDetail) {
@@ -135,11 +194,27 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
         .eq('user_id', user.id)
         .single();
 
-      // Upload images first
-      const uploadedImages = [];
+      // Process images - keep existing URLs, upload new ones
+      const uploadedImages: { url: string; description: string }[] = [];
       for (const image of images) {
         try {
-          console.log('Processing image:', image.fileName);
+          // Check if this is an existing image (already a URL)
+          const isExistingImage = image.isExisting ||
+            image.uri.startsWith('http://') ||
+            image.uri.startsWith('https://');
+
+          if (isExistingImage) {
+            // Keep existing image URL as-is
+            console.log('Keeping existing image:', image.uri);
+            uploadedImages.push({
+              url: image.uri,
+              description: '',
+            });
+            continue;
+          }
+
+          // Upload new image
+          console.log('Processing new image:', image.fileName);
           const response = await fetch(image.uri);
           const blob = await response.blob();
           const reader = new FileReader();
@@ -306,7 +381,7 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
             <Card backgroundColor={backgroundColor} borderWidth={1} borderColor={borderColor} padding="$5" borderRadius={16}>
               <YStack gap="$4" alignItems="center">
                 <Text fontSize={24} fontWeight="900" fontStyle="italic" color={textColor} textAlign="center">
-                  {t('review.ratingStep') || 'How was your experience?'}
+                  {getTranslation(t, 'review.ratingStep', 'How was your experience?')}
                 </Text>
                 <XStack gap="$3" justifyContent="center">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -315,18 +390,17 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
                       onPress={() => setRating(star)}
                       style={styles.starButton}
                     >
-                      <Feather 
-                        name="star" 
-                        size={36} 
+                      <MaterialIcons
+                        name={star <= rating ? 'star' : 'star-border'}
+                        size={40}
                         color={star <= rating ? '#FFD700' : borderColor}
-                        fill={star <= rating ? '#FFD700' : 'transparent'}
                       />
                     </TouchableOpacity>
                   ))}
                 </XStack>
               </YStack>
             </Card>
-            
+
             <YStack gap="$2">
               <Button
                 onPress={() => setCurrentStep('content')}
@@ -334,14 +408,14 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
                 variant="primary"
                 size="md"
               >
-                {t('common.next') || 'Next'}
+                {getTranslation(t, 'common.next', 'Next')}
               </Button>
               <Button
                 onPress={handleBackPress}
                 variant="link"
                 size="md"
               >
-                {t('common.cancel') || 'Cancel'}
+                {getTranslation(t, 'common.cancel', 'Cancel')}
               </Button>
             </YStack>
           </YStack>
@@ -353,13 +427,13 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
             <Card backgroundColor={backgroundColor} borderWidth={1} borderColor={borderColor} padding="$5" borderRadius={16}>
               <YStack gap="$4">
                 <Text fontSize={24} fontWeight="900" fontStyle="italic" color={textColor} textAlign="center">
-                  {t('review.contentStep') || 'Tell us about your experience'}
+                  {getTranslation(t, 'review.contentStep', 'Tell us about your experience')}
                 </Text>
-                
+
                 <TextArea
                   value={content}
                   onChangeText={setContent}
-                  placeholder={t('review.reviewPlaceholder') || 'Share your thoughts...'}
+                  placeholder={getTranslation(t, 'review.reviewPlaceholder', 'Share your thoughts...')}
                   numberOfLines={6}
                   style={{
                     backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
@@ -370,12 +444,12 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
                     padding: 12,
                   }}
                 />
-                
+
                 <YStack gap="$3">
                   <Text fontSize={16} fontWeight="600" color={textColor}>
-                    {t('review.addPhotos') || 'Add Photos (Optional)'}
+                    {getTranslation(t, 'review.addPhotos', 'Add Photos (Optional)')}
                   </Text>
-                  
+
                   <XStack gap="$2" flexWrap="wrap">
                     {images.map((image, index) => (
                       <TouchableOpacity
@@ -405,7 +479,7 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
                         </TouchableOpacity>
                       </TouchableOpacity>
                     ))}
-                    
+
                     {images.length < 5 && (
                       <XStack gap="$2">
                         <TouchableOpacity
@@ -422,12 +496,12 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
                             justifyContent: 'center',
                           }}
                         >
-                          <Feather name="image" size={24} color={textColor} opacity={0.5} />
-                          <Text fontSize={10} color={textColor} opacity={0.5} marginTop={4}>
-                            {t('review.addPhoto') || 'Gallery'}
+                          <Feather name="image" size={24} color={textColor} style={{ opacity: 0.5 }} />
+                          <Text fontSize={10} color={textColor} style={{ opacity: 0.5 }} marginTop={4}>
+                            {getTranslation(t, 'review.addPhoto', 'Gallery')}
                           </Text>
                         </TouchableOpacity>
-                        
+
                         <TouchableOpacity
                           onPress={handleTakePhoto}
                           style={{
@@ -442,9 +516,9 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
                             justifyContent: 'center',
                           }}
                         >
-                          <Feather name="camera" size={24} color={textColor} opacity={0.5} />
-                          <Text fontSize={10} color={textColor} opacity={0.5} marginTop={4}>
-                            {t('review.takePhoto') || 'Camera'}
+                          <Feather name="camera" size={24} color={textColor} style={{ opacity: 0.5 }} />
+                          <Text fontSize={10} color={textColor} style={{ opacity: 0.5 }} marginTop={4}>
+                            {getTranslation(t, 'review.takePhoto', 'Camera')}
                           </Text>
                         </TouchableOpacity>
                       </XStack>
@@ -453,21 +527,21 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
                 </YStack>
               </YStack>
             </Card>
-            
+
             <YStack gap="$2">
               <Button
                 onPress={() => setCurrentStep('details')}
                 variant="primary"
                 size="md"
               >
-                {t('common.next') || 'Next'}
+                {getTranslation(t, 'common.next', 'Next')}
               </Button>
               <Button
                 onPress={() => setCurrentStep('rating')}
                 variant="link"
                 size="md"
               >
-                {t('common.back') || 'Back'}
+                {getTranslation(t, 'common.back', 'Back')}
               </Button>
             </YStack>
           </YStack>
@@ -479,14 +553,14 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
             <Card backgroundColor={backgroundColor} borderWidth={1} borderColor={borderColor} padding="$5" borderRadius={16}>
               <YStack gap="$4">
                 <Text fontSize={24} fontWeight="900" fontStyle="italic" color={textColor} textAlign="center">
-                  {t('review.detailsStep') || 'How difficult was it?'}
+                  {getTranslation(t, 'review.detailsStep', 'How difficult was it?')}
                 </Text>
-                
+
                 <YStack gap="$3">
                   <Text fontSize={18} fontWeight="600" color={textColor}>
-                    {t('review.difficultyLevel') || 'Difficulty Level'}
+                    {getTranslation(t, 'review.difficultyLevel', 'Difficulty Level')}
                   </Text>
-                  
+
                   <XStack gap="$2" flexWrap="wrap">
                     {(['beginner', 'intermediate', 'advanced'] as DifficultyLevel[]).map((level) => {
                       const isSelected = difficulty === level;
@@ -514,10 +588,10 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
                             ]}
                           >
                             {level === 'beginner'
-                              ? t('profile.experienceLevels.beginner') || 'Beginner'
+                              ? getTranslation(t, 'profile.experienceLevels.beginner', 'Beginner')
                               : level === 'intermediate'
-                                ? t('profile.experienceLevels.intermediate') || 'Intermediate'
-                                : t('profile.experienceLevels.advanced') || 'Advanced'}
+                                ? getTranslation(t, 'profile.experienceLevels.intermediate', 'Intermediate')
+                                : getTranslation(t, 'profile.experienceLevels.advanced', 'Advanced')}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -526,7 +600,7 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
                 </YStack>
               </YStack>
             </Card>
-            
+
             <YStack gap="$2">
               <Button
                 onPress={handleSubmit}
@@ -534,14 +608,16 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
                 size="md"
                 disabled={loading}
               >
-                {loading ? (t('review.submitting') || 'Submitting...') : (t('review.submit') || 'Submit Review')}
+                {loading
+                  ? getTranslation(t, 'review.submitting', 'Submitting...')
+                  : getTranslation(t, 'review.submit', 'Submit Review')}
               </Button>
               <Button
                 onPress={() => setCurrentStep('content')}
                 variant="link"
                 size="md"
               >
-                {t('common.back') || 'Back'}
+                {getTranslation(t, 'common.back', 'Back')}
               </Button>
             </YStack>
           </YStack>
@@ -570,9 +646,11 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
   const reviewContent = (
     <YStack f={1} gap="$4" backgroundColor={backgroundColor}>
       {!embeddedInSheet && (
-        <Header 
-          title={t('review.title') || 'Add Review'} 
-          showBack 
+        <Header
+          title={isEditing
+            ? getTranslation(t, 'routeDetail.editReview', 'Edit Review')
+            : getTranslation(t, 'review.title', 'Add Review')}
+          showBack
           onBackPress={handleBackPress}
         />
       )}
@@ -605,12 +683,18 @@ export function AddReviewScreen({ route, onReviewComplete, embeddedInSheet = fal
           </Card>
         ) : null}
 
-        <ScrollView 
+        <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
         >
-          {renderStep()}
+          {loadingExisting ? (
+            <YStack flex={1} alignItems="center" justifyContent="center" paddingTop="$8">
+              <Text color={textColor}>{getTranslation(t, 'common.loading', 'Loading...')}</Text>
+            </YStack>
+          ) : (
+            renderStep()
+          )}
         </ScrollView>
       </YStack>
   );

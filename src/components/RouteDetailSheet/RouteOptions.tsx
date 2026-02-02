@@ -124,102 +124,115 @@ export default function RouteOptions({
   }
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View
         style={{
           flex: 1,
-          backgroundColor: 'transparent',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'flex-end',
         }}
       >
-        <View style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <Animated.View
-            style={{
-              backgroundColor: backgroundColor,
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              padding: 20,
-              paddingBottom: 40,
-            }}
-          >
-            <YStack gap="$4">
-              <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                {t('routeDetail.routeOptions') || 'Route Options'}
-              </Text>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <Animated.View
+          style={{
+            backgroundColor: backgroundColor,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            padding: 20,
+            paddingBottom: 40,
+          }}
+        >
+          {/* Drag Handle */}
+          <View style={{ alignItems: 'center', marginBottom: 16 }}>
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: colorScheme === 'dark' ? '#555' : '#DDD',
+              }}
+            />
+          </View>
 
-              <YStack gap="$2">
+          <YStack gap="$4">
+            <Text
+              fontSize={22}
+              fontWeight="900"
+              fontStyle="italic"
+              color="$color"
+              textAlign="center"
+            >
+              {t('routeDetail.routeOptions') || 'Route Options'}
+            </Text>
+
+            <YStack gap="$3">
+              <TouchableOpacity
+                onPress={() => {
+                  onClose();
+                  handleOpenInMaps();
+                }}
+                style={{
+                  paddingVertical: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: colorScheme === 'dark' ? '#333' : '#EEE',
+                }}
+              >
+                <Feather name="map" size={20} color={iconColor} />
+                <Text fontSize={16} color="$color">
+                  {t('routeDetail.openInMaps') || 'Open in Maps'}
+                </Text>
+              </TouchableOpacity>
+
+              {user?.id === routeData?.creator_id && (
+                <TouchableOpacity
+                  onPress={handleDeleteRoute}
+                  disabled={deleting}
+                  style={{
+                    paddingVertical: 14,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    opacity: deleting ? 0.5 : 1,
+                  }}
+                >
+                  <Feather name="trash-2" size={20} color="#EF4444" />
+                  <Text fontSize={16} color="#EF4444">
+                    {deleting
+                      ? t('common.loading') || 'Loading...'
+                      : t('routeDetail.deleteRoute') || 'Delete Route'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {user?.id !== routeData?.creator_id && (
                 <TouchableOpacity
                   onPress={() => {
-                    onClose();
-                    handleOpenInMaps();
+                    setShowReportDialog(true);
                   }}
                   style={{
-                    padding: 16,
-                    backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
-                    borderRadius: 12,
+                    paddingVertical: 14,
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 12,
                   }}
                 >
-                  <Feather name="map" size={20} color={iconColor} />
-                  <Text fontSize="$4" color="$color">
-                    {t('routeDetail.openInMaps') || 'Open in Maps'}
+                  <Feather name="flag" size={20} color={iconColor} />
+                  <Text fontSize={16} color="$color">
+                    {t('routeDetail.reportRoute') || 'Report Route'}
                   </Text>
                 </TouchableOpacity>
-
-                {user?.id === routeData?.creator_id && (
-                  <TouchableOpacity
-                    onPress={handleDeleteRoute}
-                    disabled={deleting}
-                    style={{
-                      padding: 16,
-                      backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
-                      borderRadius: 12,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                      opacity: deleting ? 0.5 : 1,
-                    }}
-                  >
-                    <Feather name="trash-2" size={20} color="#FF3B30" />
-                    <Text fontSize="$4" color="#FF3B30">
-                      {deleting
-                        ? t('common.deleting') || 'Deleting...'
-                        : t('routeDetail.deleteRoute') || 'Delete Route'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {user?.id !== routeData?.creator_id && (
-                  <TouchableOpacity
-                    onPress={() => {
-                      setShowReportDialog(true);
-                    }}
-                    style={{
-                      padding: 16,
-                      backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
-                      borderRadius: 12,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 12,
-                    }}
-                  >
-                    <Feather name="flag" size={20} color={iconColor} />
-                    <Text fontSize="$4" color="$color">
-                      {t('routeDetail.reportRoute') || 'Report Route'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </YStack>
-
-              <Button size="lg" variant="link" onPress={onClose}>
-                {t('common.cancel') || 'Cancel'}
-              </Button>
+              )}
             </YStack>
-          </Animated.View>
-        </View>
-      </Animated.View>
+
+            <Button size="lg" variant="link" onPress={onClose}>
+              {t('common.cancel') || 'Cancel'}
+            </Button>
+          </YStack>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
