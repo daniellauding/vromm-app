@@ -217,7 +217,9 @@ export function MapScreen({
   }, []);
 
   const handleUserPress = useCallback((userId: string) => {
+    console.log('👤 [MapScreen] handleUserPress - closing RouteDetailSheet, opening UserProfileSheet for:', userId);
     setSelectedUserId(userId);
+    setShowRouteDetailSheet(false); // Hide RouteDetailSheet when showing profile
     setShowUserProfileSheet(true);
   }, []);
 
@@ -1507,7 +1509,14 @@ export function MapScreen({
       {/* User Profile Sheet */}
       <UserProfileSheet
         visible={showUserProfileSheet}
-        onClose={() => setShowUserProfileSheet(false)}
+        onClose={() => {
+          console.log('👤 [MapScreen] UserProfileSheet closed, reopening RouteDetailSheet if route was selected');
+          setShowUserProfileSheet(false);
+          // Reopen RouteDetailSheet if a route was previously selected
+          if (selectedRouteId) {
+            setShowRouteDetailSheet(true);
+          }
+        }}
         userId={selectedUserId}
         onViewAllRoutes={(userId) => {
           // Close profile sheet and show routes (could implement RouteListSheet here)

@@ -1134,6 +1134,10 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           onClose={() => {
             setShowProfileSheet(false);
             setSelectedUserId(null);
+            // Reopen RouteDetailSheet if a route was selected
+            if (selectedRouteId) {
+              setShowRouteSheet(true);
+            }
           }}
           userId={selectedUserId}
           onViewAllRoutes={() => {

@@ -587,10 +587,13 @@ export function RouteDetailSheet({
 
   const handleNavigateToProfile = React.useCallback(
     (userId: string) => {
+      console.log('👤 [RouteDetailSheet] handleNavigateToProfile called:', { userId, hasOnNavigateToProfile: !!onNavigateToProfile });
       if (onNavigateToProfile) {
+        console.log('👤 [RouteDetailSheet] Using external onNavigateToProfile callback');
         onNavigateToProfile(userId);
       } else {
         // Show ProfileSheet as modal instead of navigating
+        console.log('👤 [RouteDetailSheet] Opening UserProfileSheet');
         setSelectedProfileUserId(userId);
         setShowProfileSheet(true);
       }
@@ -669,6 +672,22 @@ export function RouteDetailSheet({
   }, [loadRouteData, loadReviews, user, checkRouteCollections]);
 
   if (!visible) return null;
+
+  // Show UserProfileSheet instead of RouteDetailSheet when profile is selected
+  if (showProfileSheet && selectedProfileUserId) {
+    console.log('🔄 [RouteDetailSheet] Swapping to UserProfileSheet for userId:', selectedProfileUserId);
+    return (
+      <UserProfileSheet
+        visible={true}
+        onClose={() => {
+          console.log('🔄 [RouteDetailSheet] UserProfileSheet closed, returning to RouteDetailSheet');
+          setShowProfileSheet(false);
+          setSelectedProfileUserId(null);
+        }}
+        userId={selectedProfileUserId}
+      />
+    );
+  }
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
@@ -1205,24 +1224,6 @@ export function RouteDetailSheet({
           </GestureDetector>
         </View>
       </Animated.View>
-
-      {/* UserProfileSheet Modal - reopens RouteDetailSheet on close */}
-      {showProfileSheet && selectedProfileUserId && (
-        <UserProfileSheet
-          visible={showProfileSheet}
-          onClose={() => {
-            setShowProfileSheet(false);
-            setSelectedProfileUserId(null);
-            // Reopen RouteDetailSheet after ProfileSheet closes
-            if (onReopen) {
-              setTimeout(() => {
-                onReopen();
-              }, 300);
-            }
-          }}
-          userId={selectedProfileUserId}
-        />
-      )}
 
       {/* Add Review Sheet */}
       {routeId && (

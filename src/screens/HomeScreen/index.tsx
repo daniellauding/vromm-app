@@ -116,6 +116,8 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
 
   // Track if UserListSheet was open when opening UserProfileSheet
   const wasUserListSheetOpenRef = React.useRef(false);
+  // Track if RouteDetailSheet was open when opening UserProfileSheet
+  const wasRouteDetailSheetOpenRef = React.useRef(false);
 
   // Register profile avatar for instructor tour targeting
   const profileAvatarRef = useTourTarget('Header.ProfileAvatar');
@@ -492,6 +494,11 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
             setShowUserListSheet(true);
             wasUserListSheetOpenRef.current = false; // Reset
           }
+          // Reopen RouteDetailSheet if it was open before
+          if (wasRouteDetailSheetOpenRef.current) {
+            setShowRouteDetailSheet(true);
+            wasRouteDetailSheetOpenRef.current = false; // Reset
+          }
         }}
         userId={selectedUserId}
         onViewAllRoutes={(_userId) => {
@@ -532,6 +539,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         }}
         onNavigateToProfile={(userId) => {
           // Close route sheet and open user profile sheet
+          wasRouteDetailSheetOpenRef.current = true; // Track that RouteDetailSheet was open
           setShowRouteDetailSheet(false);
           setSelectedUserId(userId);
           setShowUserProfileSheet(true);

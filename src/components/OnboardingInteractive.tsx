@@ -3063,26 +3063,30 @@ export function OnboardingInteractive({
     );
   };
 
+  // Role card images - using getting_started images for now
+  const ROLE_IMAGES = {
+    student: require('../../assets/images/getting_started/getting_started_03.png'), // Learning image
+    instructor: require('../../assets/images/getting_started/getting_started_05.png'), // Choose role image
+  };
+
   const renderRoleSelectionStep = (item: OnboardingStep) => {
     const roles = [
       {
         id: 'student',
-        title: t('onboarding.role.student') || 'Student',
-        description: t('onboarding.role.studentDescription') || 'I want to learn to drive',
+        title: t('onboarding.role.student') || (language === 'sv' ? 'Elev' : 'Student'),
+        description:
+          t('onboarding.role.studentDescription') ||
+          (language === 'sv' ? 'Jag vill lära mig köra' : 'I want to learn to drive'),
+        image: ROLE_IMAGES.student,
       },
       {
         id: 'instructor',
-        title: t('onboarding.role.instructor') || 'Instructor',
-        description: t('onboarding.role.instructorDescription') || 'I teach others to drive',
+        title: t('onboarding.role.instructor') || (language === 'sv' ? 'Instruktör' : 'Instructor'),
+        description:
+          t('onboarding.role.instructorDescription') ||
+          (language === 'sv' ? 'Jag lär andra att köra' : 'I teach others to drive'),
+        image: ROLE_IMAGES.instructor,
       },
-      // School option hidden for beta
-      /*
-      {
-        id: 'school',
-        title: t('onboarding.role.school') || 'Driving School',
-        description: t('onboarding.role.schoolDescription') || 'I represent a driving school',
-      },
-      */
     ];
 
     return (
@@ -3154,21 +3158,72 @@ export function OnboardingInteractive({
             paddingHorizontal: 16,
             paddingTop: 20,
             paddingBottom: 20,
+            alignItems: 'center',
           }}
           showsVerticalScrollIndicator={false}
           bounces={true}
         >
-          {/* Role Options */}
-          <YStack gap="$2" width="100%">
-            {roles.map((role) => (
-              <RadioButton
-                key={role.id}
-                onPress={() => handleRoleSelect(role.id)}
-                title={role.title}
-                description={role.description}
-                isSelected={selectedRole === role.id}
-              />
-            ))}
+          {/* Role Options - Card Style */}
+          <YStack gap="$4" width="100%" alignItems="center">
+            {roles.map((role) => {
+              const isSelected = selectedRole === role.id;
+              return (
+                <TouchableOpacity
+                  key={role.id}
+                  onPress={() => handleRoleSelect(role.id)}
+                  activeOpacity={0.8}
+                  style={{ width: '100%', maxWidth: 320 }}
+                >
+                  <YStack
+                    width="100%"
+                    backgroundColor={isSelected ? '$green5' : '$backgroundStrong'}
+                    borderRadius={16}
+                    overflow="hidden"
+                    borderWidth={isSelected ? 2 : 0}
+                    borderColor={isSelected ? '#00E6C3' : 'transparent'}
+                  >
+                    {/* Selected badge */}
+                    {isSelected && (
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          backgroundColor: '#00E6C3',
+                          borderRadius: 10,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          zIndex: 1,
+                        }}
+                      >
+                        <Text fontSize={10} color="#000" fontWeight="bold">
+                          {language === 'sv' ? 'VALD' : 'SELECTED'}
+                        </Text>
+                      </View>
+                    )}
+                    <Image
+                      source={role.image}
+                      style={{
+                        width: '100%',
+                        height: 140,
+                        resizeMode: 'cover',
+                      }}
+                    />
+                    <YStack
+                      padding="$3"
+                      backgroundColor={isSelected ? '#143929' : colorScheme === 'dark' ? '#2A2A2A' : '#143929'}
+                    >
+                      <Text fontSize={16} fontWeight="bold" color="#fff">
+                        {role.title}
+                      </Text>
+                      <Text fontSize={13} color="#fff" opacity={0.9} marginTop="$1">
+                        {role.description}
+                      </Text>
+                    </YStack>
+                  </YStack>
+                </TouchableOpacity>
+              );
+            })}
           </YStack>
         </ScrollView>
 
@@ -3290,7 +3345,42 @@ export function OnboardingInteractive({
           <YStack gap="$4" width="100%">
             {/* Location options - always available */}
             {item.id === 'location' && (
-              <YStack gap="$4" marginTop="$6" width="100%">
+              <YStack gap="$4" marginTop="$2" width="100%" alignItems="center">
+                {/* Large clickable map pin icon */}
+                <TouchableOpacity
+                  onPress={handleLocationPermission}
+                  disabled={locationLoading}
+                  activeOpacity={0.7}
+                  style={{
+                    width: 120,
+                    height: 120,
+                    borderRadius: 60,
+                    backgroundColor: colorScheme === 'dark' ? '#143929' : '#E8F5E9',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  {locationLoading ? (
+                    <Animated.View
+                      style={{
+                        transform: [
+                          {
+                            rotate: spinValue.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: ['0deg', '360deg'],
+                            }),
+                          },
+                        ],
+                      }}
+                    >
+                      <Feather name="loader" size={48} color="#00E6C3" />
+                    </Animated.View>
+                  ) : (
+                    <Feather name="map-pin" size={48} color="#00E6C3" />
+                  )}
+                </TouchableOpacity>
+
                 <Button
                   variant="secondary"
                   size="lg"

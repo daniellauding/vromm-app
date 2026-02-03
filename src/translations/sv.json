@@ -112,6 +112,15 @@
     "submitting": "Skickar...",
     "submitReview": "Skicka recension"
   },
+  "progressSection": {
+    "viewAllPaths": "Visa alla vägar",
+    "noMatchingPaths": "Inga inlärningsvägar matchar dina aktuella filter",
+    "activeFilters": "Aktiva filter:",
+    "loadingFilters": "Laddar föreslagna filter...",
+    "lastCompleted": "Senast",
+    "help": "Följ dina framsteg genom olika inlärningsvägar. Varje kort visar din slutförandegrad i procent.",
+    "viewingAs": "Visar som"
+  },
   "routeExercise": {
     "completeExercise": "Slutför övning",
     "markIncomplete": "Markera som ofullständig",

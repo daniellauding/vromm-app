@@ -112,6 +112,15 @@
     "submitting": "Submitting...",
     "submitReview": "Submit Review"
   },
+  "progressSection": {
+    "viewAllPaths": "View All Paths",
+    "noMatchingPaths": "No learning paths match your current filters",
+    "activeFilters": "Active filters:",
+    "loadingFilters": "Loading suggested filters...",
+    "lastCompleted": "Last",
+    "help": "Track your learning progress across different paths. Each card shows your completion percentage.",
+    "viewingAs": "Viewing as"
+  },
   "routeExercise": {
     "completeExercise": "Complete Exercise",
     "markIncomplete": "Mark Incomplete", 
