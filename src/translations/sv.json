@@ -331,5 +331,49 @@
     "dontHaveAccount": "Har du inget konto?",
     "signInWithGoogle": "Logga in med Google",
     "signUpWithGoogle": "Registrera dig med Google"
+  },
+  "tour": {
+    "navigation": {
+      "next": "Nästa",
+      "previous": "Föregående",
+      "finish": "Slutför",
+      "skip": "Hoppa över rundtur"
+    },
+    "fallback": {
+      "progress": {
+        "title": "Följ dina framsteg",
+        "content": "Här kan du se dina lärandeframsteg och slutföra övningar. Tryck på Framsteg-fliken för att utforska inlärningsvägar."
+      },
+      "create": {
+        "title": "Skapa rutter och händelser",
+        "content": "Lägg till rutter och händelser här med den centrala skapa-knappen. Tryck på plusknappen för att komma igång!"
+      },
+      "menu": {
+        "title": "Meny och inställningar",
+        "content": "Få tillgång till din profil, inställningar och hantera relationer via menyfliken."
+      }
+    },
+    "screens": {
+      "progress": {
+        "welcome": {
+          "title": "Välkommen till Framsteg",
+          "content": "Följ din inlärningsresa här. Slutför övningar och få prestationer!"
+        },
+        "learningPaths": {
+          "title": "Inlärningsvägar",
+          "content": "Välj en inlärningsväg för att börja din resa. Varje väg innehåller övningar för att hjälpa dig förbättras."
+        },
+        "filters": {
+          "title": "Filteralternativ",
+          "content": "Använd filter för att hitta inlärningsvägar som matchar din fordonstyp och erfarenhetsnivå."
+        }
+      },
+      "home": {
+        "welcome": {
+          "title": "Välkommen till Vromm!",
+          "content": "Det här är din startsida. Utforska rutter, följ framsteg och anslut med instruktörer."
+        }
+      }
+    }
   }
 } 

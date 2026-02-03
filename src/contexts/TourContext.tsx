@@ -4,9 +4,19 @@ import { useAuth } from '../context/AuthContext';
 import { useTranslation } from './TranslationContext';
 import { supabase } from '../lib/supabase';
 
-// FEATURE FLAGS: Selective tour enabling to prevent performance issues
-const TOURS_GLOBALLY_ENABLED = false;
-const HOMESCREEN_TOURS_ENABLED = true; // HomeScreen tours work fine
+// FEATURE FLAGS: Control tour behavior
+const TOURS_GLOBALLY_ENABLED = true; // Enable tours globally
+const SCREEN_SPECIFIC_TOURS_ENABLED = true; // Enable per-screen tours
+
+// Navigation action types for tour steps
+export type TourActionType = 'navigate' | 'openSheet' | 'openModal' | 'scrollTo' | 'press' | 'waitFor';
+
+export interface TourAction {
+  type: TourActionType;
+  target?: string; // screen name, sheet id, element id, or tab name
+  params?: Record<string, any>; // navigation params or action config
+  delay?: number; // ms delay before/after action
+}
 
 export interface TourStep {
   id: string;
@@ -22,20 +32,47 @@ export interface TourStep {
     width: number;
     height: number;
   };
+
+  // NEW: Action to execute when pressing "Next"
+  action?: TourAction;
+
+  // NEW: Pre-step action (execute before showing this step)
+  preAction?: TourAction;
+
+  // NEW: Auto-scroll to element before highlighting
+  scrollToElement?: boolean;
+  scrollOffset?: number; // offset from top when scrolling
+
+  // NEW: Wait for element to be visible
+  waitForElement?: boolean;
+  waitTimeout?: number; // ms to wait for element
 }
+
+// Navigation handler type - will be set by the app's navigation
+export type NavigationHandler = (action: TourAction) => Promise<boolean>;
 
 interface TourContextType {
   isActive: boolean;
   currentStep: number;
   steps: TourStep[];
-  startTour: (steps?: TourStep[]) => void;
+  currentTourId: string | null;
+
+  // Core tour functions
+  startTour: (steps?: TourStep[], tourId?: string) => void;
   startDatabaseTour: (screenContext?: string, userRole?: string) => Promise<void>;
+  startScreenTour: (screenId: string, userRole?: string) => Promise<boolean>;
   startCustomTour: (customSteps: TourStep[], tourKey?: string) => void;
-  nextStep: () => void;
+  nextStep: () => Promise<void>;
   prevStep: () => void;
   endTour: () => void;
   resetTour: () => Promise<void>;
+  resetScreenTour: (screenId: string) => Promise<void>;
+
+  // Tour status functions
   shouldShowTour: () => Promise<boolean>;
+  hasSeenScreenTour: (screenId: string) => Promise<boolean>;
+
+  // Element targeting functions
   measureElement: (
     targetId: string,
   ) => Promise<{ x: number; y: number; width: number; height: number } | null>;
@@ -44,12 +81,19 @@ interface TourContextType {
     coords: { x: number; y: number; width: number; height: number },
   ) => void;
   registerElement: (targetId: string, ref: any) => void;
+
+  // NEW: Navigation handler registration
+  setNavigationHandler: (handler: NavigationHandler) => void;
+
+  // NEW: Scroll handler registration
+  setScrollHandler: (screenId: string, handler: (elementId: string, offset?: number) => Promise<boolean>) => void;
 }
 
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
 const TOUR_STORAGE_KEY = 'vromm_app_tour_completed';
 const TOUR_CONTENT_HASH_KEY = 'vromm_tour_content_hash';
+const SCREEN_TOURS_SEEN_KEY = 'vromm_screen_tours_seen';
 
 export function TourProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -57,9 +101,26 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const [isActive, setIsActive] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [steps, setSteps] = useState<TourStep[]>([]);
+  const [currentTourId, setCurrentTourId] = useState<string | null>(null);
 
   // Store ref registry for tour target elements
   const elementRefs = useRef<Map<string, any>>(new Map());
+
+  // Navigation handler for cross-screen navigation
+  const navigationHandlerRef = useRef<NavigationHandler | null>(null);
+
+  // Scroll handlers per screen
+  const scrollHandlersRef = useRef<Map<string, (elementId: string, offset?: number) => Promise<boolean>>>(new Map());
+
+  // Set navigation handler (called by TabNavigator or App.tsx)
+  const setNavigationHandler = useCallback((handler: NavigationHandler) => {
+    navigationHandlerRef.current = handler;
+  }, []);
+
+  // Set scroll handler for a specific screen
+  const setScrollHandler = useCallback((screenId: string, handler: (elementId: string, offset?: number) => Promise<boolean>) => {
+    scrollHandlersRef.current.set(screenId, handler);
+  }, []);
 
   // Function to register element for tour targeting
   const registerElement = useCallback((targetId: string, ref: any) => {
@@ -111,10 +172,161 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  // Execute a tour action (navigation, sheet opening, etc.)
+  const executeAction = useCallback(async (action: TourAction): Promise<boolean> => {
+    if (!navigationHandlerRef.current) {
+      console.warn('🎯 [TourContext] No navigation handler registered');
+      return false;
+    }
+
+    try {
+      // Add delay if specified
+      if (action.delay) {
+        await new Promise(resolve => setTimeout(resolve, action.delay));
+      }
+
+      const success = await navigationHandlerRef.current(action);
+      console.log(`🎯 [TourContext] Action ${action.type} to ${action.target}: ${success ? 'success' : 'failed'}`);
+      return success;
+    } catch (error) {
+      console.error('🎯 [TourContext] Error executing action:', error);
+      return false;
+    }
+  }, []);
+
+  // Scroll to element if needed
+  const scrollToElementIfNeeded = useCallback(async (step: TourStep): Promise<boolean> => {
+    if (!step.scrollToElement || !step.targetElement) {
+      return true;
+    }
+
+    const scrollHandler = scrollHandlersRef.current.get(step.targetScreen);
+    if (!scrollHandler) {
+      console.warn(`🎯 [TourContext] No scroll handler for screen ${step.targetScreen}`);
+      return true; // Continue anyway
+    }
+
+    try {
+      return await scrollHandler(step.targetElement, step.scrollOffset);
+    } catch (error) {
+      console.error('🎯 [TourContext] Error scrolling to element:', error);
+      return true; // Continue anyway
+    }
+  }, []);
+
+  // Check if user has seen a specific screen's tour
+  const hasSeenScreenTour = useCallback(async (screenId: string): Promise<boolean> => {
+    if (!SCREEN_SPECIFIC_TOURS_ENABLED) return true;
+
+    try {
+      // First check user_tour_completions table
+      if (user?.id) {
+        const { data, error } = await supabase
+          .from('user_tour_completions')
+          .select('completed_tours')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!error && data?.completed_tours) {
+          const completedTours = data.completed_tours as string[];
+          if (completedTours.includes(screenId) || completedTours.includes(`screen.${screenId}`)) {
+            return true;
+          }
+        }
+      }
+
+      // Fallback to AsyncStorage
+      const seenTours = await AsyncStorage.getItem(SCREEN_TOURS_SEEN_KEY);
+      if (seenTours) {
+        const parsed = JSON.parse(seenTours);
+        return parsed[screenId] === true;
+      }
+      return false;
+    } catch (error) {
+      console.error('🎯 [TourContext] Error checking screen tour status:', error);
+      return false;
+    }
+  }, [user?.id]);
+
+  // Mark a screen tour as seen
+  const markScreenTourSeen = useCallback(async (screenId: string) => {
+    try {
+      // Save to database
+      if (user?.id) {
+        // Get existing completions
+        const { data: existing } = await supabase
+          .from('user_tour_completions')
+          .select('completed_tours')
+          .eq('user_id', user.id)
+          .single();
+
+        const completedTours = (existing?.completed_tours as string[]) || [];
+        const tourKey = `screen.${screenId}`;
+
+        if (!completedTours.includes(tourKey)) {
+          completedTours.push(tourKey);
+
+          await supabase
+            .from('user_tour_completions')
+            .upsert({
+              user_id: user.id,
+              completed_tours: completedTours,
+              last_tour_completed: tourKey,
+              completed_at: new Date().toISOString(),
+            }, {
+              onConflict: 'user_id',
+            });
+        }
+      }
+
+      // Also save to AsyncStorage for backup
+      const seenTours = await AsyncStorage.getItem(SCREEN_TOURS_SEEN_KEY);
+      const parsed = seenTours ? JSON.parse(seenTours) : {};
+      parsed[screenId] = true;
+      await AsyncStorage.setItem(SCREEN_TOURS_SEEN_KEY, JSON.stringify(parsed));
+    } catch (error) {
+      console.error('🎯 [TourContext] Error marking screen tour as seen:', error);
+    }
+  }, [user?.id]);
+
+  // Reset a specific screen tour
+  const resetScreenTour = useCallback(async (screenId: string) => {
+    try {
+      // Remove from database
+      if (user?.id) {
+        const { data: existing } = await supabase
+          .from('user_tour_completions')
+          .select('completed_tours')
+          .eq('user_id', user.id)
+          .single();
+
+        if (existing?.completed_tours) {
+          const completedTours = (existing.completed_tours as string[]).filter(
+            t => t !== screenId && t !== `screen.${screenId}`
+          );
+
+          await supabase
+            .from('user_tour_completions')
+            .update({ completed_tours: completedTours })
+            .eq('user_id', user.id);
+        }
+      }
+
+      // Remove from AsyncStorage
+      const seenTours = await AsyncStorage.getItem(SCREEN_TOURS_SEEN_KEY);
+      if (seenTours) {
+        const parsed = JSON.parse(seenTours);
+        delete parsed[screenId];
+        await AsyncStorage.setItem(SCREEN_TOURS_SEEN_KEY, JSON.stringify(parsed));
+      }
+    } catch (error) {
+      console.error('🎯 [TourContext] Error resetting screen tour:', error);
+    }
+  }, [user?.id]);
+
   const shouldShowTour = useCallback(async (): Promise<boolean> => {
     try {
       if (!user?.id) {
-        // No user ID - showing tour without logging
         return true;
       }
 
@@ -127,7 +339,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error('🎯 [TourContext] Error checking user profile:', error);
-        return true; // Show tour on error
+        return true;
       }
 
       // Check if tour content has been updated
@@ -141,41 +353,125 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
       const latestUpdate = data?.[0]?.updated_at;
 
-      // Tour status check completed without logging
-
-      // Show tour if user never completed it
       if (!profile?.tour_completed) {
-        // User has not completed tour - showing without logging
         return true;
       }
 
-      // Show tour if content has been updated since user last saw it
       if (
         latestUpdate &&
         profile?.tour_content_hash &&
         latestUpdate !== profile?.tour_content_hash
       ) {
-        // Tour content updated for user - showing without logging
         return true;
       }
 
-      // User has completed current tour - not showing without logging
       return false;
     } catch (error) {
       console.error('Error checking tour status:', error);
-      return true; // Show tour on error
+      return true;
     }
   }, [user?.id]);
 
-  const startDatabaseTour = useCallback(
-    async (screenContext?: string, userRole?: string) => {
-      // Only allow HomeScreen tours, disable others
-      if (!TOURS_GLOBALLY_ENABLED && screenContext !== 'HomeScreen') {
-        return;
+  // Start a screen-specific tour
+  const startScreenTour = useCallback(
+    async (screenId: string, userRole?: string): Promise<boolean> => {
+      if (!SCREEN_SPECIFIC_TOURS_ENABLED || !TOURS_GLOBALLY_ENABLED) {
+        return false;
       }
 
-      // Allow HomeScreen tours specifically
-      if (!TOURS_GLOBALLY_ENABLED && !HOMESCREEN_TOURS_ENABLED) {
+      // Check if user has already seen this screen's tour
+      const hasSeen = await hasSeenScreenTour(screenId);
+      if (hasSeen) {
+        console.log(`🎯 [TourContext] User has already seen tour for ${screenId}`);
+        return false;
+      }
+
+      try {
+        // Get user profile for role filtering
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user?.id)
+          .single();
+
+        const currentUserRole = userRole || profile?.role || 'student';
+
+        // Fetch screen-specific tour content from database
+        const { data, error } = await supabase
+          .from('content')
+          .select('*')
+          .eq('content_type', 'tour')
+          .eq('active', true)
+          .or(`key.ilike.tour.screen.${screenId}%,key.ilike.tour.${screenId.toLowerCase()}%`)
+          .order('order_index');
+
+        if (error || !data || data.length === 0) {
+          console.log(`🎯 [TourContext] No tour content found for screen ${screenId}`);
+          return false;
+        }
+
+        // Filter for mobile and role
+        const filteredContent = data.filter((item) => {
+          if (!item.platforms) return true;
+          const platforms =
+            typeof item.platforms === 'string' ? JSON.parse(item.platforms) : item.platforms;
+          const isMobile =
+            !platforms || Array.isArray(platforms) &&
+            (platforms.includes('mobile') || platforms.includes('both'));
+
+          if (!isMobile) return false;
+
+          // Filter by role if specified in item
+          const itemRole = item.metadata?.role;
+          if (itemRole && itemRole !== currentUserRole) {
+            return false;
+          }
+
+          return true;
+        });
+
+        if (filteredContent.length === 0) {
+          console.log(`🎯 [TourContext] No matching tour content for ${screenId} after filtering`);
+          return false;
+        }
+
+        // Convert to TourStep format with action support
+        const tourSteps: TourStep[] = filteredContent.map((item) => {
+          const metadata = item.metadata || {};
+          return {
+            id: item.id,
+            title: (item.title as any)?.[language] || (item.title as any)?.en || 'Tour Step',
+            content: (item.body as any)?.[language] || (item.body as any)?.en || 'Tour content',
+            targetScreen: item.target || screenId,
+            targetElement: metadata.targetElement || item.target || undefined,
+            position: (item.category as any) || metadata.position || 'center',
+            action: metadata.action || undefined,
+            preAction: metadata.preAction || undefined,
+            scrollToElement: metadata.scrollToElement || false,
+            scrollOffset: metadata.scrollOffset || 0,
+            waitForElement: metadata.waitForElement || false,
+            waitTimeout: metadata.waitTimeout || 3000,
+          };
+        });
+
+        setSteps(tourSteps);
+        setCurrentStep(0);
+        setCurrentTourId(`screen.${screenId}`);
+        setIsActive(true);
+
+        console.log(`🎯 [TourContext] Started tour for screen ${screenId} with ${tourSteps.length} steps`);
+        return true;
+      } catch (error) {
+        console.error(`🎯 [TourContext] Error starting screen tour for ${screenId}:`, error);
+        return false;
+      }
+    },
+    [language, user?.id, hasSeenScreenTour],
+  );
+
+  const startDatabaseTour = useCallback(
+    async (screenContext?: string, userRole?: string) => {
+      if (!TOURS_GLOBALLY_ENABLED) {
         return;
       }
 
@@ -195,8 +491,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           .eq('content_type', 'tour')
           .eq('active', true)
           .order('order_index');
-
-        // Database query completed without logging
 
         if (error) {
           throw error;
@@ -219,42 +513,49 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
               item.key.includes('instructor') || item.key.includes('conditional');
             const isScreenTour = item.key.includes('screen.') || item.key.includes('tab.');
 
-            // Students should not see instructor tours
             if (currentUserRole === 'student' && isInstructorTour) {
               return false;
             }
 
-            // For HomeScreen context, only show main mobile tours (not screen/conditional tours)
-            if (screenContext === 'HomeScreen') {
-              if (isScreenTour || isInstructorTour) {
-                return false;
+            // For specific screen context, filter accordingly
+            if (screenContext) {
+              if (screenContext === 'HomeScreen') {
+                if (isScreenTour || isInstructorTour) {
+                  return false;
+                }
+                return (
+                  item.key.startsWith('tour.mobile.') &&
+                  !item.key.includes('screen') &&
+                  !item.key.includes('conditional')
+                );
               }
-              // Only show basic mobile tours on HomeScreen
-              return (
-                item.key.startsWith('tour.mobile.') &&
-                !item.key.includes('screen') &&
-                !item.key.includes('conditional')
-              );
+              // For other screens, show screen-specific tours
+              return item.key.includes(screenContext.toLowerCase());
             }
 
-            // For other screen contexts, allow screen-specific tours
             return true;
           });
 
-          // Content filtered without logging
-
           if (filteredContent.length > 0) {
-            const dbSteps: TourStep[] = filteredContent.map((item) => ({
-              id: item.id,
-              title: (item.title as any)?.[language] || (item.title as any)?.en || 'Tour Step',
-              content: (item.body as any)?.[language] || (item.body as any)?.en || 'Tour content',
-              targetScreen: item.target || 'HomeTab',
-              targetElement: item.target || undefined,
-              position: (item.category as any) || 'center',
-            }));
+            const dbSteps: TourStep[] = filteredContent.map((item) => {
+              const metadata = item.metadata || {};
+              return {
+                id: item.id,
+                title: (item.title as any)?.[language] || (item.title as any)?.en || 'Tour Step',
+                content: (item.body as any)?.[language] || (item.body as any)?.en || 'Tour content',
+                targetScreen: item.target || 'HomeTab',
+                targetElement: metadata.targetElement || item.target || undefined,
+                position: (item.category as any) || 'center',
+                action: metadata.action || undefined,
+                preAction: metadata.preAction || undefined,
+                scrollToElement: metadata.scrollToElement || false,
+                scrollOffset: metadata.scrollOffset || 0,
+              };
+            });
 
             setSteps(dbSteps);
             setCurrentStep(0);
+            setCurrentTourId(screenContext ? `context.${screenContext}` : 'main');
             setIsActive(true);
             return;
           }
@@ -264,7 +565,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error('Error loading tour from database:', error);
         // Fallback to default tour
-        // Using fallback tour steps without logging
         const defaultSteps: TourStep[] = [
           {
             id: 'progress',
@@ -273,7 +573,11 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
               t('tour.fallback.progress.content') ||
               'Here you can see your learning progress and complete exercises. Tap the Progress tab to explore learning paths.',
             targetScreen: 'ProgressTab',
-            position: 'top-right',
+            position: 'top',
+            action: {
+              type: 'navigate',
+              target: 'ProgressTab',
+            },
           },
           {
             id: 'create',
@@ -291,12 +595,17 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
               t('tour.fallback.menu.content') ||
               'Access your profile, settings, and manage relationships through the menu tab.',
             targetScreen: 'MenuTab',
-            position: 'bottom-right',
+            position: 'bottom',
+            action: {
+              type: 'navigate',
+              target: 'MenuTab',
+            },
           },
         ];
 
         setSteps(defaultSteps);
         setCurrentStep(0);
+        setCurrentTourId('fallback');
         setIsActive(true);
       }
     },
@@ -304,36 +613,45 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   );
 
   const startTour = useCallback(
-    (tourSteps?: TourStep[]) => {
+    (tourSteps?: TourStep[], tourId?: string) => {
       if (tourSteps) {
         setSteps(tourSteps);
         setCurrentStep(0);
+        setCurrentTourId(tourId || 'custom');
         setIsActive(true);
       } else {
-        // Load from database if no steps provided
         startDatabaseTour();
       }
     },
     [startDatabaseTour],
   );
 
-  const startCustomTour = useCallback((customSteps: TourStep[]) => {
-    // DISABLED: Custom tours cause console flooding (keep disabled even for HomeScreen)
+  const startCustomTour = useCallback((customSteps: TourStep[], tourKey?: string) => {
     if (!TOURS_GLOBALLY_ENABLED) {
       return;
     }
 
     setSteps(customSteps);
     setCurrentStep(0);
+    setCurrentTourId(tourKey || 'custom');
     setIsActive(true);
   }, []);
 
   const endTour = useCallback(async () => {
+    const tourIdToMark = currentTourId;
+
     setIsActive(false);
     setCurrentStep(0);
     setSteps([]);
+    setCurrentTourId(null);
 
     try {
+      // Mark screen tour as seen if it was a screen-specific tour
+      if (tourIdToMark?.startsWith('screen.')) {
+        const screenId = tourIdToMark.replace('screen.', '');
+        await markScreenTourSeen(screenId);
+      }
+
       // Save to AsyncStorage for backup
       await AsyncStorage.setItem(TOUR_STORAGE_KEY, 'true');
 
@@ -360,31 +678,57 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
         if (error) {
           console.error('🎯 [TourContext] Error saving tour completion to profile:', error);
-        } else {
-          // Tour completion saved to user profile without logging
         }
       }
 
-      // Also save to AsyncStorage for backup
       if (latestUpdate) {
         await AsyncStorage.setItem(TOUR_CONTENT_HASH_KEY, latestUpdate);
       }
     } catch (error) {
       console.error('Error saving tour completion:', error);
     }
-  }, [user?.id]);
+  }, [user?.id, currentTourId, markScreenTourSeen]);
 
-  const nextStep = useCallback(() => {
+  // Enhanced nextStep with action execution
+  const nextStep = useCallback(async () => {
+    const currentStepObj = steps[currentStep];
+
+    // Execute the current step's action if defined
+    if (currentStepObj?.action) {
+      const success = await executeAction(currentStepObj.action);
+      if (!success) {
+        console.warn('🎯 [TourContext] Action failed, continuing to next step anyway');
+      }
+
+      // Add small delay after action to let UI settle
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
     setCurrentStep((prev) => {
-      if (prev < steps.length - 1) {
-        return prev + 1;
+      const nextIndex = prev + 1;
+
+      if (nextIndex < steps.length) {
+        // Execute pre-action for the next step if defined
+        const nextStepObj = steps[nextIndex];
+        if (nextStepObj?.preAction) {
+          executeAction(nextStepObj.preAction).then(() => {
+            // Scroll to element if needed
+            if (nextStepObj.scrollToElement) {
+              scrollToElementIfNeeded(nextStepObj);
+            }
+          });
+        } else if (nextStepObj?.scrollToElement) {
+          scrollToElementIfNeeded(nextStepObj);
+        }
+
+        return nextIndex;
       } else {
         // Tour completed
         endTour();
         return prev;
       }
     });
-  }, [steps.length, endTour]);
+  }, [steps, currentStep, endTour, executeAction, scrollToElementIfNeeded]);
 
   const prevStep = useCallback(() => {
     setCurrentStep((prev) => Math.max(0, prev - 1));
@@ -392,11 +736,10 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
   const resetTour = useCallback(async () => {
     try {
-      // Reset AsyncStorage
       await AsyncStorage.removeItem(TOUR_STORAGE_KEY);
       await AsyncStorage.removeItem(TOUR_CONTENT_HASH_KEY);
+      await AsyncStorage.removeItem(SCREEN_TOURS_SEEN_KEY);
 
-      // Reset user's profile (USER-BASED)
       if (user?.id) {
         const { error } = await supabase
           .from('profiles')
@@ -408,14 +751,22 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
         if (error) {
           console.error('🎯 [TourContext] Error resetting tour in profile:', error);
-        } else {
-          // Tour reset in user profile without logging
         }
+
+        // Also reset screen tours in user_tour_completions
+        await supabase
+          .from('user_tour_completions')
+          .update({
+            completed_tours: [],
+            last_tour_completed: null,
+          })
+          .eq('user_id', user.id);
       }
 
       setIsActive(false);
       setCurrentStep(0);
       setSteps([]);
+      setCurrentTourId(null);
     } catch (error) {
       console.error('Error resetting tour:', error);
     }
@@ -426,33 +777,45 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       isActive,
       currentStep,
       steps,
+      currentTourId,
       startTour,
       startDatabaseTour,
+      startScreenTour,
       startCustomTour,
       nextStep,
       prevStep,
       endTour,
       resetTour,
+      resetScreenTour,
       shouldShowTour,
+      hasSeenScreenTour,
       measureElement,
       updateStepCoords,
       registerElement,
+      setNavigationHandler,
+      setScrollHandler,
     }),
     [
       isActive,
       currentStep,
       steps,
+      currentTourId,
       startTour,
       startDatabaseTour,
+      startScreenTour,
       startCustomTour,
       nextStep,
       prevStep,
       endTour,
       resetTour,
+      resetScreenTour,
       shouldShowTour,
+      hasSeenScreenTour,
       measureElement,
       updateStepCoords,
       registerElement,
+      setNavigationHandler,
+      setScrollHandler,
     ],
   );
 

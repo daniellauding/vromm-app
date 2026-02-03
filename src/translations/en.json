@@ -323,5 +323,49 @@
     "language": {
       "title": "Language"
     }
+  },
+  "tour": {
+    "navigation": {
+      "next": "Next",
+      "previous": "Previous",
+      "finish": "Finish",
+      "skip": "Skip Tour"
+    },
+    "fallback": {
+      "progress": {
+        "title": "Track Your Progress",
+        "content": "Here you can see your learning progress and complete exercises. Tap the Progress tab to explore learning paths."
+      },
+      "create": {
+        "title": "Create Routes & Events",
+        "content": "Add routes and events here using the central create button. Tap the plus button to get started!"
+      },
+      "menu": {
+        "title": "Menu & Settings",
+        "content": "Access your profile, settings, and manage relationships through the menu tab."
+      }
+    },
+    "screens": {
+      "progress": {
+        "welcome": {
+          "title": "Welcome to Progress",
+          "content": "Track your learning journey here. Complete exercises and earn achievements!"
+        },
+        "learningPaths": {
+          "title": "Learning Paths",
+          "content": "Choose a learning path to start your journey. Each path contains exercises to help you improve."
+        },
+        "filters": {
+          "title": "Filter Options",
+          "content": "Use filters to find learning paths that match your vehicle type and experience level."
+        }
+      },
+      "home": {
+        "welcome": {
+          "title": "Welcome to Vromm!",
+          "content": "This is your home screen. Explore routes, track progress, and connect with instructors."
+        }
+      }
+    }
   }
 } 

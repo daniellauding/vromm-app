@@ -6,12 +6,13 @@ import { useTranslation } from '../contexts/TranslationContext';
 
 interface TourTooltipProps {
   step: any;
-  onNext: () => void;
+  onNext: () => void | Promise<void>;
   onPrev: () => void;
   onEnd: () => void;
   currentIndex: number;
   totalSteps: number;
   targetCoords?: { x: number; y: number; width: number; height: number } | null;
+  isNavigating?: boolean;
 }
 
 // Main tour tooltip component with smart positioning
@@ -23,11 +24,24 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
   currentIndex,
   totalSteps,
   targetCoords,
+  isNavigating = false,
 }) => {
   const colorScheme = useColorScheme();
   const { t } = useTranslation();
   const screenDimensions = Dimensions.get('window');
   const [animValue] = useState(new Animated.Value(0));
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Handle next with loading state
+  const handleNext = async () => {
+    if (isLoading || isNavigating) return;
+    setIsLoading(true);
+    try {
+      await onNext();
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Theme colors - flatter design
   const isDark = colorScheme === 'dark';
@@ -260,21 +274,25 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
           </Text>
 
           <TouchableOpacity
-            onPress={currentIndex === totalSteps - 1 ? onEnd : onNext}
+            onPress={currentIndex === totalSteps - 1 ? onEnd : handleNext}
+            disabled={isLoading || isNavigating}
             style={{
-              backgroundColor: accentColor,
+              backgroundColor: isLoading || isNavigating ? '#99E6D9' : accentColor,
               paddingHorizontal: 14,
               paddingVertical: 10,
               borderRadius: 20,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
+              opacity: isLoading || isNavigating ? 0.7 : 1,
             }}
           >
             <Text style={{ color: '#000000', fontWeight: '600' }}>
-              {currentIndex === totalSteps - 1
-                ? t('tour.navigation.finish') || 'Finish'
-                : t('tour.navigation.next') || 'Next'}
+              {isLoading || isNavigating
+                ? '...'
+                : currentIndex === totalSteps - 1
+                  ? t('tour.navigation.finish') || 'Finish'
+                  : t('tour.navigation.next') || 'Next'}
             </Text>
             <Feather
               name={currentIndex === totalSteps - 1 ? 'check' : 'chevron-right'}
@@ -358,6 +376,18 @@ export const TourOverlay: React.FC = () => {
     height: number;
   } | null>(null);
   const [measuring, setMeasuring] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  // Wrap nextStep to track navigation state
+  const handleNextStep = async () => {
+    setIsNavigating(true);
+    try {
+      await nextStep();
+    } finally {
+      // Small delay to let UI settle after navigation
+      setTimeout(() => setIsNavigating(false), 100);
+    }
+  };
 
   // Tour overlay active tracking
 
@@ -467,12 +497,13 @@ export const TourOverlay: React.FC = () => {
       {/* Tour tooltip with smart positioning */}
       <TourTooltip
         step={step}
-        onNext={nextStep}
+        onNext={handleNextStep}
         onPrev={prevStep}
         onEnd={endTour}
         currentIndex={currentStep}
         totalSteps={steps.length}
         targetCoords={targetCoords}
+        isNavigating={isNavigating}
       />
 
       {/* Measuring indicator */}
