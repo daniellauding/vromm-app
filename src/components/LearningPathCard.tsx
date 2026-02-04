@@ -5,6 +5,7 @@ import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { Text } from './Text';
 import { ProgressCircle } from './ProgressCircle';
 import { useThemePreference } from '../hooks/useThemeOverride';
+import { useTourTarget } from './TourOverlay';
 
 interface LearningPath {
   id: string;
@@ -32,6 +33,8 @@ interface LearningPathCardProps {
   index?: number;
   alignment?: 'flex-start' | 'center' | 'flex-end';
   width?: string;
+  /** Tour target ID for highlighting during tours */
+  tourTargetId?: string;
 }
 
 export function LearningPathCard({
@@ -42,8 +45,11 @@ export function LearningPathCard({
   index = 0,
   alignment = 'center',
   width = '70%',
+  tourTargetId,
 }: LearningPathCardProps) {
   const themePref = useThemePreference();
+  // Register tour target for highlighting during tours
+  const tourRef = tourTargetId ? useTourTarget(tourTargetId) : null;
   const resolvedTheme =
     themePref && 'resolvedTheme' in themePref
       ? (themePref.resolvedTheme as string)
@@ -56,6 +62,7 @@ export function LearningPathCard({
 
   return (
     <TouchableOpacity
+      ref={tourRef}
       onPress={onPress}
       style={{
         alignSelf: alignment,

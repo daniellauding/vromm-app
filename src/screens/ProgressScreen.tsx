@@ -5180,7 +5180,6 @@ export function ProgressScreen() {
                 return (
                   <View
                     key={`filtered-path-${path.id}-${idx}`}
-                    ref={idx === 0 ? firstPathRef : undefined}
                     style={{
                       opacity: isEnabled ? 1 : 0.5,
                     }}
@@ -5192,6 +5191,7 @@ export function ProgressScreen() {
                       index={idx}
                       alignment={alignment}
                       onPress={() => handlePathPress(path, idx)}
+                      tourTargetId={idx === 0 ? 'ProgressScreen.FirstPath' : undefined}
                     />
                   </View>
                 );

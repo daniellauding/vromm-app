@@ -4,6 +4,7 @@ import { XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { Checkbox } from './Checkbox';
 import { useThemePreference } from '../hooks/useThemeOverride';
+import { useTourTarget } from './TourOverlay';
 
 export type ExerciseCardSize = 'xs' | 'sm' | 'md' | 'lg';
 export type ExerciseCardVariant = 'default' | 'compact' | 'detailed';
@@ -13,26 +14,28 @@ interface ExerciseCardProps {
   title: string;
   description?: string;
   displayIndex?: number;
-  
+
   // State props
   checked?: boolean;
   disabled?: boolean;
   locked?: boolean;
-  
+
   // Features
   showChevron?: boolean;  // Control chevron visibility
-  
+
   // Actions
   onPress?: () => void;
   onCheckboxPress?: () => void;
-  
+
   // Styling
   size?: ExerciseCardSize;
   variant?: ExerciseCardVariant;
   borderColor?: string;
-  
+
   // Customization
   testID?: string;
+  /** Tour target ID for highlighting during tours */
+  tourTargetId?: string;
 }
 
 const sizeConfig = {
@@ -84,11 +87,14 @@ export function ExerciseCard({
   variant = 'default',
   borderColor,
   testID,
+  tourTargetId,
 }: ExerciseCardProps) {
   const { effectiveTheme } = useThemePreference();
   const isDark = effectiveTheme === 'dark';
   const iconColor = isDark ? '#FFFFFF' : '#000000';
   const config = sizeConfig[size];
+  // Register tour target for highlighting during tours
+  const tourRef = tourTargetId ? useTourTarget(tourTargetId) : null;
   
   // Dynamic border color - simple and clean
   const getBorderColor = () => {
@@ -145,6 +151,7 @@ export function ExerciseCard({
   if (variant === 'compact') {
     return (
       <TouchableOpacity
+        ref={tourRef}
         testID={testID}
         onPress={handleCardPress}
         disabled={disabled}
@@ -186,6 +193,7 @@ export function ExerciseCard({
   // Default and detailed variants
   return (
     <TouchableOpacity
+      ref={tourRef}
       testID={testID}
       onPress={handleCardPress}
       disabled={disabled}
