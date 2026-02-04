@@ -212,12 +212,12 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
 ];
 
 // ============================================================================
-// PROGRESS SCREEN TOUR (Extended)
+// PROGRESS SCREEN TOUR (Extended - triggers when visiting ProgressScreen)
 // ============================================================================
 export const PROGRESS_SCREEN_TOUR: TourStep[] = [
   {
     id: 'progress-welcome',
-    title: 'Välkommen till Framsteg',
+    title: 'Välkommen till Framsteg! 📚',
     content: 'Här följer du din körkortsresa. Genomför övningar och se hur nära du är målet!',
     targetScreen: 'ProgressScreen',
     position: 'center',
@@ -229,7 +229,6 @@ export const PROGRESS_SCREEN_TOUR: TourStep[] = [
     targetScreen: 'ProgressScreen',
     targetElement: 'ProgressScreen.FirstPath',
     position: 'bottom',
-    scrollToElement: true,
   },
   {
     id: 'progress-filters',
@@ -242,16 +241,20 @@ export const PROGRESS_SCREEN_TOUR: TourStep[] = [
   {
     id: 'progress-tap-path',
     title: 'Öppna en Plan',
-    content: 'Tryck på en körkortsplan för att se dess övningar. Markera övningar som avklarade när du är klar!',
+    content: 'Tryck på en körkortsplan för att se dess övningar. Markera övningar som avklarade!',
     targetScreen: 'ProgressScreen',
     position: 'center',
   },
   {
-    id: 'progress-complete-exercises',
-    title: 'Genomför Övningar',
-    content: 'Varje övning har instruktioner och ibland video. Öva och markera som klar för att se din framsteg!',
+    id: 'progress-go-map',
+    title: 'Utforska Kartan',
+    content: 'Gå till Kartan för att hitta övningsrutter i ditt område!',
     targetScreen: 'ProgressScreen',
     position: 'center',
+    action: {
+      type: 'navigate',
+      target: 'MapTab',
+    },
   },
 ];
 
@@ -350,12 +353,12 @@ export const HOME_SCREEN_TOUR: TourStep[] = [
 ];
 
 // ============================================================================
-// MAP SCREEN TOUR (Extended)
+// MAP SCREEN TOUR (Extended - triggers when visiting MapScreen)
 // ============================================================================
 export const MAP_SCREEN_TOUR: TourStep[] = [
   {
     id: 'map-welcome',
-    title: 'Utforska Kartan',
+    title: 'Välkommen till Kartan! 🗺️',
     content: 'Hitta övningsrutter nära dig på den interaktiva kartan.',
     targetScreen: 'MapScreen',
     position: 'center',
@@ -392,9 +395,9 @@ export const MAP_SCREEN_TOUR: TourStep[] = [
     position: 'top',
   },
   {
-    id: 'map-filters',
-    title: 'Filtrera Rutter',
-    content: 'Filtrera rutter efter svårighetsgrad, typ eller avstånd.',
+    id: 'map-complete',
+    title: 'Du är redo! 🎉',
+    content: 'Nu vet du grunderna! Börja utforska rutter, öva och följ dina framsteg. Lycka till!',
     targetScreen: 'MapScreen',
     position: 'center',
   },

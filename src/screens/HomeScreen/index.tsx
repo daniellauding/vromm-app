@@ -66,7 +66,8 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   const flatListRef = React.useRef<any>(null);
 
   // Screen tour integration - auto-triggers on first visit
-  // Uses comprehensive tour (17 steps) to demonstrate full cross-screen navigation
+  // Uses HOME_SCREEN_TOUR (10 steps) for HomeScreen-specific elements
+  // Each screen (Home, Progress, Map) has its own tour that triggers when visiting
   const {
     isTourActive: isHomeScreenTourActive,
     triggerTour: triggerHomeTour,
@@ -76,8 +77,8 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
     screenId: 'HomeScreen',
     delay: 1200, // Wait for content to load
     autoTrigger: true,
-    useComprehensiveTour: true, // Use full 17-step tour with cross-screen navigation
-    onTourStart: () => console.log('🎯 [HomeScreen] Comprehensive tour started (17 steps)'),
+    useComprehensiveTour: false, // Use HomeScreen-specific tour (visits Progress/Map have their own tours)
+    onTourStart: () => console.log('🎯 [HomeScreen] Tour started (10 steps)'),
     onTourEnd: () => console.log('🎯 [HomeScreen] Tour ended'),
   });
 
