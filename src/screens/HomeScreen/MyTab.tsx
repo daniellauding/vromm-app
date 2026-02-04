@@ -84,6 +84,14 @@ export default React.memo(function MyTab({
 
   // Tour targets for highlighting during tours
   const nearbyRoutesRef = useTourTarget('HomeScreen.NearbyRoutes');
+  const weeklyGoalRef = useTourTarget('HomeScreen.WeeklyGoal');
+  const dailyStatusRef = useTourTarget('HomeScreen.DailyStatus');
+  const progressSectionRef = useTourTarget('HomeScreen.ProgressSection');
+  const savedRoutesRef = useTourTarget('HomeScreen.SavedRoutes');
+  const drivenRoutesRef = useTourTarget('HomeScreen.DrivenRoutes');
+  const createdRoutesRef = useTourTarget('HomeScreen.CreatedRoutes');
+  const gettingStartedRef = useTourTarget('HomeScreen.GettingStarted');
+  const mapPreviewRef = useTourTarget('HomeScreen.MapPreview');
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -141,20 +149,26 @@ export default React.memo(function MyTab({
     <YStack>
       {/* Weekly Goal & Daily Status - Fluid width container */}
       <View style={{ paddingHorizontal: horizontalPadding }}>
-        <WeeklyGoal
-          activeUserId={effectiveUserId || undefined}
-          selectedDate={selectedDailyStatusDate}
-          onDateSelected={onDateSelected}
-        />
-        <DailyStatus
-          activeUserId={effectiveUserId || undefined}
-          selectedDate={selectedDailyStatusDate}
-          onDateChange={onDateSelected}
-        />
+        <View ref={weeklyGoalRef}>
+          <WeeklyGoal
+            activeUserId={effectiveUserId || undefined}
+            selectedDate={selectedDailyStatusDate}
+            onDateSelected={onDateSelected}
+          />
+        </View>
+        <View ref={dailyStatusRef}>
+          <DailyStatus
+            activeUserId={effectiveUserId || undefined}
+            selectedDate={selectedDailyStatusDate}
+            onDateChange={onDateSelected}
+          />
+        </View>
       </View>
 
       {/* Map Preview - Sneak peek to the map screen */}
-      <MapPreview />
+      <View ref={mapPreviewRef}>
+        <MapPreview />
+      </View>
 
       {/* 
         📱 RESPONSIVE GRID LAYOUT
@@ -183,12 +197,12 @@ export default React.memo(function MyTab({
         marginTop={16}
       >
         {/* Getting Started - Always Full Width */}
-        <View style={{ marginTop: 8 }}>
+        <View ref={gettingStartedRef} style={{ marginTop: 8 }}>
           <GettingStarted />
         </View>
 
         {/* Progress - Always Full Width */}
-        <View style={{ marginTop: cardGap }}>
+        <View ref={progressSectionRef} style={{ marginTop: cardGap }}>
           <ProgressSection activeUserId={effectiveUserId} />
         </View>
 
@@ -245,6 +259,7 @@ export default React.memo(function MyTab({
         >
           {/* Saved Routes */}
           <View
+            ref={savedRoutesRef}
             style={{
               flex: isTablet ? 1 : undefined,
               width: isTablet ? undefined : '100%',
@@ -256,6 +271,7 @@ export default React.memo(function MyTab({
 
           {/* Created Routes */}
           <View
+            ref={createdRoutesRef}
             style={{
               flex: isTablet ? 1 : undefined,
               width: isTablet ? undefined : '100%',
@@ -267,6 +283,7 @@ export default React.memo(function MyTab({
 
           {/* Driven Routes */}
           <View
+            ref={drivenRoutesRef}
             style={{
               flex: isTablet ? 1 : undefined,
               width: isTablet ? undefined : '100%',
