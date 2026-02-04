@@ -76,50 +76,60 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
     targetElement: 'HomeScreen.GettingStarted',
     position: 'bottom',
   },
-  // Step 6: Progress Section (scroll down to see)
+  // Step 6: Progress Section (auto-scroll)
   {
     id: 'progress-overview',
     title: 'Din Framsteg',
-    content: 'Scrolla ner för att se din totala framsteg i körkortsplanen. Procenten visar hur långt du kommit!',
+    content: 'Här ser du din totala framsteg i körkortsplanen. Procenten visar hur långt du kommit!',
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.ProgressSection',
-    position: 'center',
+    position: 'top',
+    scrollToElement: true,
+    scrollOffset: 150,
   },
-  // Step 7: Saved Routes (scroll down to see)
+  // Step 7: Saved Routes (auto-scroll)
   {
     id: 'saved-routes',
     title: 'Sparade Rutter',
-    content: 'Rutter du sparat för senare. Hitta enkelt tillbaka till favoriter! (Scrolla för att se)',
+    content: 'Rutter du sparat för senare. Hitta enkelt tillbaka till favoriter!',
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.SavedRoutes',
-    position: 'center',
+    position: 'top',
+    scrollToElement: true,
+    scrollOffset: 150,
   },
-  // Step 8: Driven Routes (scroll down to see)
+  // Step 8: Driven Routes (auto-scroll)
   {
     id: 'driven-routes',
     title: 'Körda Rutter',
     content: 'Rutter du redan kört. Markera rutter som körda för att följa din framsteg!',
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.DrivenRoutes',
-    position: 'center',
+    position: 'top',
+    scrollToElement: true,
+    scrollOffset: 150,
   },
-  // Step 9: Created Routes (scroll down to see)
+  // Step 9: Created Routes (auto-scroll)
   {
     id: 'created-routes',
     title: 'Skapade Rutter',
     content: 'Rutter du själv skapat. Dela med handledare eller andra elever!',
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.CreatedRoutes',
-    position: 'center',
+    position: 'top',
+    scrollToElement: true,
+    scrollOffset: 150,
   },
-  // Step 10: Nearby Routes (scroll down to see)
+  // Step 10: Nearby Routes (auto-scroll)
   {
     id: 'nearby-routes',
     title: 'Rutter Nära Dig',
     content: 'Upptäck övningsrutter i ditt område skapade av communityn.',
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.NearbyRoutes',
-    position: 'center',
+    position: 'top',
+    scrollToElement: true,
+    scrollOffset: 150,
   },
   // Step 11: Navigate to Progress Tab
   {

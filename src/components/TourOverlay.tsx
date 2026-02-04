@@ -206,8 +206,28 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
           elevation: 16,
         }}
       >
+        {/* Close button - top right corner */}
+        <TouchableOpacity
+          onPress={onEnd}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            backgroundColor: 'rgba(128, 128, 128, 0.3)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1,
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Feather name="x" size={16} color={secondaryTextColor} />
+        </TouchableOpacity>
+
         {/* Content */}
-        <View style={{ marginBottom: 20 }}>
+        <View style={{ marginBottom: 20, paddingTop: 8 }}>
           <Text
             style={{
               fontSize: 18,
@@ -459,9 +479,10 @@ export const TourOverlay: React.FC = () => {
         zIndex: 99999, // ✅ Maximum z-index to ensure always above everything
         elevation: 99999, // ✅ Android elevation
       }}
+      pointerEvents="box-none" // ✅ Allow touches to pass through to content below (enables scrolling)
     >
-      {/* Background overlay - tap outside to close tour */}
-      <TouchableOpacity
+      {/* Background overlay - visual only, no touch blocking */}
+      <View
         style={{
           position: 'absolute',
           top: 0,
@@ -470,8 +491,7 @@ export const TourOverlay: React.FC = () => {
           bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.3)',
         }}
-        activeOpacity={1}
-        onPress={endTour}
+        pointerEvents="none" // ✅ Don't capture any touches - purely visual
       />
 
       {/* Element highlight (if target coords available) - renders above background */}

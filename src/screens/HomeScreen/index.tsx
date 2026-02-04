@@ -62,12 +62,16 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   const { startDatabaseTour, shouldShowTour } = tourContext;
   const { effectiveTheme } = useThemePreference();
 
+  // FlatList ref for programmatic scrolling during tours
+  const flatListRef = React.useRef<any>(null);
+
   // Screen tour integration - auto-triggers on first visit
   // Uses comprehensive tour (17 steps) to demonstrate full cross-screen navigation
   const {
     isTourActive: isHomeScreenTourActive,
     triggerTour: triggerHomeTour,
     forceShowTour: forceShowHomeTour,
+    registerScrollHandler,
   } = useScreenTour({
     screenId: 'HomeScreen',
     delay: 1200, // Wait for content to load
@@ -76,6 +80,29 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
     onTourStart: () => console.log('🎯 [HomeScreen] Comprehensive tour started (17 steps)'),
     onTourEnd: () => console.log('🎯 [HomeScreen] Tour ended'),
   });
+
+  // Register scroll handler for tour auto-scrolling
+  React.useEffect(() => {
+    registerScrollHandler(async (elementId: string, offset: number = 100) => {
+      try {
+        // Get the element ref from tour context
+        const { measureElement } = tourContext;
+        const coords = await measureElement(elementId);
+
+        if (coords && flatListRef.current) {
+          // Scroll to make the element visible (with offset from top)
+          const scrollY = Math.max(0, coords.y - offset);
+          flatListRef.current.scrollToOffset({ offset: scrollY, animated: true });
+          console.log(`🎯 [HomeScreen] Scrolling to ${elementId} at y=${scrollY}`);
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error('🎯 [HomeScreen] Scroll error:', error);
+        return false;
+      }
+    });
+  }, [registerScrollHandler, tourContext]);
 
   // Check if user is supervisor
   const isSupervisorRole = ['instructor', 'admin', 'school'].includes((profile as any)?.role || '');
@@ -366,6 +393,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
       />
 
       <Animated.FlatList
+        ref={flatListRef}
         data={[1]}
         keyExtractor={() => 'home-content'}
         contentContainerStyle={{ paddingTop: 100, paddingBottom: 40 + BOTTOM_INSET }}
