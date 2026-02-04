@@ -28,7 +28,8 @@
 import { TourStep, TourAction } from '../contexts/TourContext';
 
 // ============================================================================
-// COMPREHENSIVE MAIN APP TOUR (15+ steps with cross-screen navigation)
+// COMPREHENSIVE MAIN APP TOUR (17 steps with cross-screen navigation)
+// NOTE: scrollToElement disabled - requires FlatList scroll handler integration
 // ============================================================================
 export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
   // Step 1: Welcome
@@ -39,7 +40,7 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
     targetScreen: 'HomeTab',
     position: 'center',
   },
-  // Step 2: Weekly Goal
+  // Step 2: Weekly Goal (visible at top)
   {
     id: 'weekly-goal',
     title: 'Veckomål',
@@ -47,10 +48,8 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.WeeklyGoal',
     position: 'bottom',
-    scrollToElement: true,
-    scrollOffset: 50,
   },
-  // Step 3: Daily Status
+  // Step 3: Daily Status (visible at top)
   {
     id: 'daily-status',
     title: 'Daglig Status',
@@ -67,7 +66,6 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.MapPreview',
     position: 'top',
-    scrollToElement: true,
   },
   // Step 5: Getting Started
   {
@@ -77,55 +75,51 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.GettingStarted',
     position: 'bottom',
-    scrollToElement: true,
   },
-  // Step 6: Progress Section
+  // Step 6: Progress Section (scroll down to see)
   {
     id: 'progress-overview',
     title: 'Din Framsteg',
-    content: 'Här ser du din totala framsteg i körkortsplanen. Procenten visar hur långt du kommit!',
+    content: 'Scrolla ner för att se din totala framsteg i körkortsplanen. Procenten visar hur långt du kommit!',
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.ProgressSection',
-    position: 'top',
-    scrollToElement: true,
+    position: 'center',
   },
-  // Step 7: Saved Routes
+  // Step 7: Saved Routes (scroll down to see)
   {
     id: 'saved-routes',
     title: 'Sparade Rutter',
-    content: 'Rutter du sparat för senare. Hitta enkelt tillbaka till favoriter!',
+    content: 'Rutter du sparat för senare. Hitta enkelt tillbaka till favoriter! (Scrolla för att se)',
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.SavedRoutes',
-    position: 'top',
-    scrollToElement: true,
+    position: 'center',
   },
-  // Step 8: Driven Routes
+  // Step 8: Driven Routes (scroll down to see)
   {
     id: 'driven-routes',
     title: 'Körda Rutter',
     content: 'Rutter du redan kört. Markera rutter som körda för att följa din framsteg!',
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.DrivenRoutes',
-    position: 'top',
+    position: 'center',
   },
-  // Step 9: Created Routes
+  // Step 9: Created Routes (scroll down to see)
   {
     id: 'created-routes',
     title: 'Skapade Rutter',
     content: 'Rutter du själv skapat. Dela med handledare eller andra elever!',
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.CreatedRoutes',
-    position: 'top',
+    position: 'center',
   },
-  // Step 10: Nearby Routes
+  // Step 10: Nearby Routes (scroll down to see)
   {
     id: 'nearby-routes',
     title: 'Rutter Nära Dig',
     content: 'Upptäck övningsrutter i ditt område skapade av communityn.',
     targetScreen: 'HomeScreen',
     targetElement: 'HomeScreen.NearbyRoutes',
-    position: 'top',
-    scrollToElement: true,
+    position: 'center',
   },
   // Step 11: Navigate to Progress Tab
   {
@@ -133,12 +127,11 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
     title: 'Framsteg-fliken',
     content: 'Nu ska vi kolla på Framsteg-fliken där du hittar alla övningar och körkortsplaner!',
     targetScreen: 'HomeTab',
-    targetElement: 'ProgressTab',
-    position: 'top',
+    position: 'center',
     action: {
       type: 'navigate',
       target: 'ProgressTab',
-      delay: 400,
+      delay: 300,
     },
   },
   // Step 12: Progress Screen - Learning Paths
@@ -149,10 +142,9 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
     targetScreen: 'ProgressScreen',
     targetElement: 'ProgressScreen.FirstPath',
     position: 'bottom',
-    scrollToElement: true,
     preAction: {
       type: 'waitFor',
-      delay: 600,
+      delay: 800,
     },
   },
   // Step 13: Progress Screen - Filters
@@ -170,12 +162,11 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
     title: 'Kartan',
     content: 'Låt oss utforska kartan! Här hittar du övningsrutter och kan spela in dina körningar.',
     targetScreen: 'ProgressTab',
-    targetElement: 'MapTab',
-    position: 'top',
+    position: 'center',
     action: {
       type: 'navigate',
       target: 'MapTab',
-      delay: 400,
+      delay: 300,
     },
   },
   // Step 15: Map - Locate Button
@@ -188,7 +179,7 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
     position: 'top',
     preAction: {
       type: 'waitFor',
-      delay: 600,
+      delay: 800,
     },
   },
   // Step 16: Map - Routes Drawer
@@ -199,7 +190,6 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
     targetScreen: 'MapScreen',
     targetElement: 'MapScreen.RoutesDrawer',
     position: 'top',
-    scrollToElement: true,
   },
   // Step 17: Complete
   {

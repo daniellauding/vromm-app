@@ -719,10 +719,16 @@ export function TabNavigator() {
         switch (action.type) {
           case 'navigate':
             if (action.target) {
-              // Handle tab navigation
-              const tabTargets = ['HomeTab', 'ProgressTab', 'MapTab', 'MenuTab', 'BetaTestingTab'];
+              // Handle tab navigation using CommonActions for nested navigators
+              const tabTargets = ['HomeTab', 'ProgressTab', 'MapTab', 'MenuTab', 'BetaTestingTab', 'CreateRouteTab'];
               if (tabTargets.includes(action.target)) {
-                tabNavigation.navigate(action.target as any);
+                // Use CommonActions.navigate for nested tab navigation
+                navigation.dispatch(
+                  CommonActions.navigate({
+                    name: action.target,
+                  })
+                );
+                console.log('🎯 [TabNavigator] Navigated to tab:', action.target);
                 return true;
               }
               // Handle screen navigation within HomeTab
