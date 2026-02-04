@@ -286,40 +286,33 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
     }
   }, [user?.id]);
 
-  // Check if tour should be shown after onboarding is complete (RE-ENABLED for HomeScreen)
-  useEffect(() => {
-    console.log('🎯 [HomeScreen] Checking tour');
-    let isMounted = true;
-    const checkTour = async () => {
-      // Only show tour if user exists and no promotional modal
-      if (user && isMounted) {
-        const shouldShow = await shouldShowTour();
-
-        if (shouldShow && isMounted) {
-          // Start database tour after a delay to ensure UI is fully ready
-          setTimeout(() => {
-            // Double-check that no onboarding or promotional modal is showing and component is still mounted
-            if (isMounted) {
-              startDatabaseTour('HomeScreen', profile?.role);
-            }
-          }, 2000);
-        }
-      }
-    };
-
-    // Add a small delay to prevent immediate execution on every render
-    const timer = setTimeout(() => {
-      if (isMounted) {
-        checkTour();
-      }
-    }, 100);
-
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]); // Only depend on data, not functions (functions should be stable from context)
+  // DISABLED: Old database tour - now using useScreenTour hook with static tours instead
+  // The useScreenTour hook above handles tour triggering with the comprehensive 17-step static tour
+  // useEffect(() => {
+  //   console.log('🎯 [HomeScreen] Checking tour');
+  //   let isMounted = true;
+  //   const checkTour = async () => {
+  //     if (user && isMounted) {
+  //       const shouldShow = await shouldShowTour();
+  //       if (shouldShow && isMounted) {
+  //         setTimeout(() => {
+  //           if (isMounted) {
+  //             startDatabaseTour('HomeScreen', profile?.role);
+  //           }
+  //         }, 2000);
+  //       }
+  //     }
+  //   };
+  //   const timer = setTimeout(() => {
+  //     if (isMounted) {
+  //       checkTour();
+  //     }
+  //   }, 100);
+  //   return () => {
+  //     isMounted = false;
+  //     clearTimeout(timer);
+  //   };
+  // }, [user?.id]);
 
   const handleRoutePress = React.useCallback((routeId: string) => {
     setSelectedRouteId(routeId);
