@@ -719,19 +719,19 @@ export function TabNavigator() {
         switch (action.type) {
           case 'navigate':
             if (action.target) {
-              // Handle tab navigation using CommonActions for nested navigators
+              // Handle tab navigation - use MainTabs route with screen param
               const tabTargets = ['HomeTab', 'ProgressTab', 'MapTab', 'MenuTab', 'BetaTestingTab', 'CreateRouteTab'];
               if (tabTargets.includes(action.target)) {
-                // Use CommonActions.navigate for nested tab navigation
-                navigation.dispatch(
-                  CommonActions.navigate({
-                    name: action.target,
-                  })
-                );
+                // Navigate to tab via MainTabs parent
+                (navigation as any).navigate('MainTabs', {
+                  screen: action.target,
+                });
                 console.log('🎯 [TabNavigator] Navigated to tab:', action.target);
+                // Add a small delay to let the navigation complete
+                await new Promise(resolve => setTimeout(resolve, 100));
                 return true;
               }
-              // Handle screen navigation within HomeTab
+              // Handle screen navigation within a specific tab
               (navigation as any).navigate('MainTabs', {
                 screen: 'HomeTab',
                 params: { screen: action.target, params: action.params },
