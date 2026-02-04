@@ -63,6 +63,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   const { effectiveTheme } = useThemePreference();
 
   // Screen tour integration - auto-triggers on first visit
+  // Uses comprehensive tour (17 steps) to demonstrate full cross-screen navigation
   const {
     isTourActive: isHomeScreenTourActive,
     triggerTour: triggerHomeTour,
@@ -71,7 +72,8 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
     screenId: 'HomeScreen',
     delay: 1200, // Wait for content to load
     autoTrigger: true,
-    onTourStart: () => console.log('🎯 [HomeScreen] Tour started'),
+    useComprehensiveTour: true, // Use full 17-step tour with cross-screen navigation
+    onTourStart: () => console.log('🎯 [HomeScreen] Comprehensive tour started (17 steps)'),
     onTourEnd: () => console.log('🎯 [HomeScreen] Tour ended'),
   });
 

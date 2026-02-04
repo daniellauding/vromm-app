@@ -2,6 +2,10 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTour, TourAction } from '../contexts/TourContext';
 import { useAuth } from '../context/AuthContext';
+import { getTourForScreen, COMPREHENSIVE_APP_TOUR } from '../utils/tourConfigs';
+
+// FEATURE FLAG: Use static tours instead of database
+const USE_STATIC_TOURS = true;
 
 interface UseScreenTourOptions {
   /** Screen identifier for tour tracking */
@@ -16,6 +20,8 @@ interface UseScreenTourOptions {
   onTourStart?: () => void;
   /** Callback when tour ends */
   onTourEnd?: () => void;
+  /** Use comprehensive tour instead of screen-specific tour */
+  useComprehensiveTour?: boolean;
 }
 
 /**
@@ -42,12 +48,14 @@ export function useScreenTour({
   userRole,
   onTourStart,
   onTourEnd,
+  useComprehensiveTour = false,
 }: UseScreenTourOptions) {
   const { profile } = useAuth();
   const {
     isActive,
     currentTourId,
     startScreenTour,
+    startCustomTour,
     hasSeenScreenTour,
     resetScreenTour,
     setScrollHandler,
@@ -57,12 +65,42 @@ export function useScreenTour({
   const isMountedRef = useRef(true);
 
   // Track if tour is active for this specific screen
-  const isTourActive = isActive && currentTourId === `screen.${screenId}`;
+  const isTourActive = isActive && (currentTourId === `screen.${screenId}` || currentTourId === `static.${screenId}`);
+
+  // Start static tour from tourConfigs.ts
+  const startStaticTour = useCallback(async () => {
+    if (!isMountedRef.current) return false;
+
+    // Get appropriate tour
+    const tourSteps = useComprehensiveTour
+      ? COMPREHENSIVE_APP_TOUR
+      : getTourForScreen(screenId);
+
+    if (!tourSteps || tourSteps.length === 0) {
+      console.log(`🎯 [useScreenTour] No static tour found for ${screenId}`);
+      return false;
+    }
+
+    console.log(`🎯 [useScreenTour] Starting STATIC tour for ${screenId} with ${tourSteps.length} steps`);
+    startCustomTour(tourSteps, `static.${screenId}`);
+
+    if (onTourStart) {
+      onTourStart();
+    }
+
+    return true;
+  }, [screenId, useComprehensiveTour, startCustomTour, onTourStart]);
 
   // Manually trigger the screen tour
   const triggerTour = useCallback(async () => {
     if (!isMountedRef.current) return false;
 
+    // Use static tours if enabled
+    if (USE_STATIC_TOURS) {
+      return startStaticTour();
+    }
+
+    // Otherwise fall back to database tour
     const role = userRole || profile?.role || 'student';
     const started = await startScreenTour(screenId, role);
 
@@ -71,7 +109,7 @@ export function useScreenTour({
     }
 
     return started;
-  }, [screenId, userRole, profile?.role, startScreenTour, onTourStart]);
+  }, [screenId, userRole, profile?.role, startScreenTour, startStaticTour, onTourStart]);
 
   // Force show tour (reset and trigger)
   const forceShowTour = useCallback(async () => {
@@ -111,7 +149,15 @@ export function useScreenTour({
 
         // Trigger the tour
         hasTriggeredRef.current = true;
-        const started = await startScreenTour(screenId, userRole || profile?.role);
+
+        let started = false;
+        if (USE_STATIC_TOURS) {
+          // Use static tour from tourConfigs.ts
+          started = await startStaticTour();
+        } else {
+          // Use database tour
+          started = await startScreenTour(screenId, userRole || profile?.role);
+        }
 
         if (started && onTourStart) {
           onTourStart();
@@ -119,7 +165,7 @@ export function useScreenTour({
       }, delay);
 
       return () => clearTimeout(timer);
-    }, [screenId, delay, autoTrigger, userRole, profile?.role, hasSeenScreenTour, startScreenTour, onTourStart]),
+    }, [screenId, delay, autoTrigger, userRole, profile?.role, hasSeenScreenTour, startScreenTour, startStaticTour, onTourStart]),
   );
 
   // Track tour end
