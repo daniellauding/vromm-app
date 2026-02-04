@@ -638,7 +638,7 @@ export function TabNavigator() {
     unreadNotificationCount: messagingUnreadNotificationCount,
     refreshCounts,
   } = useMessaging();
-  // Tour context RE-ENABLED for HomeScreen tours only
+  // Tour context RE-ENABLED for all screens
   const {
     isActive: tourActive,
     currentStep,
@@ -649,6 +649,7 @@ export function TabNavigator() {
     startDatabaseTour,
     resetTour,
     startCustomTour,
+    setNavigationHandler,
   } = useTour();
   // Screen tours still DISABLED
   // const { triggerScreenTour } = useScreenTours();
@@ -708,6 +709,70 @@ export function TabNavigator() {
   // Track navigation state changes
   const navigationState = useNavigationState((state) => state);
   const prevRouteRef = React.useRef<string | null>(null);
+
+  // Register tour navigation handler for cross-screen navigation
+  useEffect(() => {
+    setNavigationHandler(async (action) => {
+      try {
+        console.log('🎯 [TabNavigator] Tour action:', action.type, action.target);
+
+        switch (action.type) {
+          case 'navigate':
+            if (action.target) {
+              // Handle tab navigation
+              const tabTargets = ['HomeTab', 'ProgressTab', 'MapTab', 'MenuTab', 'BetaTestingTab'];
+              if (tabTargets.includes(action.target)) {
+                tabNavigation.navigate(action.target as any);
+                return true;
+              }
+              // Handle screen navigation within HomeTab
+              (navigation as any).navigate('MainTabs', {
+                screen: 'HomeTab',
+                params: { screen: action.target, params: action.params },
+              });
+              return true;
+            }
+            return false;
+
+          case 'openSheet':
+            // Sheets are handled by ModalContext
+            if (action.target) {
+              console.log('🎯 [TabNavigator] Opening sheet:', action.target);
+              return true;
+            }
+            return false;
+
+          case 'openModal':
+            if (action.target) {
+              console.log('🎯 [TabNavigator] Opening modal:', action.target);
+              return true;
+            }
+            return false;
+
+          case 'press':
+            console.log('🎯 [TabNavigator] Press action:', action.target);
+            return true;
+
+          case 'scrollTo':
+            console.log('🎯 [TabNavigator] Scroll action:', action.target);
+            return true;
+
+          case 'waitFor':
+            if (action.delay) {
+              await new Promise(resolve => setTimeout(resolve, action.delay));
+            }
+            return true;
+
+          default:
+            console.warn('🎯 [TabNavigator] Unknown action type:', action.type);
+            return false;
+        }
+      } catch (error) {
+        console.error('🎯 [TabNavigator] Error executing tour action:', error);
+        return false;
+      }
+    });
+  }, [setNavigationHandler, navigation, tabNavigation]);
 
   // HomeScreen tours RE-ENABLED, others disabled to prevent console flooding
   const handleStartTourForCurrentScreen = async () => {

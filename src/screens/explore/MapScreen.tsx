@@ -43,6 +43,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { RouteCreationBanner } from '../../components/RouteCreationBanner';
 import { supabase } from '../../lib/supabase';
+import { useTourTarget } from '../../components/TourOverlay';
+import { useScreenTour } from '../../hooks/useScreenTour';
 
 type SearchResult = {
   id: string;
@@ -102,9 +104,18 @@ export function MapScreen({
   const [isMapReady, setIsMapReady] = useState(false);
   const { showModal } = useModal();
 
-  // Screen tours integration disabled
-  // const { triggerScreenTour } = useScreenTours();
-  // const tourContext = useTour();
+  // Screen tours integration
+  const {
+    isTourActive,
+    triggerTour: triggerMapTour,
+    forceShowTour: forceShowMapTour,
+  } = useScreenTour({
+    screenId: 'MapScreen',
+    delay: 1000,
+    autoTrigger: true,
+    onTourStart: () => console.log('🎯 [MapScreen] Tour started'),
+    onTourEnd: () => console.log('🎯 [MapScreen] Tour ended'),
+  });
   const mapRef = useRef<MapView>(null);
   const [region, setRegion] = useState({
     latitude: 55.7047, // Lund, Sweden
@@ -130,10 +141,10 @@ export function MapScreen({
   const spinValue = useRef(new Animated.Value(0)).current;
   const [dotsCount, setDotsCount] = useState(0);
 
-  // Tour targets disabled for MapScreen to prevent performance issues
-  // const locateButtonRef = useTourTarget('MapScreen.LocateButton');
-  // const routesDrawerRef = useTourTarget('MapScreen.RoutesDrawer');
-  // const mapViewRef = useTourTarget('MapScreen.MapView');
+  // Tour targets for highlighting during tours
+  const locateButtonRef = useTourTarget('MapScreen.LocateButton');
+  const routesDrawerRef = useTourTarget('MapScreen.RoutesDrawer');
+  const recordButtonRef = useTourTarget('MapScreen.RecordButton');
 
   // Create a map of routes by ID for quick lookup
   const routesById = useMemo(() => {
@@ -1349,6 +1360,7 @@ export function MapScreen({
 
         {/* Locate Me Button - Bottom Right */}
         <View
+          ref={locateButtonRef}
           style={{
             position: 'absolute',
             bottom: 180, // Position above routes drawer
@@ -1413,7 +1425,7 @@ export function MapScreen({
           hasActiveFilters={filters && Object.keys(filters).length > 0}
           onExpandSearch={handleExpandSearch}
           onRoutePress={handleRoutePress}
-          // ref={routesDrawerRef} // Disabled
+          ref={routesDrawerRef}
         />
       )}
       {selectedRoute && (

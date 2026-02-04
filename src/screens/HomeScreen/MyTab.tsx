@@ -2,7 +2,7 @@ import React from 'react';
 import { useState } from 'react';
 import { YStack } from 'tamagui';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
-
+import { useTourTarget } from '../../components/TourOverlay';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { ProgressSection } from '../../components/ProgressSection';
 import { Text as RNText, View } from 'react-native';
@@ -81,6 +81,9 @@ export default React.memo(function MyTab({
 
   // Track if promotional content has data
   const [hasPromotionalContent, setHasPromotionalContent] = useState(false);
+
+  // Tour targets for highlighting during tours
+  const nearbyRoutesRef = useTourTarget('HomeScreen.NearbyRoutes');
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -275,7 +278,10 @@ export default React.memo(function MyTab({
         </View>
 
         {/* Nearby Routes - Separate full width section */}
-        <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
+        <View
+          ref={nearbyRoutesRef}
+          style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}
+        >
           <NearByRoutes onRoutePress={handleRoutePress} />
         </View>
 

@@ -3531,6 +3531,45 @@ export function ProfileScreen() {
                   </YStack>
                 </YStack>
 
+                {/* App Tour Button - User accessible */}
+                <YStack marginVertical="$2">
+                  <YStack gap="$2">
+                    <Text size="sm" fontWeight="400" color="$color">
+                      {t('profile.tourLabel') || (language === 'sv' ? 'App-guide' : 'App Tour')}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={async () => {
+                        await resetTour();
+                        showToast({
+                          title: language === 'sv' ? 'Guide återställd' : 'Tour Reset',
+                          message: language === 'sv'
+                            ? 'App-guiden startar nästa gång du besöker en skärm'
+                            : 'App tour will start when you visit each screen',
+                          type: 'success',
+                        });
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#F5F5F5',
+                        borderRadius: 12,
+                        padding: 16,
+                        borderWidth: 1,
+                        borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                      }}
+                    >
+                      <XStack alignItems="center" gap="$3">
+                        <Feather name="help-circle" size={20} color="#00E6C3" />
+                        <Text fontWeight="500">
+                          {t('profile.retakeTour') || (language === 'sv' ? 'Ta app-guiden igen' : 'Retake App Tour')}
+                        </Text>
+                      </XStack>
+                      <Feather name="refresh-cw" size={18} color={colorScheme === 'dark' ? '#888' : '#666'} />
+                    </TouchableOpacity>
+                  </YStack>
+                </YStack>
+
                 {/* Developer Tools (Combined Testing & Developer Options) - Only show if developer mode enabled */}
                 {/* {(profile as any)?.developer_mode && (
                   <YStack marginVertical="$2">

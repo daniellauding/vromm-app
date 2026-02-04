@@ -46,6 +46,7 @@ import { WelcomeText } from './WelcomeText';
 import MyTab from './MyTab';
 import CommunityTab from './CommunityTab';
 import { useTourTarget } from '../../components/TourOverlay';
+import { useScreenTour } from '../../hooks/useScreenTour';
 
 interface HomeScreenProps {
   activeUserId?: string;
@@ -60,6 +61,19 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   const tourContext = useTour();
   const { startDatabaseTour, shouldShowTour } = tourContext;
   const { effectiveTheme } = useThemePreference();
+
+  // Screen tour integration - auto-triggers on first visit
+  const {
+    isTourActive: isHomeScreenTourActive,
+    triggerTour: triggerHomeTour,
+    forceShowTour: forceShowHomeTour,
+  } = useScreenTour({
+    screenId: 'HomeScreen',
+    delay: 1200, // Wait for content to load
+    autoTrigger: true,
+    onTourStart: () => console.log('🎯 [HomeScreen] Tour started'),
+    onTourEnd: () => console.log('🎯 [HomeScreen] Tour ended'),
+  });
 
   // Check if user is supervisor
   const isSupervisorRole = ['instructor', 'admin', 'school'].includes((profile as any)?.role || '');

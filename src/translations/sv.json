@@ -186,6 +186,10 @@
     "saved": "Sparad",
     "profileUpdated": "Profil uppdaterad framgångsrikt",
     "failedToSave": "Misslyckades att spara profil",
+    "tourLabel": "App-guide",
+    "retakeTour": "Ta app-guiden igen",
+    "tourReset": "Guide återställd",
+    "tourResetMessage": "App-guiden startar nästa gång du besöker en skärm",
     "roles": {
       "title": "Välj roll",
   },

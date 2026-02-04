@@ -245,10 +245,10 @@ import { useUnlock } from '../contexts/UnlockContext';
 import { useCelebration } from '../contexts/CelebrationContext';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// Tour imports DISABLED to prevent performance issues
-// import { useTourTarget } from '../components/TourOverlay';
-// import { useScreenTours } from '../utils/screenTours';
-// import { useTour } from '../contexts/TourContext';
+// Tour imports - RE-ENABLED with new optimized system
+import { useTourTarget } from '../components/TourOverlay';
+import { useScreenTour } from '../hooks/useScreenTour';
+import { PROGRESS_SCREEN_TOUR } from '../utils/tourConfigs';
 
 // Category types and options are now imported from LearningPathsFilterModal
 
@@ -304,17 +304,24 @@ export function ProgressScreen() {
     }
   };
 
-  // ALL TOURS DISABLED FOR PROGRESSSCREEN DUE TO PERFORMANCE ISSUES
-  // const firstPathRef = useTourTarget('ProgressScreen.FirstPath');
-  // const filterButtonRef = useTourTarget('ProgressScreen.FilterButton');
-  // const pathCardRef = useTourTarget('ProgressScreen.PathCard');
-  // const markCompleteButtonRef = useTourTarget('ExerciseDetail.MarkCompleteButton');
-  // const repeatSectionRef = useTourTarget('ExerciseDetail.RepeatSection');
-  // const exerciseItemRef = useTourTarget('ProgressScreen.ExerciseItem');
+  // Tour refs for highlighting elements during tours
+  const firstPathRef = useTourTarget('ProgressScreen.FirstPath');
+  const filterButtonRef = useTourTarget('ProgressScreen.FilterButton');
 
-  // Screen tours integration DISABLED
-  // const { triggerScreenTour } = useScreenTours();
-  // const tourContext = useTour();
+  // Screen tours integration - auto-triggers on first visit
+  const {
+    isTourActive,
+    triggerTour,
+    forceShowTour,
+    registerScrollHandler,
+    resetTour: resetProgressTour,
+  } = useScreenTour({
+    screenId: 'ProgressScreen',
+    delay: 1000, // Wait for content to load
+    autoTrigger: true,
+    onTourStart: () => console.log('🎯 [ProgressScreen] Tour started'),
+    onTourEnd: () => console.log('🎯 [ProgressScreen] Tour ended'),
+  });
 
   // Use activeUserId from navigation if provided, otherwise check StudentSwitchContext, then fall back to authUser
   const effectiveUserId = activeUserId || getEffectiveUserId();
@@ -4668,7 +4675,7 @@ export function ProgressScreen() {
         {/* Filter and Show All Controls */}
         <XStack justifyContent="space-between" alignItems="center" marginBottom={24}>
           <TouchableOpacity
-            // ref={filterButtonRef} // DISABLED
+            ref={filterButtonRef}
             onPress={() => setShowFilterDrawer(true)}
             style={{
               // backgroundColor: '#333',
@@ -5173,6 +5180,7 @@ export function ProgressScreen() {
                 return (
                   <View
                     key={`filtered-path-${path.id}-${idx}`}
+                    ref={idx === 0 ? firstPathRef : undefined}
                     style={{
                       opacity: isEnabled ? 1 : 0.5,
                     }}

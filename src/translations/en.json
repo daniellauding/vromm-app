@@ -186,6 +186,10 @@
     "saved": "Saved",
     "profileUpdated": "Profile updated successfully",
     "failedToSave": "Failed to save profile",
+    "tourLabel": "App Tour",
+    "retakeTour": "Retake App Tour",
+    "tourReset": "Tour Reset",
+    "tourResetMessage": "App tour will start when you visit each screen",
     "roles": {
       "title": "Select Role",
   },
