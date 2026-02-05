@@ -213,6 +213,7 @@ export const COMPREHENSIVE_APP_TOUR: TourStep[] = [
 
 // ============================================================================
 // PROGRESS SCREEN TOUR (Extended - triggers when visiting ProgressScreen)
+// Includes auto-press actions to simulate user interactions
 // ============================================================================
 export const PROGRESS_SCREEN_TOUR: TourStep[] = [
   {
@@ -224,11 +225,83 @@ export const PROGRESS_SCREEN_TOUR: TourStep[] = [
   },
   {
     id: 'progress-learning-paths',
-    title: 'Tryck på en Körkortsplan! 👆',
-    content: 'Tryck på det markerade kortet för att öppna körkortsplanen och se övningarna.',
+    title: 'Öppnar Körkortsplan... 👆',
+    content: 'Vi öppnar den första körkortsplanen automatiskt för att visa dig övningarna.',
     targetScreen: 'ProgressScreen',
     targetElement: 'ProgressScreen.FirstPath',
     position: 'bottom',
+    action: {
+      type: 'press',
+      target: 'ProgressScreen.FirstPath',
+      delay: 500,
+    },
+  },
+  {
+    id: 'progress-path-detail',
+    title: 'Körkortsplanens Övningar',
+    content: 'Här ser du alla övningar i planen. Tryck på en övning för att se detaljerna!',
+    targetScreen: 'ProgressScreen',
+    position: 'center',
+    preAction: {
+      type: 'waitFor',
+      delay: 800,
+    },
+  },
+  {
+    id: 'progress-first-exercise',
+    title: 'Öppnar Övning... 📝',
+    content: 'Vi visar dig en övning med video, instruktioner och möjlighet att bocka av!',
+    targetScreen: 'ProgressScreen',
+    targetElement: 'ProgressScreen.FirstExercise',
+    position: 'bottom',
+    action: {
+      type: 'press',
+      target: 'ProgressScreen.FirstExercise',
+      delay: 500,
+    },
+  },
+  {
+    id: 'progress-exercise-video',
+    title: 'Videohandledning 🎬',
+    content: 'Titta på videon för att se hur övningen ska utföras. Pausa och spola tillbaka!',
+    targetScreen: 'ProgressScreen',
+    targetElement: 'ExerciseDetail.VideoPlayer',
+    position: 'bottom',
+    preAction: {
+      type: 'waitFor',
+      delay: 600,
+    },
+  },
+  {
+    id: 'progress-exercise-steps',
+    title: 'Steg för Steg',
+    content: 'Följ instruktionerna steg för steg. Tryck på varje steg för att se mer info!',
+    targetScreen: 'ProgressScreen',
+    targetElement: 'ExerciseDetail.StepsSection',
+    position: 'top',
+    scrollToElement: true,
+  },
+  {
+    id: 'progress-exercise-checkbox',
+    title: 'Bocka Av! ✅',
+    content: 'Vi bockar av övningen automatiskt för att visa hur det fungerar!',
+    targetScreen: 'ProgressScreen',
+    targetElement: 'ExerciseDetail.Checkbox',
+    position: 'top',
+    action: {
+      type: 'press',
+      target: 'ExerciseDetail.Checkbox',
+      delay: 500,
+    },
+  },
+  {
+    id: 'progress-exercise-repeats',
+    title: 'Repetitioner',
+    content: 'Vissa övningar kräver flera repetitioner. Gör alla för bästa resultat!',
+    targetScreen: 'ProgressScreen',
+    targetElement: 'ExerciseDetail.RepeatSection',
+    position: 'top',
+    scrollToElement: true,
   },
   {
     id: 'progress-filters',
@@ -237,20 +310,6 @@ export const PROGRESS_SCREEN_TOUR: TourStep[] = [
     targetScreen: 'ProgressScreen',
     targetElement: 'ProgressScreen.FilterButton',
     position: 'bottom',
-  },
-  {
-    id: 'progress-exercises-info',
-    title: 'Övningar & Checkboxar',
-    content: 'Varje plan har övningar med steg. Bocka av kryssrutan när du genomfört en övning!',
-    targetScreen: 'ProgressScreen',
-    position: 'center',
-  },
-  {
-    id: 'progress-video-info',
-    title: 'Videohandledning',
-    content: 'Många övningar har video som visar hur du gör. Titta och öva sedan själv!',
-    targetScreen: 'ProgressScreen',
-    position: 'center',
   },
   {
     id: 'progress-go-map',
@@ -561,6 +620,158 @@ export const MENU_TAB_TOUR: TourStep[] = [
 ];
 
 // ============================================================================
+// CREATE ROUTE SHEET TOUR (9 steps)
+// Educational tour explaining how and WHY to create practice routes
+// ============================================================================
+export const CREATE_ROUTE_SHEET_TOUR: TourStep[] = [
+  {
+    id: 'create-welcome',
+    title: 'Skapa en Övningsrutt! 🛣️',
+    content: 'Dela dina favoritplatser för körning med andra elever! Att skapa rutter hjälper communityn och sparar dina övningsplatser.',
+    targetScreen: 'CreateRouteSheet',
+    position: 'center',
+  },
+  {
+    id: 'create-name',
+    title: 'Ge den ett Namn',
+    content: 'Ett bra namn hjälper andra att hitta din rutt! Var beskrivande: "Rondellövning - Malmö Central" är bättre än "Rutt 1".',
+    targetScreen: 'CreateRouteSheet',
+    targetElement: 'CreateRouteSheet.NameInput',
+    position: 'bottom',
+  },
+  {
+    id: 'create-location',
+    title: 'Ange Plats 📍',
+    content: 'Sök efter en adress eller tryck på kartan för att sätta vägpunkter. Rutten visas på kartan så andra kan hitta och navigera till den.',
+    targetScreen: 'CreateRouteSheet',
+    targetElement: 'CreateRouteSheet.LocationSearch',
+    position: 'bottom',
+  },
+  {
+    id: 'create-record-option',
+    title: 'Eller Spela In Medan Du Kör! 🎥',
+    content: 'Tips: Tryck "Spela in rutt" för att automatiskt fånga rutten medan du kör. Appen spårar din GPS-väg - perfekt för komplexa rutter!',
+    targetScreen: 'CreateRouteSheet',
+    targetElement: 'CreateRouteSheet.RecordButton',
+    position: 'top',
+  },
+  {
+    id: 'create-waypoints',
+    title: 'Lägg till Vägpunkter',
+    content: 'Vägpunkter markerar viktiga platser längs rutten - som var man övar parallellparkering eller var en knepig korsning är. Tryck på kartan för att lägga till dem!',
+    targetScreen: 'CreateRouteSheet',
+    targetElement: 'CreateRouteSheet.MapView',
+    position: 'top',
+    scrollToElement: true,
+  },
+  {
+    id: 'create-difficulty',
+    title: 'Ange Svårighetsgrad',
+    content: 'Hjälp andra att veta vad de kan förvänta sig! Nybörjarrutter har enkel trafik, medan Avancerade rutter kan ha utmanande korsningar eller motorvägspåfarter.',
+    targetScreen: 'CreateRouteSheet',
+    targetElement: 'CreateRouteSheet.DifficultySelector',
+    position: 'top',
+    scrollToElement: true,
+  },
+  {
+    id: 'create-exercises',
+    title: 'Koppla Övningar 📚',
+    content: 'Koppla specifika övningar till denna rutt! Om din rutt är bra för att öva rondeller, koppla rondellövningen så användare kan lära sig och öva tillsammans.',
+    targetScreen: 'CreateRouteSheet',
+    targetElement: 'CreateRouteSheet.ExerciseSelector',
+    position: 'top',
+    scrollToElement: true,
+  },
+  {
+    id: 'create-media',
+    title: 'Lägg till Foton & Videos 📸',
+    content: 'En bild säger mer än tusen ord! Lägg till foton av knepiga platser eller en videoguide. Detta hjälper andra att förbereda sig innan de kör din rutt.',
+    targetScreen: 'CreateRouteSheet',
+    targetElement: 'CreateRouteSheet.MediaSection',
+    position: 'top',
+    scrollToElement: true,
+  },
+  {
+    id: 'create-save',
+    title: 'Spara & Dela! 🚀',
+    content: 'När du är nöjd, tryck Spara! Din rutt visas på kartan så andra kan upptäcka den. Du kan sätta den som privat om du bara vill behålla den för dig själv.',
+    targetScreen: 'CreateRouteSheet',
+    targetElement: 'CreateRouteSheet.SaveButton',
+    position: 'top',
+  },
+];
+
+// ============================================================================
+// RECORD DRIVING SHEET TOUR (8 steps)
+// Educational tour explaining how and WHY to record driving sessions
+// ============================================================================
+export const RECORD_DRIVING_SHEET_TOUR: TourStep[] = [
+  {
+    id: 'record-welcome',
+    title: 'Spela In Din Körning! 🎬',
+    content: 'Förvandla vilken körning som helst till en delbar rutt! Appen använder GPS för att spåra din väg automatiskt. Perfekt för att fånga verkliga övningspass.',
+    targetScreen: 'RecordDrivingSheet',
+    position: 'center',
+  },
+  {
+    id: 'record-start',
+    title: 'Starta Inspelning ▶️',
+    content: 'Tryck på play-knappen när du är redo att börja köra. Inspelningen börjar direkt - ingen brådska, ta din tid att bli bekväm!',
+    targetScreen: 'RecordDrivingSheet',
+    targetElement: 'RecordDrivingSheet.StartButton',
+    position: 'top',
+  },
+  {
+    id: 'record-stats',
+    title: 'Realtidsstatistik 📊',
+    content: 'Se din framsteg i realtid! Se varaktighet, körd distans och nuvarande hastighet. Denna data sparas med din rutt så du kan granska din körning senare.',
+    targetScreen: 'RecordDrivingSheet',
+    targetElement: 'RecordDrivingSheet.StatsContainer',
+    position: 'bottom',
+  },
+  {
+    id: 'record-map-preview',
+    title: 'Kartförhandsgranskning 🗺️',
+    content: 'Växla kartan för att se din rutt ritas i realtid! Varje vägpunkt fångas automatiskt medan du kör. Perfekt för att verifiera din väg.',
+    targetScreen: 'RecordDrivingSheet',
+    targetElement: 'RecordDrivingSheet.MapToggle',
+    position: 'bottom',
+  },
+  {
+    id: 'record-pause',
+    title: 'Pausa Vid Behov ⏸️',
+    content: 'Tar du en paus? Tryck på pausa för att stoppa inspelningen tillfälligt. Appen spårar inte medan den är pausad - perfekt för rastplatser eller om du behöver gå ut.',
+    targetScreen: 'RecordDrivingSheet',
+    targetElement: 'RecordDrivingSheet.PauseButton',
+    position: 'top',
+  },
+  {
+    id: 'record-minimize',
+    title: 'Minimera till Bakgrund',
+    content: 'Vill du använda andra appar medan du spelar in? Tryck minimera! Inspelningen fortsätter i bakgrunden med en notis. Svep ner för att återgå när som helst.',
+    targetScreen: 'RecordDrivingSheet',
+    targetElement: 'RecordDrivingSheet.MinimizeButton',
+    position: 'bottom',
+  },
+  {
+    id: 'record-stop',
+    title: 'Stoppa & Granska ⏹️',
+    content: 'Kört klart? Tryck på den röda stoppknappen. Du ser en sammanfattning av din rutt med alla vägpunkter som fångades under din körning.',
+    targetScreen: 'RecordDrivingSheet',
+    targetElement: 'RecordDrivingSheet.StopButton',
+    position: 'top',
+  },
+  {
+    id: 'record-create-route',
+    title: 'Skapa Din Rutt! 🎉',
+    content: 'Efter att ha stoppat, tryck "Skapa Rutt" för att förvandla din inspelning till en delbar övningsrutt. Lägg till namn, beskrivning och övningar - sen spara!',
+    targetScreen: 'RecordDrivingSheet',
+    targetElement: 'RecordDrivingSheet.CreateRouteButton',
+    position: 'top',
+  },
+];
+
+// ============================================================================
 // STUDENT FIRST VISIT TOUR (Short version for students)
 // ============================================================================
 export const STUDENT_FIRST_VISIT_TOUR: TourStep[] = [
@@ -735,6 +946,8 @@ export function getTourForScreen(screenId: string): TourStep[] | null {
     RouteDetailSheet: ROUTE_DETAIL_SHEET_TOUR,
     ExerciseDetail: EXERCISE_DETAIL_TOUR,
     MenuTab: MENU_TAB_TOUR,
+    CreateRouteSheet: CREATE_ROUTE_SHEET_TOUR,
+    RecordDrivingSheet: RECORD_DRIVING_SHEET_TOUR,
   };
 
   return tourMap[screenId] || null;
@@ -793,6 +1006,8 @@ export const ALL_TOURS = {
   ROUTE_DETAIL_SHEET_TOUR,
   EXERCISE_DETAIL_TOUR,
   MENU_TAB_TOUR,
+  CREATE_ROUTE_SHEET_TOUR,
+  RECORD_DRIVING_SHEET_TOUR,
   STUDENT_FIRST_VISIT_TOUR,
   INSTRUCTOR_FIRST_VISIT_TOUR,
   MAIN_APP_TOUR,

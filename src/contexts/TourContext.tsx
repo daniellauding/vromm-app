@@ -65,6 +65,8 @@ interface TourContextType {
   nextStep: () => Promise<void>;
   prevStep: () => void;
   endTour: () => void;
+  dismissTour: () => void; // Close temporarily - can see again
+  skipTour: () => Promise<void>; // Close permanently - never see again
   resetTour: () => Promise<void>;
   resetScreenTour: (screenId: string) => Promise<void>;
 
@@ -87,6 +89,10 @@ interface TourContextType {
 
   // NEW: Scroll handler registration
   setScrollHandler: (screenId: string, handler: (elementId: string, offset?: number) => Promise<boolean>) => void;
+
+  // NEW: Press handler registration - for simulating button presses during tours
+  registerPressHandler: (targetId: string, handler: () => Promise<void> | void) => void;
+  unregisterPressHandler: (targetId: string) => void;
 }
 
 const TourContext = createContext<TourContextType | undefined>(undefined);
@@ -112,6 +118,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   // Scroll handlers per screen
   const scrollHandlersRef = useRef<Map<string, (elementId: string, offset?: number) => Promise<boolean>>>(new Map());
 
+  // Press handlers for simulating button presses during tours
+  const pressHandlersRef = useRef<Map<string, () => Promise<void> | void>>(new Map());
+
   // Set navigation handler (called by TabNavigator or App.tsx)
   const setNavigationHandler = useCallback((handler: NavigationHandler) => {
     navigationHandlerRef.current = handler;
@@ -120,6 +129,17 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   // Set scroll handler for a specific screen
   const setScrollHandler = useCallback((screenId: string, handler: (elementId: string, offset?: number) => Promise<boolean>) => {
     scrollHandlersRef.current.set(screenId, handler);
+  }, []);
+
+  // Register a press handler for a specific tour target
+  const registerPressHandler = useCallback((targetId: string, handler: () => Promise<void> | void) => {
+    pressHandlersRef.current.set(targetId, handler);
+    console.log(`🎯 [TourContext] Registered press handler for: ${targetId}`);
+  }, []);
+
+  // Unregister a press handler
+  const unregisterPressHandler = useCallback((targetId: string) => {
+    pressHandlersRef.current.delete(targetId);
   }, []);
 
   // Function to register element for tour targeting
@@ -172,17 +192,31 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  // Execute a tour action (navigation, sheet opening, etc.)
+  // Execute a tour action (navigation, sheet opening, press, etc.)
   const executeAction = useCallback(async (action: TourAction): Promise<boolean> => {
-    if (!navigationHandlerRef.current) {
-      console.warn('🎯 [TourContext] No navigation handler registered');
-      return false;
-    }
-
     try {
       // Add delay if specified
       if (action.delay) {
         await new Promise(resolve => setTimeout(resolve, action.delay));
+      }
+
+      // Handle press actions locally using registered press handlers
+      if (action.type === 'press' && action.target) {
+        const pressHandler = pressHandlersRef.current.get(action.target);
+        if (pressHandler) {
+          console.log(`🎯 [TourContext] Executing press handler for: ${action.target}`);
+          await pressHandler();
+          return true;
+        } else {
+          console.warn(`🎯 [TourContext] No press handler registered for: ${action.target}`);
+          return false;
+        }
+      }
+
+      // Handle other actions via navigation handler
+      if (!navigationHandlerRef.current) {
+        console.warn('🎯 [TourContext] No navigation handler registered');
+        return false;
       }
 
       const success = await navigationHandlerRef.current(action);
@@ -637,6 +671,38 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     setIsActive(true);
   }, []);
 
+  // Dismiss tour temporarily - user can see it again later
+  const dismissTour = useCallback(() => {
+    console.log('🎯 [TourContext] Tour dismissed temporarily (will show again)');
+    setIsActive(false);
+    setCurrentStep(0);
+    setSteps([]);
+    setCurrentTourId(null);
+    // Note: NOT marking as seen, so it will show again on next visit
+  }, []);
+
+  // Skip tour permanently - marks as seen, won't show again
+  const skipTour = useCallback(async () => {
+    const tourIdToMark = currentTourId;
+    console.log('🎯 [TourContext] Tour skipped permanently:', tourIdToMark);
+
+    setIsActive(false);
+    setCurrentStep(0);
+    setSteps([]);
+    setCurrentTourId(null);
+
+    try {
+      // Mark screen tour as seen if it was a screen-specific tour
+      if (tourIdToMark?.startsWith('screen.')) {
+        const screenId = tourIdToMark.replace('screen.', '');
+        await markScreenTourSeen(screenId);
+      }
+    } catch (error) {
+      console.error('🎯 [TourContext] Error skipping tour:', error);
+    }
+  }, [currentTourId, markScreenTourSeen]);
+
+  // End tour (completed all steps) - marks as seen
   const endTour = useCallback(async () => {
     const tourIdToMark = currentTourId;
 
@@ -785,6 +851,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       nextStep,
       prevStep,
       endTour,
+      dismissTour,
+      skipTour,
       resetTour,
       resetScreenTour,
       shouldShowTour,
@@ -794,6 +862,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       registerElement,
       setNavigationHandler,
       setScrollHandler,
+      registerPressHandler,
+      unregisterPressHandler,
     }),
     [
       isActive,
@@ -807,6 +877,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       nextStep,
       prevStep,
       endTour,
+      dismissTour,
+      skipTour,
       resetTour,
       resetScreenTour,
       shouldShowTour,
@@ -816,6 +888,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       registerElement,
       setNavigationHandler,
       setScrollHandler,
+      registerPressHandler,
+      unregisterPressHandler,
     ],
   );
 

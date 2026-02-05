@@ -9,6 +9,8 @@ interface TourTooltipProps {
   onNext: () => void | Promise<void>;
   onPrev: () => void;
   onEnd: () => void;
+  onDismiss: () => void; // Close temporarily - can see again
+  onSkip: () => void; // Close permanently - never see again
   currentIndex: number;
   totalSteps: number;
   targetCoords?: { x: number; y: number; width: number; height: number } | null;
@@ -21,6 +23,8 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
   onNext,
   onPrev,
   onEnd,
+  onDismiss,
+  onSkip,
   currentIndex,
   totalSteps,
   targetCoords,
@@ -206,9 +210,9 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
           elevation: 16,
         }}
       >
-        {/* Close button - top right corner */}
+        {/* Close button - top right corner (dismiss temporarily) */}
         <TouchableOpacity
-          onPress={onEnd}
+          onPress={onDismiss}
           style={{
             position: 'absolute',
             top: 8,
@@ -321,6 +325,27 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
             />
           </TouchableOpacity>
         </View>
+
+        {/* Skip tour permanently link */}
+        <TouchableOpacity
+          onPress={onSkip}
+          style={{
+            marginTop: 12,
+            paddingVertical: 8,
+            alignItems: 'center',
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 20, right: 20 }}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              color: secondaryTextColor,
+              textDecorationLine: 'underline',
+            }}
+          >
+            {t('tour.navigation.skipTour') || 'Visa inte denna guide igen'}
+          </Text>
+        </TouchableOpacity>
       </View>
     </Animated.View>
   );
@@ -385,6 +410,8 @@ export const TourOverlay: React.FC = () => {
     nextStep,
     prevStep,
     endTour,
+    dismissTour,
+    skipTour,
     measureElement,
     updateStepCoords,
   } = useTour();
@@ -520,6 +547,8 @@ export const TourOverlay: React.FC = () => {
         onNext={handleNextStep}
         onPrev={prevStep}
         onEnd={endTour}
+        onDismiss={dismissTour}
+        onSkip={skipTour}
         currentIndex={currentStep}
         totalSteps={steps.length}
         targetCoords={targetCoords}
