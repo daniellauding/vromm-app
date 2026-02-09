@@ -1,7 +1,7 @@
 import React from 'react';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { FlatList, TouchableOpacity, Image } from 'react-native';
-
+import { Button } from '../../components/Button';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
 import { SectionHeader } from '../../components/SectionHeader';
@@ -155,23 +155,12 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
 
             {/* Single Action Button */}
             {!isViewingAsStudent && (
-              <TouchableOpacity
-                onPress={() => (navigation as any).navigate('MapTab')}
-                style={{
-                  backgroundColor: '#00E6C3',
-                  paddingHorizontal: 24,
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  marginTop: 8,
-                }}
-              >
-                <Text fontSize="$4" fontWeight="600" color="#000">
-                  {getTranslation(
-                    'home.savedRoutes.exploreRoutes',
-                    language === 'sv' ? 'Utforska rutter' : 'Explore Routes',
-                  )}
-                </Text>
-              </TouchableOpacity>
+              <Button onPress={() => (navigation as any).navigate('MapTab')} variant="primary" size="sm">
+                    {getTranslation(
+                      'home.savedRoutes.exploreRoutes',
+                      language === 'sv' ? 'Utforska rutter' : 'Explore Routes',
+                    )}
+              </Button>
             )}
           </YStack>
         </Card>

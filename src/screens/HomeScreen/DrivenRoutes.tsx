@@ -6,6 +6,7 @@ import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
 import { Route, RouteType } from '@/src/types/route';
 import React from 'react';
+import { Button } from '../../components/Button';
 import { YStack, XStack, Card } from 'tamagui';
 import { FlatList, TouchableOpacity, View } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
@@ -174,132 +175,120 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
 
   return (
     <YStack gap="$0">
-      <SectionHeader
-        title={
-          isViewingAsStudent
-            ? `${activeStudentName || 'Student'}'s Driven Routes`
-            : t('home.drivenRoutes')
-        }
-        variant="chevron"
-        onAction={onNavigateToRouteList}
-        actionLabel={t('common.seeAll')}
-        showActionLabel={false}
-      />
       {drivenRoutes.length > 0 ? (
-        <FlatList
-          horizontal
-          data={drivenRoutes}
-          keyExtractor={(item) => item.id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 0 }}
-          renderItem={({ item: route }) => (
-            <XStack marginRight="$3">
-              <RouteCard
-                route={route as any}
-                // preset="compact"
-                onPress={() => {
-                  if (onRoutePress) {
-                    onRoutePress(route.id);
-                  } else {
-                    navigation.navigate('RouteDetail', { routeId: route.id });
-                  }
+        <>
+          <SectionHeader
+            title={
+              isViewingAsStudent
+                ? `${activeStudentName || 'Student'}'s Driven Routes`
+                : t('home.drivenRoutes')
+            }
+            variant="chevron"
+            onAction={onNavigateToRouteList}
+            actionLabel={t('common.seeAll')}
+            showActionLabel={false}
+          />
+          <FlatList
+            horizontal
+            data={drivenRoutes}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 0 }}
+            renderItem={({ item: route }) => (
+              <XStack marginRight="$3">
+                <RouteCard
+                  route={route as any}
+                  // preset="compact"
+                  onPress={() => {
+                    if (onRoutePress) {
+                      onRoutePress(route.id);
+                    } else {
+                      navigation.navigate('RouteDetail', { routeId: route.id });
+                    }
+                  }}
+                />
+              </XStack>
+            )}
+          />
+        </>
+      ) : (
+        <>
+          <YStack px="$4">
+            <Card
+              backgroundColor="$backgroundStrong"
+              borderRadius="$4"
+              overflow="hidden"
+              borderWidth={1}
+              borderColor="$borderColor"
+            >
+              {/* Image from Getting Started - Full width at top */}
+              <Image
+                source={GETTING_STARTED_IMAGES.startLearning}
+                style={{
+                  width: '100%',
+                  height: 140,
+                  resizeMode: 'cover',
                 }}
               />
-            </XStack>
-          )}
-        />
-      ) : (
-        <YStack px="$4">
-          <Card
-            backgroundColor="$backgroundStrong"
-            borderRadius="$4"
-            overflow="hidden"
-            borderWidth={1}
-            borderColor="$borderColor"
-          >
-            {/* Image from Getting Started - Full width at top */}
-            <Image
-              source={GETTING_STARTED_IMAGES.startLearning}
-              style={{
-                width: '100%',
-                height: 140,
-                resizeMode: 'cover',
-              }}
-            />
 
-            {/* Content below image */}
-            <YStack alignItems="center" gap="$4" padding="$6">
-              {/* Title and Message */}
-              <YStack alignItems="center" gap="$2">
-                <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
-                  {language === 'sv' ? 'Inga körda rutter' : 'No Driven Routes'}
-                </Text>
-                <Text fontSize="$4" color="$gray11" textAlign="center">
-                  {isViewingAsStudent
-                    ? `${activeStudentName || (language === 'sv' ? 'Denna elev' : 'This student')} ${language === 'sv' ? 'har inte kört några övningsrutter än' : "hasn't driven any practice routes yet"}`
-                    : language === 'sv'
-                      ? 'Börja köra övningsrutter för att spåra dina framsteg och se dem här'
-                      : 'Start driving practice routes to track your progress and see them here'}
-                </Text>
-              </YStack>
+              {/* Content below image */}
+              <YStack alignItems="center" gap="$4" padding="$6">
+                {/* Title and Message */}
+                <YStack alignItems="center" gap="$2">
+                  <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                    {language === 'sv' ? 'Inga körda rutter' : 'No Driven Routes'}
+                  </Text>
+                  <Text fontSize="$4" color="$gray11" textAlign="center">
+                    {isViewingAsStudent
+                      ? `${activeStudentName || (language === 'sv' ? 'Denna elev' : 'This student')} ${language === 'sv' ? 'har inte kört några övningsrutter än' : "hasn't driven any practice routes yet"}`
+                      : language === 'sv'
+                        ? 'Börja köra övningsrutter för att spåra dina framsteg och se dem här'
+                        : 'Start driving practice routes to track your progress and see them here'}
+                  </Text>
+                </YStack>
 
-              {/* Action Buttons */}
-              {!isViewingAsStudent && (
-                <YStack gap="$2" width="100%">
-                  <TouchableOpacity
-                    onPress={() => (navigation as any).navigate('MapTab')}
-                    style={{
-                      backgroundColor: '#00E6C3',
-                      paddingHorizontal: 24,
-                      paddingVertical: 12,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text fontSize="$4" fontWeight="600" color="#000">
+                {/* Action Buttons */}
+                {!isViewingAsStudent && (
+                  <YStack gap="$2" width="100%">
+
+                    <Button
+                      onPress={() => (navigation as any).navigate('MapTab')}
+                      variant="primary"
+                      size="sm"
+                    >
                       {getTranslation(
                         'home.drivenRoutes.findRoutes',
                         language === 'sv' ? 'Hitta rutter' : 'Find Routes',
                       )}
-                    </Text>
-                  </TouchableOpacity>
+                    </Button>
 
-                  <TouchableOpacity
-                    onPress={() => {
-                      showModal(
-                        <CreateRouteSheet
-                          visible={true}
-                          onClose={() => hideModal()}
-                          onRouteCreated={(routeId) => {
-                            console.log('✅ Route created with ID:', routeId);
-                            hideModal();
-                          }}
-                        />
-                      );
-                    }}
-                    style={{
-                      backgroundColor: 'transparent',
-                      paddingHorizontal: 24,
-                      paddingVertical: 12,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                      borderWidth: 1,
-                      borderColor:
-                        colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                    }}
-                  >
-                    <Text fontSize="$4" fontWeight="600" color="$color">
+                    <Button
+                      onPress={() => {
+                        showModal(
+                          <CreateRouteSheet
+                            visible={true}
+                            onClose={() => hideModal()}
+                            onRouteCreated={(routeId) => {
+                              console.log('✅ Route created with ID:', routeId);
+                              hideModal();
+                            }}
+                          />
+                        );
+                      }}
+                      variant="outlined"
+                      size="sm"
+                    >
                       {getTranslation(
                         'home.drivenRoutes.createRoute',
                         language === 'sv' ? 'Skapa rutt' : 'Create Route',
                       )}
-                    </Text>
-                  </TouchableOpacity>
-                </YStack>
-              )}
-            </YStack>
-          </Card>
-        </YStack>
+                    </Button>
+                  </YStack>
+                )}
+              </YStack>
+            </Card>
+          </YStack>
+        </>
       )}
 
       {/* Route List Sheet */}

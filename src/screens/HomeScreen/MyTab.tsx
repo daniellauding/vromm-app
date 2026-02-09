@@ -22,7 +22,7 @@ import { SavedRoutes } from './SavedRoutes';
 // import { QuickFilters } from './QuickFilters';
 // import { CityRoutes } from './CityRoutes';
 import { CreatedRoutes } from './CreatedRoutes';
-import { NearByRoutes } from './NearByRoutes';
+// import { NearByRoutes } from './NearByRoutes';
 import { DrivenRoutes } from './DrivenRoutes';
 import { DraftRoutes } from './DraftRoutes';
 import { LearningPathsSheet } from '../../components/LearningPathsSheet';
@@ -275,9 +275,9 @@ export default React.memo(function MyTab({
         </View>
 
         {/* Nearby Routes - Separate full width section */}
-        <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
+        {/* <View style={{ paddingHorizontal: horizontalPadding, marginTop: cardGap }}>
           <NearByRoutes onRoutePress={handleRoutePress} />
-        </View>
+        </View> */}
 
         <View style={{ marginBottom: 40 }}>
           {/* Beta Testing Button */}
