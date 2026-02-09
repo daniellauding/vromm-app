@@ -43,6 +43,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useStudentSwitch } from '../../context/StudentSwitchContext';
 import { RouteCreationBanner } from '../../components/RouteCreationBanner';
 import { supabase } from '../../lib/supabase';
+import * as Device from 'expo-device';
 
 type SearchResult = {
   id: string;
@@ -76,19 +77,19 @@ export function MapScreen({
   const { profile } = useAuth();
   const { getEffectiveUserId } = useStudentSwitch();
   const { collections: userCollections } = useUserCollections();
-  
+
   // Tablet layout detection
   const { isTablet } = useTabletLayout();
-  
+
   // Drawer state for tablet
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const drawerTranslateX = useSharedValue(-100); // Start off-screen (hidden)
-  
+
   // Animated drawer style
   const animatedDrawerStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: `${drawerTranslateX.value}%` }],
   }));
-  
+
   // Toggle drawer
   const toggleDrawer = useCallback(() => {
     const newState = !isDrawerOpen;
@@ -1206,7 +1207,7 @@ export function MapScreen({
             />
           </ReanimatedAnimated.View>
         )}
-        
+
         {/* Drawer Toggle Button (iPad only) */}
         {isTablet && !selectedRoute && (
           <TouchableOpacity
@@ -1252,154 +1253,230 @@ export function MapScreen({
             routePathColor={PIN_COLORS.ROUTE_PATH}
           />
 
-        {/* Route Creation Banner */}
-        <RouteCreationBanner
-          onDismiss={() => {
-            // Banner will handle its own dismissal state
-          }}
-          onRoutePress={(routeId) => {
-            setSelectedRouteId(routeId);
-            setShowRouteDetailSheet(true);
-          }}
-          isRouteSelected={!!selectedRouteId || !!selectedPin}
-        />
+          {/* Route Creation Banner */}
+          <RouteCreationBanner
+            onDismiss={() => {
+              // Banner will handle its own dismissal state
+            }}
+            onRoutePress={(routeId) => {
+              setSelectedRouteId(routeId);
+              setShowRouteDetailSheet(true);
+            }}
+            isRouteSelected={!!selectedRouteId || !!selectedPin}
+          />
 
-        {/* Clear Filters Button */}
-        {(filters &&
-          Object.keys(filters).some((key) => {
-            const value = filters[key as keyof FilterOptions];
-            // Don't show clear button for selectedPresetId alone - only when user changes it
-            if (key === 'selectedPresetId') return false;
-            return Array.isArray(value) ? value.length > 0 : value;
-          })) ||
-          (selectedPresetId && filters?.selectedPresetId !== selectedPresetId && (
+          {/* Clear Filters Button */}
+          {(filters &&
+            Object.keys(filters).some((key) => {
+              const value = filters[key as keyof FilterOptions];
+              // Don't show clear button for selectedPresetId alone - only when user changes it
+              if (key === 'selectedPresetId') return false;
+              return Array.isArray(value) ? value.length > 0 : value;
+            })) ||
+            (selectedPresetId && filters?.selectedPresetId !== selectedPresetId && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 160, // Position below header chips
+                  left: 0,
+                  right: 0,
+                  alignItems: 'center',
+                  zIndex: 1000,
+                }}
+              >
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    paddingHorizontal: 16,
+                    paddingVertical: 10,
+                    borderRadius: 22,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 8,
+                    elevation: 4,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                  }}
+                  onPress={async () => {
+                    console.log(
+                      '🔴 [MapScreen] Clear filters pressed - clearing all filters and presets',
+                    );
+
+                    // Clear local filters and preset
+                    setFilters({});
+                    setAppliedFilters({});
+                    setFilteredRoutes([]);
+                    setActiveRoutes(routes);
+                    setSelectedPresetId(null);
+
+                    // Clear saved filters from AsyncStorage
+                    try {
+                      const effectiveUserId = getEffectiveUserId();
+                      const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
+                      await AsyncStorage.removeItem(filterKey);
+                      console.log('🗑️ [MapScreen] Cleared saved filters from storage');
+                    } catch (error) {
+                      console.error('❌ [MapScreen] Failed to clear saved filters:', error);
+                    }
+
+                    // Return to original/user location
+                    if (mapRef.current) {
+                      setRegion(originalRegion);
+                      mapRef.current.animateToRegion(originalRegion, 1000);
+                      console.log('🔄 [MapScreen] Returned to original location:', originalRegion);
+                    }
+                  }}
+                >
+                  <Feather name="x" size={16} color="rgba(255, 255, 255, 0.9)" />
+                  <Text
+                    style={{
+                      color: 'rgba(255, 255, 255, 0.9)',
+                      fontWeight: '600',
+                      marginLeft: 6,
+                      fontSize: 14,
+                    }}
+                  >
+                    Clear{' '}
+                    {selectedPresetId && filters?.selectedPresetId !== selectedPresetId
+                      ? 'preset & filters'
+                      : 'filters'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+          {/* Zoom Buttons - Only show on simulator (not real device) */}
+          {!Device.isDevice && (
             <View
               style={{
                 position: 'absolute',
-                top: 160, // Position below header chips
-                left: 0,
-                right: 0,
-                alignItems: 'center',
+                bottom: 300, // Position above locate me button
+                right: 16,
                 zIndex: 1000,
+                gap: 8,
               }}
             >
               <TouchableOpacity
                 style={{
-                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                  paddingHorizontal: 16,
-                  paddingVertical: 10,
-                  borderRadius: 22,
-                  flexDirection: 'row',
+                  backgroundColor: theme.background?.val || '#FFFFFF',
+                  borderRadius: 25,
+                  width: 50,
+                  height: 50,
                   alignItems: 'center',
+                  justifyContent: 'center',
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 8,
-                  elevation: 4,
+                  shadowOpacity: 0.25,
+                  shadowRadius: 4,
+                  elevation: 5,
                   borderWidth: 1,
-                  borderColor: 'rgba(255, 255, 255, 0.1)',
+                  borderColor: theme.borderColor?.val || '#E5E5E5',
                 }}
-                onPress={async () => {
-                  console.log(
-                    '🔴 [MapScreen] Clear filters pressed - clearing all filters and presets',
-                  );
-
-                  // Clear local filters and preset
-                  setFilters({});
-                  setAppliedFilters({});
-                  setFilteredRoutes([]);
-                  setActiveRoutes(routes);
-                  setSelectedPresetId(null);
-
-                  // Clear saved filters from AsyncStorage
-                  try {
-                    const effectiveUserId = getEffectiveUserId();
-                    const filterKey = `vromm_map_filters_${effectiveUserId || 'default'}`;
-                    await AsyncStorage.removeItem(filterKey);
-                    console.log('🗑️ [MapScreen] Cleared saved filters from storage');
-                  } catch (error) {
-                    console.error('❌ [MapScreen] Failed to clear saved filters:', error);
-                  }
-
-                  // Return to original/user location
+                onPress={() => {
+                  // Zoom in - decrease delta
+                  const newRegion = {
+                    ...region,
+                    latitudeDelta: Math.max(region.latitudeDelta / 2, 0.001),
+                    longitudeDelta: Math.max(region.longitudeDelta / 2, 0.001),
+                  };
+                  setRegion(newRegion);
                   if (mapRef.current) {
-                    setRegion(originalRegion);
-                    mapRef.current.animateToRegion(originalRegion, 1000);
-                    console.log('🔄 [MapScreen] Returned to original location:', originalRegion);
+                    mapRef.current.animateToRegion(newRegion, 300);
                   }
                 }}
               >
-                <Feather name="x" size={16} color="rgba(255, 255, 255, 0.9)" />
-                <Text
-                  style={{
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontWeight: '600',
-                    marginLeft: 6,
-                    fontSize: 14,
-                  }}
-                >
-                  Clear{' '}
-                  {selectedPresetId && filters?.selectedPresetId !== selectedPresetId
-                    ? 'preset & filters'
-                    : 'filters'}
-                </Text>
+                <Feather name="plus" size={24} color={theme.color?.val || '#000000'} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: theme.background?.val || '#FFFFFF',
+                  borderRadius: 25,
+                  width: 50,
+                  height: 50,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 4,
+                  elevation: 5,
+                  borderWidth: 1,
+                  borderColor: theme.borderColor?.val || '#E5E5E5',
+                }}
+                onPress={() => {
+                  // Zoom out - increase delta
+                  const newRegion = {
+                    ...region,
+                    latitudeDelta: Math.min(region.latitudeDelta * 2, 90),
+                    longitudeDelta: Math.min(region.longitudeDelta * 2, 180),
+                  };
+                  setRegion(newRegion);
+                  if (mapRef.current) {
+                    mapRef.current.animateToRegion(newRegion, 300);
+                  }
+                }}
+              >
+                <Feather name="minus" size={24} color={theme.color?.val || '#000000'} />
               </TouchableOpacity>
             </View>
-          ))}
+          )}
 
-        {/* Locate Me Button - Bottom Right */}
-        <View
-          style={{
-            position: 'absolute',
-            bottom: 180, // Position above routes drawer
-            right: 16,
-            zIndex: 1000,
-          }}
-        >
-          <TouchableOpacity
+          {/* Locate Me Button - Bottom Right */}
+          <View
             style={{
-              backgroundColor: locationLoading
-                ? theme.background?.val || '#FFFFFF'
-                : theme.background?.val || '#FFFFFF',
-              borderRadius: 25,
-              width: 50,
-              height: 50,
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 4,
-              elevation: 5,
-              borderWidth: 1,
-              borderColor: theme.borderColor?.val || '#E5E5E5',
+              position: 'absolute',
+              bottom: 180, // Position above routes drawer
+              right: 16,
+              zIndex: 1000,
             }}
-            onPress={handleLocateMe}
-            disabled={locationLoading}
           >
-            {locationLoading ? (
-              <Animated.View
-                style={{
-                  transform: [
-                    {
-                      rotate: spinValue.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0deg', '360deg'],
-                      }),
-                    },
-                  ],
-                }}
-              >
-                <Feather name="loader" size={20} color={theme.color?.val || '#000000'} />
-              </Animated.View>
-            ) : (
-              <Feather name="navigation" size={20} color={theme.color?.val || '#000000'} />
-            )}
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={{
+                backgroundColor: locationLoading
+                  ? theme.background?.val || '#FFFFFF'
+                  : theme.background?.val || '#FFFFFF',
+                borderRadius: 25,
+                width: 50,
+                height: 50,
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 4,
+                elevation: 5,
+                borderWidth: 1,
+                borderColor: theme.borderColor?.val || '#E5E5E5',
+              }}
+              onPress={handleLocateMe}
+              disabled={locationLoading}
+            >
+              {locationLoading ? (
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        rotate: spinValue.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '360deg'],
+                        }),
+                      },
+                    ],
+                  }}
+                >
+                  <Feather name="loader" size={20} color={theme.color?.val || '#000000'} />
+                </Animated.View>
+              ) : (
+                <Feather name="navigation" size={20} color={theme.color?.val || '#000000'} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-      
+
       {/* Mobile: Routes Drawer at Bottom */}
       {!isTablet && !selectedRoute && (
         <RoutesDrawer
