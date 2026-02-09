@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text } from './Text';
 import { Button } from './Button';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -11,6 +12,8 @@ import { useModal } from '../contexts/ModalContext';
 import { CreateRouteSheet } from './CreateRouteSheet';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
+
+const BANNER_DISMISSED_KEY = 'vromm_route_creation_banner_dismissed';
 
 const { width } = Dimensions.get('window');
 const SLIDE_WIDTH = width - 32; // 16px padding on each side
@@ -34,8 +37,26 @@ export function RouteCreationBanner({ onDismiss, onRoutePress, isRouteSelected }
   const [hasSavedRoutes, setHasSavedRoutes] = useState(false);
   const [hasDrivenRoutes, setHasDrivenRoutes] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [isLoadingDismissed, setIsLoadingDismissed] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [nearbyRoutes, setNearbyRoutes] = useState<any[]>([]);
+
+  // Check if banner was previously dismissed
+  useEffect(() => {
+    const checkDismissed = async () => {
+      try {
+        const dismissed = await AsyncStorage.getItem(BANNER_DISMISSED_KEY);
+        if (dismissed === 'true') {
+          setIsDismissed(true);
+        }
+      } catch (error) {
+        console.error('Error checking banner dismissed state:', error);
+      } finally {
+        setIsLoadingDismissed(false);
+      }
+    };
+    checkDismissed();
+  }, []);
 
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
@@ -172,8 +193,13 @@ export function RouteCreationBanner({ onDismiss, onRoutePress, isRouteSelected }
     };
   }, [user]);
 
-  const handleDismiss = () => {
+  const handleDismiss = async () => {
     setIsDismissed(true);
+    try {
+      await AsyncStorage.setItem(BANNER_DISMISSED_KEY, 'true');
+    } catch (error) {
+      console.error('Error saving banner dismissed state:', error);
+    }
     onDismiss();
   };
 
@@ -326,8 +352,8 @@ export function RouteCreationBanner({ onDismiss, onRoutePress, isRouteSelected }
     };
   }, [slides.length]);
 
-  // Don't show banner if all actions completed, dismissed, or route is selected
-  if (slides.length === 0 || isDismissed || isRouteSelected) {
+  // Don't show banner if loading, all actions completed, dismissed, or route is selected
+  if (isLoadingDismissed || slides.length === 0 || isDismissed || isRouteSelected) {
     return null;
   }
 
@@ -358,12 +384,12 @@ export function RouteCreationBanner({ onDismiss, onRoutePress, isRouteSelected }
         bottom: 180, // Above the routes drawer
         left: 0,
         right: 0,
-        zIndex: 100, // Lower z-index so route detail sheets can appear above
+        zIndex: 1100, // Above locate me and zoom buttons (zIndex 1000)
       }}
     >
       <YStack gap="$2">
         {/* Carousel Container */}
-        <View style={{ width: width, overflow: 'hidden' }}>
+        <View style={{ width: width, overflow: 'visible', paddingTop: 8 }}>
           <ScrollView
             ref={scrollViewRef}
             horizontal
@@ -381,63 +407,69 @@ export function RouteCreationBanner({ onDismiss, onRoutePress, isRouteSelected }
                 style={{
                   width: width,
                   paddingHorizontal: 16,
-      }}
-    >
-      <View
-        style={{
-                  backgroundColor: 'rgba(0, 230, 195, 0.95)',
-          borderRadius: 12,
-          padding: 16,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.25,
-          shadowRadius: 8,
-          elevation: 5,
-          borderWidth: 1,
-          borderColor: 'rgba(0, 230, 195, 0.3)',
-        }}
-      >
-        <XStack justifyContent="space-between" alignItems="flex-start" gap="$3">
-          <YStack flex={1} gap="$2">
+                  paddingTop: 12,
+                  overflow: 'visible',
+                }}
+              >
+                <View
+                  style={{
+                    position: 'relative',
+                    backgroundColor: 'rgba(0, 230, 195, 0.95)',
+                    borderRadius: 12,
+                    padding: 16,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 8,
+                    elevation: 5,
+                    borderWidth: 1,
+                    borderColor: 'rgba(0, 230, 195, 0.3)',
+                  }}
+                >
+                  {/* X button - absolute positioned in top right corner */}
+                  <TouchableOpacity
+                    onPress={handleDismiss}
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: 'rgba(0, 0, 0, 0.15)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 10,
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Feather name="x" size={14} color="rgba(0, 0, 0, 0.7)" />
+                  </TouchableOpacity>
+
+                  <YStack gap="$2">
                     <XStack alignItems="center" gap="$2">
                       <Feather name={slide.icon} size={20} color="#000" />
-            <Text fontSize={16} fontWeight="bold" color="#000" style={{ fontStyle: 'italic' }}>
+                      <Text fontSize={16} fontWeight="bold" color="#000" style={{ fontStyle: 'italic' }}>
                         {slide.title}
-            </Text>
+                      </Text>
                     </XStack>
-            <Text fontSize={14} color="rgba(0, 0, 0, 0.8)" lineHeight={18}>
+                    <Text fontSize={14} color="rgba(0, 0, 0, 0.8)" lineHeight={18}>
                       {slide.description}
-            </Text>
-            <Button
-              variant="primary"
-              size="sm"
+                    </Text>
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onPress={slide.onPress}
-              backgroundColor="rgba(0, 0, 0, 0.1)"
-              marginTop="$2"
-              pressStyle={{ opacity: 0.8 }}
-            >
-              <Text color="#000" fontWeight="600" fontSize={14}>
+                      backgroundColor="rgba(0, 0, 0, 0.1)"
+                      marginTop="$2"
+                      pressStyle={{ opacity: 0.8 }}
+                    >
+                      <Text color="#000" fontWeight="600" fontSize={14}>
                         {slide.buttonText}
-              </Text>
-            </Button>
-          </YStack>
-
-                  {/* Only show X button on the last slide or if there's only one slide */}
-                  {(slides.length === 1 || index === slides.length - 1) && (
-          <TouchableOpacity
-            onPress={handleDismiss}
-            style={{
-              padding: 4,
-              borderRadius: 16,
-              backgroundColor: 'rgba(0, 0, 0, 0.1)',
-            }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="x" size={16} color="rgba(0, 0, 0, 0.7)" />
-          </TouchableOpacity>
-                  )}
-        </XStack>
-      </View>
+                      </Text>
+                    </Button>
+                  </YStack>
+                </View>
               </View>
             ))}
           </ScrollView>
