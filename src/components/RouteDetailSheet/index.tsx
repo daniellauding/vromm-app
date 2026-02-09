@@ -763,7 +763,7 @@ export function RouteDetailSheet({
                       >
                         <YStack gap="$4">
                           {/* Hero Carousel */}
-                          <RouteDetailsCarousel routeData={routeData} />
+                          <RouteDetailsCarousel routeData={routeData} saveMap={true} />
 
                           {/* Route Name - placed below carousel */}
                           <Text

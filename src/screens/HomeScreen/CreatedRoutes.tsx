@@ -3,15 +3,13 @@ import { RouteListSheet } from '@/src/components/RouteListSheet';
 import { useAuth } from '@/src/context/AuthContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
 import { useTranslation } from '@/src/contexts/TranslationContext';
-import { Route, RouteType } from '@/src/types/route';
+import { Route } from '@/src/types/route';
 import React from 'react';
 import { YStack, XStack, Card } from 'tamagui';
 import { FlatList, Image, TouchableOpacity, useColorScheme, Dimensions } from 'react-native';
 import { NavigationProp } from '@/src/types/navigation';
 import { useNavigation } from '@react-navigation/native';
-import { navigateDomain } from '@/src/utils/navigation';
 import { supabase } from '../../lib/supabase';
-import { EmptyState } from './EmptyState';
 import { Text } from '../../components/Text';
 import { useModal } from '@/src/contexts/ModalContext';
 import { CreateRouteSheet } from '@/src/components/CreateRouteSheet';
@@ -26,9 +24,39 @@ interface CreatedRoutesProps {
   onRoutePress?: (routeId: string) => void;
 }
 
+const DEVICE_WIDTH = Dimensions.get('window').width;
+
+const RouteItem = ({
+  route,
+  onRoutePress,
+}: {
+  route: Route;
+  onRoutePress?: (routeId: string) => void;
+}) => {
+  const navigation = useNavigation<NavigationProp>();
+  const screenWidth = Dimensions.get('window').width;
+  const padding = 32;
+  const gap = 12;
+  const cardWidth = (screenWidth - padding - gap * 2) / 3.5;
+  return (
+    <XStack marginRight="$3" width={cardWidth} overflow="hidden">
+      <RouteCard
+        route={route}
+        preset="grid"
+        onPress={() => {
+          if (onRoutePress) {
+            onRoutePress(route.id);
+          } else {
+            navigation.navigate('RouteDetail', { routeId: route.id });
+          }
+        }}
+      />
+    </XStack>
+  );
+};
+
 export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
   const { t, language } = useTranslation();
-  const { user } = useAuth();
   const { getEffectiveUserId, isViewingAsStudent, activeStudentName } = useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const [createdRoutes, setCreatedRoutes] = React.useState<Route[]>([]);
@@ -51,28 +79,28 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
 
     const startTime = Date.now();
     console.log('⚡ [CreatedRoutes] Loading created routes for user:', effectiveUserId);
-      console.log('🗺️ [CreatedRoutes] Is viewing as student:', isViewingAsStudent);
+    console.log('🗺️ [CreatedRoutes] Is viewing as student:', isViewingAsStudent);
 
-      try {
-        const { data: createdData, error: createdError } = await supabase
-          .from('routes')
-          .select('*')
-          .eq('creator_id', effectiveUserId)
-          .order('created_at', { ascending: false });
+    try {
+      const { data: createdData, error: createdError } = await supabase
+        .from('routes')
+        .select('*')
+        .eq('creator_id', effectiveUserId)
+        .order('created_at', { ascending: false });
 
-        if (createdError) throw createdError;
+      if (createdError) throw createdError;
 
-        console.log('🗺️ [CreatedRoutes] Loaded created routes:', createdData?.length || 0);
-        setCreatedRoutes(createdData as Route[]);
+      console.log('🗺️ [CreatedRoutes] Loaded created routes:', createdData?.length || 0);
+      setCreatedRoutes(createdData as Route[]);
       console.log('⚡ [CreatedRoutes] Created routes loaded in:', Date.now() - startTime, 'ms');
-      } catch (err) {
-        console.error('❌ [CreatedRoutes] Error loading created routes:', err);
-      }
+    } catch (err) {
+      console.error('❌ [CreatedRoutes] Error loading created routes:', err);
+    }
   }, [effectiveUserId, isViewingAsStudent]);
 
   React.useEffect(() => {
     if (!effectiveUserId) return;
-    
+
     loadCreatedRoutes();
 
     // Set up real-time subscription for route changes
@@ -108,28 +136,6 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
     console.log('[SHEET][HomeSection] CreatedRoutes → RouteListSheet with title:', titleText);
     setShowRouteListSheet(true);
   }, [isViewingAsStudent, activeStudentName, t]);
-
-  // Helper function to get route image (same as SavedRoutes)
-  const getRouteImage = (route: Route): string | null => {
-    if (!route.media_attachments || !Array.isArray(route.media_attachments)) {
-      return null;
-    }
-
-    for (const attachment of route.media_attachments) {
-      if (
-        attachment &&
-        typeof attachment === 'object' &&
-        'type' in attachment &&
-        attachment.type === 'image' &&
-        'url' in attachment &&
-        typeof attachment.url === 'string'
-      ) {
-        return attachment.url;
-      }
-    }
-
-    return null;
-  };
 
   return (
     <>
@@ -200,7 +206,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
                               console.log('✅ Route created with ID:', routeId);
                               hideModal();
                             }}
-                          />
+                          />,
                         );
                       }}
                       style={{
@@ -214,7 +220,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
                       <Text fontSize="$4" fontWeight="600" color="#000">
                         {getTranslation(
                           'home.createdRoutes.createRoute',
-                          language === 'sv' ? 'Skapa rutt' : 'Create Route'
+                          language === 'sv' ? 'Skapa rutt' : 'Create Route',
                         )}
                       </Text>
                     </TouchableOpacity>
@@ -237,7 +243,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
                       <Text fontSize="$4" fontWeight="600" color="$color">
                         {getTranslation(
                           'home.createdRoutes.getInspired',
-                          language === 'sv' ? 'Hämta inspiration' : 'Get Inspired'
+                          language === 'sv' ? 'Hämta inspiration' : 'Get Inspired',
                         )}
                       </Text>
                     </TouchableOpacity>
@@ -247,75 +253,57 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
             </Card>
           </YStack>
         ) : createdRoutes.length > 3 ? (
-            <FlatList
-              horizontal
-              data={createdRoutes}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
-              getItemLayout={(data, index) => {
-                const screenWidth = Dimensions.get('window').width;
-                const padding = 32; // 16 on each side
-                const gap = 12; // gap between cards
-                const cardWidth = (screenWidth - padding - gap * 2) / 3.5;
-                return {
-                  length: cardWidth + gap,
-                  offset: (cardWidth + gap) * index,
-                  index,
-                };
-              }}
-              snapToInterval={Dimensions.get('window').width / 3.5 + 12}
-              decelerationRate="fast"
-              snapToAlignment="start"
-              renderItem={({ item: route }) => {
-                const screenWidth = Dimensions.get('window').width;
-                const padding = 32;
-                const gap = 12;
-                const cardWidth = (screenWidth - padding - gap * 2) / 3.5;
-                return (
-                  <XStack marginRight="$3" width={cardWidth} overflow="hidden">
-                    <RouteCard
-                      route={route}
-                      preset="grid"
-                      onPress={() => {
-                        if (onRoutePress) {
-                          onRoutePress(route.id);
-                        } else {
-                          navigation.navigate('RouteDetail', { routeId: route.id });
-                        }
-                      }}
-                    />
-                  </XStack>
-                );
-              }}
-            />
-          ) : (
-            <FlatList
-              horizontal
-              data={createdRoutes}
-              keyExtractor={(item) => item.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
-              renderItem={({ item: route }) => (
-                <XStack marginRight="$3">
-                  <RouteCard
-                    route={route}
-                    // To allow 100% or fixed width, use a wrapper XStack and control its width
-                    // Example: set width to 200, or '100%' for full width within scroll area
-                    // Here, let's allow for 100% width; you can override as needed
-                    style={{ width: '100%', maxWidth: 120, minWidth: 80 }} // change as needed!
-                    onPress={() => {
-                      if (onRoutePress) {
-                        onRoutePress(route.id);
-                      } else {
-                        navigation.navigate('RouteDetail', { routeId: route.id });
-                      }
-                    }}
-                  />
-                </XStack>
-              )}
-            />
-          )}
+          <FlatList
+            horizontal
+            data={createdRoutes}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
+            getItemLayout={(data, index) => {
+              const screenWidth = DEVICE_WIDTH;
+              const padding = 32; // 16 on each side
+              const gap = 12; // gap between cards
+              const cardWidth = (screenWidth - padding - gap * 2) / 3.5;
+              return {
+                length: cardWidth + gap,
+                offset: (cardWidth + gap) * index,
+                index,
+              };
+            }}
+            snapToInterval={DEVICE_WIDTH / 3.5 + 12}
+            decelerationRate="fast"
+            snapToAlignment="start"
+            renderItem={({ item: route }) => (
+              <RouteItem route={route} onRoutePress={onRoutePress} />
+            )}
+          />
+        ) : (
+          <FlatList
+            horizontal
+            data={createdRoutes}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: 16 }}
+            renderItem={({ item: route }) => (
+              <XStack marginRight="$3">
+                <RouteCard
+                  route={route}
+                  // To allow 100% or fixed width, use a wrapper XStack and control its width
+                  // Example: set width to 200, or '100%' for full width within scroll area
+                  // Here, let's allow for 100% width; you can override as needed
+                  style={{ width: '100%', maxWidth: 120, minWidth: 80 }} // change as needed!
+                  onPress={() => {
+                    if (onRoutePress) {
+                      onRoutePress(route.id);
+                    } else {
+                      navigation.navigate('RouteDetail', { routeId: route.id });
+                    }
+                  }}
+                />
+              </XStack>
+            )}
+          />
+        )}
       </YStack>
 
       {/* Route List Sheet */}

@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { Buffer } from 'buffer';
 import { View, Dimensions, TouchableOpacity } from 'react-native';
 import { Text } from 'tamagui';
+import { supabase } from '../../lib/supabase';
 
 import { Map } from './../Map';
 import { Play } from '@tamagui/lucide-icons';
@@ -8,18 +10,64 @@ import { WebView } from 'react-native-webview';
 import { ImageWithFallback } from './../ImageWithFallback';
 
 import { PIN_COLORS } from '../../styles/mapStyles';
+import MapView from 'react-native-maps';
 
 const { height, width } = Dimensions.get('window');
+const HERO_HEIGHT = height * 0.3; // Smaller height for sheet
 
-export default function CarouselItem({ item }: { item: any }): React.JSX.Element {
-  const HERO_HEIGHT = height * 0.3; // Smaller height for sheet
+export default function CarouselItem({
+  routeId,
+  item,
+  saveMap,
+  style,
+}: {
+  routeId: string;
+  item: any;
+  saveMap?: boolean;
+  style: any;
+}): React.JSX.Element {
+  const mapRef = useRef<MapView>(null);
+
+  const saveMapSnapshot = React.useCallback(async () => {
+    if (!saveMap) {
+      return;
+    }
+
+    const snapshot = await mapRef.current.takeSnapshot({
+      format: 'jpg', // image formats: 'png', 'jpg' (default: 'png')
+      quality: 0.8, // image quality: 0..1 (only relevant for jpg, default: 1)
+      result: 'base64', // result types: 'file', 'base64' (default: 'file')
+    });
+
+    const buffer = Buffer.from(snapshot, 'base64');
+
+    await supabase.storage
+      .from('route_previews')
+      .upload(`${routeId}.png`, buffer, { upsert: true, contentType: 'image/png' });
+
+    const result = await supabase.storage.from('route_previews').getPublicUrl(`${routeId}.png`);
+
+    await supabase
+      .from('routes')
+      .update({ preview_image: result?.data?.publicUrl })
+      .eq('id', routeId);
+  }, [routeId, saveMap]);
 
   if (item.type === 'map') {
+    if (item.preview_image) {
+      return (
+        <ImageWithFallback
+          source={{ uri: item.preview_image }}
+          style={{ width: width - 32, height: HERO_HEIGHT, ...(style ?? {}) }}
+          resizeMode="cover"
+        />
+      );
+    }
     return (
       <Map
+        ref={mapRef}
         waypoints={item.waypoints}
         region={item.region}
-        style={{ width: width - 32, height: HERO_HEIGHT }}
         zoomEnabled={false}
         pitchEnabled={false}
         rotateEnabled={false}
@@ -29,6 +77,7 @@ export default function CarouselItem({ item }: { item: any }): React.JSX.Element
         routePathColor={PIN_COLORS.ROUTE_PATH}
         showStartEndMarkers={item.showStartEndMarkers}
         drawingMode={item.waypoints.length > 2 ? 'waypoint' : 'pin'}
+        onMapLoaded={saveMapSnapshot}
       />
     );
   } else if (item.type === 'image') {

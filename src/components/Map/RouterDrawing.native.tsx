@@ -69,7 +69,7 @@ const RouterDrawing = ({
       {showStartEndMarkers && routePath && routePath.length > 1 && (
         <>
           {/* Start marker (green) */}
-          <Marker coordinate={routePath[0]} anchor={{ x: 0.5, y: 1 }}>
+          <Marker coordinate={routePath[0]} anchor={{ x: 0.3, y: 0.3 }}>
             <View
               style={{
                 width: 20,
@@ -88,7 +88,7 @@ const RouterDrawing = ({
           </Marker>
 
           {/* End marker (red) */}
-          <Marker coordinate={routePath[routePath.length - 1]} anchor={{ x: 0.5, y: 1 }}>
+          <Marker coordinate={routePath[routePath.length - 1]} anchor={{ x: 0.3, y: 0.3 }}>
             <View
               style={{
                 width: 20,

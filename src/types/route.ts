@@ -172,6 +172,7 @@ export type Route = Database['public']['Tables']['routes']['Row'] & {
   } | null;
   metadata: RouteMetadata;
   waypoint_details: WaypointData[];
+  preview_image?: string;
   reviews?: {
     id: string;
     rating: number;

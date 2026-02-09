@@ -15,6 +15,7 @@ import {
   Easing,
   KeyboardAvoidingView,
 } from 'react-native';
+import { Buffer } from 'buffer';
 import {
   YStack,
   Form,
@@ -70,6 +71,7 @@ import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector'
 import { AdvancedExerciseCreator } from '../components/AdvancedExerciseCreator';
 import * as mediaUtils from '../utils/mediaUtils';
 import { AddToPresetSheet } from '../components/AddToPresetSheet';
+import { randomUUID } from 'expo-crypto';
 
 // Helper function to extract YouTube video ID
 const extractYoutubeVideoId = (url: string): string | null => {
@@ -2103,9 +2105,30 @@ export function CreateRouteSheet({
           drawingMode: drawingMode,
         });
 
+        const snapshot = await mapRef.current.takeSnapshot({
+          format: 'jpg', // image formats: 'png', 'jpg' (default: 'png')
+          quality: 0.8, // image quality: 0..1 (only relevant for jpg, default: 1)
+          result: 'base64', // result types: 'file', 'base64' (default: 'file')
+        });
+
+        const buffer = Buffer.from(snapshot, 'base64');
+
+        const previewId = randomUUID();
+        await supabase.storage
+          .from('route_previews')
+          .upload(`${previewId}.png`, buffer, { upsert: true, contentType: 'image/png' });
+
+        const resultPreviewUpload = await supabase.storage
+          .from('route_previews')
+          .getPublicUrl(`${previewId}.png`);
+
         const { data: newRoute, error: createError } = await supabase
           .from('routes')
-          .insert({ ...baseRouteData, created_at: new Date().toISOString() })
+          .insert({
+            ...baseRouteData,
+            created_at: new Date().toISOString(),
+            preview_image: resultPreviewUpload?.data?.publicUrl,
+          })
           .select()
           .single();
 
@@ -2119,7 +2142,6 @@ export function CreateRouteSheet({
           throw createError;
         }
         route = newRoute;
-
         // Debug: Confirm what was saved
         console.log('🎨 [SAVE] Route saved successfully!');
         console.log('🎨 [SAVE] Saved metadata:', JSON.stringify(newRoute.metadata, null, 2));
@@ -4978,7 +5000,11 @@ export function CreateRouteSheet({
                     onPress={() => {
                       Alert.alert(
                         getTranslation(t, 'createRoute.deleteRoute', 'Delete Route'),
-                        getTranslation(t, 'createRoute.deleteConfirmation', 'Are you sure you want to delete this route? This action cannot be undone.'),
+                        getTranslation(
+                          t,
+                          'createRoute.deleteConfirmation',
+                          'Are you sure you want to delete this route? This action cannot be undone.',
+                        ),
                         [
                           {
                             text: getTranslation(t, 'common.cancel', 'Cancel'),
@@ -4991,7 +5017,7 @@ export function CreateRouteSheet({
                               try {
                                 console.log('🗑️ [CreateRouteSheet] Deleting route:', routeId);
                                 setLoading(true);
-                                
+
                                 const { error } = await supabase
                                   .from('routes')
                                   .delete()
@@ -5004,20 +5030,31 @@ export function CreateRouteSheet({
                                 }
 
                                 console.log('✅ [CreateRouteSheet] Route deleted successfully');
-                                
+
                                 showToast({
                                   title: getTranslation(t, 'common.success', 'Success'),
-                                  message: getTranslation(t, 'createRoute.routeDeleted', 'Route deleted successfully'),
+                                  message: getTranslation(
+                                    t,
+                                    'createRoute.routeDeleted',
+                                    'Route deleted successfully',
+                                  ),
                                   type: 'success',
                                 });
 
                                 // Close the sheet
                                 onClose();
                               } catch (error) {
-                                console.error('🗑️ [CreateRouteSheet] Failed to delete route:', error);
+                                console.error(
+                                  '🗑️ [CreateRouteSheet] Failed to delete route:',
+                                  error,
+                                );
                                 showToast({
                                   title: getTranslation(t, 'common.error', 'Error'),
-                                  message: getTranslation(t, 'createRoute.deleteError', 'Failed to delete route. Please try again.'),
+                                  message: getTranslation(
+                                    t,
+                                    'createRoute.deleteError',
+                                    'Failed to delete route. Please try again.',
+                                  ),
                                   type: 'error',
                                 });
                               } finally {
@@ -5026,7 +5063,7 @@ export function CreateRouteSheet({
                             },
                           },
                         ],
-                        { cancelable: true }
+                        { cancelable: true },
                       );
                     }}
                     disabled={loading}

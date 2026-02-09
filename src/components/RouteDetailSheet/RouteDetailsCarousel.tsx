@@ -7,6 +7,7 @@ import Carousel from 'react-native-reanimated-carousel';
 
 import { getCarouselItems } from './utils';
 import CarouselItem from './CarouselItem';
+import { useAuth } from '@/src/context/AuthContext';
 
 const { height, width } = Dimensions.get('window');
 export interface RouteDetailsCarouselProps {
@@ -16,6 +17,7 @@ export interface RouteDetailsCarouselProps {
   showVideo?: boolean;
   height?: number;
   enableCarousel?: boolean;
+  saveMap?: boolean;
 }
 
 export default function RouteDetailsCarousel({
@@ -26,6 +28,9 @@ export default function RouteDetailsCarousel({
   height: customHeight,
   enableCarousel = true,
 }: RouteDetailsCarouselProps) {
+  const { profile } = useAuth();
+
+  const saveMap = profile?.id === routeData.creator_id;
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
   const carouselItems = React.useMemo(() => {
@@ -42,7 +47,6 @@ export default function RouteDetailsCarousel({
   const carouselHeight = customHeight ?? height * 0.3;
 
   if (carouselItems.length === 0) return null;
-
   // Show single item if only one item OR carousel is disabled
   // Match card border radius (16px = $4 in Tamagui) - only top corners
   const cardBorderRadius = 16;
@@ -57,7 +61,7 @@ export default function RouteDetailsCarousel({
           marginBottom: 16,
         }}
       >
-        <CarouselItem item={carouselItems[0]} />
+        <CarouselItem routeId={routeData?.id} item={carouselItems[0]} saveMap={saveMap} />
       </View>
     );
   }
@@ -78,7 +82,13 @@ export default function RouteDetailsCarousel({
         width={width - 32}
         height={carouselHeight}
         data={carouselItems}
-        renderItem={({ item }) => <CarouselItem item={item} />}
+        renderItem={({ item }) => (
+          <CarouselItem
+            routeId={routeData?.id}
+            item={item}
+            saveMap={saveMap && !routeData?.preview_image}
+          />
+        )}
         onSnapToItem={setActiveMediaIndex}
       />
       {/* Pagination dots */}

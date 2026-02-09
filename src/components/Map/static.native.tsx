@@ -41,7 +41,7 @@ const WaypointMarker = React.memo(
   },
 );
 
-export function StaticMap({
+export const StaticMap = React.memo(function StaticMap({
   waypoints,
   region,
   style,
@@ -85,7 +85,7 @@ export function StaticMap({
       </MapView>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

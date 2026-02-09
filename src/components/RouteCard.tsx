@@ -602,6 +602,7 @@ export function RouteCard({
 
     // Single item view for small/xs when carousel disabled or only one item
     // Match card border radius (16px = $4 in Tamagui) - only top corners
+
     const cardBorderRadius = 16;
     return (
       <View
@@ -613,7 +614,11 @@ export function RouteCard({
           marginBottom: resolvedSize === 'xs' ? 6 : 10,
         }}
       >
-        <CarouselItem item={filteredItems[0]} />
+        <CarouselItem
+          item={filteredItems[0]}
+          routeId={route.id}
+          style={{ width: '100%', height: '100%' }}
+        />
       </View>
     );
   };

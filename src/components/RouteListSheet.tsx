@@ -153,6 +153,7 @@ export function RouteListSheet({
               waypoint_details,
               drawing_mode,
               creator_id,
+              preview_image,
               creator:creator_id(id, full_name)
             `,
             )
@@ -181,17 +182,13 @@ export function RouteListSheet({
               waypoint_details,
               drawing_mode,
               creator_id,
+              preview_image,
               creator:creator_id(id, full_name)
             `,
             )
             .eq('creator_id', user.id)
             .eq('is_draft', false)
             .order('created_at', { ascending: false });
-          console.log('📋 [RouteListSheet] Created routes result:', {
-            data,
-            error,
-            count: data?.length,
-          });
           setRoutes((data as unknown as Route[]) || []);
         } else if (type === 'saved') {
           console.log('📋 [RouteListSheet] Loading saved routes...');
@@ -209,6 +206,7 @@ export function RouteListSheet({
                 spot_type,
                 created_at,
                 creator_id,
+                preview_image,
                 creator:creator_id(id, full_name)
               )
             `,

@@ -12,6 +12,7 @@ const getCarouselItems = (routeData: any) => {
       description: wp.description,
     }));
 
+
     const lats = waypoints.map((w) => w.latitude);
     const lngs = waypoints.map((w) => w.longitude);
     const region: Region = {
@@ -43,6 +44,12 @@ const getCarouselItems = (routeData: any) => {
       routePath,
       showStartEndMarkers: true,
       pins,
+      preview_image: routeData.preview_image,
+    });
+  } else if (routeData?.preview_image) {
+    items.push({
+      type: 'image',
+      url: routeData.preview_image,
     });
   }
 
