@@ -16,34 +16,13 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { Buffer } from 'buffer';
-import {
-  YStack,
-  Form,
-  Input,
-  TextArea,
-  XStack,
-  Card,
-  Separator,
-  Group,
-  Heading,
-  useTheme,
-} from 'tamagui';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { YStack, TextArea, XStack, Card, Separator, Heading, useTheme } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 // Navigation imports removed for sheet component
-import {
-  Map,
-  Waypoint,
-  Screen,
-  Button,
-  Text,
-  Header,
-  FormField,
-  Chip,
-  IconButton,
-} from '../components';
+import { Waypoint, Screen, Button, Text, FormField, IconButton } from '../components';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
@@ -53,14 +32,10 @@ import ReanimatedAnimated, {
 } from 'react-native-reanimated';
 import * as Location from 'expo-location';
 import { Feather } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import MapView, { Marker, Polyline, Region } from '../components/MapView';
-import { decode } from 'base64-arraybuffer';
 import { useLocation } from '../context/LocationContext';
 import { AppAnalytics } from '../utils/analytics';
-import { MediaCarousel } from '../components/MediaCarousel';
-import { MediaItem, Exercise, WaypointData, MediaUrl, RouteData } from '../types/route';
+import { MediaItem, Exercise, RouteData } from '../types/route';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useThemePreference } from '../hooks/useThemeOverride';
 import { useModal } from '../contexts/ModalContext';
@@ -82,18 +57,6 @@ type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type SpotType = Database['public']['Enums']['spot_type'];
 type SpotVisibility = Database['public']['Enums']['spot_visibility'];
 type Category = Database['public']['Enums']['spot_category'];
-
-const DIFFICULTY_LEVELS: DifficultyLevel[] = ['beginner', 'intermediate', 'advanced'];
-const SPOT_TYPES: SpotType[] = ['urban', 'rural', 'highway', 'residential'];
-const VISIBILITY_OPTIONS: SpotVisibility[] = ['public', 'private', 'school_only'];
-const CATEGORIES: Category[] = [
-  'parking',
-  'roundabout',
-  'incline_start',
-  'straight_driving',
-  'reversing',
-  'highway_entry_exit',
-];
 
 type MapPressEvent = {
   nativeEvent: {
@@ -213,16 +176,12 @@ export function CreateRouteSheet({
   visible,
   onClose,
   routeId,
-  onRouteCreated,
-  onRouteUpdated,
   onNavigateToMap,
   initialWaypoints,
   initialName,
   initialDescription,
   initialSearchCoordinates,
   initialRoutePath,
-  initialStartPoint,
-  initialEndPoint,
   recordedRouteData, // NEW: Accept recorded route data from RecordDrivingSheet
   isModal = false,
 }: CreateRouteSheetProps) {
@@ -233,34 +192,6 @@ export function CreateRouteSheet({
   const finalInitialSearchCoordinates =
     recordedRouteData?.searchCoordinates || initialSearchCoordinates;
   const finalInitialRoutePath = recordedRouteData?.routePath || initialRoutePath;
-  const finalInitialStartPoint = recordedRouteData?.startPoint || initialStartPoint;
-  const finalInitialEndPoint = recordedRouteData?.endPoint || initialEndPoint;
-
-  // Disabled to prevent console flooding
-  // console.log('🏗️ ==================== CREATE ROUTE SHEET INIT ====================');
-  // console.log('🏗️ CreateRouteSheet initialized with props:', {
-  //   visible,
-  //   routeId,
-  //   hasRecordedRouteData: !!recordedRouteData,
-  //   hasInitialWaypoints: !!finalInitialWaypoints,
-  //   waypointCount: finalInitialWaypoints?.length || 0,
-  //   initialName: finalInitialName,
-  //   hasInitialDescription: !!finalInitialDescription,
-  //   hasInitialSearchCoordinates: !!finalInitialSearchCoordinates,
-  //   hasInitialRoutePath: !!finalInitialRoutePath,
-  //   routePathLength: finalInitialRoutePath?.length || 0,
-  //   hasInitialStartPoint: !!finalInitialStartPoint,
-  //   hasInitialEndPoint: !!finalInitialEndPoint,
-  //   hasOnRouteCreated: !!onRouteCreated,
-  // });
-
-  if (initialWaypoints) {
-    console.log('🏗️ Initial waypoints details:', {
-      count: initialWaypoints.length,
-      firstWaypoint: initialWaypoints[0],
-      lastWaypoint: initialWaypoints[initialWaypoints.length - 1],
-    });
-  }
 
   const { t, language } = useTranslation();
 
@@ -283,14 +214,6 @@ export function CreateRouteSheet({
   const createRouteContext = useCreateRoute();
   const isEditing = !!routeId;
 
-  // Disabled to prevent console flooding
-  // console.log('🏗️ Extracted params:', {
-  //   routeId,
-  //   initialWaypointsCount: initialWaypoints?.length || 0,
-  //   initialName,
-  //   isEditing,
-  //   hasOnRouteCreated: !!onRouteCreated,
-  // });
   const { effectiveTheme } = useThemePreference();
   const colorScheme = effectiveTheme || 'light';
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
@@ -355,12 +278,7 @@ export function CreateRouteSheet({
       });
       backdropOpacity.value = withSpring(0);
     }
-  }, [visible, snapPoints]);
-
-  // Get current size value
-  const getCurrentSizeValue = useCallback(() => {
-    return currentSnapPoint;
-  }, [currentSnapPoint]);
+  }, [visible, snapPoints, backdropOpacity, translateY]);
 
   // Snap to size
   const snapToSize = useCallback(
@@ -387,7 +305,7 @@ export function CreateRouteSheet({
         runOnJS(handleClose)();
       }
     },
-    [snapPoints, handleClose, currentSnapPoint, visible],
+    [snapPoints, handleClose, currentSnapPoint, visible, translateY],
   );
 
   // Pan gesture handler - matching RouteDetailSheet
@@ -459,26 +377,12 @@ export function CreateRouteSheet({
   const [showSearchResults, setShowSearchResults] = useState(false);
   const { user } = useAuth();
 
-  // Navigation handling for sheet component
-  const handleNavigateToMap = useCallback(
-    (routeId: string) => {
-      if (onNavigateToMap) {
-        onNavigateToMap(routeId);
-      }
-    },
-    [onNavigateToMap],
-  );
   const [loading, setLoading] = useState(false);
   const [loadingMedia, setLoadingMedia] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const spinValue = useRef(new Animated.Value(0)).current;
   const [error, setError] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>(() => {
-    console.log('🏗️ Initializing waypoints state:', {
-      hasInitialWaypoints: !!finalInitialWaypoints,
-      count: finalInitialWaypoints?.length || 0,
-      waypoints: finalInitialWaypoints,
-    });
     return finalInitialWaypoints || [];
   });
   const [region, setRegion] = useState({
@@ -498,7 +402,6 @@ export function CreateRouteSheet({
   const { getCurrentLocation, locationPermission, requestLocationPermission } = useLocation();
   const windowHeight = Dimensions.get('window').height;
   const windowWidth = Dimensions.get('window').width;
-  const HERO_HEIGHT = windowHeight * 0.6;
   const [youtubeLink, setYoutubeLink] = useState('');
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [showCollectionSelector, setShowCollectionSelector] = useState(false);
@@ -529,19 +432,8 @@ export function CreateRouteSheet({
 
   // Initialize search query with coordinates if provided
   useEffect(() => {
-    // Disabled to prevent console flooding
-    // console.log('🏗️ ==================== USE EFFECT - SEARCH COORDINATES ====================');
-    // console.log('🏗️ Search coordinates effect triggered:', {
-    //   hasInitialSearchCoordinates: !!finalInitialSearchCoordinates,
-    //   finalInitialSearchCoordinates,
-    //   currentSearchQuery: searchQuery,
-    //   shouldSet: finalInitialSearchCoordinates && searchQuery === '',
-    // });
-
     if (finalInitialSearchCoordinates && searchQuery === '') {
-      // console.log('🏗️ Setting initial search coordinates:', finalInitialSearchCoordinates);
       setSearchQuery(finalInitialSearchCoordinates);
-      // console.log('🏗️ ✅ Search coordinates set successfully');
     }
   }, [finalInitialSearchCoordinates, searchQuery]);
 
@@ -603,8 +495,6 @@ export function CreateRouteSheet({
             }
           }
         } catch (err) {
-          // Silently handle location errors (common on iOS simulator)
-          console.log('Location not available, using default region');
           // Fallback to default location if there's an error
           setRegion({
             latitude: 55.7047,
@@ -616,18 +506,7 @@ export function CreateRouteSheet({
       })();
     }
 
-    // If we have initial waypoints, set up the region based on them
-    // Disabled to prevent console flooding
-    // console.log('🏗️ ==================== USE EFFECT - INITIAL WAYPOINTS ====================');
-    // console.log('🏗️ Checking initial waypoints:', {
-    //   hasInitialWaypoints: !!initialWaypoints?.length,
-    //   count: initialWaypoints?.length || 0,
-    //   waypoints: finalInitialWaypoints,
-    // });
-
     if (finalInitialWaypoints?.length) {
-      // console.log('🏗️ Setting up region from initial waypoints...');
-
       const latitudes = finalInitialWaypoints.map((wp) => wp.latitude);
       const longitudes = finalInitialWaypoints.map((wp) => wp.longitude);
 
@@ -643,23 +522,138 @@ export function CreateRouteSheet({
         longitudeDelta: Math.max((maxLng - minLng) * 1.2, 0.02),
       };
 
-      // console.log('🏗️ Calculated region:', newRegion);
-
       // Create a region that contains all waypoints
       setRegion(newRegion);
 
       // Set active section to basic to allow naming the route
       setActiveSection('basic');
-
-      // console.log('🏗️ ✅ Region and active section set for recorded route');
     }
-  }, [isEditing, locationPermission, finalInitialWaypoints]);
+  }, [
+    isEditing,
+    locationPermission,
+    finalInitialWaypoints,
+    drawingMode,
+    getCurrentLocation,
+    requestLocationPermission,
+  ]);
+
+  const loadRouteData = React.useCallback(
+    async (id: string) => {
+      try {
+        const { data: routeData, error } = await supabase
+          .from('routes')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) throw error;
+        if (!routeData) return;
+
+        const route = routeData as RouteData;
+
+        setFormData({
+          name: route.name || '',
+          description: route.description || '',
+          difficulty: route.difficulty || 'beginner',
+          spot_type: route.spot_type || 'urban',
+          visibility: route.visibility || 'public',
+          best_season: route.best_season || 'all',
+          best_times: route.best_times || 'anytime',
+          vehicle_types: route.vehicle_types || ['passenger_car'],
+          activity_level: route.activity_level || 'moderate',
+          spot_subtype: route.spot_subtype || 'standard',
+          transmission_type: route.transmission_type || 'both',
+          category: route.category || 'parking',
+        });
+
+        if (route.waypoint_details) {
+          const waypoints = route.waypoint_details.map((wp: any) => ({
+            latitude: wp.lat,
+            longitude: wp.lng,
+            title: wp.title,
+            description: wp.description,
+          }));
+
+          setWaypoints(waypoints);
+
+          // Set initial region based on first waypoint
+          if (waypoints.length > 0) {
+            const firstWaypoint = waypoints[0];
+            setRegion({
+              latitude: firstWaypoint.latitude,
+              longitude: firstWaypoint.longitude,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            });
+
+            // Set search query to first waypoint title
+            setSearchQuery(firstWaypoint.title || '');
+          }
+        }
+
+        // Load existing exercises from suggested_exercises field
+        if ((route as any).suggested_exercises) {
+          try {
+            let loadedExercises: RouteExercise[] = [];
+
+            if (typeof (route as any).suggested_exercises === 'string') {
+              // Parse JSON string
+              const cleanedString = (route as any).suggested_exercises.trim();
+              if (cleanedString && cleanedString !== 'null' && cleanedString !== '') {
+                loadedExercises = JSON.parse(cleanedString);
+              }
+            } else if (Array.isArray((route as any).suggested_exercises)) {
+              // Already an array
+              loadedExercises = (route as any).suggested_exercises;
+            }
+
+            console.log('📚 [CreateRoute] Loaded existing exercises:', {
+              count: loadedExercises.length,
+              exercises: loadedExercises.map((ex) => ({
+                id: ex.id,
+                title: ex.title,
+                source: ex.source,
+                has_quiz: ex.has_quiz,
+              })),
+            });
+
+            setExercises(loadedExercises);
+          } catch (parseError) {
+            console.error('❌ [CreateRoute] Error parsing existing exercises:', parseError);
+            setExercises([]);
+          }
+        } else if (route.exercises) {
+          // Fallback to old field name
+          setExercises(route.exercises);
+        }
+
+        if (route.media_attachments) {
+          const mediaItems: MediaItem[] = route.media_attachments.map((m: any) => ({
+            id: Date.now().toString() + Math.random(),
+            type: m.type as 'image' | 'video' | 'youtube',
+            uri: m.url,
+            description: m.description,
+            fileName: m.url.split('/').pop() || 'unknown',
+            thumbnail:
+              m.type === 'youtube'
+                ? `https://img.youtube.com/vi/${extractYoutubeVideoId(m.url)}/hqdefault.jpg`
+                : undefined,
+          }));
+          setMedia(mediaItems);
+        }
+      } catch (err) {
+        console.error('Error loading route:', err);
+        setError('Failed to load route data');
+      }
+    },
+    [setError],
+  );
 
   useEffect(() => {
     if (isEditing && routeId) {
-      loadRouteData(routeId);
+      loadRouteData(routeId ?? '');
     }
-  }, [isEditing, routeId]);
+  }, [isEditing, routeId, loadRouteData]);
 
   const [formData, setFormData] = useState({
     name: finalInitialName || '',
@@ -693,26 +687,16 @@ export function CreateRouteSheet({
 
   // Handle backdrop press
   const handleBackdropPress = useCallback(() => {
-    console.log('🎯 [CreateRouteSheet] Backdrop pressed!', {
-      hasUnsavedChanges,
-      currentSnapPoint,
-      snapPoints,
-      visible,
-    });
-
     if (hasUnsavedChanges) {
       // Show confirmation dialog if there are unsaved changes
-      console.log('🎯 [CreateRouteSheet] Showing exit confirmation due to unsaved changes');
       setShowExitConfirmation(true);
     } else {
       // If no changes, check current size and handle accordingly
       if (currentSnapPoint === snapPoints.large) {
         // If at large size, minimize to mini first
-        console.log('🎯 [CreateRouteSheet] Large -> Mini');
         snapToSize('mini');
       } else if (currentSnapPoint === snapPoints.mini) {
         // If already at mini size, fade out backdrop and dismiss
-        console.log('🎯 [CreateRouteSheet] Mini -> Dismissed (fading backdrop)');
         backdropOpacity.value = withSpring(0, {
           damping: 20,
           mass: 1,
@@ -721,29 +705,21 @@ export function CreateRouteSheet({
         snapToSize('dismissed');
       } else {
         // For medium/small sizes, go to mini first
-        console.log('🎯 [CreateRouteSheet] Medium/Small -> Mini');
         snapToSize('mini');
       }
     }
-  }, [hasUnsavedChanges, currentSnapPoint, snapPoints, snapToSize, backdropOpacity, visible]);
+  }, [hasUnsavedChanges, currentSnapPoint, snapPoints, snapToSize, backdropOpacity]);
 
   // Handle cancel button press
   const handleCancelPress = useCallback(() => {
-    console.log('🎯 [CreateRouteSheet] Cancel button pressed!', {
-      hasUnsavedChanges,
-      showExitConfirmation,
-    });
-
     if (hasUnsavedChanges) {
       // Show confirmation dialog if there are unsaved changes
-      console.log('🎯 [CreateRouteSheet] ✅ Showing exit confirmation due to unsaved changes');
       setShowExitConfirmation(true);
     } else {
       // No changes, close directly
-      console.log('🎯 [CreateRouteSheet] ❌ No unsaved changes - closing directly');
       onClose();
     }
-  }, [hasUnsavedChanges, onClose, showExitConfirmation]);
+  }, [hasUnsavedChanges, onClose]);
 
   // Create initial snapshot for comparison (after all state is initialized)
   useEffect(() => {
@@ -813,56 +789,23 @@ export function CreateRouteSheet({
 
   // Show toast when modal is closed and we have pending toast data
   useEffect(() => {
-    console.log(
-      '🍞 [CreateRouteSheet] Toast useEffect triggered - visible:',
-      visible,
-      'pendingToastRef:',
-      pendingToastRef.current,
-    );
-
     if (!visible && pendingToastRef.current) {
       const { id, name, isEditing } = pendingToastRef.current;
-      console.log(
-        '🍞 [CreateRouteSheet] ✅ CONDITIONS MET - Modal closed, showing pending toast:',
-        id,
-        name,
-      );
-      console.log('🍞 [CreateRouteSheet] Setting timeout for 1200ms...');
-
       // Use a longer delay to ensure modal is fully unmounted and animations complete
       const timeoutId = setTimeout(() => {
-        console.log(
-          '🍞 [CreateRouteSheet] ⏰ TIMEOUT FIRED - NOW showing toast after delay:',
-          id,
-          name,
-        );
-        console.log('🍞 [CreateRouteSheet] Calling showRouteCreatedToast function...');
         try {
           showRouteCreatedToast(id, name, isEditing, false, () => {
             // No-op: prevents auto-navigation to RouteDetailScreen
-            console.log('🍞 [CreateRouteSheet] Toast clicked for route:', id);
           });
-          console.log('🍞 [CreateRouteSheet] ✅ showRouteCreatedToast called successfully!');
         } catch (error) {
           console.error('🍞 [CreateRouteSheet] ❌ ERROR calling showRouteCreatedToast:', error);
         }
         pendingToastRef.current = null; // Clear the pending toast
-        console.log('🍞 [CreateRouteSheet] Cleared pendingToastRef');
       }, 1200); // Increased from 500ms to 1200ms for smooth animation completion
 
-      console.log('🍞 [CreateRouteSheet] Timeout ID:', timeoutId);
-
       return () => {
-        console.log('🍞 [CreateRouteSheet] Cleanup - clearing timeout:', timeoutId);
         clearTimeout(timeoutId);
       };
-    } else {
-      console.log(
-        '🍞 [CreateRouteSheet] ❌ Conditions NOT met - visible:',
-        visible,
-        'hasPendingToast:',
-        !!pendingToastRef.current,
-      );
     }
   }, [visible, showRouteCreatedToast]);
 
@@ -870,22 +813,10 @@ export function CreateRouteSheet({
 
   // Check if we should restore state from context (coming back from recording)
   useEffect(() => {
-    console.log('🔄 ==================== CHECKING FOR STATE RESTORATION ====================');
-
     const shouldRestore = createRouteContext.isFromRecording() && createRouteContext.persistedState;
-    console.log('🔄 Should restore state:', {
-      isFromRecording: createRouteContext.isFromRecording(),
-      hasPersistedState: !!createRouteContext.persistedState,
-      shouldRestore,
-    });
 
     if (shouldRestore && createRouteContext.persistedState) {
       const restoredState = createRouteContext.persistedState;
-      console.log('🔄 Restoring state from context:', {
-        waypointsCount: restoredState.waypoints.length,
-        formName: restoredState.formData.name,
-        drawingMode: restoredState.drawingMode,
-      });
 
       // Restore all state
       setWaypoints(restoredState.waypoints);
@@ -903,15 +834,11 @@ export function CreateRouteSheet({
 
       // Clear the recording flag after restoration
       createRouteContext.clearRecordingFlag();
-
-      console.log('🔄 ✅ State restoration completed');
     }
   }, []); // Run only once on mount
 
   // Save state to context when user starts recording
-  const saveCurrentStateToContext = () => {
-    console.log('🔄 Saving current state to context before recording');
-
+  const saveCurrentStateToContext = React.useCallback(() => {
     const currentState = {
       formData,
       waypoints,
@@ -930,349 +857,279 @@ export function CreateRouteSheet({
     };
 
     createRouteContext.saveState(currentState);
-    console.log('🔄 ✅ State saved to context');
-  };
+  }, [
+    formData,
+    waypoints,
+    exercises,
+    media,
+    drawingMode,
+    snapToRoads,
+    routePath,
+    region,
+    activeSection,
+    searchQuery,
+    youtubeLink,
+    routeId,
+    createRouteContext,
+    penPath,
+  ]);
 
-  // ==================== DRAFT FUNCTIONALITY ====================
-
-  const saveAsDraft = async () => {
-    try {
-      console.log('💾 Saving route as draft...');
-
-      if (!user?.id) {
-        Alert.alert('Error', 'You must be logged in to save drafts');
-        return;
-      }
-
-      // Create draft data
-      const draftData = {
-        user_id: user.id,
-        draft_name: formData.name || `Draft - ${new Date().toLocaleDateString()}`,
-        form_data: formData,
-        waypoints,
-        exercises,
-        media,
-        drawing_mode: drawingMode,
-        snap_to_roads: snapToRoads,
-        pen_path: penPath,
-        route_path: routePath,
-        region,
-        active_section: activeSection,
-        search_query: searchQuery,
-        youtube_link: youtubeLink,
-        created_at: new Date().toISOString(),
-      };
-
-      // Save to Supabase drafts table (you'll need to create this table)
-      const { error } = await supabase.from('route_drafts').insert([draftData]);
-
-      if (error) throw error;
-
-      console.log('💾 ✅ Draft saved successfully');
-      Alert.alert('Success', 'Route saved as draft! You can continue editing it later.');
-
-      // Reset unsaved changes flag
-      setHasUnsavedChanges(false);
-      setShowExitConfirmation(false);
-
-      // Close sheet
-      onClose();
-    } catch (error) {
-      console.error('💾 ❌ Error saving draft:', error);
-      Alert.alert('Error', 'Failed to save draft. Please try again.');
-    }
-  };
-
-  const handleExitWithoutSaving = () => {
-    console.log('🚪 Exiting without saving changes');
+  const handleExitWithoutSaving = React.useCallback(() => {
     setHasUnsavedChanges(false);
     setShowExitConfirmation(false);
     onClose();
-  };
+  }, [setHasUnsavedChanges, setShowExitConfirmation, onClose]);
 
-  const handleContinueEditing = () => {
+  const handleContinueEditing = React.useCallback(() => {
     setShowExitConfirmation(false);
-  };
+  }, [setShowExitConfirmation]);
 
-  // Enhanced map press handler with drawing modes
-  const handleMapPress = (e: MapPressEvent) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
+  const handlePinMode = React.useCallback(
+    async (latitude: number, longitude: number) => {
+      // Create basic title with coordinates
+      const basicTitle = `Pin (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
 
-    if (drawingMode === 'pin') {
-      // Pin mode: Replace existing pin with new one
-      handlePinMode(latitude, longitude);
-    } else if (drawingMode === 'waypoint') {
-      // Waypoint mode: Add new waypoint to sequence
-      handleWaypointMode(latitude, longitude);
-    } else if (drawingMode === 'pen') {
-      // Pen mode: Add to continuous path
-      handlePenMode(latitude, longitude);
-    }
-    // Record mode is handled by RecordDrivingSheet
-  };
-
-  const handlePinMode = async (latitude: number, longitude: number) => {
-    console.log(`Pin mode: Dropping pin at ${latitude}, ${longitude}`);
-
-    // Create basic title with coordinates
-    const basicTitle = `Pin (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-
-    // Create waypoint immediately to prevent crashes
-    const newWaypoint: Waypoint = {
-      latitude,
-      longitude,
-      title: basicTitle,
-      description: 'Pin location',
-    };
-
-    // Set waypoint first
-    setWaypoints([newWaypoint]);
-    setSearchQuery(basicTitle);
-    console.log('Pin waypoint set successfully');
-
-    // Try to get address in background with rate limiting protection
-    try {
-      // Add delay to prevent rate limiting
-      setTimeout(async () => {
-        try {
-          const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
-          if (address) {
-            const title = [address.street, address.city, address.country]
-              .filter(Boolean)
-              .join(', ');
-
-            // Update with real address
-            setWaypoints([
-              {
-                latitude,
-                longitude,
-                title,
-                description: 'Pin location',
-              },
-            ]);
-            setSearchQuery(title);
-            console.log(`Pin address resolved: ${title}`);
-          }
-        } catch (err) {
-          console.log('Address lookup failed, keeping coordinate title');
-        }
-      }, 1000); // 1 second delay to prevent rate limiting
-    } catch (err) {
-      console.error('Error setting up address lookup:', err);
-    }
-
-    // Don't move the map in pin mode - just drop the pin where user tapped
-  };
-
-  const handleWaypointMode = async (latitude: number, longitude: number) => {
-    try {
-      console.log(`Waypoint mode: Adding waypoint at ${latitude}, ${longitude}`);
-
-      // Create basic title with waypoint number and coordinates
-      const waypointNumber = waypoints.length + 1;
-      const basicTitle = `Waypoint ${waypointNumber} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
-
+      // Create waypoint immediately to prevent crashes
       const newWaypoint: Waypoint = {
         latitude,
         longitude,
         title: basicTitle,
-        description: 'Route waypoint',
+        description: 'Pin location',
       };
 
-      // Add to waypoint sequence immediately
-      console.log('About to add waypoint to state...');
-      setWaypoints((prev) => {
-        console.log('Previous waypoints:', prev.length);
-        const newList = [...prev, newWaypoint];
-        console.log('New waypoints list:', newList.length);
-        return newList;
-      });
-      setUndoneWaypoints([]);
+      // Set waypoint first
+      setWaypoints([newWaypoint]);
       setSearchQuery(basicTitle);
-      console.log(`Waypoint ${waypointNumber} added successfully`);
-      console.log(`Current waypoints after adding: ${waypoints.length + 1}`);
-
-      // Performance protection for Expo Go
-      if (waypointNumber > 5) {
-        console.warn(`Performance: ${waypointNumber} waypoints may cause crashes in Expo Go`);
-        if (waypointNumber > 8) {
-          Alert.alert(
-            'Too Many Waypoints',
-            'Maximum 8 waypoints allowed in development mode. Please use fewer waypoints or test on device.',
-            [{ text: 'OK' }],
-          );
-          return; // Stop adding more waypoints
-        }
-      }
 
       // Try to get address in background with rate limiting protection
       try {
         // Add delay to prevent rate limiting
-        setTimeout(
-          async () => {
-            try {
-              const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
-              if (address) {
-                const addressTitle = [address.street, address.city, address.country]
-                  .filter(Boolean)
-                  .join(', ');
+        setTimeout(async () => {
+          try {
+            const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
+            if (address) {
+              const title = [address.street, address.city, address.country]
+                .filter(Boolean)
+                .join(', ');
 
-                // Update the specific waypoint with real address
-                setWaypoints((prev) =>
-                  prev.map((wp, index) =>
-                    index === prev.length - 1 ? { ...wp, title: addressTitle } : wp,
-                  ),
-                );
-                console.log(`Waypoint ${waypointNumber} address resolved: ${addressTitle}`);
-              }
-            } catch (err) {
-              console.log(
-                `Address lookup failed for waypoint ${waypointNumber}, keeping coordinate title`,
-              );
+              // Update with real address
+              setWaypoints([
+                {
+                  latitude,
+                  longitude,
+                  title,
+                  description: 'Pin location',
+                },
+              ]);
+              setSearchQuery(title);
             }
-          },
-          Math.min(500 * waypointNumber, 5000),
-        ); // Staggered delays to prevent rate limiting, max 5s
+          } catch (err) {
+            console.log('Address lookup failed, keeping coordinate title');
+          }
+        }, 1000); // 1 second delay to prevent rate limiting
       } catch (err) {
         console.error('Error setting up address lookup:', err);
       }
 
-      // Don't move the map in waypoint mode - just drop the waypoint where user tapped
-    } catch (error) {
-      console.error('Error in handleWaypointMode:', error);
-      // Still try to add the waypoint even if address lookup fails
-      const waypointNumber = waypoints.length + 1;
-      const basicTitle = `Waypoint ${waypointNumber} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+      // Don't move the map in pin mode - just drop the pin where user tapped
+    },
+    [setWaypoints, setSearchQuery],
+  );
 
-      setWaypoints((prev) => [
-        ...prev,
-        {
+  const handleWaypointMode = React.useCallback(
+    async (latitude: number, longitude: number) => {
+      try {
+        // Create basic title with waypoint number and coordinates
+        const waypointNumber = waypoints.length + 1;
+        const basicTitle = `Waypoint ${waypointNumber} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+
+        const newWaypoint: Waypoint = {
           latitude,
           longitude,
           title: basicTitle,
           description: 'Route waypoint',
-        },
-      ]);
-    }
-  };
+        };
 
-  const handlePenMode = (latitude: number, longitude: number) => {
-    console.log(
-      `Pen mode: ${isDrawing ? 'Adding to' : 'Starting'} pen path at ${latitude}, ${longitude}`,
-    );
+        // Add to waypoint sequence immediately
+        setWaypoints((prev) => {
+          const newList = [...prev, newWaypoint];
+          return newList;
+        });
+        setUndoneWaypoints([]);
+        setSearchQuery(basicTitle);
 
-    if (isDrawing) {
-      // Add to pen path for continuous drawing
-      const newPath = [...penPath, { latitude, longitude }];
-      setPenPath(newPath);
-      console.log(`Drawing: ${newPath.length} points`);
-    } else {
-      // Start new pen drawing
-      setIsDrawing(true);
-      const newPath = [{ latitude, longitude }];
-      setPenPath(newPath);
-      console.log(`Started drawing at: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-    }
-  };
+        // Performance protection for Expo Go
+        if (waypointNumber > 5) {
+          if (waypointNumber > 8) {
+            Alert.alert(
+              'Too Many Waypoints',
+              'Maximum 8 waypoints allowed in development mode. Please use fewer waypoints or test on device.',
+              [{ text: 'OK' }],
+            );
+            return; // Stop adding more waypoints
+          }
+        }
 
-  // Convert screen coordinates to map coordinates for continuous drawing
-  const convertScreenToMapCoords = (screenX: number, screenY: number, mapRef: any) => {
-    // This is a simplified conversion - in reality you'd need the map's current bounds
-    // For now, we'll use the tap-based approach but this sets up for future enhancement
-    return null;
-  };
+        // Try to get address in background with rate limiting protection
+        try {
+          // Add delay to prevent rate limiting
+          setTimeout(
+            async () => {
+              try {
+                const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
+                if (address) {
+                  const addressTitle = [address.street, address.city, address.country]
+                    .filter(Boolean)
+                    .join(', ');
+
+                  // Update the specific waypoint with real address
+                  setWaypoints((prev) =>
+                    prev.map((wp, index) =>
+                      index === prev.length - 1 ? { ...wp, title: addressTitle } : wp,
+                    ),
+                  );
+                }
+              } catch (err) {
+                console.log(
+                  `Address lookup failed for waypoint ${waypointNumber}, keeping coordinate title`,
+                );
+              }
+            },
+            Math.min(500 * waypointNumber, 5000),
+          ); // Staggered delays to prevent rate limiting, max 5s
+        } catch (err) {
+          console.error('Error setting up address lookup:', err);
+        }
+
+        // Don't move the map in waypoint mode - just drop the waypoint where user tapped
+      } catch (error) {
+        // Still try to add the waypoint even if address lookup fails
+        const waypointNumber = waypoints.length + 1;
+        const basicTitle = `Waypoint ${waypointNumber} (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`;
+
+        setWaypoints((prev) => [
+          ...prev,
+          {
+            latitude,
+            longitude,
+            title: basicTitle,
+            description: 'Route waypoint',
+          },
+        ]);
+      }
+    },
+    [setWaypoints, setSearchQuery, waypoints.length],
+  );
+
+  const handlePenMode = React.useCallback(
+    (latitude: number, longitude: number) => {
+      if (isDrawing) {
+        // Add to pen path for continuous drawing
+        const newPath = [...penPath, { latitude, longitude }];
+        setPenPath(newPath);
+      } else {
+        // Start new pen drawing
+        setIsDrawing(true);
+        const newPath = [{ latitude, longitude }];
+        setPenPath(newPath);
+      }
+    },
+    [setPenPath, isDrawing, penPath],
+  );
+
+  // Enhanced map press handler with drawing modes
+  const handleMapPress = React.useCallback(
+    (e: MapPressEvent) => {
+      const { latitude, longitude } = e.nativeEvent.coordinate;
+
+      if (drawingMode === 'pin') {
+        // Pin mode: Replace existing pin with new one
+        handlePinMode(latitude, longitude);
+      } else if (drawingMode === 'waypoint') {
+        // Waypoint mode: Add new waypoint to sequence
+        handleWaypointMode(latitude, longitude);
+      } else if (drawingMode === 'pen') {
+        // Pen mode: Add to continuous path
+        handlePenMode(latitude, longitude);
+      }
+      // Record mode is handled by RecordDrivingSheet
+    },
+    [drawingMode, handlePinMode, handleWaypointMode, handlePenMode],
+  );
 
   // Continuous drawing functions
-  const startContinuousDrawing = (latitude: number, longitude: number) => {
-    console.log(
-      `🎨 STARTING CONTINUOUS DRAWING at: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
-    );
+  const startContinuousDrawing = React.useCallback(
+    (latitude: number, longitude: number) => {
+      // Clear any existing drawing first
+      if (penPath.length === 0) {
+        drawingRef.current = true;
+        setIsDrawing(true);
 
-    // Clear any existing drawing first
-    if (penPath.length === 0) {
-      drawingRef.current = true;
-      setIsDrawing(true);
+        const initialPath = [{ latitude, longitude }];
+        setPenPath(initialPath);
+        lastDrawPointRef.current = { latitude, longitude, timestamp: Date.now() };
+      } else {
+        // Continue existing drawing
+        drawingRef.current = true;
+        const newPoint = { latitude, longitude };
+        setPenPath((prev) => [...prev, newPoint]);
+        lastDrawPointRef.current = { latitude, longitude, timestamp: Date.now() };
+      }
+    },
+    [setPenPath, penPath],
+  );
 
-      const initialPath = [{ latitude, longitude }];
-      setPenPath(initialPath);
-      lastDrawPointRef.current = { latitude, longitude, timestamp: Date.now() };
-      console.log(`🎨 Initial pen path set with 1 point at:`, initialPath[0]);
-    } else {
-      // Continue existing drawing
-      drawingRef.current = true;
-      const newPoint = { latitude, longitude };
-      setPenPath((prev) => [...prev, newPoint]);
-      lastDrawPointRef.current = { latitude, longitude, timestamp: Date.now() };
-      console.log(`🎨 Continuing drawing, added point:`, newPoint);
-    }
-  };
-
-  const addContinuousDrawingPoint = (latitude: number, longitude: number) => {
-    if (!drawingRef.current) {
-      console.log(`🎨 NOT ADDING POINT - drawingRef.current is false`);
-      return;
-    }
-
-    // Add distance filtering to avoid too many points but keep drawing smooth
-    const lastPoint = lastDrawPointRef.current;
-    if (lastPoint) {
-      const distance = Math.sqrt(
-        Math.pow(latitude - lastPoint.latitude, 2) + Math.pow(longitude - lastPoint.longitude, 2),
-      );
-
-      // Reduced threshold for smoother drawing (was 0.00001, now 0.000005)
-      if (distance < 0.000005) {
-        console.log(`🎨 NOT ADDING POINT - too close to last point (${distance})`);
+  const addContinuousDrawingPoint = React.useCallback(
+    (latitude: number, longitude: number) => {
+      if (!drawingRef.current) {
         return;
       }
-    }
 
-    console.log(`🎨 ADDING DRAWING POINT: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
-    setPenPath((prev) => {
-      const newPath = [...prev, { latitude, longitude }];
-      console.log(`🎨 New pen path length: ${newPath.length}`);
-      return newPath;
-    });
-    lastDrawPointRef.current = { latitude, longitude };
-  };
+      // Add distance filtering to avoid too many points but keep drawing smooth
+      const lastPoint = lastDrawPointRef.current;
+      if (lastPoint) {
+        const distance = Math.sqrt(
+          Math.pow(latitude - lastPoint.latitude, 2) + Math.pow(longitude - lastPoint.longitude, 2),
+        );
 
-  const stopContinuousDrawing = () => {
-    console.log(`Stopping continuous drawing. Total points: ${penPath.length}`);
-    drawingRef.current = false;
-    // Keep isDrawing true so user can continue or finish
-  };
-
-  const handleMapPressWrapper = (event?: any) => {
-    // Handle map press for drawing modes
-    console.log('Map press event:', event);
-    if (event && event.nativeEvent && event.nativeEvent.coordinate) {
-      const { latitude, longitude } = event.nativeEvent.coordinate;
-      console.log(`Map pressed at: ${latitude}, ${longitude} - Mode: ${drawingMode}`);
-      console.log(`Current waypoints before press:`, waypoints.length, waypoints);
-
-      // For pen mode, handle continuous drawing
-      if (drawingMode === 'pen') {
-        console.log(`🎨 PEN MODE TAP - isDrawing: ${isDrawing}, penPath length: ${penPath.length}`);
-        if (!isDrawing) {
-          // Start drawing on first tap
-          console.log(`🎨 FIRST TAP - Starting drawing`);
-          startContinuousDrawing(latitude, longitude);
-        } else {
-          // Add point if already drawing
-          console.log(`🎨 ADDITIONAL TAP - Adding point to existing drawing`);
-          addContinuousDrawingPoint(latitude, longitude);
+        // Reduced threshold for smoother drawing (was 0.00001, now 0.000005)
+        if (distance < 0.000005) {
+          return;
         }
-      } else {
-        // Handle other modes normally
-        handleMapPress(event);
       }
 
-      // Log waypoints after press (with slight delay to see state update)
-      setTimeout(() => {
-        console.log(`Waypoints after press:`, waypoints.length, waypoints);
-      }, 100);
-    }
-  };
+      setPenPath((prev) => {
+        const newPath = [...prev, { latitude, longitude }];
+        return newPath;
+      });
+      lastDrawPointRef.current = { latitude, longitude };
+    },
+    [setPenPath, lastDrawPointRef],
+  );
+
+  const handleMapPressWrapper = React.useCallback(
+    (event?: any) => {
+      // Handle map press for drawing modes
+      if (event && event.nativeEvent && event.nativeEvent.coordinate) {
+        const { latitude, longitude } = event.nativeEvent.coordinate;
+
+        // For pen mode, handle continuous drawing
+        if (drawingMode === 'pen') {
+          if (!isDrawing) {
+            // Start drawing on first tap
+            startContinuousDrawing(latitude, longitude);
+          } else {
+            // Add point if already drawing
+            addContinuousDrawingPoint(latitude, longitude);
+          }
+        } else {
+          // Handle other modes normally
+          handleMapPress(event);
+        }
+      }
+    },
+    [drawingMode, handleMapPress, addContinuousDrawingPoint, startContinuousDrawing, isDrawing],
+  );
 
   // Map ref for coordinate conversion
   const mapRef = useRef<any>(null);
@@ -1303,7 +1160,6 @@ export function CreateRouteSheet({
     },
     onPanResponderGrant: (evt, gestureState) => {
       if (drawingMode === 'pen' && evt.nativeEvent.touches.length === 1) {
-        console.log('🎨 PEN DRAWING STARTED');
         const { locationX, locationY } = evt.nativeEvent;
 
         // Try coordinate conversion, fallback to approximate method
@@ -1311,17 +1167,14 @@ export function CreateRouteSheet({
           mapRef.current
             .coordinateForPoint({ x: locationX, y: locationY })
             .then((coordinate: { latitude: number; longitude: number }) => {
-              console.log('🎨 DRAG START at:', coordinate);
               startContinuousDrawing(coordinate.latitude, coordinate.longitude);
             })
             .catch((error: any) => {
-              console.log('🎨 Coordinate conversion failed, using region center');
               // Fallback: Start at region center
               startContinuousDrawing(region.latitude, region.longitude);
             });
         } else {
           // If coordinate conversion not available, start at region center
-          console.log('🎨 Starting at region center (no coordinate conversion)');
           startContinuousDrawing(region.latitude, region.longitude);
         }
       }
@@ -1340,7 +1193,6 @@ export function CreateRouteSheet({
           mapRef.current
             .coordinateForPoint({ x: locationX, y: locationY })
             .then((coordinate: { latitude: number; longitude: number }) => {
-              console.log('🎨 DRAG MOVE to:', coordinate);
               addContinuousDrawingPoint(coordinate.latitude, coordinate.longitude);
               lastDrawPointRef.current = { ...coordinate, timestamp: now };
             })
@@ -1355,7 +1207,6 @@ export function CreateRouteSheet({
                   latitude: lastPoint.latitude + deltaLat,
                   longitude: lastPoint.longitude + deltaLng,
                 };
-                console.log('🎨 APPROXIMATED MOVE to:', newCoordinate);
                 addContinuousDrawingPoint(newCoordinate.latitude, newCoordinate.longitude);
                 lastDrawPointRef.current = { ...newCoordinate, timestamp: now };
               }
@@ -1365,21 +1216,19 @@ export function CreateRouteSheet({
     },
     onPanResponderRelease: (evt, gestureState) => {
       if (drawingMode === 'pen') {
-        console.log('🎨 PEN DRAWING PAUSED - Can continue or finish');
         drawingRef.current = false;
         // Keep isDrawing true so user can continue drawing
       }
     },
   });
 
-  const handleLocateMe = async () => {
+  const handleLocateMe = React.useCallback(async () => {
     try {
       setLocationLoading(true);
       let location;
       try {
         location = await Location.getCurrentPositionAsync({});
       } catch (locationError) {
-        console.log('📍 Location failed, using Lund, Sweden fallback');
         // Fallback location for simulator - Lund, Sweden (same as ProfileScreen)
         location = {
           coords: {
@@ -1425,32 +1274,31 @@ export function CreateRouteSheet({
         searchInputRef.current.blur();
       }
     } catch (err) {
-      console.error('Error getting location:', err);
       Alert.alert(t('common.error'), t('createRoute.locationPermissionMsg'));
     } finally {
       setLocationLoading(false);
     }
-  };
+  }, [setWaypoints, setSearchQuery, drawingMode, searchInputRef, t]);
 
   // Undo/Redo system
-  const handleUndo = () => {
+  const handleUndo = React.useCallback(() => {
     if (waypoints.length > 0) {
       const lastWaypoint = waypoints[waypoints.length - 1];
       setUndoneWaypoints([lastWaypoint, ...undoneWaypoints]);
       setWaypoints(waypoints.slice(0, -1));
     }
-  };
+  }, [setUndoneWaypoints, setWaypoints, waypoints, undoneWaypoints]);
 
-  const handleRedo = () => {
+  const handleRedo = React.useCallback(() => {
     if (undoneWaypoints.length > 0) {
       const lastUndone = undoneWaypoints[0];
       setWaypoints([...waypoints, lastUndone]);
       setUndoneWaypoints(undoneWaypoints.slice(1));
     }
-  };
+  }, [setUndoneWaypoints, setWaypoints, waypoints, undoneWaypoints]);
 
   // Finish pen drawing
-  const finishPenDrawing = () => {
+  const finishPenDrawing = React.useCallback(() => {
     if (penPath.length > 0) {
       // Convert pen path to waypoints with proper start/end labeling
       const newWaypoints = penPath.map((point, index) => ({
@@ -1476,13 +1324,11 @@ export function CreateRouteSheet({
       setIsDrawing(false);
       drawingRef.current = false;
       lastDrawPointRef.current = null;
-      console.log(`✅ Finished pen drawing: ${newWaypoints.length} connected waypoints created`);
-      console.log(`🎨 Keeping ${penPath.length} pen coordinates for saving to metadata`);
     }
-  };
+  }, [setWaypoints, setIsDrawing, drawingRef, lastDrawPointRef, penPath]);
 
   // Handle record button click
-  const handleRecordRoute = () => {
+  const handleRecordRoute = React.useCallback(() => {
     try {
       // Save current state before starting recording
       saveCurrentStateToContext();
@@ -1495,201 +1341,153 @@ export function CreateRouteSheet({
       console.error('Error opening record modal:', error);
       Alert.alert('Error', 'Failed to open recording screen');
     }
-  };
+  }, [saveCurrentStateToContext, createRouteContext, routeId, showModal]);
 
   // Clear all waypoints and pen drawing
-  const clearAllWaypoints = () => {
+  const clearAllWaypoints = React.useCallback(() => {
     setUndoneWaypoints([]);
     setWaypoints([]);
     setPenPath([]); // Clear pen path when explicitly clearing all
     setIsDrawing(false);
     drawingRef.current = false;
     lastDrawPointRef.current = null;
-    console.log('🎨 Cleared all waypoints and pen drawing');
-  };
+  }, [setUndoneWaypoints, setWaypoints, setPenPath, setIsDrawing, drawingRef, lastDrawPointRef]);
 
-  const handleAddExercise = () => {
-    if (!newExercise.title) return;
+  const handleRemoveExercise = React.useCallback(
+    (id: string) => {
+      setExercises(exercises.filter((ex) => ex.id !== id));
+    },
+    [setExercises, exercises],
+  );
 
-    setExercises([
-      ...exercises,
-      {
-        id: Date.now().toString(),
-        title: newExercise.title,
-        description: newExercise.description || '',
-        duration: newExercise.duration,
-        repetitions: newExercise.repetitions,
+  const [editingExercise, setEditingExercise] = useState<any>(null);
+
+  const handleEditExercise = React.useCallback(
+    (exercise: any) => {
+      // Set up the form data for editing
+      if (exercise.source === 'custom') {
+        // Remove the exercise from the list temporarily
+        handleRemoveExercise(exercise.id);
+
+        // Set the exercise data for editing and open the creator
+        setEditingExercise(exercise);
+        setShowAdvancedExerciseCreator(true);
+      }
+    },
+    [handleRemoveExercise, setEditingExercise, setShowAdvancedExerciseCreator],
+  );
+
+  // Handle exercise selector changes
+  const handleExercisesChange = React.useCallback(
+    (updatedExercises: RouteExercise[]) => {
+      // Convert RouteExercise[] to Exercise[] for compatibility
+      const convertedExercises: Exercise[] = updatedExercises.map((ex) => ({
+        id: ex.id,
+        title: ex.title,
+        description: ex.description,
+        duration: ex.duration,
+        repetitions: ex.repetitions,
+        learning_path_exercise_id: ex.learning_path_exercise_id,
+        learning_path_id: ex.learning_path_id,
+        learning_path_title: ex.learning_path_title,
+        youtube_url: ex.youtube_url,
+        icon: ex.icon,
+        image: ex.image,
+        embed_code: ex.embed_code,
+        has_quiz: ex.has_quiz,
+        quiz_required: ex.quiz_required,
+        isRepeat: ex.isRepeat,
+        originalId: ex.originalId,
+        repeatNumber: ex.repeatNumber,
+        source: ex.source,
+      }));
+
+      setExercises(convertedExercises);
+    },
+    [setExercises],
+  );
+
+  // Handle exercises created from AdvancedExerciseCreator
+  const handleAdvancedExerciseCreated = React.useCallback(
+    (exercise: any) => {
+      const isEditing = !!editingExercise;
+      const newExercise: Exercise = {
+        id: isEditing ? editingExercise.id : Date.now().toString(), // Preserve ID when editing
+        title: typeof exercise.title === 'string' ? exercise.title : exercise.title.en,
+        description:
+          typeof exercise.description === 'string'
+            ? exercise.description
+            : exercise.description?.en || '',
+        duration: exercise.duration,
+        repetitions: exercise.repetitions,
         source: 'custom',
-        // Set defaults for user-generated content
         is_user_generated: true,
-        visibility: 'private', // Default to private
-        category: 'user-created',
-        difficulty_level: 'beginner',
-        vehicle_type: 'both',
+        visibility: exercise.visibility || 'private',
+        category: exercise.category || 'user-created',
+        difficulty_level: exercise.difficulty_level || 'beginner',
+        vehicle_type: exercise.vehicle_type || 'both',
         creator_id: user?.id,
-        created_at: new Date().toISOString(),
+        created_at: isEditing ? editingExercise.created_at : new Date().toISOString(), // Preserve created_at when editing
         promotion_status: 'none',
         quality_score: 0,
         rating: 0,
         rating_count: 0,
         completion_count: 0,
         report_count: 0,
-        // Add quiz support for simple exercises
-        has_quiz: false,
-        quiz_data: null,
-      },
-    ]);
-    setNewExercise({});
-  };
+        youtube_url: exercise.youtube_url,
+        embed_code: exercise.embed_code,
+        has_quiz: exercise.has_quiz,
+        quiz_required: exercise.quiz_required,
+        quiz_data: exercise.quiz_data,
+        // Preserve any additional fields from the original exercise when editing
+        ...(isEditing
+          ? {
+              repeat_count: exercise.repeat_count || editingExercise.repeat_count,
+              tags: exercise.tags || editingExercise.tags || [],
+              is_locked: exercise.is_locked || editingExercise.is_locked,
+              lock_password: exercise.lock_password || editingExercise.lock_password,
+            }
+          : {}),
+      };
 
-  const handleRemoveExercise = (id: string) => {
-    setExercises(exercises.filter((ex) => ex.id !== id));
-  };
+      setExercises((prev) => [...prev, newExercise]);
+      setShowAdvancedExerciseCreator(false);
+      setEditingExercise(null); // Clear editing state
+    },
+    [setExercises, setShowAdvancedExerciseCreator, setEditingExercise, editingExercise, user],
+  );
 
-  const [editingExercise, setEditingExercise] = useState<any>(null);
+  const pickMedia = React.useCallback(
+    async (useCamera = false) => {
+      try {
+        setLoadingMedia(true);
+        let newMediaItems: mediaUtils.MediaItem[] | null = null;
 
-  const handleEditExercise = (exercise: any) => {
-    // For custom exercises, we can edit them using the AdvancedExerciseCreator
-    console.log('📝 [CreateRoute] Editing custom exercise:', {
-      id: exercise.id,
-      title: exercise.title,
-      has_quiz: exercise.has_quiz,
-      quiz_data: exercise.quiz_data,
-    });
-
-    // Set up the form data for editing
-    if (exercise.source === 'custom') {
-      // Remove the exercise from the list temporarily
-      handleRemoveExercise(exercise.id);
-
-      // Set the exercise data for editing and open the creator
-      setEditingExercise(exercise);
-      setShowAdvancedExerciseCreator(true);
-    }
-  };
-
-  // Handle exercise selector changes
-  const handleExercisesChange = (updatedExercises: RouteExercise[]) => {
-    // Convert RouteExercise[] to Exercise[] for compatibility
-    const convertedExercises: Exercise[] = updatedExercises.map((ex) => ({
-      id: ex.id,
-      title: ex.title,
-      description: ex.description,
-      duration: ex.duration,
-      repetitions: ex.repetitions,
-      learning_path_exercise_id: ex.learning_path_exercise_id,
-      learning_path_id: ex.learning_path_id,
-      learning_path_title: ex.learning_path_title,
-      youtube_url: ex.youtube_url,
-      icon: ex.icon,
-      image: ex.image,
-      embed_code: ex.embed_code,
-      has_quiz: ex.has_quiz,
-      quiz_required: ex.quiz_required,
-      isRepeat: ex.isRepeat,
-      originalId: ex.originalId,
-      repeatNumber: ex.repeatNumber,
-      source: ex.source,
-    }));
-
-    setExercises(convertedExercises);
-  };
-
-  // Handle exercises created from AdvancedExerciseCreator
-  const handleAdvancedExerciseCreated = (exercise: any) => {
-    const isEditing = !!editingExercise;
-
-    console.log('🔧 [CreateRoute] Advanced exercise created/updated:', {
-      isEditing,
-      originalId: editingExercise?.id,
-      has_quiz: exercise.has_quiz,
-      quiz_data: !!exercise.quiz_data,
-      quiz_data_type: typeof exercise.quiz_data,
-      quiz_questions_count: exercise.quiz_data?.questions?.length || 0,
-    });
-
-    const newExercise: Exercise = {
-      id: isEditing ? editingExercise.id : Date.now().toString(), // Preserve ID when editing
-      title: typeof exercise.title === 'string' ? exercise.title : exercise.title.en,
-      description:
-        typeof exercise.description === 'string'
-          ? exercise.description
-          : exercise.description?.en || '',
-      duration: exercise.duration,
-      repetitions: exercise.repetitions,
-      source: 'custom',
-      is_user_generated: true,
-      visibility: exercise.visibility || 'private',
-      category: exercise.category || 'user-created',
-      difficulty_level: exercise.difficulty_level || 'beginner',
-      vehicle_type: exercise.vehicle_type || 'both',
-      creator_id: user?.id,
-      created_at: isEditing ? editingExercise.created_at : new Date().toISOString(), // Preserve created_at when editing
-      promotion_status: 'none',
-      quality_score: 0,
-      rating: 0,
-      rating_count: 0,
-      completion_count: 0,
-      report_count: 0,
-      youtube_url: exercise.youtube_url,
-      embed_code: exercise.embed_code,
-      has_quiz: exercise.has_quiz,
-      quiz_required: exercise.quiz_required,
-      quiz_data: exercise.quiz_data,
-      // Preserve any additional fields from the original exercise when editing
-      ...(isEditing
-        ? {
-            repeat_count: exercise.repeat_count || editingExercise.repeat_count,
-            tags: exercise.tags || editingExercise.tags || [],
-            is_locked: exercise.is_locked || editingExercise.is_locked,
-            lock_password: exercise.lock_password || editingExercise.lock_password,
+        if (useCamera) {
+          // Take a photo with the camera
+          const newMedia = await mediaUtils.takePhoto();
+          if (newMedia) {
+            newMediaItems = [newMedia];
           }
-        : {}),
-    };
-
-    console.log(`✅ [CreateRoute] ${isEditing ? 'Updated' : 'Adding'} exercise to list:`, {
-      id: newExercise.id,
-      title: newExercise.title,
-      has_quiz: newExercise.has_quiz,
-      quiz_data: !!newExercise.quiz_data,
-      quiz_data_preview: newExercise.quiz_data
-        ? JSON.stringify(newExercise.quiz_data).substring(0, 100) + '...'
-        : null,
-    });
-
-    setExercises((prev) => [...prev, newExercise]);
-    setShowAdvancedExerciseCreator(false);
-    setEditingExercise(null); // Clear editing state
-  };
-
-  const pickMedia = async (useCamera = false) => {
-    try {
-      setLoadingMedia(true);
-      let newMediaItems: mediaUtils.MediaItem[] | null = null;
-
-      if (useCamera) {
-        // Take a photo with the camera
-        const newMedia = await mediaUtils.takePhoto();
-        if (newMedia) {
-          newMediaItems = [newMedia];
+        } else {
+          // Pick media from library
+          newMediaItems = await mediaUtils.pickMediaFromLibrary(true);
         }
-      } else {
-        // Pick media from library
-        newMediaItems = await mediaUtils.pickMediaFromLibrary(true);
-      }
 
-      if (newMediaItems && newMediaItems.length > 0) {
-        setMedia([...media, ...newMediaItems]);
+        if (newMediaItems && newMediaItems.length > 0) {
+          setMedia([...media, ...newMediaItems]);
+        }
+      } catch (err) {
+        console.error('Error picking media:', err);
+        Alert.alert('Error', 'Failed to select media. Please try again.');
+      } finally {
+        setLoadingMedia(false);
       }
-    } catch (err) {
-      console.error('Error picking media:', err);
-      Alert.alert('Error', 'Failed to select media. Please try again.');
-    } finally {
-      setLoadingMedia(false);
-    }
-  };
+    },
+    [setMedia, media, setLoadingMedia],
+  );
 
-  const takePhoto = async () => {
+  const takePhoto = React.useCallback(async () => {
     try {
       setLoadingMedia(true);
       const newMedia = await mediaUtils.takePhoto();
@@ -1702,21 +1500,9 @@ export function CreateRouteSheet({
     } finally {
       setLoadingMedia(false);
     }
-  };
+  }, [setMedia, media, setLoadingMedia, t]);
 
-  const uploadPhoto = async () => {
-    try {
-      const newMedia = await mediaUtils.pickMediaFromLibrary(false); // Single photo selection
-      if (newMedia && newMedia.length > 0) {
-        setMedia([...media, ...newMedia]);
-      }
-    } catch (err) {
-      console.error('Error uploading photo:', err);
-      Alert.alert('Error', 'Failed to upload photo. Please try again.');
-    }
-  };
-
-  const recordVideo = async () => {
+  const recordVideo = React.useCallback(async () => {
     try {
       setLoadingMedia(true);
       const newMedia = await mediaUtils.recordVideo();
@@ -1729,125 +1515,80 @@ export function CreateRouteSheet({
     } finally {
       setLoadingMedia(false);
     }
-  };
+  }, [setMedia, media, setLoadingMedia]);
 
-  const uploadVideo = async () => {
-    try {
-      const newMedia = await mediaUtils.pickVideoFromLibrary(false); // Single video selection
-      if (newMedia && newMedia.length > 0) {
-        setMedia([...media, ...newMedia]);
-      }
-    } catch (err) {
-      console.error('Error uploading video:', err);
-      Alert.alert('Error', 'Failed to upload video. Please try again.');
-    }
-  };
+  const handleRemoveMedia = React.useCallback(
+    (index: number) => {
+      setMedia((prev) => prev.filter((_, i) => i !== index));
+    },
+    [setMedia],
+  );
 
-  const addYoutubeLink = () => {
-    const newMedia = mediaUtils.createYoutubeMediaItem(youtubeLink);
-    if (!newMedia) {
-      Alert.alert(t('common.error'), t('createRoute.invalidYoutubeLink'));
-      return;
-    }
-    setMedia([...media, newMedia]);
-    setYoutubeLink(''); // Clear the input after adding
-  };
+  const uploadMediaInBackground = React.useCallback(
+    async (media: mediaUtils.MediaItem[], routeId: string) => {
+      try {
+        // Only upload new media items (ones that don't start with http)
+        const newMediaItems = media.filter((m) => !m.uri.startsWith('http'));
+        const uploadResults: { type: mediaUtils.MediaType; url: string; description?: string }[] =
+          [];
 
-  const handleAddMedia = (newMedia: Pick<MediaItem, 'type' | 'uri'>) => {
-    const newMediaItem: MediaItem = {
-      id: Date.now().toString(),
-      type: newMedia.type,
-      uri: newMedia.uri,
-      fileName: newMedia.uri.split('/').pop() || 'unknown',
-    };
-    // Keep existing media and add new one
-    setMedia((prev) => [...prev, newMediaItem]);
-  };
+        setUploadProgress({ current: 0, total: newMediaItems.length });
 
-  const handleRemoveMedia = (index: number) => {
-    setMedia((prev) => prev.filter((_, i) => i !== index));
-  };
+        for (let i = 0; i < newMediaItems.length; i++) {
+          const item = newMediaItems[i];
+          try {
+            setUploadProgress({ current: i + 1, total: newMediaItems.length });
 
-  const uploadMediaInBackground = async (media: mediaUtils.MediaItem[], routeId: string) => {
-    try {
-      // Only upload new media items (ones that don't start with http)
-      const newMediaItems = media.filter((m) => !m.uri.startsWith('http'));
-      const uploadResults: { type: mediaUtils.MediaType; url: string; description?: string }[] = [];
+            const publicUrl = await mediaUtils.uploadMediaToSupabase(
+              item,
+              'media',
+              `routes/${routeId}`,
+            );
 
-      setUploadProgress({ current: 0, total: newMediaItems.length });
-
-      for (let i = 0; i < newMediaItems.length; i++) {
-        const item = newMediaItems[i];
-        try {
-          setUploadProgress({ current: i + 1, total: newMediaItems.length });
-
-          const publicUrl = await mediaUtils.uploadMediaToSupabase(
-            item,
-            'media',
-            `routes/${routeId}`,
-          );
-
-          if (publicUrl) {
-            uploadResults.push({
-              type: item.type,
-              url: publicUrl,
-              description: item.description || '',
-            });
+            if (publicUrl) {
+              uploadResults.push({
+                type: item.type,
+                url: publicUrl,
+                description: item.description || '',
+              });
+            }
+          } catch (itemError) {
+            console.error('Error uploading media item:', itemError);
+            // Continue with other items even if one fails
           }
-        } catch (itemError) {
-          console.error('Error uploading media item:', itemError);
-          // Continue with other items even if one fails
         }
+
+        setUploadProgress(null);
+
+        if (uploadResults.length > 0) {
+          // Get current media_attachments
+          const { data: currentRoute } = await supabase
+            .from('routes')
+            .select('media_attachments')
+            .eq('id', routeId)
+            .single();
+
+          const currentAttachments = (currentRoute?.media_attachments ||
+            []) as mediaUtils.MediaUrl[];
+
+          // Add new media to the array
+          const updatedAttachments = [...currentAttachments, ...uploadResults];
+
+          // Update the route with the new media array
+          const { error: updateError } = await supabase
+            .from('routes')
+            .update({ media_attachments: updatedAttachments })
+            .eq('id', routeId);
+
+          if (updateError) throw updateError;
+        }
+      } catch (error) {
+        console.error('Error in media upload process:', error);
+        // Don't throw here, just log the error to prevent app crashes
       }
-
-      setUploadProgress(null);
-
-      if (uploadResults.length > 0) {
-        // Get current media_attachments
-        const { data: currentRoute } = await supabase
-          .from('routes')
-          .select('media_attachments')
-          .eq('id', routeId)
-          .single();
-
-        const currentAttachments = (currentRoute?.media_attachments || []) as mediaUtils.MediaUrl[];
-
-        // Add new media to the array
-        const updatedAttachments = [...currentAttachments, ...uploadResults];
-
-        // Update the route with the new media array
-        const { error: updateError } = await supabase
-          .from('routes')
-          .update({ media_attachments: updatedAttachments })
-          .eq('id', routeId);
-
-        if (updateError) throw updateError;
-      }
-    } catch (error) {
-      console.error('Error in media upload process:', error);
-      // Don't throw here, just log the error to prevent app crashes
-    }
-  };
-
-  // Handle collection selection
-  const handleSelectCollection = () => {
-    setShowCollectionSelector(true);
-  };
-
-  const handleCollectionSelected = (collectionId: string, collectionName: string) => {
-    setSelectedCollectionId(collectionId);
-    setShowCollectionSelector(false);
-    // Show success message
-    Alert.alert(
-      getTranslation(t, 'createRoute.collectionSelected', 'Collection Selected'),
-      getTranslation(
-        t,
-        'createRoute.routeWillBeSavedTo',
-        'Route will be saved to "{collectionName}"',
-      ).replace('{collectionName}', collectionName),
-      [{ text: getTranslation(t, 'common.ok', 'OK') }],
-    );
-  };
+    },
+    [setUploadProgress],
+  );
 
   // Helper function to show validation error with toast and scroll to section
   const showValidationError = (message: string, section: string = 'basic') => {
@@ -1866,7 +1607,7 @@ export function CreateRouteSheet({
     }, 100);
   };
 
-  const handleCreate = async () => {
+  const handleCreate = React.useCallback(async () => {
     if (!user?.id) {
       showValidationError('Please sign in to create a route');
       return;
@@ -1903,11 +1644,6 @@ export function CreateRouteSheet({
           scrollViewRef.current?.scrollTo({ y: 0, animated: true });
         }, 100);
         return;
-      } else if (penPath.length > 0 && waypoints.length > 0) {
-        // Valid: User has drawn and finished - both pen coordinates and waypoints exist
-        console.log(
-          `🎨 Valid pen drawing: ${penPath.length} coordinates, ${waypoints.length} waypoints`,
-        );
       }
     }
 
@@ -2014,13 +1750,6 @@ export function CreateRouteSheet({
             doubleBack: false,
           },
         };
-
-        console.log('🎨 [SAVE] Web-compatible format:', {
-          waypointsCount: finalWaypoints.length,
-          drawingMode: finalDrawingMode,
-          firstCoordinate: finalWaypoints[0],
-          lastCoordinate: finalWaypoints[finalWaypoints.length - 1],
-        });
       } else {
         // OTHER MODES: Use existing logic
         finalWaypoints = validWaypoints;
@@ -2085,10 +1814,6 @@ export function CreateRouteSheet({
         if (updateError) throw updateError;
         route = updatedRoute;
 
-        // Debug: Confirm what was saved for edit
-        console.log('🎨 [SAVE] Route updated successfully!');
-        console.log('🎨 [SAVE] Updated metadata:', JSON.stringify(updatedRoute.metadata, null, 2));
-
         // Track route edit
         await AppAnalytics.trackRouteEdit(routeId);
 
@@ -2098,13 +1823,6 @@ export function CreateRouteSheet({
         }
       } else {
         // Create new route
-        console.log('Creating new route with data:', {
-          name: formData.name,
-          waypoints: validWaypoints.length,
-          spotType: sanitizedSpotType,
-          drawingMode: drawingMode,
-        });
-
         const snapshot = await mapRef.current.takeSnapshot({
           format: 'jpg', // image formats: 'png', 'jpg' (default: 'png')
           quality: 0.8, // image quality: 0..1 (only relevant for jpg, default: 1)
@@ -2133,18 +1851,9 @@ export function CreateRouteSheet({
           .single();
 
         if (createError) {
-          console.error('Database error details:', {
-            message: createError.message,
-            code: createError.code,
-            details: createError.details,
-            hint: createError.hint,
-          });
           throw createError;
         }
         route = newRoute;
-        // Debug: Confirm what was saved
-        console.log('🎨 [SAVE] Route saved successfully!');
-        console.log('🎨 [SAVE] Saved metadata:', JSON.stringify(newRoute.metadata, null, 2));
 
         // Track route creation
         await AppAnalytics.trackRouteCreate(formData.spot_type);
@@ -2161,8 +1870,6 @@ export function CreateRouteSheet({
             if (collectionError) {
               console.error('Error adding route to collection:', collectionError);
               // Don't throw here, just log the error
-            } else {
-              console.log('✅ Route added to collection successfully');
             }
           } catch (error) {
             console.error('Error adding route to collection:', error);
@@ -2192,16 +1899,8 @@ export function CreateRouteSheet({
       // Set loading to false before closing
       setLoading(false);
 
-      // Store route data for toast - will be shown after modal unmounts
-      console.log('🍞 [CreateRouteSheet] Route saved successfully - route data:', {
-        id: route?.id,
-        name: route?.name,
-        isEditing,
-      });
-
       if (route?.id && route?.name) {
         pendingToastRef.current = { id: route.id, name: route.name, isEditing };
-        console.log('🍞 [CreateRouteSheet] ✅ SET pendingToastRef to:', pendingToastRef.current);
       } else {
         console.error(
           '🍞 [CreateRouteSheet] ❌ Cannot set pendingToastRef - missing route.id or route.name!',
@@ -2209,12 +1908,8 @@ export function CreateRouteSheet({
         );
       }
 
-      console.log('🍞 [CreateRouteSheet] Calling onClose() to close sheet...');
       // Close the create sheet
       onClose();
-      console.log(
-        '🍞 [CreateRouteSheet] onClose() called - sheet should close now and trigger toast useEffect',
-      );
 
       // Don't call onRouteCreated to prevent navigation away from HomeScreen
       // User stays on HomeScreen with toast notification showing route was created
@@ -2239,118 +1934,27 @@ export function CreateRouteSheet({
       setError(errorMessage);
       setLoading(false);
     }
-  };
+  }, [
+    setError,
+    setLoading,
+    routeId,
+    formData,
+    drawingMode,
+    media,
+    exercises,
+    user,
+    isEditing,
+    isModal,
+    onClose,
+    penPath,
+    selectedCollectionId,
+    showToast,
+    showValidationError,
+    uploadMediaInBackground,
+    waypoints,
+  ]);
 
-  const loadRouteData = async (id: string) => {
-    try {
-      const { data: routeData, error } = await supabase
-        .from('routes')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) throw error;
-      if (!routeData) return;
-
-      const route = routeData as RouteData;
-
-      setFormData({
-        name: route.name || '',
-        description: route.description || '',
-        difficulty: route.difficulty || 'beginner',
-        spot_type: route.spot_type || 'urban',
-        visibility: route.visibility || 'public',
-        best_season: route.best_season || 'all',
-        best_times: route.best_times || 'anytime',
-        vehicle_types: route.vehicle_types || ['passenger_car'],
-        activity_level: route.activity_level || 'moderate',
-        spot_subtype: route.spot_subtype || 'standard',
-        transmission_type: route.transmission_type || 'both',
-        category: route.category || 'parking',
-      });
-
-      if (route.waypoint_details) {
-        const waypoints = route.waypoint_details.map((wp: any) => ({
-          latitude: wp.lat,
-          longitude: wp.lng,
-          title: wp.title,
-          description: wp.description,
-        }));
-
-        setWaypoints(waypoints);
-
-        // Set initial region based on first waypoint
-        if (waypoints.length > 0) {
-          const firstWaypoint = waypoints[0];
-          setRegion({
-            latitude: firstWaypoint.latitude,
-            longitude: firstWaypoint.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          });
-
-          // Set search query to first waypoint title
-          setSearchQuery(firstWaypoint.title || '');
-        }
-      }
-
-      // Load existing exercises from suggested_exercises field
-      if ((route as any).suggested_exercises) {
-        try {
-          let loadedExercises: RouteExercise[] = [];
-
-          if (typeof (route as any).suggested_exercises === 'string') {
-            // Parse JSON string
-            const cleanedString = (route as any).suggested_exercises.trim();
-            if (cleanedString && cleanedString !== 'null' && cleanedString !== '') {
-              loadedExercises = JSON.parse(cleanedString);
-            }
-          } else if (Array.isArray((route as any).suggested_exercises)) {
-            // Already an array
-            loadedExercises = (route as any).suggested_exercises;
-          }
-
-          console.log('📚 [CreateRoute] Loaded existing exercises:', {
-            count: loadedExercises.length,
-            exercises: loadedExercises.map((ex) => ({
-              id: ex.id,
-              title: ex.title,
-              source: ex.source,
-              has_quiz: ex.has_quiz,
-            })),
-          });
-
-          setExercises(loadedExercises);
-        } catch (parseError) {
-          console.error('❌ [CreateRoute] Error parsing existing exercises:', parseError);
-          setExercises([]);
-        }
-      } else if (route.exercises) {
-        // Fallback to old field name
-        setExercises(route.exercises);
-      }
-
-      if (route.media_attachments) {
-        const mediaItems: MediaItem[] = route.media_attachments.map((m: any) => ({
-          id: Date.now().toString() + Math.random(),
-          type: m.type as 'image' | 'video' | 'youtube',
-          uri: m.url,
-          description: m.description,
-          fileName: m.url.split('/').pop() || 'unknown',
-          thumbnail:
-            m.type === 'youtube'
-              ? `https://img.youtube.com/vi/${extractYoutubeVideoId(m.url)}/hqdefault.jpg`
-              : undefined,
-        }));
-        setMedia(mediaItems);
-      }
-    } catch (err) {
-      console.error('Error loading route:', err);
-      setError('Failed to load route data');
-    }
-  };
-
-  const handleDelete = async () => {
+  const handleDelete = React.useCallback(async () => {
     if (!routeId) return;
 
     Alert.alert(t('common.delete'), t('createRoute.confirmDelete'), [
@@ -2380,85 +1984,88 @@ export function CreateRouteSheet({
         },
       },
     ]);
-  };
+  }, [setLoading, routeId, onClose, t, formData.spot_type]);
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
+  const handleSearch = React.useCallback(
+    async (query: string) => {
+      setSearchQuery(query);
 
-    // Clear previous timeout
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
+      // Clear previous timeout
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
 
-    if (!query.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
+      if (!query.trim()) {
+        setSearchResults([]);
+        setShowSearchResults(false);
+        return;
+      }
 
-    // Set new timeout for debounced search
-    const timeout = setTimeout(async () => {
-      try {
-        // Try with city/country first
-        let results = await Location.geocodeAsync(query);
+      // Set new timeout for debounced search
+      const timeout = setTimeout(async () => {
+        try {
+          // Try with city/country first
+          let results = await Location.geocodeAsync(query);
 
-        // If no results, try with more specific search
-        if (results.length === 0) {
-          // Add country/city to make search more specific
-          const searchTerms = [
-            `${query}, Sweden`,
-            `${query}, Gothenburg`,
-            `${query}, Stockholm`,
-            `${query}, Malmö`,
-            query, // Original query as fallback
-          ];
+          // If no results, try with more specific search
+          if (results.length === 0) {
+            // Add country/city to make search more specific
+            const searchTerms = [
+              `${query}, Sweden`,
+              `${query}, Gothenburg`,
+              `${query}, Stockholm`,
+              `${query}, Malmö`,
+              query, // Original query as fallback
+            ];
 
-          for (const term of searchTerms) {
-            results = await Location.geocodeAsync(term);
-            if (results.length > 0) break;
+            for (const term of searchTerms) {
+              results = await Location.geocodeAsync(term);
+              if (results.length > 0) break;
+            }
           }
-        }
 
-        if (results.length > 0) {
-          const addresses = await Promise.all(
-            results.map(async (result) => {
-              const address = await Location.reverseGeocodeAsync({
-                latitude: result.latitude,
-                longitude: result.longitude,
-              });
-              return {
-                ...address[0],
-                coords: {
+          if (results.length > 0) {
+            const addresses = await Promise.all(
+              results.map(async (result) => {
+                const address = await Location.reverseGeocodeAsync({
                   latitude: result.latitude,
                   longitude: result.longitude,
-                },
-              };
-            }),
-          );
+                });
+                return {
+                  ...address[0],
+                  coords: {
+                    latitude: result.latitude,
+                    longitude: result.longitude,
+                  },
+                };
+              }),
+            );
 
-          // Filter out duplicates and null values
-          const uniqueAddresses = addresses.filter(
-            (addr, index, self) =>
-              addr &&
-              addr.coords &&
-              index ===
-                self.findIndex(
-                  (a) =>
-                    a.coords?.latitude === addr.coords?.latitude &&
-                    a.coords?.longitude === addr.coords?.longitude,
-                ),
-          );
+            // Filter out duplicates and null values
+            const uniqueAddresses = addresses.filter(
+              (addr, index, self) =>
+                addr &&
+                addr.coords &&
+                index ===
+                  self.findIndex(
+                    (a) =>
+                      a.coords?.latitude === addr.coords?.latitude &&
+                      a.coords?.longitude === addr.coords?.longitude,
+                  ),
+            );
 
-          setSearchResults(uniqueAddresses);
-          setShowSearchResults(true);
+            setSearchResults(uniqueAddresses);
+            setShowSearchResults(true);
+          }
+        } catch (err) {
+          console.error('Geocoding error:', err);
         }
-      } catch (err) {
-        console.error('Geocoding error:', err);
-      }
-    }, 300); // Reduced delay to 300ms for more responsive feel
+      }, 300); // Reduced delay to 300ms for more responsive feel
 
-    setSearchTimeout(timeout);
-  };
+      setSearchTimeout(timeout);
+    },
+    [setSearchQuery, setSearchResults, setShowSearchResults, searchTimeout],
+  );
 
   // Clean up timeout on unmount
   useEffect(() => {
@@ -2469,107 +2076,47 @@ export function CreateRouteSheet({
     };
   }, [searchTimeout]);
 
-  const handleLocationSelect = (
-    result: Location.LocationGeocodedAddress & { coords?: { latitude: number; longitude: number } },
-  ) => {
-    if (result.coords) {
-      const { latitude, longitude } = result.coords;
+  const handleLocationSelect = React.useCallback(
+    (
+      result: Location.LocationGeocodedAddress & {
+        coords?: { latitude: number; longitude: number };
+      },
+    ) => {
+      if (result.coords) {
+        const { latitude, longitude } = result.coords;
 
-      // Update region
-      setRegion({
-        latitude,
-        longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
+        // Update region
+        setRegion({
+          latitude,
+          longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
 
-      // Create location title
-      const title = [result.street, result.city, result.country].filter(Boolean).join(', ');
+        // Create location title
+        const title = [result.street, result.city, result.country].filter(Boolean).join(', ');
 
-      // Add waypoint
-      const newWaypoint = {
-        latitude,
-        longitude,
-        title,
-        description: 'Searched location',
-      };
-      setWaypoints((prev) => [...prev, newWaypoint]);
+        // Add waypoint
+        const newWaypoint = {
+          latitude,
+          longitude,
+          title,
+          description: 'Searched location',
+        };
+        setWaypoints((prev) => [...prev, newWaypoint]);
 
-      // Update search UI
-      setSearchQuery(title);
-      setShowSearchResults(false);
+        // Update search UI
+        setSearchQuery(title);
+        setShowSearchResults(false);
 
-      // Clear keyboard focus
-      if (searchInputRef.current) {
-        searchInputRef.current.blur();
+        // Clear keyboard focus
+        if (searchInputRef.current) {
+          searchInputRef.current.blur();
+        }
       }
-    }
-  };
-
-  const handleManualCoordinates = () => {
-    Alert.prompt(
-      'Enter Coordinates',
-      'Enter latitude and longitude separated by comma (e.g., 55.7047, 13.191)',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'OK',
-          onPress: (text) => {
-            const [lat, lng] = text?.split(',').map((n) => parseFloat(n.trim())) || [];
-            if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-              setRegion({
-                latitude: lat,
-                longitude: lng,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              });
-
-              // Get address from coordinates
-              Location.reverseGeocodeAsync({
-                latitude: lat,
-                longitude: lng,
-              })
-                .then(([address]) => {
-                  if (address) {
-                    // Update search input with location name
-                    const locationString = [
-                      address.street,
-                      address.city,
-                      address.region,
-                      address.country,
-                    ]
-                      .filter(Boolean)
-                      .join(', ');
-
-                    setSearchQuery(locationString);
-                  } else {
-                    // If no address found, show coordinates
-                    setSearchQuery(`${lat}, ${lng}`);
-                  }
-                })
-                .catch((err) => {
-                  console.error('Error getting address:', err);
-                  // If reverse geocoding fails, show coordinates
-                  setSearchQuery(`${lat}, ${lng}`);
-                });
-            } else {
-              Alert.alert(
-                'Invalid coordinates',
-                'Please enter valid latitude and longitude values',
-              );
-            }
-          },
-        },
-      ],
-      'plain-text',
-      searchQuery,
-    );
-  };
-
-  // Update region state when map region changes
-  const handleRegionChange = (newRegion: Region) => {
-    setRegion(newRegion);
-  };
+    },
+    [setRegion, setSearchQuery, setShowSearchResults, searchInputRef],
+  );
 
   if (!visible) return null;
 
