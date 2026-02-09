@@ -409,7 +409,7 @@ export const HomeHeader = React.memo(function HomeHeader() {
       justifyContent="space-between"
       alignItems="center"
       paddingHorizontal="$4"
-      marginBottom="$2"
+      marginBottom="$4"
     >
       <XStack alignItems="center" gap={12} width="100%" justifyContent="space-between">
         <YStack gap={8} flexShrink={1} alignItems="flex-start" width="100%">

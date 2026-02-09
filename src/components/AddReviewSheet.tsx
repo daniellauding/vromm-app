@@ -19,8 +19,17 @@ import { YStack, XStack, Text } from 'tamagui';
 import { TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemePreference } from '../hooks/useThemeOverride';
+import { useTranslation } from '../contexts/TranslationContext';
 import { Feather } from '@expo/vector-icons';
 import { AddReviewScreen } from '../screens/AddReviewScreen';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+
+// Helper function to get translation with fallback
+const getTranslation = (t: (key: string) => string, key: string, fallback: string): string => {
+  const translated = t(key);
+  return translated && translated !== key ? translated : fallback;
+};
 
 const { height } = Dimensions.get('window');
 
@@ -39,8 +48,33 @@ export function AddReviewSheet({
 }: AddReviewSheetProps) {
   const insets = useSafeAreaInsets();
   const { effectiveTheme } = useThemePreference();
+  const { t } = useTranslation();
+  const { user } = useAuth();
   const colorScheme = effectiveTheme || 'light';
   const backgroundColor = colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF';
+  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+  // Check if this is an edit (existing review)
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    const checkExistingReview = async () => {
+      if (!user?.id || !routeId || !visible) return;
+
+      const { data } = await supabase
+        .from('route_reviews')
+        .select('id')
+        .eq('route_id', routeId)
+        .eq('user_id', user.id)
+        .single();
+
+      setIsEditing(!!data);
+    };
+
+    if (visible) {
+      checkExistingReview();
+    }
+  }, [visible, user?.id, routeId]);
 
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -295,11 +329,14 @@ export function AddReviewSheet({
                     paddingBottom="$3"
                   >
                     <Text
-                      fontSize="$6"
-                      fontWeight="bold"
-                      color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                      fontSize={22}
+                      fontWeight="900"
+                      fontStyle="italic"
+                      color={textColor}
                     >
-                      Add Review
+                      {isEditing
+                        ? getTranslation(t, 'routeDetail.editReview', 'Edit Review')
+                        : getTranslation(t, 'review.title', 'Add Review')}
                     </Text>
                     <TouchableOpacity
                       onPress={dismissSheet}
@@ -312,7 +349,7 @@ export function AddReviewSheet({
                       <Feather
                         name="x"
                         size={20}
-                        color={colorScheme === 'dark' ? '#FFFFFF' : '#000000'}
+                        color={textColor}
                       />
                     </TouchableOpacity>
                   </XStack>

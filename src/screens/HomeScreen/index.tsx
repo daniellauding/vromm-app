@@ -1,7 +1,18 @@
 import React from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { YStack, XStack, Text } from 'tamagui';
-import { FlatList, TouchableOpacity, Platform, Animated, Alert, Modal, ScrollView, View, Image, Pressable } from 'react-native';
+import {
+  FlatList,
+  TouchableOpacity,
+  Platform,
+  Animated,
+  Alert,
+  Modal,
+  ScrollView,
+  View,
+  Image,
+  Pressable,
+} from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -42,13 +53,14 @@ interface HomeScreenProps {
 
 export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeScreenProps = {}) {
   const { user, profile } = useAuth();
-  const { isViewingAsStudent, activeStudentName, activeStudentId, setActiveStudent } = useStudentSwitch();
+  const { isViewingAsStudent, activeStudentName, activeStudentId, setActiveStudent } =
+    useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
   const { t, language } = useTranslation();
   const tourContext = useTour();
   const { startDatabaseTour, shouldShowTour } = tourContext;
   const { effectiveTheme } = useThemePreference();
-  
+
   // Check if user is supervisor
   const isSupervisorRole = ['instructor', 'admin', 'school'].includes((profile as any)?.role || '');
 
@@ -85,12 +97,14 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showStudentPicker, setShowStudentPicker] = useState(false);
-  const [students, setStudents] = useState<Array<{ id: string; full_name: string; email: string; created_at?: string }>>([]);
+  const [students, setStudents] = useState<
+    Array<{ id: string; full_name: string; email: string; created_at?: string }>
+  >([]);
   const [userProgress, setUserProgress] = useState(0);
-  
+
   // Scroll animation ref
   const scrollY = useRef(new Animated.Value(0)).current;
-  
+
   // Performance monitoring
   React.useEffect(() => {
     console.log('⚡ [HomeScreen] Component mounted at:', new Date().toISOString());
@@ -99,13 +113,13 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
       console.log('⚡ [HomeScreen] Component unmounted after:', Date.now() - startTime, 'ms');
     };
   }, []);
-  
+
   // Track if UserListSheet was open when opening UserProfileSheet
   const wasUserListSheetOpenRef = React.useRef(false);
-  
+
   // Register profile avatar for instructor tour targeting
   const profileAvatarRef = useTourTarget('Header.ProfileAvatar');
-  
+
   // Load user progress
   const loadUserProgress = React.useCallback(async () => {
     const effectiveUserId = activeStudentId || profile?.id;
@@ -156,7 +170,8 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
           if (completedExerciseIds.has(ex.id)) {
             completedExercises += 1;
             if (repeatCount > 1) {
-              const virtualDone = virtualCompletions?.filter((vc) => vc.exercise_id === ex.id).length || 0;
+              const virtualDone =
+                virtualCompletions?.filter((vc) => vc.exercise_id === ex.id).length || 0;
               completedExercises += virtualDone;
             }
           }
@@ -170,7 +185,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
       setUserProgress(0);
     }
   }, [activeStudentId, profile?.id]);
-  
+
   // Load supervised students
   const loadSupervisedStudents = React.useCallback(async (): Promise<
     Array<{ id: string; full_name: string; email: string; created_at?: string }>
@@ -223,7 +238,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
       return [];
     }
   }, [profile?.id]);
-  
+
   // Load progress when user changes
   useEffect(() => {
     loadUserProgress();
@@ -346,10 +361,9 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         keyExtractor={() => 'home-content'}
         contentContainerStyle={{ paddingTop: 100, paddingBottom: 40 + BOTTOM_INSET }}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: false,
+        })}
         scrollEventThrottle={16}
         renderItem={() => (
           <YStack f={1}>
@@ -423,7 +437,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
                 <Text color="$blue11" textAlign="center">
                   {getTranslation(
                     'common.viewingAs',
-                    language === 'sv' ? 'Visar som' : 'Viewing as'
+                    language === 'sv' ? 'Visar som' : 'Viewing as',
                   )}
                   :{' '}
                   {activeStudentName ||
