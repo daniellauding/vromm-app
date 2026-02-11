@@ -6,12 +6,15 @@
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/ios-light.png",
-    "scheme": "myapp",
+    "scheme": "vromm",
     "userInterfaceStyle": "automatic",
 
     "jsEngine": "hermes",
     "ios": {
       "bundleIdentifier": "com.vromm.app",
+      "associatedDomains": [
+        "applinks:app.vromm.se"
+      ],
       "jsEngine": "hermes",
       "supportsTablet": true,
       "infoPlist": {
