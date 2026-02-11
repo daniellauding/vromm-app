@@ -11,7 +11,6 @@ import { Text } from '../components/Text';
 import { useToast } from '../contexts/ToastContext';
 import { useTranslation } from '../contexts/TranslationContext';
 import { supabase } from '../lib/supabase';
-import { trackEvent } from '../lib/analytics';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react-native';
 
 type ResetPasswordRouteProp = RouteProp<RootStackParamList, 'ResetPassword'>;
@@ -84,9 +83,6 @@ export function ResetPasswordScreen() {
         type: 'success',
       });
 
-      // Track analytics
-      trackEvent('password_reset_success');
-
       // Navigate to Login
       navigation.navigate('Login');
     } catch (err) {
@@ -98,7 +94,6 @@ export function ResetPasswordScreen() {
         message: errorMessage,
         type: 'error',
       });
-      trackEvent('password_reset_failed', { error: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -110,7 +105,7 @@ export function ResetPasswordScreen() {
         {/* Header with back button */}
         <Header
           title={t('auth.resetPassword') || 'Reset Password'}
-          leftButton={
+          leftElement={
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
               <XStack alignItems="center" gap="$2">
                 <ArrowLeft size={20} color={colorScheme === 'dark' ? '#fff' : '#000'} />
@@ -136,7 +131,7 @@ export function ResetPasswordScreen() {
             secureTextEntry={!showNewPassword}
             placeholder={t('auth.enterNewPassword') || 'Enter new password'}
             autoCapitalize="none"
-            rightIcon={
+            rightElement={
               <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
                 {showNewPassword ? (
                   <EyeOff size={20} color={colorScheme === 'dark' ? '#fff' : '#666'} />
@@ -155,7 +150,7 @@ export function ResetPasswordScreen() {
             secureTextEntry={!showConfirmPassword}
             placeholder={t('auth.enterPasswordAgain') || 'Enter password again'}
             autoCapitalize="none"
-            rightIcon={
+            rightElement={
               <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
                 {showConfirmPassword ? (
                   <EyeOff size={20} color={colorScheme === 'dark' ? '#fff' : '#666'} />
@@ -176,11 +171,12 @@ export function ResetPasswordScreen() {
           {/* Submit Button */}
           <Button
             onPress={handleResetPassword}
-            loading={loading}
-            size="large"
+            size="lg"
             disabled={loading || !newPassword || !confirmPassword}
           >
-            {t('auth.resetPasswordButton') || 'Reset Password'}
+            {loading
+              ? t('common.loading') || 'Loading...'
+              : t('auth.resetPasswordButton') || 'Reset Password'}
           </Button>
 
           {/* Back to Login Link */}
