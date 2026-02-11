@@ -2223,10 +2223,11 @@ export function ProfileScreen() {
 
       if (!data || data.length === 0) {
         console.warn('🏫 No schools found in database!');
-        Alert.alert(
-          t('debug.title') || 'Debug Info',
-          t('debug.noSchools') || 'No schools found in database. Check console for details.',
-        );
+        // Debug alert commented out - no need to show user alert for missing schools
+        // Alert.alert(
+        //   t('debug.title') || 'Debug Info',
+        //   t('debug.noSchools') || 'No schools found in database. Check console for details.',
+        // );
         return;
       }
 
