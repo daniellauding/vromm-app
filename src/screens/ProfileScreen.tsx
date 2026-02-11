@@ -68,6 +68,7 @@ import { RelationshipManagementModal } from '../components/RelationshipManagemen
 
 import { RelationshipReviewSection } from '../components/RelationshipReviewSection';
 import { RelationshipReviewModal } from '../components/RelationshipReviewModal';
+import { PasswordManagementSection } from '../components/profile/PasswordManagementSection';
 import { ProfileRatingBadge } from '../components/ProfileRatingBadge';
 import { RelationshipReviewService } from '../services/relationshipReviewService';
 import { useScreenLogger } from '../hooks/useScreenLogger';
@@ -3609,6 +3610,9 @@ export function ProfileScreen() {
                     <Switch.Thumb backgroundColor="$switchThumb" />
                   </Switch>
                 </XStack>
+
+                {/* Security Section - Password Management */}
+                <PasswordManagementSection />
 
                 <Button onPress={handleSignOut} disabled={loading} variant="outlined" size="lg">
                   {t('profile.signOut')}
