@@ -27,6 +27,7 @@ export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
+  ResetPassword: { token?: string };
   AuthGate: undefined;
   RouteDetail: { routeId: string; shouldRefresh?: boolean; shouldRefreshReviews?: boolean };
   CreateRoute: {

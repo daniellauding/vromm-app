@@ -80,6 +80,7 @@ import { SplashScreen } from './screens/SplashScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { SignupScreen } from './screens/SignupScreen';
 import { ForgotPasswordScreen } from './screens/ForgotPasswordScreen';
+import { ResetPasswordScreen } from './screens/ResetPasswordScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 
 // Main app screens
@@ -225,6 +226,7 @@ function UnauthenticatedAppContent() {
       <Stack.Screen name="Login" component={LoginScreen} options={options} />
       <Stack.Screen name="Signup" component={SignupScreen} options={options} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={options} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={options} />
     </Stack.Navigator>
   );
 }
@@ -756,11 +758,22 @@ function AppContent() {
     return cleanup;
   }, []);
 
-  // Handle OAuth deep links (Google/Facebook via AuthSession)
+  // Handle OAuth deep links and password reset deep links
   useEffect(() => {
     const handleUrl = async (event: { url: string }) => {
       try {
         const parsed = Linking.parse(event.url);
+        
+        // Handle password reset deep links
+        if (parsed.path === 'reset-password') {
+          const token = (parsed.queryParams?.token as string) || '';
+          if (token && navigationRef.current) {
+            // Navigate to ResetPassword screen with token
+            navigationRef.current.navigate('ResetPassword', { token });
+          }
+          return;
+        }
+        
         const code = (parsed.queryParams?.code as string) || '';
         let didSetSession = false;
 

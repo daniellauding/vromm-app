@@ -121,7 +121,7 @@ export const PasswordManagementSection: React.FC = () => {
     setSubmitting(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: 'vromm://reset-password',
+        redirectTo: 'https://app.vromm.se/reset-password',
       });
 
       if (error) throw error;
