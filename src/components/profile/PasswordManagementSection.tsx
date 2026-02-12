@@ -6,7 +6,7 @@ import { Button } from '../Button';
 import { Text } from '../Text';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react-native';
 import { useToast } from '../../contexts/ToastContext';
-import { trackEvent } from '../../utils/analytics';
+import { AppAnalytics } from '../../utils/analytics';
 
 type AuthProvider = 'email' | 'google' | 'apple' | 'facebook' | null;
 
@@ -93,7 +93,7 @@ export const PasswordManagementSection: React.FC = () => {
 
       // Success
       showToast({ title: 'Success', message: 'Password changed successfully', type: 'success' });
-      trackEvent('password_change_success');
+      AppAnalytics.trackProfileUpdate('password_changed');
       
       // Clear form
       setCurrentPassword('');
@@ -133,7 +133,7 @@ export const PasswordManagementSection: React.FC = () => {
         message: 'Password reset email sent! Check your inbox.', 
         type: 'success' 
       });
-      trackEvent('password_reset_email_sent');
+      AppAnalytics.trackProfileUpdate('password_reset_requested');
     } catch (error: any) {
       console.error('Password reset error:', error);
       showToast({ 
