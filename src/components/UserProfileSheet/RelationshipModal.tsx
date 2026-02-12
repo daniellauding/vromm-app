@@ -393,6 +393,8 @@ export const RelationshipModal = ({
 
   // Relationship modal gesture handler
   const relationshipPanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       isDragging.current = true;
     })

@@ -132,6 +132,8 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
 
   // Pan gesture
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onUpdate((event) => {
       const newY = Math.max(
         snapPoints.large,

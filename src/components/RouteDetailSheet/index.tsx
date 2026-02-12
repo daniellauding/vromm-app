@@ -237,6 +237,8 @@ export function RouteDetailSheet({
 
   // Horizontal swipe gesture for route navigation with Tinder-like animation
   const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-10, 10])
     .onStart(() => {
       // Reset swipe animation values
       swipeTranslateX.value = 0;
@@ -334,6 +336,8 @@ export function RouteDetailSheet({
     });
 
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       isDragging.current = true;
     })

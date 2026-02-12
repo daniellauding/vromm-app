@@ -69,6 +69,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
 
   // Pan gesture for drag-to-minimize (when recording) or drag-to-close (when not recording)
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       console.log('🎯 RecordDrivingSheet: Pan gesture began');
       isDragging.current = true;

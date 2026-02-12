@@ -205,6 +205,8 @@ export function AddToPresetSheet({
 
   // Pan gesture for drag-to-dismiss and snap points
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       isDragging.current = true;
     })

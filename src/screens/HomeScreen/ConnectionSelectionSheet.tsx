@@ -127,6 +127,8 @@ export const ConnectionSelectionSheet = ({
 
   // Pan gesture for drag to dismiss
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onUpdate((event) => {
       const newPosition = currentState.value + event.translationY;
       if (newPosition >= snapPoints.large && newPosition <= snapPoints.dismissed) {

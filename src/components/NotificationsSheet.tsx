@@ -157,6 +157,8 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
 
   // Pan gesture for drag-to-resize
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       isDragging.current = true;
     })

@@ -131,6 +131,8 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
   }, [onClose, snapPoints.dismissed, translateY]);
 
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       isDragging.current = true;
     })

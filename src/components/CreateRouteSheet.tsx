@@ -13,7 +13,6 @@ import {
   Modal,
   Animated,
   Easing,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { Buffer } from 'buffer';
 import { YStack, TextArea, XStack, Card, Separator, Heading, useTheme } from 'tamagui';
@@ -310,6 +309,8 @@ export function CreateRouteSheet({
 
   // Pan gesture handler - matching RouteDetailSheet
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onUpdate((event) => {
       const { translationY } = event;
       const newPosition = currentSnapPoint + translationY;
@@ -2170,7 +2171,7 @@ export function CreateRouteSheet({
               animatedSheetStyle,
             ]}
           >
-            <Screen edges={[]} padding={false} hideStatusBar bottomInset={120}>
+            <Screen edges={[]} padding={false} scroll={false} hideStatusBar bottomInset={120}>
               {/* Drag Handle */}
               <View
                 style={{
@@ -2184,12 +2185,7 @@ export function CreateRouteSheet({
                 }}
               />
 
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={{ flex: 1 }}
-                keyboardVerticalOffset={0}
-              >
-                <ScrollView
+              <ScrollView
                   ref={mainScrollViewRef}
                   style={{ flex: 1 }}
                   scrollEnabled={drawingMode !== 'pen'}
@@ -4401,7 +4397,6 @@ export function CreateRouteSheet({
                     </YStack>
                   </YStack>
                 </ScrollView>
-              </KeyboardAvoidingView>
 
               {/* Save Button */}
               <YStack

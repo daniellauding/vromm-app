@@ -118,6 +118,8 @@ export function AddReviewSheet({
 
   // Pan gesture handler
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .enableTrackpadTwoFingerGesture(false)
     .onBegin(() => {
       if (isAnimating.value) return;
