@@ -68,10 +68,11 @@ import { RelationshipManagementModal } from '../components/RelationshipManagemen
 
 import { RelationshipReviewSection } from '../components/RelationshipReviewSection';
 import { RelationshipReviewModal } from '../components/RelationshipReviewModal';
-import { PasswordManagementSection } from '../components/profile/PasswordManagementSection';
+import { ChangePasswordSheet } from '../components/profile/ChangePasswordSheet';
 import { ProfileRatingBadge } from '../components/ProfileRatingBadge';
 import { RelationshipReviewService } from '../services/relationshipReviewService';
 import { useScreenLogger } from '../hooks/useScreenLogger';
+import { AppAnalytics } from '../utils/analytics';
 import { logNavigation, logError, logWarn, logInfo } from '../utils/logger';
 import {
   monitorDatabaseCall,
@@ -506,6 +507,9 @@ export function ProfileScreen() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const themeBackdropOpacity = useRef(new Animated.Value(0)).current;
   const themeSheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  // Change password sheet state
+  const [showChangePasswordSheet, setShowChangePasswordSheet] = useState(false);
 
   // Körkortsplan modal state and animation refs
   const [showKorkortsplanModal, setShowKorkortsplanModal] = useState(false);
@@ -3613,7 +3617,13 @@ export function ProfileScreen() {
                 </XStack>
 
                 {/* Security Section - Password Management */}
-                <PasswordManagementSection />
+                <Button
+                  onPress={() => setShowChangePasswordSheet(true)}
+                  variant="outlined"
+                  size="lg"
+                >
+                  {t('auth.changePassword')}
+                </Button>
 
                 <Button onPress={handleSignOut} disabled={loading} variant="outlined" size="lg">
                   {t('profile.signOut')}
@@ -7248,6 +7258,12 @@ export function ProfileScreen() {
           </View>
         </Animated.View>
       </Modal>
+
+      {/* Change Password Sheet */}
+      <ChangePasswordSheet
+        visible={showChangePasswordSheet}
+        onClose={() => setShowChangePasswordSheet(false)}
+      />
 
       {/* Lock Modal */}
       <LockModal

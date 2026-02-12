@@ -323,5 +323,36 @@
     "language": {
       "title": "Language"
     }
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "forgotPassword": "Forgot your password?",
+    "resetPassword": "Reset Password",
+    "sendResetEmail": "Send Reset Link",
+    "backToSignIn": "Back to Sign In",
+    "createAccount": "Create Account",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?",
+    "signInWithGoogle": "Sign in with Google",
+    "signUpWithGoogle": "Sign up with Google",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "currentPasswordPlaceholder": "Enter current password",
+    "newPasswordPlaceholder": "Min 8 characters",
+    "confirmPasswordPlaceholder": "Confirm new password",
+    "changingPassword": "Changing...",
+    "sendingResetLink": "Sending...",
+    "resetPasswordDescription": "Enter your email address and we'll send you a link to reset your password.",
+    "resetEmailSentMessage": "Check your inbox at {email} for a password reset link.",
+    "backToChangePassword": "Back to change password",
+    "done": "Done",
+    "close": "Close",
+    "oauthPasswordMessage": "You signed in with {provider}. Password management is not available for social sign-in accounts."
   }
 } 

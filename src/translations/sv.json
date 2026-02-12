@@ -330,6 +330,21 @@
     "alreadyHaveAccount": "Har du redan ett konto?",
     "dontHaveAccount": "Har du inget konto?",
     "signInWithGoogle": "Logga in med Google",
-    "signUpWithGoogle": "Registrera dig med Google"
+    "signUpWithGoogle": "Registrera dig med Google",
+    "changePassword": "Byt lösenord",
+    "currentPassword": "Nuvarande lösenord",
+    "newPassword": "Nytt lösenord",
+    "confirmNewPassword": "Bekräfta nytt lösenord",
+    "currentPasswordPlaceholder": "Ange nuvarande lösenord",
+    "newPasswordPlaceholder": "Minst 8 tecken",
+    "confirmPasswordPlaceholder": "Bekräfta nytt lösenord",
+    "changingPassword": "Ändrar...",
+    "sendingResetLink": "Skickar...",
+    "resetPasswordDescription": "Ange din e-postadress så skickar vi en länk för att återställa ditt lösenord.",
+    "resetEmailSentMessage": "Kolla din inkorg på {email} efter en länk för att återställa lösenordet.",
+    "backToChangePassword": "Tillbaka till byt lösenord",
+    "done": "Klar",
+    "close": "Stäng",
+    "oauthPasswordMessage": "Du loggade in med {provider}. Lösenordshantering är inte tillgänglig för konton med social inloggning."
   }
 } 
