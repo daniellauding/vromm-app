@@ -377,8 +377,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 
   const resetPassword = React.useCallback(async (email: string) => {
+    // Note: redirectTo is only used when the email template uses {{ .ConfirmationURL }}.
+    // With the token-based template ({{ .Token }}), the redirect URL is in the template itself.
+    // We still pass it as a fallback for compatibility.
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'korvagen://reset-password',
+      redirectTo: 'https://app.vromm.se/reset-password',
     });
     if (error) throw error;
   }, []);
@@ -388,7 +391,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'vrommapp://reset-password',
+        redirectTo: 'https://app.vromm.se/reset-password',
       });
 
       if (error) {

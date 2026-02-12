@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TouchableOpacity, useColorScheme } from 'react-native';
 import { YStack, XStack } from 'tamagui';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -21,8 +21,8 @@ export function ResetPasswordScreen() {
   const { showToast } = useToast();
   const { t } = useTranslation();
   const colorScheme = useColorScheme();
-  
-  // Get token from URL params
+
+  // Get token from URL params (deep link: vromm://reset-password?token=xxx)
   const token = route.params?.token;
 
   const [newPassword, setNewPassword] = useState('');
@@ -30,7 +30,52 @@ export function ResetPasswordScreen() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(true);
+  const [sessionReady, setSessionReady] = useState(false);
   const [error, setError] = useState('');
+
+  // Verify the OTP token on mount to establish a recovery session
+  useEffect(() => {
+    const verifyToken = async () => {
+      if (!token) {
+        // No token — check if we already have a valid session (e.g. from ConfirmationURL flow)
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setSessionReady(true);
+          } else {
+            setError(t('auth.invalidResetLink') || 'Invalid password reset link');
+          }
+        } catch {
+          setError(t('auth.invalidResetLink') || 'Invalid password reset link');
+        }
+        setVerifying(false);
+        return;
+      }
+
+      try {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: token,
+          type: 'recovery',
+        });
+
+        if (error) throw error;
+        setSessionReady(true);
+      } catch (err) {
+        const msg = (err as Error)?.message || 'Invalid or expired reset link';
+        setError(msg);
+        showToast({
+          title: t('errors.title') || 'Error',
+          message: msg,
+          type: 'error',
+        });
+      } finally {
+        setVerifying(false);
+      }
+    };
+
+    verifyToken();
+  }, [token]);
 
   // Validate inputs
   const validatePassword = (): string | null => {
@@ -53,8 +98,7 @@ export function ResetPasswordScreen() {
       return;
     }
 
-    // Check if token exists
-    if (!token) {
+    if (!sessionReady) {
       showToast({
         title: t('errors.title') || 'Error',
         message: t('auth.invalidResetLink') || 'Invalid password reset link',
@@ -67,7 +111,7 @@ export function ResetPasswordScreen() {
     setLoading(true);
 
     try {
-      // Update password using Supabase auth
+      // Update password using Supabase auth (session established by verifyOtp)
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -118,6 +162,22 @@ export function ResetPasswordScreen() {
         />
 
         <YStack flex={1} justifyContent="center" gap="$4" maxWidth={400} width="100%" alignSelf="center">
+          {/* Verifying token state */}
+          {verifying ? (
+            <Text fontSize="$4" color="$gray11" textAlign="center">
+              {t('common.loading') || 'Verifying reset link...'}
+            </Text>
+          ) : !sessionReady && error ? (
+            <YStack gap="$4" alignItems="center">
+              <Text fontSize="$4" color="$red10" textAlign="center">
+                {error}
+              </Text>
+              <Button onPress={() => navigation.navigate('Login')} size="lg">
+                {t('auth.backToLogin') || 'Back to Login'}
+              </Button>
+            </YStack>
+          ) : (
+          <>
           {/* Instructions */}
           <Text fontSize="$4" color="$gray11" textAlign="center">
             {t('auth.resetPasswordInstructions') || 'Enter your new password below.'}
@@ -185,6 +245,8 @@ export function ResetPasswordScreen() {
               {t('auth.backToLogin') || 'Back to Login'}
             </Text>
           </TouchableOpacity>
+          </>
+          )}
         </YStack>
       </YStack>
     </Screen>
