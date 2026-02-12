@@ -15,6 +15,18 @@ import { Eye, EyeOff, ArrowLeft } from 'lucide-react-native';
 
 type ResetPasswordRouteProp = RouteProp<RootStackParamList, 'ResetPassword'>;
 
+/** Map raw Supabase/network errors to user-friendly translation keys */
+function getErrorKey(err: unknown): string {
+  const msg = ((err as Error)?.message || '').toLowerCase();
+  if (msg.includes('network request failed') || msg.includes('fetch') || msg.includes('timeout')) {
+    return 'auth.networkError';
+  }
+  if (msg.includes('expired') || msg.includes('invalid') || msg.includes('otp')) {
+    return 'auth.expiredResetLink';
+  }
+  return 'auth.invalidResetLink';
+}
+
 export function ResetPasswordScreen() {
   const route = useRoute<ResetPasswordRouteProp>();
   const navigation = useNavigation<NavigationProp>();
@@ -34,64 +46,58 @@ export function ResetPasswordScreen() {
   const [sessionReady, setSessionReady] = useState(false);
   const [error, setError] = useState('');
 
+  const verifyToken = async () => {
+    setVerifying(true);
+    setError('');
+
+    if (!token) {
+      // No token — check if we already have a valid session (e.g. from ConfirmationURL flow)
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setSessionReady(true);
+        } else {
+          setError(t('auth.invalidResetLink'));
+        }
+      } catch (err) {
+        setError(t(getErrorKey(err)));
+      }
+      setVerifying(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'recovery',
+      });
+
+      if (error) throw error;
+      setSessionReady(true);
+    } catch (err) {
+      const key = getErrorKey(err);
+      setError(t(key));
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   // Verify the OTP token on mount to establish a recovery session
   useEffect(() => {
-    const verifyToken = async () => {
-      if (!token) {
-        // No token — check if we already have a valid session (e.g. from ConfirmationURL flow)
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            setSessionReady(true);
-          } else {
-            setError(t('auth.invalidResetLink') || 'Invalid password reset link');
-          }
-        } catch {
-          setError(t('auth.invalidResetLink') || 'Invalid password reset link');
-        }
-        setVerifying(false);
-        return;
-      }
-
-      try {
-        const { error } = await supabase.auth.verifyOtp({
-          token_hash: token,
-          type: 'recovery',
-        });
-
-        if (error) throw error;
-        setSessionReady(true);
-      } catch (err) {
-        const msg = (err as Error)?.message || 'Invalid or expired reset link';
-        setError(msg);
-        showToast({
-          title: t('errors.title') || 'Error',
-          message: msg,
-          type: 'error',
-        });
-      } finally {
-        setVerifying(false);
-      }
-    };
-
     verifyToken();
   }, [token]);
 
   // Validate inputs
   const validatePassword = (): string | null => {
-    if (!newPassword) return t('auth.passwordRequired') || 'Password is required';
-    if (newPassword.length < 8)
-      return t('auth.passwordTooShort') || 'Password must be at least 8 characters';
-    if (newPassword !== confirmPassword)
-      return t('auth.passwordsDoNotMatch') || 'Passwords do not match';
+    if (!newPassword) return t('auth.passwordRequired');
+    if (newPassword.length < 8) return t('auth.passwordTooShort');
+    if (newPassword !== confirmPassword) return t('auth.passwordsDoNotMatch');
     return null;
   };
 
   const handleResetPassword = async () => {
-    // Clear previous errors
     setError('');
 
-    // Validate inputs
     const validationError = validatePassword();
     if (validationError) {
       setError(validationError);
@@ -101,7 +107,7 @@ export function ResetPasswordScreen() {
     if (!sessionReady) {
       showToast({
         title: t('errors.title') || 'Error',
-        message: t('auth.invalidResetLink') || 'Invalid password reset link',
+        message: t('auth.invalidResetLink'),
         type: 'error',
       });
       navigation.navigate('Login');
@@ -111,31 +117,25 @@ export function ResetPasswordScreen() {
     setLoading(true);
 
     try {
-      // Update password using Supabase auth (session established by verifyOtp)
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword,
       });
 
-      if (updateError) {
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
-      // Success!
       showToast({
         title: t('common.success') || 'Success',
-        message: t('auth.passwordResetSuccess') || 'Password reset successfully',
+        message: t('auth.passwordResetSuccess'),
         type: 'success',
       });
 
-      // Navigate to Login
       navigation.navigate('Login');
     } catch (err) {
-      const errorMessage =
-        (err as Error)?.message || t('auth.passwordResetFailed') || 'Failed to reset password';
-      setError(errorMessage);
+      const key = getErrorKey(err);
+      setError(t(key));
       showToast({
         title: t('errors.title') || 'Error',
-        message: errorMessage,
+        message: t(key),
         type: 'error',
       });
     } finally {
@@ -148,13 +148,13 @@ export function ResetPasswordScreen() {
       <YStack flex={1} padding="$4" gap="$4">
         {/* Header with back button */}
         <Header
-          title={t('auth.resetPassword') || 'Reset Password'}
+          title={t('auth.resetPassword')}
           leftElement={
             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
               <XStack alignItems="center" gap="$2">
                 <ArrowLeft size={20} color={colorScheme === 'dark' ? '#fff' : '#000'} />
                 <Text fontSize="$4" fontWeight="500">
-                  {t('common.back') || 'Back'}
+                  {t('common.back') || 'Tillbaka'}
                 </Text>
               </XStack>
             </TouchableOpacity>
@@ -165,31 +165,41 @@ export function ResetPasswordScreen() {
           {/* Verifying token state */}
           {verifying ? (
             <Text fontSize="$4" color="$gray11" textAlign="center">
-              {t('common.loading') || 'Verifying reset link...'}
+              {t('auth.verifyingResetLink')}
             </Text>
-          ) : !sessionReady && error ? (
+          ) : !sessionReady ? (
             <YStack gap="$4" alignItems="center">
               <Text fontSize="$4" color="$red10" textAlign="center">
-                {error}
+                {error || t('auth.invalidResetLink')}
               </Text>
-              <Button onPress={() => navigation.navigate('Login')} size="lg">
-                {t('auth.backToLogin') || 'Back to Login'}
-              </Button>
+
+              {/* Retry button for network errors */}
+              {token && (
+                <Button onPress={verifyToken} size="lg">
+                  {t('auth.tryAgain')}
+                </Button>
+              )}
+
+              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                <Text fontSize="$3" color="$blue10" textAlign="center">
+                  {t('auth.backToLogin')}
+                </Text>
+              </TouchableOpacity>
             </YStack>
           ) : (
           <>
           {/* Instructions */}
           <Text fontSize="$4" color="$gray11" textAlign="center">
-            {t('auth.resetPasswordInstructions') || 'Enter your new password below.'}
+            {t('auth.resetPasswordInstructions')}
           </Text>
 
           {/* New Password Field */}
           <FormField
-            label={t('auth.newPassword') || 'New Password'}
+            label={t('auth.newPassword')}
             value={newPassword}
             onChangeText={setNewPassword}
             secureTextEntry={!showNewPassword}
-            placeholder={t('auth.enterNewPassword') || 'Enter new password'}
+            placeholder={t('auth.enterNewPassword')}
             autoCapitalize="none"
             rightElement={
               <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)}>
@@ -204,11 +214,11 @@ export function ResetPasswordScreen() {
 
           {/* Confirm Password Field */}
           <FormField
-            label={t('auth.confirmPassword') || 'Confirm Password'}
+            label={t('auth.confirmPassword')}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry={!showConfirmPassword}
-            placeholder={t('auth.enterPasswordAgain') || 'Enter password again'}
+            placeholder={t('auth.enterPasswordAgain')}
             autoCapitalize="none"
             rightElement={
               <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
@@ -235,14 +245,14 @@ export function ResetPasswordScreen() {
             disabled={loading || !newPassword || !confirmPassword}
           >
             {loading
-              ? t('common.loading') || 'Loading...'
-              : t('auth.resetPasswordButton') || 'Reset Password'}
+              ? t('common.loading') || 'Laddar...'
+              : t('auth.resetPasswordButton')}
           </Button>
 
           {/* Back to Login Link */}
           <TouchableOpacity onPress={() => navigation.navigate('Login')}>
             <Text fontSize="$3" color="$blue10" textAlign="center">
-              {t('auth.backToLogin') || 'Back to Login'}
+              {t('auth.backToLogin')}
             </Text>
           </TouchableOpacity>
           </>

@@ -353,6 +353,22 @@
     "backToChangePassword": "Back to change password",
     "done": "Done",
     "close": "Close",
-    "oauthPasswordMessage": "You signed in with {provider}. Password management is not available for social sign-in accounts."
+    "oauthPasswordMessage": "You signed in with {provider}. Password management is not available for social sign-in accounts.",
+    "backToLogin": "Back to Login",
+    "resetPasswordInstructions": "Enter your new password below.",
+    "enterNewPassword": "Enter new password",
+    "enterPasswordAgain": "Enter password again",
+    "resetPasswordButton": "Reset Password",
+    "passwordRequired": "Password is required",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "invalidResetLink": "Invalid or expired reset link",
+    "expiredResetLink": "This link has expired. Please request a new reset link.",
+    "networkError": "Could not connect. Check your internet connection and try again.",
+    "verifyingResetLink": "Verifying reset link...",
+    "passwordResetSuccess": "Password reset successfully",
+    "passwordResetFailed": "Failed to reset password",
+    "tryAgain": "Try Again",
+    "requestNewLink": "Request New Link"
   }
 } 

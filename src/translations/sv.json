@@ -345,6 +345,22 @@
     "backToChangePassword": "Tillbaka till byt lösenord",
     "done": "Klar",
     "close": "Stäng",
-    "oauthPasswordMessage": "Du loggade in med {provider}. Lösenordshantering är inte tillgänglig för konton med social inloggning."
+    "oauthPasswordMessage": "Du loggade in med {provider}. Lösenordshantering är inte tillgänglig för konton med social inloggning.",
+    "backToLogin": "Tillbaka till inloggning",
+    "resetPasswordInstructions": "Ange ditt nya lösenord nedan.",
+    "enterNewPassword": "Ange nytt lösenord",
+    "enterPasswordAgain": "Ange lösenordet igen",
+    "resetPasswordButton": "Återställ lösenord",
+    "passwordRequired": "Lösenord krävs",
+    "passwordTooShort": "Lösenordet måste vara minst 8 tecken",
+    "passwordsDoNotMatch": "Lösenorden matchar inte",
+    "invalidResetLink": "Ogiltig eller utgången återställningslänk",
+    "expiredResetLink": "Länken har gått ut. Begär en ny återställningslänk.",
+    "networkError": "Kunde inte ansluta. Kontrollera din internetanslutning och försök igen.",
+    "verifyingResetLink": "Verifierar återställningslänk...",
+    "passwordResetSuccess": "Lösenordet har återställts",
+    "passwordResetFailed": "Kunde inte återställa lösenordet",
+    "tryAgain": "Försök igen",
+    "requestNewLink": "Begär ny länk"
   }
 } 
