@@ -6,7 +6,7 @@ import { Button } from '../Button';
 import { Text } from '../Text';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react-native';
 import { useToast } from '../../contexts/ToastContext';
-import { trackEvent } from '../../lib/analytics';
+import { trackEvent } from '../../utils/analytics';
 
 type AuthProvider = 'email' | 'google' | 'apple' | 'facebook' | null;
 
