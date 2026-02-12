@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Modal, Animated, Pressable, View, Dimensions } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -252,6 +252,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <Animated.View
         style={{
           flex: 1,
@@ -503,6 +504,7 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
           </YStack>
         </View>
       </Modal>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

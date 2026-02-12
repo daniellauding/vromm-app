@@ -9,7 +9,7 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -685,6 +685,7 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <Animated.View
         style={{
           flex: 1,
@@ -1133,6 +1134,7 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
           profile={profile}
         />
       ) : null}
+      </GestureHandlerRootView>
     </Modal>
   );
 });

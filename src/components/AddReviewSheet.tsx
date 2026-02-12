@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -256,6 +256,7 @@ export function AddReviewSheet({
       presentationStyle="overFullScreen"
       statusBarTranslucent
     >
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <Animated.View
         style={{
           flex: 1,
@@ -375,6 +376,7 @@ export function AddReviewSheet({
           </GestureDetector>
         </View>
       </Animated.View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

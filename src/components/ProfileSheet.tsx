@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Modal, Animated, Pressable, Easing, View, Dimensions } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -175,6 +175,7 @@ export function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <Animated.View
         style={{
           flex: 1,
@@ -232,6 +233,7 @@ export function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
           </GestureDetector>
         </View>
       </Animated.View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -401,16 +401,15 @@ export function RouteDetailSheet({
       currentState.value = boundedTarget;
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     })
-    .simultaneousWithExternalGesture(swipeGesture);
+
 
   // Combine gestures - vertical pan for drag-to-dismiss, horizontal pan for route navigation
   const combinedGesture = Gesture.Simultaneous(panGesture, swipeGesture);
 
   const animatedGestureStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateY: translateY.value },
+      { translateY: translateY.value + swipeTranslateY.value },
       { translateX: swipeTranslateX.value },
-      { translateY: swipeTranslateY.value },
       { rotate: `${swipeRotate.value}rad` },
     ],
     opacity: swipeOpacity.value,
@@ -676,6 +675,7 @@ export function RouteDetailSheet({
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <Animated.View
         style={{
           flex: 1,
@@ -1247,6 +1247,7 @@ export function RouteDetailSheet({
           }}
         />
       )}
+      </GestureHandlerRootView>
     </Modal>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, View, Dimensions, ScrollView, Image, TextInput } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -486,6 +486,7 @@ export const RelationshipModal = ({
       statusBarTranslucent
       presentationStyle="overFullScreen"
     >
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <View
         style={{
           flex: 1,
@@ -825,6 +826,7 @@ export const RelationshipModal = ({
           </ReanimatedAnimated.View>
         </GestureDetector>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 };

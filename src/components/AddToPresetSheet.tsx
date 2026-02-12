@@ -20,7 +20,7 @@ import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import { RadioButton } from './SelectButton';
 import { CollectionSharingModal } from './CollectionSharingModal';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -690,6 +690,7 @@ export function AddToPresetSheet({
   return (
     <>
       <Modal visible={isVisible} transparent animationType="none" onRequestClose={dismissSheet}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <Animated.View
           style={{
             flex: 1,
@@ -1299,6 +1300,7 @@ export function AddToPresetSheet({
             </GestureDetector>
           </View>
         </Animated.View>
+        </GestureHandlerRootView>
       </Modal>
     </>
   );

@@ -19,7 +19,7 @@ import { useStudentSwitch } from '../context/StudentSwitchContext';
 import { useToast } from '../contexts/ToastContext';
 import { useModal } from '../contexts/ModalContext';
 import { supabase } from '../lib/supabase';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -729,6 +729,7 @@ export function CollectionSharingModal({
       statusBarTranslucent
       presentationStyle="overFullScreen"
     >
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <View
         style={{
           flex: 1,
@@ -1337,6 +1338,7 @@ export function CollectionSharingModal({
           </ReanimatedAnimated.View>
         </GestureDetector>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

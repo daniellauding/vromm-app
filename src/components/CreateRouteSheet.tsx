@@ -22,7 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 // Navigation imports removed for sheet component
 import { Waypoint, Screen, Button, Text, FormField, IconButton } from '../components';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -2129,6 +2129,7 @@ export function CreateRouteSheet({
       onRequestClose={handleClose}
       statusBarTranslucent
     >
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         {/* Backdrop - only show when sheet is visible and not dismissed */}
         {visible && currentSnapPoint !== snapPoints.dismissed && (
@@ -4878,6 +4879,7 @@ export function CreateRouteSheet({
           </ReanimatedAnimated.View>
         </GestureDetector>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

@@ -10,7 +10,7 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -775,6 +775,7 @@ export function LearningPathsSheet({
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <Animated.View
         style={{
           flex: 1,
@@ -1118,6 +1119,7 @@ export function LearningPathsSheet({
           console.log('🔄 [LearningPathsSheet] Reset filters to profile-based defaults:', defaultFilters);
         }}
       />
+      </GestureHandlerRootView>
     </Modal>
   );
 }

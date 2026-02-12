@@ -14,7 +14,7 @@ import {
   Linking,
   Image,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -1415,6 +1415,7 @@ export function ExerciseListSheet({
 
     return (
       <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <Animated.View
           style={{
             flex: 1,
@@ -2479,6 +2480,7 @@ export function ExerciseListSheet({
             </GestureDetector>
           </View>
         </Animated.View>
+        </GestureHandlerRootView>
       </Modal>
     );
   }
@@ -2487,6 +2489,7 @@ export function ExerciseListSheet({
   return (
     <>
       <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <Animated.View
           style={{
             flex: 1,
@@ -3480,6 +3483,7 @@ export function ExerciseListSheet({
             </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
+        </GestureHandlerRootView>
       </Modal>
     </>
   );

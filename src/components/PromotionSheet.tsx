@@ -11,7 +11,7 @@ import {
   Linking,
   Image,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -182,6 +182,7 @@ export function PromotionSheet({ visible, onClose, promotion, language }: Promot
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <Animated.View
         style={{
           flex: 1,
@@ -327,6 +328,7 @@ export function PromotionSheet({ visible, onClose, promotion, language }: Promot
           </GestureDetector>
         </View>
       </Animated.View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
