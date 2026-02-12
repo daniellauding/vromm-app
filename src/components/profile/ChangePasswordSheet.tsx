@@ -236,7 +236,7 @@ export const ChangePasswordSheet: React.FC<ChangePasswordSheetProps> = ({ visibl
             <Text size="sm" color="$color">
               {t('auth.resetEmailSentMessage').replace('{email}', resetEmail)}
             </Text>
-            <Button onPress={handleClose} variant="primary" size="lg">
+            <Button onPress={handleClose} variant="primary" size="md">
               {t('auth.done')}
             </Button>
           </YStack>
