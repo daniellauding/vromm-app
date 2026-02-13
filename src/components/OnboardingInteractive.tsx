@@ -17,7 +17,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -385,6 +385,8 @@ export function OnboardingInteractive({
 
   // City modal pan gesture
   const cityPanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       console.log('🎯 [OnboardingInteractive] CITY DRAG HANDLE GESTURE STARTED');
     })
@@ -448,6 +450,8 @@ export function OnboardingInteractive({
     });
 
   const connectionsPanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       console.log('🎯 [OnboardingInteractive] DRAG HANDLE GESTURE STARTED');
     })
@@ -3774,6 +3778,7 @@ export function OnboardingInteractive({
           animationType="none"
           onRequestClose={hideCityModal}
         >
+          <GestureHandlerRootView style={{ flex: 1 }}>
           <ReanimatedAnimated.View
             style={{
               flex: 1,
@@ -3922,6 +3927,7 @@ export function OnboardingInteractive({
               </ReanimatedAnimated.View>
             </View>
           </ReanimatedAnimated.View>
+          </GestureHandlerRootView>
         </Modal>
 
         {/* Connections Selection Modal */}
@@ -3937,6 +3943,7 @@ export function OnboardingInteractive({
             }, 0);
           }}
         >
+          <GestureHandlerRootView style={{ flex: 1 }}>
           <ReanimatedAnimated.View
             style={{
               flex: 1,
@@ -4147,6 +4154,7 @@ export function OnboardingInteractive({
               </ReanimatedAnimated.View>
             </Pressable>
           </ReanimatedAnimated.View>
+          </GestureHandlerRootView>
         </Modal>
 
         {/* Vehicle Type Selection Modal */}

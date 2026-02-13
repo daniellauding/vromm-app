@@ -3,7 +3,7 @@ import { View, StyleSheet, Text, Dimensions, Modal, Pressable } from 'react-nati
 import { Feather } from '@expo/vector-icons';
 import { useRecording } from '../contexts/RecordingContext';
 import { useTranslation } from '../contexts/TranslationContext';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -90,6 +90,8 @@ export const GlobalRecordingWidget = React.memo(() => {
         mass: 1,
       });
     })
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .shouldCancelWhenOutside(false)
     .minDistance(1); // Very sensitive for smooth dragging
 

@@ -200,6 +200,8 @@ export const RoutesDrawer = React.forwardRef<
     );
     // --- New Gesture API ---
     const panGesture = Gesture.Pan()
+      .activeOffsetY([-10, 10])
+      .failOffsetX([-20, 20])
       .onBegin(() => {
         // No need for isDragging ref, just start gesture
       })

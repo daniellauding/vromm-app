@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { YStack, XStack, ScrollView, TextArea, Switch } from 'tamagui';
-import { Gesture, GestureDetector, PanGestureHandler } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView, PanGestureHandler } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -259,6 +259,8 @@ export const GettingStarted = () => {
   });
 
   const connectionsPanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       console.log('🎯 [GettingStarted] DRAG HANDLE GESTURE STARTED');
     })
@@ -429,6 +431,8 @@ export const GettingStarted = () => {
 
   // License plan gesture handler (like RouteDetailSheet)
   const licensePlanPanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .enableTrackpadTwoFingerGesture(false)
     .onBegin(() => {
       if (licensePlanIsAnimating.value) return;
@@ -596,6 +600,8 @@ export const GettingStarted = () => {
 
   // Role modal gesture handler
   const rolePanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       if (roleIsAnimating.value) return;
       roleIsAnimating.value = true;
@@ -814,6 +820,8 @@ export const GettingStarted = () => {
 
   // Relationship removal modal gesture handler
   const relationshipRemovalPanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       if (relationshipRemovalIsAnimating.value) return;
       relationshipRemovalIsAnimating.value = true;
@@ -2089,6 +2097,7 @@ export const GettingStarted = () => {
         visible={showKorkortsplanModal}
         onRequestClose={hideKorkortsplanSheet}
       >
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <BlurView
           style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
           intensity={10}
@@ -2503,6 +2512,7 @@ export const GettingStarted = () => {
             </GestureDetector>
           </View>
         </Animated.View>
+        </GestureHandlerRootView>
       </Modal>
 
       {/* Experience Level Selection Modal */}
@@ -2700,6 +2710,7 @@ export const GettingStarted = () => {
         animationType="none"
         onRequestClose={hideRoleSheet}
       >
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <BlurView
           style={{ position: 'absolute', top: 0, left: 0, bottom: 0, right: 0 }}
           intensity={10}
@@ -2798,6 +2809,7 @@ export const GettingStarted = () => {
             </GestureDetector>
           </View>
         </Animated.View>
+        </GestureHandlerRootView>
       </Modal>
 
       {/* Connections Selection Modal - with gesture handling like RouteDetailSheet */}
@@ -2807,6 +2819,7 @@ export const GettingStarted = () => {
         animationType="none"
         onRequestClose={hideConnectionsSheet}
       >
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <ReanimatedAnimated.View
           style={{
             flex: 1,
@@ -3479,6 +3492,7 @@ export const GettingStarted = () => {
             </ReanimatedAnimated.View>
           </View>
         </ReanimatedAnimated.View>
+        </GestureHandlerRootView>
       </Modal>
 
       {/* Create Route Sheet Modal */}

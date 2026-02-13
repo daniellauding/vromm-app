@@ -11,7 +11,7 @@ import {
 import { Text, XStack, YStack, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -56,6 +56,8 @@ export function LeaveCollectionModal({
 
   // Pan gesture for drag-to-dismiss
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       isDragging.current = true;
     })
@@ -153,6 +155,7 @@ export function LeaveCollectionModal({
       statusBarTranslucent
       presentationStyle="overFullScreen"
     >
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} onPress={handleCancel} />
         <GestureDetector gesture={panGesture}>
@@ -291,6 +294,7 @@ export function LeaveCollectionModal({
           </ReanimatedAnimated.View>
         </GestureDetector>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

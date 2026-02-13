@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -132,6 +132,8 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
 
   // Pan gesture
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onUpdate((event) => {
       const newY = Math.max(
         snapPoints.large,
@@ -572,6 +574,7 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
 
   return (
     <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         {/* Backdrop */}
         <Pressable style={{ flex: 1 }} onPress={onClose}>
@@ -874,6 +877,7 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
           </ReanimatedAnimated.View>
         </GestureDetector>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

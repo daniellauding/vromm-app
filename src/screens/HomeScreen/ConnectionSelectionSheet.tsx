@@ -12,7 +12,7 @@ import {
   useColorScheme,
   Alert,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -127,6 +127,8 @@ export const ConnectionSelectionSheet = ({
 
   // Pan gesture for drag to dismiss
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onUpdate((event) => {
       const newPosition = currentState.value + event.translationY;
       if (newPosition >= snapPoints.large && newPosition <= snapPoints.dismissed) {
@@ -338,6 +340,7 @@ export const ConnectionSelectionSheet = ({
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         <ReanimatedAnimated.View
           style={[
@@ -579,6 +582,7 @@ export const ConnectionSelectionSheet = ({
           </ReanimatedAnimated.View>
         </GestureDetector>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 };

@@ -216,6 +216,8 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
 
     // Pan gesture for sheet dragging - exact RoutesDrawer implementation
     const panGesture = Gesture.Pan()
+      .activeOffsetY([-10, 10])
+      .failOffsetX([-20, 20])
       .onBegin(() => {
         // No need for isDragging ref, just start gesture
       })
@@ -1838,7 +1840,7 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
           />
         )}
 
-        <GestureDetector gesture={isMinimized ? Gesture.Pan() : combinedGesture}>
+        <GestureDetector gesture={isMinimized ? Gesture.Pan().activeOffsetY([-10, 10]).failOffsetX([-20, 20]) : combinedGesture}>
           <Animated.View
             style={[
               styles.bottomSheet,

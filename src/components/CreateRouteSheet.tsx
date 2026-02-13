@@ -13,7 +13,6 @@ import {
   Modal,
   Animated,
   Easing,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { Buffer } from 'buffer';
 import { YStack, TextArea, XStack, Card, Separator, Heading, useTheme } from 'tamagui';
@@ -23,7 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import { Database } from '../lib/database.types';
 // Navigation imports removed for sheet component
 import { Waypoint, Screen, Button, Text, FormField, IconButton } from '../components';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -310,6 +309,8 @@ export function CreateRouteSheet({
 
   // Pan gesture handler - matching RouteDetailSheet
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onUpdate((event) => {
       const { translationY } = event;
       const newPosition = currentSnapPoint + translationY;
@@ -2128,6 +2129,7 @@ export function CreateRouteSheet({
       onRequestClose={handleClose}
       statusBarTranslucent
     >
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         {/* Backdrop - only show when sheet is visible and not dismissed */}
         {visible && currentSnapPoint !== snapPoints.dismissed && (
@@ -2170,7 +2172,7 @@ export function CreateRouteSheet({
               animatedSheetStyle,
             ]}
           >
-            <Screen edges={[]} padding={false} hideStatusBar bottomInset={120}>
+            <Screen edges={[]} padding={false} scroll={false} hideStatusBar bottomInset={120}>
               {/* Drag Handle */}
               <View
                 style={{
@@ -2184,12 +2186,7 @@ export function CreateRouteSheet({
                 }}
               />
 
-              <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={{ flex: 1 }}
-                keyboardVerticalOffset={0}
-              >
-                <ScrollView
+              <ScrollView
                   ref={mainScrollViewRef}
                   style={{ flex: 1 }}
                   scrollEnabled={drawingMode !== 'pen'}
@@ -4401,7 +4398,6 @@ export function CreateRouteSheet({
                     </YStack>
                   </YStack>
                 </ScrollView>
-              </KeyboardAvoidingView>
 
               {/* Save Button */}
               <YStack
@@ -4883,6 +4879,7 @@ export function CreateRouteSheet({
           </ReanimatedAnimated.View>
         </GestureDetector>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

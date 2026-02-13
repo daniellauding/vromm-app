@@ -10,7 +10,7 @@ import {
   Animated,
   Pressable,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -257,6 +257,8 @@ export const ExerciseStepsAccordion: React.FC<ExerciseStepsAccordionProps> = Rea
     }, [snapPoints.dismissed, backdropOpacity]);
 
     const panGesture = Gesture.Pan()
+      .activeOffsetY([-10, 10])
+      .failOffsetX([-20, 20])
       .onBegin(() => {
         isDragging.current = true;
       })
@@ -399,6 +401,7 @@ export const ExerciseStepsAccordion: React.FC<ExerciseStepsAccordionProps> = Rea
             animationType="none"
             onRequestClose={dismissSheet}
           >
+            <GestureHandlerRootView style={{ flex: 1 }}>
             <Animated.View
               style={{
                 flex: 1,
@@ -495,6 +498,7 @@ export const ExerciseStepsAccordion: React.FC<ExerciseStepsAccordionProps> = Rea
                 </GestureDetector>
               </View>
             </Animated.View>
+            </GestureHandlerRootView>
           </Modal>
         )}
       </>

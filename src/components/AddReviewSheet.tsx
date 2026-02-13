@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -118,6 +118,8 @@ export function AddReviewSheet({
 
   // Pan gesture handler
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .enableTrackpadTwoFingerGesture(false)
     .onBegin(() => {
       if (isAnimating.value) return;
@@ -254,6 +256,7 @@ export function AddReviewSheet({
       presentationStyle="overFullScreen"
       statusBarTranslucent
     >
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <Animated.View
         style={{
           flex: 1,
@@ -373,6 +376,7 @@ export function AddReviewSheet({
           </GestureDetector>
         </View>
       </Animated.View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

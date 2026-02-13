@@ -20,7 +20,7 @@ import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import { RadioButton } from './SelectButton';
 import { CollectionSharingModal } from './CollectionSharingModal';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -205,6 +205,8 @@ export function AddToPresetSheet({
 
   // Pan gesture for drag-to-dismiss and snap points
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       isDragging.current = true;
     })
@@ -688,6 +690,7 @@ export function AddToPresetSheet({
   return (
     <>
       <Modal visible={isVisible} transparent animationType="none" onRequestClose={dismissSheet}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <Animated.View
           style={{
             flex: 1,
@@ -1297,6 +1300,7 @@ export function AddToPresetSheet({
             </GestureDetector>
           </View>
         </Animated.View>
+        </GestureHandlerRootView>
       </Modal>
     </>
   );

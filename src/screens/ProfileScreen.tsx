@@ -20,7 +20,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -69,6 +69,7 @@ import { RelationshipManagementModal } from '../components/RelationshipManagemen
 import { RelationshipReviewSection } from '../components/RelationshipReviewSection';
 import { RelationshipReviewModal } from '../components/RelationshipReviewModal';
 import { ChangePasswordSheet } from '../components/profile/ChangePasswordSheet';
+import { registerClosePasswordSheet, unregisterClosePasswordSheet } from '../utils/passwordResetBridge';
 import { ProfileRatingBadge } from '../components/ProfileRatingBadge';
 import { RelationshipReviewService } from '../services/relationshipReviewService';
 import { useScreenLogger } from '../hooks/useScreenLogger';
@@ -400,6 +401,8 @@ export function ProfileScreen() {
 
   // Location modal pan gesture handler (like OnboardingInteractive city modal)
   const locationPanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onStart(() => {
       console.log('🗺️ [ProfileScreen] Location modal - DRAG HANDLE GESTURE START');
       currentLocationState.value = locationTranslateY.value;
@@ -510,6 +513,22 @@ export function ProfileScreen() {
 
   // Change password sheet state
   const [showChangePasswordSheet, setShowChangePasswordSheet] = useState(false);
+
+  // Auto-close change password sheet when navigating away (e.g., reset password deep link)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', () => {
+      if (showChangePasswordSheet) {
+        setShowChangePasswordSheet(false);
+      }
+    });
+    return unsubscribe;
+  }, [navigation, showChangePasswordSheet]);
+
+  // Register global close handler so AppContent can close the sheet on deep link
+  useEffect(() => {
+    registerClosePasswordSheet(() => setShowChangePasswordSheet(false));
+    return () => unregisterClosePasswordSheet();
+  }, []);
 
   // Körkortsplan modal state and animation refs
   const [showKorkortsplanModal, setShowKorkortsplanModal] = useState(false);
@@ -5514,6 +5533,7 @@ export function ProfileScreen() {
         animationType="none"
         onRequestClose={hideLocationSheet}
       >
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <ReanimatedAnimated.View
           style={[
             {
@@ -5849,6 +5869,7 @@ export function ProfileScreen() {
             )}
           </YStack>
         </ReanimatedAnimated.View>
+        </GestureHandlerRootView>
       </Modal>
 
       {/* Avatar Selection Modal */}
@@ -7263,6 +7284,10 @@ export function ProfileScreen() {
       <ChangePasswordSheet
         visible={showChangePasswordSheet}
         onClose={() => setShowChangePasswordSheet(false)}
+        onResetEmailSent={() => {
+          // Reset navigation stack so ProfileScreen is fully dismissed
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs' as any }] });
+        }}
       />
 
       {/* Lock Modal */}
