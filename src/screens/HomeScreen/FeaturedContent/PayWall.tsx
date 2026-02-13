@@ -8,7 +8,7 @@ import { useThemePreference } from '../../../hooks/useThemeOverride';
 import { useAuth } from '../../../context/AuthContext';
 import { useUnlock } from '../../../contexts/UnlockContext';
 import { useToast } from '../../../contexts/ToastContext';
-import { useStripe } from '@stripe/stripe-react-native';
+import { useStripeSafe } from '../../../hooks/useStripeSafe';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { FeaturedLearningPath } from './types';
 
@@ -32,7 +32,7 @@ export default function PayWall({
   const colorScheme = effectiveTheme || 'light';
   const { user: authUser, profile } = useAuth();
   const { showToast } = useToast();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { initPaymentSheet, presentPaymentSheet } = useStripeSafe();
   const { loadUserPayments, loadUnlockedContent } = useUnlock();
 
   return (
