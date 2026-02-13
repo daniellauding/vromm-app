@@ -115,48 +115,57 @@ export default function App() {
     );
   }
 
-  console.log('🎯 [App] Rendering');
+  const lowEnd = isLowEndDevice();
+  console.log(`🎯 [App] Rendering (lowEnd=${lowEnd}, stripe=${!lowEnd && !!stripePublishableKey})`);
+
+  const appTree = (
+    <TamaguiProvider
+      config={config}
+      defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}
+    >
+      <TranslationProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <StudentSwitchProvider>
+              <LocationProvider>
+                <CreateRouteProvider>
+                  <RecordingProvider>
+                    <ModalProvider>
+                      <MessagingProvider>
+                        <UnlockProvider>
+                          <CelebrationProvider>
+                            <TourProvider>
+                              <AppContent />
+                            </TourProvider>
+                          </CelebrationProvider>
+                        </UnlockProvider>
+                      </MessagingProvider>
+                    </ModalProvider>
+                  </RecordingProvider>
+                </CreateRouteProvider>
+              </LocationProvider>
+            </StudentSwitchProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </TranslationProvider>
+    </TamaguiProvider>
+  );
 
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <StripeProvider
-            publishableKey={stripePublishableKey || 'pk_test_placeholder'}
-            merchantIdentifier="merchant.se.vromm.app"
-            urlScheme="vromm"
-          >
-            <TamaguiProvider
-              config={config}
-              defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}
+          {lowEnd ? (
+            appTree
+          ) : (
+            <StripeProvider
+              publishableKey={stripePublishableKey || 'pk_test_placeholder'}
+              merchantIdentifier="merchant.se.vromm.app"
+              urlScheme="vromm"
             >
-              <TranslationProvider>
-                <AuthProvider>
-                  <ThemeProvider>
-                    <StudentSwitchProvider>
-                      <LocationProvider>
-                        <CreateRouteProvider>
-                          <RecordingProvider>
-                            <ModalProvider>
-                              <MessagingProvider>
-                                <UnlockProvider>
-                                  <CelebrationProvider>
-                                    <TourProvider>
-                                      <AppContent />
-                                    </TourProvider>
-                                  </CelebrationProvider>
-                                </UnlockProvider>
-                              </MessagingProvider>
-                            </ModalProvider>
-                          </RecordingProvider>
-                        </CreateRouteProvider>
-                      </LocationProvider>
-                    </StudentSwitchProvider>
-                  </ThemeProvider>
-                </AuthProvider>
-              </TranslationProvider>
-            </TamaguiProvider>
-          </StripeProvider>
+              {appTree}
+            </StripeProvider>
+          )}
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>

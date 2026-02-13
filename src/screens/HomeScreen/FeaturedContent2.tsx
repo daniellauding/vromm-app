@@ -24,7 +24,7 @@ import { ExerciseListSheet } from '../../components/ExerciseListSheet';
 import { useAuth } from '../../context/AuthContext';
 import { useUnlock } from '../../contexts/UnlockContext';
 import { useToast } from '../../contexts/ToastContext';
-import { useStripe } from '@stripe/stripe-react-native';
+import { useStripeSafe } from '../../hooks/useStripeSafe';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import YoutubePlayer from 'react-native-youtube-iframe';
 
@@ -73,7 +73,7 @@ export function FeaturedContent2() {
   const colorScheme = useColorScheme();
   const { user: authUser, profile } = useAuth();
   const { showToast } = useToast();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { initPaymentSheet, presentPaymentSheet } = useStripeSafe();
   const {
     unlockedPaths,
     userPayments,

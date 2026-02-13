@@ -15,7 +15,7 @@ import { useStudentSwitch } from '../context/StudentSwitchContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTourTarget } from './TourOverlay';
 import { useTour } from '../contexts/TourContext';
-import { useStripe } from '@stripe/stripe-react-native';
+import { useStripeSafe } from '../hooks/useStripeSafe';
 import { useToast } from '../contexts/ToastContext';
 import { useUnlock } from '../contexts/UnlockContext';
 import { FunctionsHttpError } from '@supabase/supabase-js';
@@ -199,7 +199,7 @@ export function ProgressSection({ activeUserId }: ProgressSectionProps) {
   const { user: authUser, profile } = useAuth();
   const { activeStudentId } = useStudentSwitch();
   const { showToast } = useToast();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { initPaymentSheet, presentPaymentSheet } = useStripeSafe();
   const {
     unlockedPaths,
     userPayments,
