@@ -16,7 +16,7 @@ import {
 import { XStack, YStack, Text } from 'tamagui';
 import { Button } from '../../components/Button';
 import { Feather } from '@expo/vector-icons';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -1020,6 +1020,8 @@ export function DailyStatus({
 
   // Pan gesture for drag-to-resize
   const panGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onUpdate((event) => {
       const { translationY } = event;
       const newPosition = currentSnapPoint + translationY;
@@ -1276,6 +1278,7 @@ export function DailyStatus({
           animationType="none"
           onRequestClose={() => setShowSheet(false)}
         >
+          <GestureHandlerRootView style={{ flex: 1 }}>
           <Animated.View
             style={{
               flex: 1,
@@ -1977,6 +1980,7 @@ export function DailyStatus({
               </ReanimatedAnimated.View>
             </GestureDetector>
           </Animated.View>
+          </GestureHandlerRootView>
         </Modal>
       )}
 
