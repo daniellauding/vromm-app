@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useColorScheme, Platform, NativeModules } from 'react-native';
 import * as Font from 'expo-font';
+import { isLowEndDevice } from './src/utils/deviceCapabilities';
 
 import { config } from './src/theme/components';
 import { AuthProvider } from './src/context/AuthContext';
@@ -41,22 +42,33 @@ export default function App() {
   useEffect(() => {
     async function loadFonts() {
       try {
-        await Font.loadAsync({
-          'Rubik-Regular': require('./assets/fonts/Rubik/static/Rubik-Regular.ttf'),
-          'Rubik-Medium': require('./assets/fonts/Rubik/static/Rubik-Medium.ttf'),
-          'Rubik-SemiBold': require('./assets/fonts/Rubik/static/Rubik-SemiBold.ttf'),
-          'Rubik-Bold': require('./assets/fonts/Rubik/static/Rubik-Bold.ttf'),
-          'Rubik-ExtraBold': require('./assets/fonts/Rubik/static/Rubik-ExtraBold.ttf'),
-          'Rubik-Black': require('./assets/fonts/Rubik/static/Rubik-Black.ttf'),
-          'Rubik-Italic': require('./assets/fonts/Rubik/static/Rubik-Italic.ttf'),
-          'Rubik-MediumItalic': require('./assets/fonts/Rubik/static/Rubik-MediumItalic.ttf'),
-          'Rubik-BoldItalic': require('./assets/fonts/Rubik/static/Rubik-BoldItalic.ttf'),
-          'Rubik-ExtraBoldItalic': require('./assets/fonts/Rubik/static/Rubik-ExtraBoldItalic.ttf'),
-          'Rubik-BlackItalic': require('./assets/fonts/Rubik/static/Rubik-BlackItalic.ttf'),
-        });
+        if (isLowEndDevice()) {
+          // Low-end devices: only load essential fonts to reduce memory usage
+          console.log('📱 [App] Low-end device - loading essential fonts only');
+          await Font.loadAsync({
+            'Rubik-Regular': require('./assets/fonts/Rubik/static/Rubik-Regular.ttf'),
+            'Rubik-Medium': require('./assets/fonts/Rubik/static/Rubik-Medium.ttf'),
+            'Rubik-Bold': require('./assets/fonts/Rubik/static/Rubik-Bold.ttf'),
+          });
+        } else {
+          await Font.loadAsync({
+            'Rubik-Regular': require('./assets/fonts/Rubik/static/Rubik-Regular.ttf'),
+            'Rubik-Medium': require('./assets/fonts/Rubik/static/Rubik-Medium.ttf'),
+            'Rubik-SemiBold': require('./assets/fonts/Rubik/static/Rubik-SemiBold.ttf'),
+            'Rubik-Bold': require('./assets/fonts/Rubik/static/Rubik-Bold.ttf'),
+            'Rubik-ExtraBold': require('./assets/fonts/Rubik/static/Rubik-ExtraBold.ttf'),
+            'Rubik-Black': require('./assets/fonts/Rubik/static/Rubik-Black.ttf'),
+            'Rubik-Italic': require('./assets/fonts/Rubik/static/Rubik-Italic.ttf'),
+            'Rubik-MediumItalic': require('./assets/fonts/Rubik/static/Rubik-MediumItalic.ttf'),
+            'Rubik-BoldItalic': require('./assets/fonts/Rubik/static/Rubik-BoldItalic.ttf'),
+            'Rubik-ExtraBoldItalic': require('./assets/fonts/Rubik/static/Rubik-ExtraBoldItalic.ttf'),
+            'Rubik-BlackItalic': require('./assets/fonts/Rubik/static/Rubik-BlackItalic.ttf'),
+          });
+        }
         setFontsLoaded(true);
       } catch (error) {
         console.error('Error loading fonts:', error);
+        setFontsLoaded(true); // Don't block startup on font errors
       }
     }
     loadFonts();
