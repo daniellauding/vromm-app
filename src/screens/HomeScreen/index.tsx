@@ -361,6 +361,8 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         keyExtractor={() => 'home-content'}
         contentContainerStyle={{ paddingTop: 100, paddingBottom: 40 + BOTTOM_INSET }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
           useNativeDriver: false,
         })}

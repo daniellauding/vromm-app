@@ -5,7 +5,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  TouchableOpacity,
+  Pressable,
   Keyboard,
   StatusBar,
   RefreshControl,
@@ -39,12 +39,13 @@ export function Screen({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
-          <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={Keyboard.dismiss}>
+          <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
             {scroll ? (
               <ScrollView
                 style={{ flex: 1 }}
                 contentContainerStyle={{ flexGrow: 1, paddingBottom: bottomInset }}
                 keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 refreshControl={refreshControl}
               >
                 <YStack f={1} px={padding ? '$6' : undefined} py={padding ? '$4' : undefined}>
@@ -56,7 +57,7 @@ export function Screen({
                 {children}
               </YStack>
             )}
-          </TouchableOpacity>
+          </Pressable>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </YStack>
