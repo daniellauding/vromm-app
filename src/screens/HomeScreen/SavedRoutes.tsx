@@ -190,6 +190,7 @@ export const SavedRoutes = ({ onRoutePress }: SavedRoutesProps = {}) => {
         />
         <FlatList
           horizontal
+          nestedScrollEnabled={true}
           data={savedRoutes}
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}

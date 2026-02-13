@@ -1575,7 +1575,7 @@ export const GettingStarted = () => {
     <YStack marginBottom="$3">
       <SectionHeader title={t('home.gettingStarted.title') || 'Getting Started'} variant="chevron" onAction={() => {}} actionLabel="" />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal nestedScrollEnabled={true} showsHorizontalScrollIndicator={false}>
         <XStack space="$4" paddingHorizontal="$4" marginTop="$4">
           {/* 1. Din körkortsplan */}
           <TouchableOpacity
