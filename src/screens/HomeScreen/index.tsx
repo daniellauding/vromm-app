@@ -363,12 +363,20 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        onTouchStart={(e) => {
+          console.log('🟢 [TOUCH] FlatList touched at:', Math.round(e.nativeEvent.pageX), Math.round(e.nativeEvent.pageY));
+        }}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
           useNativeDriver: false,
         })}
         scrollEventThrottle={16}
         renderItem={() => (
-          <YStack f={1}>
+          <View
+            style={{ flex: 1 }}
+            onTouchStart={(e) => {
+              console.log('🟡 [TOUCH] renderItem View touched at:', Math.round(e.nativeEvent.pageX), Math.round(e.nativeEvent.pageY));
+            }}
+          >
             {/* Welcome Text - fades out on scroll */}
             <WelcomeText scrollY={scrollY} />
 
@@ -465,7 +473,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
                 setShowUserProfileSheet={setShowUserProfileSheet}
               />
             )}
-          </YStack>
+          </View>
         )}
       />
 
