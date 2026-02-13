@@ -132,9 +132,6 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
   return (
     <Animated.View
       pointerEvents="box-none"
-      onTouchStart={(e) => {
-        console.log('🟣 [TOUCH] ScrollableHeader touched at:', Math.round(e.nativeEvent.pageX), Math.round(e.nativeEvent.pageY));
-      }}
       style={{
         position: 'absolute',
         top: 0,

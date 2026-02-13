@@ -135,11 +135,7 @@ export default React.memo(function MyTab({
   }, []);
 
   return (
-    <View
-      onTouchStart={(e) => {
-        console.log('🟠 [TOUCH] MyTab outer View touched at:', Math.round(e.nativeEvent.pageX), Math.round(e.nativeEvent.pageY));
-      }}
-    >
+    <View>
       {/* Weekly Goal & Daily Status - Fluid width container */}
       <View style={{ paddingHorizontal: horizontalPadding }}>
         <WeeklyGoal
@@ -182,9 +178,6 @@ export default React.memo(function MyTab({
         paddingHorizontal={4}
         paddingRight={0}
         marginTop={16}
-        onTouchStart={(e: any) => {
-          console.log('🔴 [TOUCH] MyTab inner YStack (bg section) touched at:', Math.round(e.nativeEvent.pageX), Math.round(e.nativeEvent.pageY));
-        }}
       >
         {/* Getting Started - Always Full Width */}
         <View style={{ marginTop: 8 }}>

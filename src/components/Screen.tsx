@@ -9,7 +9,6 @@ import {
   Keyboard,
   StatusBar,
   RefreshControl,
-  GestureResponderEvent,
 } from 'react-native';
 import type { Edge } from 'react-native-safe-area-context';
 
@@ -40,13 +39,7 @@ export function Screen({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
         >
-          <View
-            style={{ flex: 1 }}
-            onTouchStart={(e: GestureResponderEvent) => {
-              console.log('🔵 [TOUCH] Screen View touched at:', Math.round(e.nativeEvent.pageX), Math.round(e.nativeEvent.pageY));
-              Keyboard.dismiss();
-            }}
-          >
+          <View style={{ flex: 1 }} onTouchStart={() => Keyboard.dismiss()}>
             {scroll ? (
               <ScrollView
                 style={{ flex: 1 }}
