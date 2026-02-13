@@ -184,8 +184,7 @@ export function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
       >
         <View style={{ flex: 1 }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <GestureDetector gesture={panGesture}>
-            <ReanimatedAnimated.View
+          <ReanimatedAnimated.View
               style={[
                 {
                   position: 'absolute',
@@ -201,23 +200,25 @@ export function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
               ]}
             >
               <YStack padding="$3" paddingBottom={insets.bottom || 10} gap="$3" flex={1}>
-                {/* Drag Handle */}
-                <View
-                  style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}
-                >
+                {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                <GestureDetector gesture={panGesture}>
                   <View
                     style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: theme.gray8?.val || '#CCC',
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      paddingBottom: 16,
                     }}
-                  />
-                </View>
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: theme.gray8?.val || '#CCC',
+                      }}
+                    />
+                  </View>
+                </GestureDetector>
 
                 {/* Show content only if not in mini mode */}
                 {currentSnapPoint !== snapPoints.mini && (
@@ -230,7 +231,6 @@ export function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
                 )}
               </YStack>
             </ReanimatedAnimated.View>
-          </GestureDetector>
         </View>
       </Animated.View>
       </GestureHandlerRootView>

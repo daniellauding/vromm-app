@@ -501,8 +501,7 @@ export const RelationshipModal = ({
         }}
       >
         <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <GestureDetector gesture={relationshipPanGesture}>
-          <ReanimatedAnimated.View
+        <ReanimatedAnimated.View
             style={[
               {
                 position: 'absolute',
@@ -518,23 +517,25 @@ export const RelationshipModal = ({
             ]}
           >
             <YStack padding="$3" paddingBottom={24} gap="$3" flex={1}>
-              {/* Drag Handle */}
-              <View
-                style={{
-                  alignItems: 'center',
-                  paddingVertical: 8,
-                  paddingBottom: 16,
-                }}
-              >
+              {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+              <GestureDetector gesture={relationshipPanGesture}>
                 <View
                   style={{
-                    width: 40,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: theme.gray8?.val || '#CCC',
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
                   }}
-                />
-              </View>
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: theme.gray8?.val || '#CCC',
+                    }}
+                  />
+                </View>
+              </GestureDetector>
 
               {/* Header with image */}
               <YStack alignItems="center" gap="$3" paddingHorizontal="$2">
@@ -824,7 +825,6 @@ export const RelationshipModal = ({
               )}
             </YStack>
           </ReanimatedAnimated.View>
-        </GestureDetector>
       </View>
       </GestureHandlerRootView>
     </Modal>
