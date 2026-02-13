@@ -15,7 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -73,6 +73,8 @@ export const ConnectionsCard = () => {
   }));
 
   const connectionsPanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onUpdate((event) => {
       const { translationY } = event;
       const newPosition = connectionsCurrentState.value + translationY;
@@ -486,6 +488,7 @@ export const ConnectionsCard = () => {
         animationType="none"
         onRequestClose={hideConnectionsSheet}
       >
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <ReanimatedAnimated.View
           style={{
             flex: 1,
@@ -840,6 +843,7 @@ export const ConnectionsCard = () => {
             </GestureDetector>
           </View>
         </ReanimatedAnimated.View>
+        </GestureHandlerRootView>
       </Modal>
     </>
   );

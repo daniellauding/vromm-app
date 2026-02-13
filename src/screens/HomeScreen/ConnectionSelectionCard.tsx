@@ -11,7 +11,7 @@ import {
   TextInput,
 } from 'react-native';
 import { YStack, XStack, Card } from 'tamagui';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -84,6 +84,8 @@ export const ConnectionSelectionCard = ({ selectedRole }: ConnectionSelectionCar
   });
 
   const connectionsPanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {})
     .onUpdate((event) => {
       try {
@@ -425,6 +427,7 @@ export const ConnectionSelectionCard = ({ selectedRole }: ConnectionSelectionCar
         animationType="none"
         onRequestClose={hideConnectionsSheet}
       >
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <ReanimatedAnimated.View
           style={{
             flex: 1,
@@ -603,6 +606,7 @@ export const ConnectionSelectionCard = ({ selectedRole }: ConnectionSelectionCar
             </ReanimatedAnimated.View>
           </View>
         </ReanimatedAnimated.View>
+        </GestureHandlerRootView>
       </Modal>
     </>
   );

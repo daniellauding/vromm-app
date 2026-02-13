@@ -15,7 +15,7 @@ import { useTranslation } from '../../contexts/TranslationContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { RadioButton } from '../../components/SelectButton';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, { useSharedValue, withSpring, runOnJS } from 'react-native-reanimated';
 
 const GETTING_STARTED_IMAGES = {
@@ -55,6 +55,8 @@ export const RoleSelectionCard = () => {
   const roleCurrentState = useSharedValue(roleSnapPoints.large);
 
   const rolePanGesture = Gesture.Pan()
+    .activeOffsetY([-10, 10])
+    .failOffsetX([-20, 20])
     .onBegin(() => {
       if (roleIsAnimating.value) return;
       roleIsAnimating.value = true;
@@ -307,6 +309,7 @@ export const RoleSelectionCard = () => {
         animationType="none"
         onRequestClose={hideRoleSheet}
       >
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <Animated.View
           style={{
             flex: 1,
@@ -392,6 +395,7 @@ export const RoleSelectionCard = () => {
             </GestureDetector>
           </View>
         </Animated.View>
+        </GestureHandlerRootView>
       </Modal>
     </>
   );

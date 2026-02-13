@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { YStack, XStack, Text, Input } from 'tamagui';
 import { TouchableOpacity, Modal, Alert, Animated, useWindowDimensions } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { Feather } from '@expo/vector-icons';
