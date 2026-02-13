@@ -32,7 +32,7 @@ import { Checkbox } from './Checkbox';
 import { useToast } from '../contexts/ToastContext';
 import { useUnlock } from '../contexts/UnlockContext';
 import { useCelebration } from '../contexts/CelebrationContext';
-import { useStripe } from '@stripe/stripe-react-native';
+import { useStripeSafe } from '../hooks/useStripeSafe';
 import { useNavigation } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { supabase } from '../lib/supabase';
@@ -151,7 +151,7 @@ export function ExerciseListSheet({
   const { language: lang, t } = useTranslation();
   const { activeStudentId } = useStudentSwitch();
   const { showToast } = useToast();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { initPaymentSheet, presentPaymentSheet } = useStripeSafe();
   const {
     unlockedPaths,
     unlockedExercises,

@@ -34,10 +34,11 @@ import WebView from 'react-native-webview';
 import { SvgXml } from 'react-native-svg';
 import { useThemeColor } from '../../hooks/useThemeColor';
 import { Database } from '../lib/database.types';
+import { shouldSkipHeavyAssets, shouldReduceAnimations } from '../utils/deviceCapabilities';
 
-// Video asset reference
+// Video asset reference - only loaded when needed (not on low-end devices)
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const backgroundVideo = require('../../assets/bg_video.mp4');
+const backgroundVideo = shouldSkipHeavyAssets() ? null : require('../../assets/bg_video.mp4');
 
 // Define styles outside of the component
 const styles = StyleSheet.create({
@@ -360,8 +361,13 @@ export function SplashScreen() {
 
   // Removed auto-scroll functionality as requested by user
 
-  // Create animation loop
+  // Create animation loop (skip on low-end devices)
+  const skipHeavyAssets = shouldSkipHeavyAssets();
+  const reduceAnimations = shouldReduceAnimations();
+
   useEffect(() => {
+    if (reduceAnimations) return;
+
     const createAnimation = () => {
       Animated.loop(
         Animated.sequence([
@@ -385,7 +391,7 @@ export function SplashScreen() {
     return () => {
       videoAnimation.stopAnimation();
     };
-  }, [videoAnimation]);
+  }, [videoAnimation, reduceAnimations]);
 
   const videoAnimatedStyle = {
     transform: [
@@ -1088,19 +1094,21 @@ export function SplashScreen() {
   if (isLoadingSlides) {
     return (
       <View style={styles.container}>
-        {/* Background Video with Overlay - always present for splash */}
+        {/* Background Video with Overlay - skipped on low-end devices */}
         <View style={styles.videoContainer}>
-          <Animated.View style={[styles.backgroundVideo, videoAnimatedStyle]}>
-            <Video
-              ref={videoRef}
-              source={backgroundVideo}
-              style={StyleSheet.absoluteFill}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay
-              isLooping
-              isMuted
-            />
-          </Animated.View>
+          {!skipHeavyAssets && backgroundVideo ? (
+            <Animated.View style={[styles.backgroundVideo, videoAnimatedStyle]}>
+              <Video
+                ref={videoRef}
+                source={backgroundVideo}
+                style={StyleSheet.absoluteFill}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay
+                isLooping
+                isMuted
+              />
+            </Animated.View>
+          ) : null}
           <View style={[styles.overlay, { backgroundColor: '#397770' }]} />
         </View>
         {renderSplashContent()}
@@ -1167,19 +1175,21 @@ export function SplashScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Background Video with Overlay - always present for splash */}
+      {/* Background Video with Overlay - skipped on low-end devices */}
       <View style={styles.videoContainer}>
-        <Animated.View style={[styles.backgroundVideo, videoAnimatedStyle]}>
-          <Video
-            ref={videoRef}
-            source={backgroundVideo}
-            style={StyleSheet.absoluteFill}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay
-            isLooping
-            isMuted
-          />
-        </Animated.View>
+        {!skipHeavyAssets && backgroundVideo ? (
+          <Animated.View style={[styles.backgroundVideo, videoAnimatedStyle]}>
+            <Video
+              ref={videoRef}
+              source={backgroundVideo}
+              style={StyleSheet.absoluteFill}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay
+              isLooping
+              isMuted
+            />
+          </Animated.View>
+        ) : null}
         <View style={[styles.overlay, { backgroundColor: '#397770' }]} />
       </View>
 

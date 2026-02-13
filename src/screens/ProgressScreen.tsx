@@ -240,7 +240,7 @@ import { useTranslation } from '../contexts/TranslationContext';
 import { useThemePreference } from '../hooks/useThemeOverride';
 import { useToast } from '../contexts/ToastContext';
 import { useStudentSwitch } from '../context/StudentSwitchContext';
-import { useStripe } from '@stripe/stripe-react-native';
+import { useStripeSafe } from '../hooks/useStripeSafe';
 import { useUnlock } from '../contexts/UnlockContext';
 import { useCelebration } from '../contexts/CelebrationContext';
 import { FunctionsHttpError } from '@supabase/supabase-js';
@@ -260,7 +260,7 @@ export function ProgressScreen() {
   const { profile, user: authUser } = useAuth(); // Get user profile for auth context
   const { showToast } = useToast();
   const { activeStudentId, getEffectiveUserId } = useStudentSwitch();
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const { initPaymentSheet, presentPaymentSheet } = useStripeSafe();
   const { showCelebration } = useCelebration();
   const { selectedPathId, showDetail, activeUserId } = (route.params || {}) as any;
   const focusExerciseId: string | undefined = (route.params as any)?.focusExerciseId;
