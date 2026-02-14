@@ -118,6 +118,13 @@ import { RouteExerciseScreen } from './screens/RouteExerciseScreen';
 // Student Management
 import { StudentManagementScreen } from './screens/StudentManagementScreen';
 
+// Dashboard screens
+import { AdminDashboardScreen } from './screens/AdminDashboardScreen';
+import { SchoolDashboardScreen } from './screens/SchoolDashboardScreen';
+import { InstructorDashboardScreen } from './screens/InstructorDashboardScreen';
+import { DrivingLogScreen } from './screens/DrivingLogScreen';
+import { QRConnectScreen } from './screens/QRConnectScreen';
+
 // Global Invitation Notification
 import { UnifiedInvitationModal } from './components/UnifiedInvitationModal';
 import { GlobalRecordingWidget } from './components/GlobalRecordingWidget';
@@ -493,6 +500,31 @@ function AuthenticatedAppContent() {
           options={{
             headerShown: false,
           }}
+        />
+        <Stack.Screen
+          name="AdminDashboardScreen"
+          component={AdminDashboardScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SchoolDashboardScreen"
+          component={SchoolDashboardScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="InstructorDashboardScreen"
+          component={InstructorDashboardScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="DrivingLogScreen"
+          component={DrivingLogScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="QRConnectScreen"
+          component={QRConnectScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </View>

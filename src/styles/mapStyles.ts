@@ -459,4 +459,8 @@ export const PIN_COLORS = {
   END_MARKER: '#38fdbf',
   // Recording path color (paused state)
   ROUTE_PAUSED: '#FF9500',
+  // School pin color (orange)
+  SCHOOL: '#FF6B00',
+  // Instructor pin color (blue)
+  INSTRUCTOR: '#0A84FF',
 } as const;

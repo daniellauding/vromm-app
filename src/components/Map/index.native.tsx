@@ -17,6 +17,8 @@ export type Waypoint = {
   id?: string;
   onPress?: () => void;
   isFiltered?: boolean;
+  markerColor?: string;
+  markerType?: 'route' | 'school' | 'instructor';
 };
 
 type ClusterMarkerProps = {
@@ -120,6 +122,11 @@ const WaypointMarker = React.memo(
         return PIN_COLORS.PRIMARY; // Brand color for middle waypoints
       }
       if (drawingMode === 'pen') return '#38fdbf'; // Orange for pen points
+
+      // Use custom marker color if provided (for school/instructor pins)
+      if (cluster.properties.markerColor) {
+        return cluster.properties.markerColor;
+      }
 
       // Check if this waypoint is in filtered results
       if (cluster.properties.isFiltered !== undefined) {
@@ -291,7 +298,9 @@ export function Map({
             id: point.id || `waypoint-${index}`,
             title: point.title,
             cluster: false,
-            isFiltered: point.isFiltered, // Pass through the isFiltered property
+            isFiltered: point.isFiltered,
+            markerColor: point.markerColor,
+            markerType: point.markerType,
           },
           geometry: {
             type: 'Point' as const,
@@ -330,7 +339,9 @@ export function Map({
         properties: {
           id: point.id || `waypoint-${waypoints.indexOf(point)}`,
           title: point.title || 'Waypoint',
-          isFiltered: point.isFiltered, // Pass through the isFiltered property
+          isFiltered: point.isFiltered,
+          markerColor: point.markerColor,
+          markerType: point.markerType,
         },
         geometry: {
           type: 'Point' as const,

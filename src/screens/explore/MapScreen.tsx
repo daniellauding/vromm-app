@@ -37,6 +37,8 @@ import { calculateDistance } from './utils';
 import { useLocation } from '../../context/LocationContext';
 import { RouteDetailSheet } from '../../components/RouteDetailSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
+import { SchoolDetailSheet } from '../../components/SchoolDetailSheet';
+import type { Waypoint } from '../../components/Map/index.native';
 import { useUserCollections } from '../../hooks/useUserCollections';
 import { PIN_COLORS } from '../../styles/mapStyles';
 import { useAuth } from '../../context/AuthContext';
@@ -126,6 +128,12 @@ export function MapScreen({
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
+  // Entity pins (schools/instructors)
+  const [entityWaypoints, setEntityWaypoints] = useState<Waypoint[]>([]);
+  const [showSchoolDetailSheet, setShowSchoolDetailSheet] = useState(false);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [selectedEntityType, setSelectedEntityType] = useState<'school' | 'instructor'>('school');
+
   // Loading animation state (similar to OnboardingInteractive)
   const [locationLoading, setLocationLoading] = useState(false);
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -181,14 +189,93 @@ export function MapScreen({
     routes,
     selectedPresetId,
   );
-  const allWaypoints = useWaypoints(routes, activeRoutes); // Show all waypoints with filtered status
+  const routeWaypoints = useWaypoints(routes, activeRoutes); // Show all waypoints with filtered status
+
+  // Fetch school/instructor entity pins when filter toggles change
+  useEffect(() => {
+    const fetchEntityPins = async () => {
+      const pins: Waypoint[] = [];
+
+      if (appliedFilters.showSchools) {
+        try {
+          const { data: schools } = await supabase
+            .from('schools')
+            .select('id, name, location_lat, location_lng')
+            .eq('is_active', true)
+            .not('location_lat', 'is', null)
+            .not('location_lng', 'is', null);
+
+          if (schools) {
+            for (const s of schools) {
+              pins.push({
+                latitude: s.location_lat,
+                longitude: s.location_lng,
+                title: s.name || 'School',
+                id: `school-${s.id}`,
+                markerColor: PIN_COLORS.SCHOOL,
+                markerType: 'school',
+                isFiltered: true,
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching school pins:', err);
+        }
+      }
+
+      if (appliedFilters.showInstructors) {
+        try {
+          const { data: instructors } = await supabase
+            .from('profiles')
+            .select('id, full_name, location_lat, location_lng')
+            .in('role', ['instructor', 'teacher'])
+            .eq('private_profile', false)
+            .not('location_lat', 'is', null)
+            .not('location_lng', 'is', null);
+
+          if (instructors) {
+            for (const i of instructors) {
+              pins.push({
+                latitude: i.location_lat,
+                longitude: i.location_lng,
+                title: i.full_name || 'Instructor',
+                id: `instructor-${i.id}`,
+                markerColor: PIN_COLORS.INSTRUCTOR,
+                markerType: 'instructor',
+                isFiltered: true,
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching instructor pins:', err);
+        }
+      }
+
+      setEntityWaypoints(pins);
+    };
+
+    fetchEntityPins();
+  }, [appliedFilters.showSchools, appliedFilters.showInstructors]);
+
+  // Merge route waypoints with entity waypoints
+  const allWaypoints = useMemo(() => {
+    return [...routeWaypoints, ...entityWaypoints];
+  }, [routeWaypoints, entityWaypoints]);
 
   const handleMarkerPress = useCallback(
     (waypointId: string) => {
+      // Check if it's a school/instructor pin
+      if (waypointId.startsWith('school-') || waypointId.startsWith('instructor-')) {
+        const entityType = waypointId.startsWith('school-') ? 'school' : 'instructor';
+        setSelectedEntityId(waypointId);
+        setSelectedEntityType(entityType);
+        setShowSchoolDetailSheet(true);
+        setSelectedPin(waypointId);
+        return true;
+      }
+
       const route = routesById[waypointId];
       if (route) {
-        // If clicking the same pin, hide it
-
         setSelectedPin((prev) => {
           if (prev === waypointId) {
             setSelectedRoute(null);
@@ -199,7 +286,6 @@ export function MapScreen({
           return waypointId;
         });
       }
-      // Prevent map press from triggering
       return true;
     },
     [routesById, setSelectedRoute],
@@ -1591,6 +1677,18 @@ export function MapScreen({
           setShowUserProfileSheet(false);
           console.log('View all routes for user:', userId);
         }}
+      />
+
+      {/* School/Instructor Detail Sheet */}
+      <SchoolDetailSheet
+        visible={showSchoolDetailSheet}
+        onClose={() => {
+          setShowSchoolDetailSheet(false);
+          setSelectedEntityId(null);
+          setSelectedPin(null);
+        }}
+        entityId={selectedEntityId || ''}
+        entityType={selectedEntityType}
       />
     </Screen>
   );
