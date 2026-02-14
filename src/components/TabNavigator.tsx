@@ -304,6 +304,37 @@ const HamburgerDrawer = ({
       badge: pendingInvitationsCount,
       badgeColor: '#FF4444',
     },
+    // Role-conditional Dashboard item
+    ...((profile?.role === 'admin' || profile?.role === 'school' || profile?.role === 'instructor' || profile?.role === 'teacher') ? [{
+      target: profile?.role === 'admin' ? 'AdminDashboardScreen' : profile?.role === 'school' ? 'SchoolDashboardScreen' : 'InstructorDashboardScreen',
+      label: t('dashboard.title') || 'Dashboard',
+      action: () => {
+        onBeginNavigate();
+        const screen = profile?.role === 'admin' ? 'AdminDashboardScreen' : profile?.role === 'school' ? 'SchoolDashboardScreen' : 'InstructorDashboardScreen';
+        navigation.navigate(screen as any);
+        onClose();
+      },
+    }] : []),
+    // QR Connect - available to all roles
+    {
+      target: 'QRConnectScreen',
+      label: t('qrConnect.title') || 'Quick Connect',
+      action: () => {
+        onBeginNavigate();
+        navigation.navigate('QRConnectScreen' as any);
+        onClose();
+      },
+    },
+    // Driving Log - available to students, instructors, teachers
+    ...((profile?.role === 'student' || profile?.role === 'instructor' || profile?.role === 'teacher' || !profile?.role) ? [{
+      target: 'DrivingLogScreen',
+      label: t('drivingLog.title') || 'Driving Log',
+      action: () => {
+        onBeginNavigate();
+        navigation.navigate('DrivingLogScreen' as any);
+        onClose();
+      },
+    }] : []),
     // {
     //   icon: 'users',
     //   target: 'UsersScreen',

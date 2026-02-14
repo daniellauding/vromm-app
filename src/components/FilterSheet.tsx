@@ -196,6 +196,8 @@ export type FilterOptions = {
     | 'has_image';
   experienceLevel?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
   selectedPresetId?: string | null; // NEW: Collection/preset selection
+  showSchools?: boolean;
+  showInstructors?: boolean;
 };
 
 interface FilterSheetProps {
@@ -2402,6 +2404,67 @@ export function FilterSheet({
                             ]}
                           >
                             ({getFilterCount('isVerified', true)})
+                          </Text>
+                        </XStack>
+                      </TouchableOpacity>
+                    </View>
+                  </YStack>
+
+                  {/* Map Layers */}
+                  <YStack style={styles.filterSection}>
+                    <SizableText fontWeight="600" style={styles.sectionTitle}>
+                      {getT('filters.mapLayers', 'mapLayers') || 'Map Layers'}
+                    </SizableText>
+                    <View style={styles.filterRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.filterChip,
+                          {
+                            borderColor,
+                            backgroundColor: filters.showSchools ? '#FF6B00' : 'transparent',
+                          },
+                        ]}
+                        onPress={() =>
+                          setSingleFilter('showSchools', filters.showSchools ? undefined : true)
+                        }
+                      >
+                        <XStack alignItems="center" gap="$1">
+                          <Text
+                            style={[
+                              styles.chipText,
+                              {
+                                color: filters.showSchools ? '#FFFFFF' : textColor,
+                                fontWeight: filters.showSchools ? '600' : '500',
+                              },
+                            ]}
+                          >
+                            {getT('filters.showSchools', 'showSchools') || 'Schools'}
+                          </Text>
+                        </XStack>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.filterChip,
+                          {
+                            borderColor,
+                            backgroundColor: filters.showInstructors ? '#0A84FF' : 'transparent',
+                          },
+                        ]}
+                        onPress={() =>
+                          setSingleFilter('showInstructors', filters.showInstructors ? undefined : true)
+                        }
+                      >
+                        <XStack alignItems="center" gap="$1">
+                          <Text
+                            style={[
+                              styles.chipText,
+                              {
+                                color: filters.showInstructors ? '#FFFFFF' : textColor,
+                                fontWeight: filters.showInstructors ? '600' : '500',
+                              },
+                            ]}
+                          >
+                            {getT('filters.showInstructors', 'showInstructors') || 'Instructors'}
                           </Text>
                         </XStack>
                       </TouchableOpacity>
