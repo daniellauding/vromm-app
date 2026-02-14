@@ -238,6 +238,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
             />
             <FlatList
               horizontal
+              nestedScrollEnabled={true}
               data={createdRoutes}
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}
@@ -276,6 +277,7 @@ export const CreatedRoutes = ({ onRoutePress }: CreatedRoutesProps = {}) => {
             />
             <FlatList
               horizontal
+              nestedScrollEnabled={true}
               data={createdRoutes}
               keyExtractor={(item) => item.id}
               showsHorizontalScrollIndicator={false}

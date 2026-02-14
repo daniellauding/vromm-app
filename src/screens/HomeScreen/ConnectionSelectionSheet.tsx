@@ -354,8 +354,7 @@ export const ConnectionSelectionSheet = ({
           <Pressable style={{ flex: 1 }} onPress={onClose} />
         </ReanimatedAnimated.View>
 
-        <GestureDetector gesture={panGesture}>
-          <ReanimatedAnimated.View
+        <ReanimatedAnimated.View
             style={[
               {
                 position: 'absolute',
@@ -371,16 +370,18 @@ export const ConnectionSelectionSheet = ({
             ]}
           >
             <YStack padding="$4" gap="$4">
-              {/* Sheet Handle */}
-              <View
-                style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                  alignSelf: 'center',
-                }}
-              />
+              {/* Sheet Handle - only this area captures pan gesture for sheet resize */}
+              <GestureDetector gesture={panGesture}>
+                <View
+                  style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                    alignSelf: 'center',
+                  }}
+                />
+              </GestureDetector>
 
               {/* Title */}
               <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
@@ -580,7 +581,6 @@ export const ConnectionSelectionSheet = ({
               </XStack>
             </YStack>
           </ReanimatedAnimated.View>
-        </GestureDetector>
       </View>
       </GestureHandlerRootView>
     </Modal>

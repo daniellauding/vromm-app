@@ -442,7 +442,7 @@ export const WeeklyGoal = React.memo(function WeeklyGoal({
       Gesture.Pan()
         .minDistance(30) // Minimum distance before gesture activates
         .activeOffsetX([-30, 30]) // Only activate for horizontal swipes
-        .failOffsetY([-30, 30]) // Fail if vertical movement is too much
+        .failOffsetY([-10, 10]) // Fail quickly on vertical movement so parent FlatList can scroll
         .onEnd((event) => {
           try {
             const { translationX, velocityX } = event;

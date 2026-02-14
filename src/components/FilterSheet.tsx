@@ -1120,8 +1120,7 @@ export function FilterSheet({
         pointerEvents={isVisible ? 'auto' : 'none'}
         onTouchEnd={handleBackdropPress}
       />
-      <GestureDetector gesture={panGesture}>
-        <ReanimatedAnimated.View
+      <ReanimatedAnimated.View
           style={[
             {
               position: 'absolute',
@@ -1139,23 +1138,25 @@ export function FilterSheet({
           ]}
         >
           <YStack padding="$3" paddingBottom={20 + BOTTOM_INSET} gap="$3" flex={1}>
-            {/* Drag Handle */}
-            <View
-              style={{
-                alignItems: 'center',
-                paddingVertical: 8,
-                paddingBottom: 16,
-              }}
-            >
+            {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+            <GestureDetector gesture={panGesture}>
               <View
                 style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: handleColor,
+                  alignItems: 'center',
+                  paddingVertical: 8,
+                  paddingBottom: 16,
                 }}
-              />
-            </View>
+              >
+                <View
+                  style={{
+                    width: 40,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: handleColor,
+                  }}
+                />
+              </View>
+            </GestureDetector>
 
             {/* Header */}
             {/* <XStack width="100%" paddingHorizontal="$2" justifyContent="center" alignItems="center">
@@ -2693,7 +2694,6 @@ export function FilterSheet({
             )}
           </YStack>
         </ReanimatedAnimated.View>
-      </GestureDetector>
 
       {/* Leave Collection Modal */}
       <LeaveCollectionModal

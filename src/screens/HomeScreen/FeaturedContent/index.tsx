@@ -341,6 +341,7 @@ export const FeaturedContent = React.memo(function FeaturedContent() {
 
       <ScrollView
         horizontal
+        nestedScrollEnabled={true}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: 16,

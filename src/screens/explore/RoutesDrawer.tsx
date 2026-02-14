@@ -453,8 +453,7 @@ export const RoutesDrawer = React.forwardRef<
 
     // Mobile Bottom Sheet Mode (Animated)
     return (
-      <GestureDetector gesture={panGesture}>
-        <Animated.View
+      <Animated.View
           ref={ref}
           style={[
             styles.bottomSheet,
@@ -465,13 +464,15 @@ export const RoutesDrawer = React.forwardRef<
             animatedStyle,
           ]}
         >
-          <View style={styles.handleContainer}>
-            <View
-              style={[
-                styles.handle,
-                { backgroundColor: colorScheme === 'dark' ? '#666' : '#E5E5E5' },
-              ]}
-            />
+          {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+          <GestureDetector gesture={panGesture}>
+            <View style={styles.handleContainer}>
+              <View
+                style={[
+                  styles.handle,
+                  { backgroundColor: colorScheme === 'dark' ? '#666' : '#E5E5E5' },
+                ]}
+              />
             <XStack alignItems="center" gap="$2">
               <Feather
                 name="map"
@@ -487,7 +488,8 @@ export const RoutesDrawer = React.forwardRef<
                 {searchFilteredRoutes.length === 1 ? t('home.route') : t('home.routes')}
               </Text>
             </XStack>
-          </View>
+            </View>
+          </GestureDetector>
 
           {/* Search Input */}
           <View style={styles.searchInputContainer}>
@@ -579,7 +581,6 @@ export const RoutesDrawer = React.forwardRef<
             )}
           </View>
         </Animated.View>
-      </GestureDetector>
     );
   },
 );

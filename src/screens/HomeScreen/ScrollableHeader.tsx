@@ -135,6 +135,7 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
 
   return (
     <Animated.View
+      pointerEvents="box-none"
       style={{
         position: 'absolute',
         top: 0,
@@ -152,6 +153,7 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
       <BlurView
         intensity={blurIntensity}
         tint={isDark ? 'dark' : 'light'}
+        pointerEvents="none"
         style={{
           position: 'absolute',
           top: 0,
@@ -168,6 +170,7 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
         paddingVertical={12}
         alignItems="center"
         justifyContent="space-between"
+        pointerEvents="box-none"
       >
         {/* Left side - Avatar with Progress */}
         <View style={{ position: 'relative' }}>

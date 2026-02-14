@@ -135,7 +135,7 @@ export default React.memo(function MyTab({
   }, []);
 
   return (
-    <YStack>
+    <View>
       {/* Weekly Goal & Daily Status - Fluid width container */}
       <View style={{ paddingHorizontal: horizontalPadding }}>
         <WeeklyGoal
@@ -382,6 +382,6 @@ export default React.memo(function MyTab({
         promotion={selectedPromotion}
         language={language}
       />
-    </YStack>
+    </View>
   );
 });

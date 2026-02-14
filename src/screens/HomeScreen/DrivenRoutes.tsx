@@ -190,6 +190,7 @@ export const DrivenRoutes = ({ onRoutePress }: DrivenRoutesProps = {}) => {
           />
           <FlatList
             horizontal
+            nestedScrollEnabled={true}
             data={drivenRoutes}
             keyExtractor={(item) => item.id}
             showsHorizontalScrollIndicator={false}

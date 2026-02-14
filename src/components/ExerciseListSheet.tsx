@@ -1425,8 +1425,7 @@ export function ExerciseListSheet({
         >
           <View style={{ flex: 1 }}>
             <Pressable style={{ flex: 1 }} onPress={onClose} />
-            <GestureDetector gesture={panGesture}>
-              <ReanimatedAnimated.View
+            <ReanimatedAnimated.View
                 style={[
                   {
                     position: 'absolute',
@@ -1442,23 +1441,25 @@ export function ExerciseListSheet({
                 ]}
               >
                 <YStack padding="$3" paddingBottom={insets.bottom || 10} gap="$3" flex={1}>
-                  {/* Drag Handle */}
-                  <View
-                    style={{
-                      alignItems: 'center',
-                      paddingVertical: 4,
-                      paddingBottom: 8,
-                    }}
-                  >
+                  {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                  <GestureDetector gesture={panGesture}>
                     <View
                       style={{
-                        width: 40,
-                        height: 4,
-                        borderRadius: 2,
-                        backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                        alignItems: 'center',
+                        paddingVertical: 4,
+                        paddingBottom: 8,
                       }}
-                    />
-                  </View>
+                    >
+                      <View
+                        style={{
+                          width: 40,
+                          height: 4,
+                          borderRadius: 2,
+                          backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                        }}
+                      />
+                    </View>
+                  </GestureDetector>
 
                   {/* Show mini title in mini mode */}
                   {currentSnapPoint === snapPoints.mini && (
@@ -2477,7 +2478,6 @@ export function ExerciseListSheet({
                   )}
                 </YStack>
               </ReanimatedAnimated.View>
-            </GestureDetector>
           </View>
         </Animated.View>
         </GestureHandlerRootView>
@@ -2499,8 +2499,7 @@ export function ExerciseListSheet({
         >
           <View style={{ flex: 1 }}>
             <Pressable style={{ flex: 1 }} onPress={onClose} />
-            <GestureDetector gesture={panGesture}>
-              <ReanimatedAnimated.View
+            <ReanimatedAnimated.View
                 style={[
                   {
                     position: 'absolute',
@@ -2516,23 +2515,25 @@ export function ExerciseListSheet({
                 ]}
               >
                 <YStack padding="$3" paddingBottom={insets.bottom || 10} gap="$3" flex={1}>
-                  {/* Drag Handle */}
-                  <View
-                    style={{
-                      alignItems: 'center',
-                      paddingVertical: 4,
-                      paddingBottom: 8,
-                    }}
-                  >
+                  {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                  <GestureDetector gesture={panGesture}>
                     <View
                       style={{
-                        width: 40,
-                        height: 4,
-                        borderRadius: 2,
-                        backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                        alignItems: 'center',
+                        paddingVertical: 4,
+                        paddingBottom: 8,
                       }}
-                    />
-                  </View>
+                    >
+                      <View
+                        style={{
+                          width: 40,
+                          height: 4,
+                          borderRadius: 2,
+                          backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                        }}
+                      />
+                    </View>
+                  </GestureDetector>
 
                   {/* Show mini title in mini mode */}
                   {currentSnapPoint === snapPoints.mini && (
@@ -2808,7 +2809,6 @@ export function ExerciseListSheet({
                   )}
                 </YStack>
               </ReanimatedAnimated.View>
-            </GestureDetector>
           </View>
         </Animated.View>
 

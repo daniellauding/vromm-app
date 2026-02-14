@@ -695,8 +695,7 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
       >
         <View style={{ flex: 1 }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <GestureDetector gesture={panGesture}>
-            <ReanimatedAnimated.View
+          <ReanimatedAnimated.View
               style={[
                 {
                   position: 'absolute',
@@ -712,23 +711,25 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
               ]}
             >
               <YStack padding="$4" paddingBottom={insets.bottom || 20} gap="$4" flex={1}>
-                {/* Drag Handle */}
-                <View
-                  style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}
-                >
+                {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                <GestureDetector gesture={panGesture}>
                   <View
                     style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: theme.gray8?.val || '#CCC',
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      paddingBottom: 16,
                     }}
-                  />
-                </View>
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: theme.gray8?.val || '#CCC',
+                      }}
+                    />
+                  </View>
+                </GestureDetector>
 
                 {/* Header */}
                 {/* <XStack justifyContent="space-between" alignItems="center">
@@ -1118,7 +1119,6 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
                 )}
               </YStack>
             </ReanimatedAnimated.View>
-          </GestureDetector>
         </View>
       </Animated.View>
 

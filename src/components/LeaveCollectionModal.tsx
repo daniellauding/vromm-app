@@ -158,8 +158,7 @@ export function LeaveCollectionModal({
       <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} onPress={handleCancel} />
-        <GestureDetector gesture={panGesture}>
-          <ReanimatedAnimated.View
+        <ReanimatedAnimated.View
             style={[
               styles.modal,
               {
@@ -169,15 +168,17 @@ export function LeaveCollectionModal({
             ]}
           >
             <YStack padding="$4" gap="$4" flex={1}>
-              {/* Drag Handle */}
-              <View style={styles.dragHandle}>
-                <View
-                  style={[
-                    styles.handle,
-                    { backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC' },
-                  ]}
-                />
-              </View>
+              {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+              <GestureDetector gesture={panGesture}>
+                <View style={styles.dragHandle}>
+                  <View
+                    style={[
+                      styles.handle,
+                      { backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC' },
+                    ]}
+                  />
+                </View>
+              </GestureDetector>
 
               {/* Header */}
               <XStack alignItems="center" justifyContent="space-between">
@@ -292,7 +293,6 @@ export function LeaveCollectionModal({
               </YStack>
             </YStack>
           </ReanimatedAnimated.View>
-        </GestureDetector>
       </View>
       </GestureHandlerRootView>
     </Modal>

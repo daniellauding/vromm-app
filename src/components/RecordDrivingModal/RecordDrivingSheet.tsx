@@ -224,8 +224,7 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
           }
         }}
       />
-      <GestureDetector gesture={panGesture}>
-        <ReanimatedAnimated.View
+      <ReanimatedAnimated.View
           style={[
             styles.sheet,
             { backgroundColor: DARK_THEME.background },
@@ -233,8 +232,9 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             recordingState.isMinimized && styles.minimizedSheet,
           ]}
         >
-          <View style={styles.handleContainer}>
-            <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
+          <GestureDetector gesture={panGesture}>
+            <View style={styles.handleContainer}>
+              <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
             <Text fontWeight="600" fontSize={24} color={DARK_THEME.text}>
               {getTranslation(
                 'map.recordDriving',
@@ -261,7 +261,8 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
                 <Feather name="x" size={24} color={DARK_THEME.text} />
               </TouchableOpacity>
             </XStack>
-          </View>
+            </View>
+          </GestureDetector>
 
           {/* Map Toggle Button - Show during recording or if we have waypoints to preview */}
           {(recordingState?.isRecording ||
@@ -349,7 +350,6 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
             hideModal={hideModal}
           />
         </ReanimatedAnimated.View>
-      </GestureDetector>
     </View>
   );
 });
