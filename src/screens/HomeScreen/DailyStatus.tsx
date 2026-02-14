@@ -42,6 +42,7 @@ import { ActionSheet } from '../../components/ActionSheet';
 import { IconButton } from '../../components/IconButton';
 import { FormField } from '../../components/FormField';
 import { DropdownButton } from '../../components/SelectButton';
+import { DrivingLogView } from '../../components/DrivingLogView';
 
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 
@@ -1358,6 +1359,12 @@ export function DailyStatus({
                       }}
                     />
                   </GestureDetector>
+
+                  {/* Conditional Rendering: DrivingLogView vs Main DailyStatus */}
+                  {showDrivingLog ? (
+                    <DrivingLogView onBack={() => setShowDrivingLog(false)} />
+                  ) : (
+                    <>
                   {/* Header */}
                   <XStack justifyContent="space-between" alignItems="center">
                     {/* <YStack>
@@ -1635,6 +1642,35 @@ export function DailyStatus({
                               size="xl"
                             />
                           </YStack>
+                        )}
+
+                        {/* Today's Driving Summary - Link to full driving log */}
+                        {formData.status && !isFuture && todayDrivingMinutes > 0 && (
+                          <TouchableOpacity
+                            onPress={() => setShowDrivingLog(true)}
+                            style={{
+                              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8',
+                              borderRadius: 12,
+                              padding: 16,
+                              borderWidth: 1,
+                              borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                            }}
+                          >
+                            <XStack justifyContent="space-between" alignItems="center">
+                              <YStack gap="$1">
+                                <Text fontSize="$3" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                                  {language === 'sv' ? 'Dagens körning' : "Today's Driving"}
+                                </Text>
+                                <Text fontSize="$2" color={colorScheme === 'dark' ? '#AAA' : '#666'}>
+                                  {Math.floor(todayDrivingMinutes / 60)}h {todayDrivingMinutes % 60}min • {todayDrivingDistance} km
+                                </Text>
+                              </YStack>
+                              <XStack alignItems="center" gap="$2">
+                                <Feather name="book" size={16} color={colorScheme === 'dark' ? '#0A84FF' : '#007AFF'} />
+                                <Feather name="chevron-right" size={20} color={colorScheme === 'dark' ? '#666' : '#999'} />
+                              </XStack>
+                            </XStack>
+                          </TouchableOpacity>
                         )}
 
                         {/* Driving Details - Show only if drove */}
@@ -2019,6 +2055,9 @@ export function DailyStatus({
                       )}
                     </YStack>
                   </View>
+                  </>
+                  )}
+                  {/* End conditional rendering */}
                 </YStack>
               </ReanimatedAnimated.View>
           </Animated.View>
