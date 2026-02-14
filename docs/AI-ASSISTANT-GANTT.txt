@@ -1,0 +1,215 @@
+AI ASSISTANT IMPLEMENTATION - GANTT CHART
+===========================================
+Timeline: 17 weeks (4 months) | Team: Small (2 devs + 0.5 designer + 0.5 QA + PM)
+Branch: feature/ai-driving-assistant
+
+
+WEEK 1-2: PHASE 1 - MVP (Minimum Viable Product)
+═════════════════════════════════════════════════
+┌─────────────────────────────────────────────────────────────┐
+│ Week 1                    │ Week 2                          │
+├─────────────────────────────────────────────────────────────┤
+│ Frontend:                 │ Backend:                        │
+│ ✓ Chat UI screen          │ ✓ Supabase Edge Function       │
+│ ✓ Message components      │ ✓ OpenAI integration           │
+│ ✓ Input handling          │ ✓ Claude integration           │
+│ ✓ Loading states          │ ✓ Gemini integration           │
+│ ✓ Chat history state      │ ✓ Rate limiting                │
+│                           │ ✓ Database schema              │
+│                           │ ✓ Streaming responses (SSE)    │
+└─────────────────────────────────────────────────────────────┘
+Milestone: ✅ Basic AI chat working
+
+
+WEEK 3-5: PHASE 2 - Context-Aware Chat
+═══════════════════════════════════════
+┌─────────────────────────────────────────────────────────────┐
+│ Week 3                    │ Week 4        │ Week 5          │
+├─────────────────────────────────────────────────────────────┤
+│ Context System:           │ Inline UI:    │ Proactive AI:   │
+│ ✓ Context builder         │ ✓ "Ask AI"    │ ✓ Suggestions   │
+│ ✓ Learning path fetch     │   buttons     │ ✓ Multi-thread  │
+│ ✓ Progress tracking       │ ✓ Quick       │ ✓ Deep linking  │
+│ ✓ Dynamic prompts         │   actions     │ ✓ Notifications │
+│ ✓ Token management        │ ✓ 5+ screen   │                 │
+│ ✓ Caching                 │   integration │                 │
+└─────────────────────────────────────────────────────────────┘
+Milestone: ✅ AI knows user context
+
+
+WEEK 6-8: PHASE 3 - Route Discovery
+════════════════════════════════════
+┌─────────────────────────────────────────────────────────────┐
+│ Week 6                    │ Week 7        │ Week 8          │
+├─────────────────────────────────────────────────────────────┤
+│ Database Search:          │ OSM Basic:    │ Integration:    │
+│ ✓ Full-text search        │ ✓ Nominatim   │ ✓ Map filters   │
+│ ✓ Semantic search         │   (geocoding) │ ✓ Route compare │
+│ ✓ Embeddings              │ ✓ Overpass    │ ✓ Recommend     │
+│ ✓ Filters (diff/loc)      │   API (POI)   │   engine        │
+│ ✓ Ranking algorithm       │ ✓ Place       │ ✓ NL queries    │
+│                           │   search      │                 │
+└─────────────────────────────────────────────────────────────┘
+Milestone: ✅ AI finds existing routes
+
+
+WEEK 9-12: PHASE 4 - Advanced Route Generation
+═══════════════════════════════════════════════
+┌─────────────────────────────────────────────────────────────┐
+│ Week 9        │ Week 10       │ Week 11       │ Week 12     │
+├─────────────────────────────────────────────────────────────┤
+│ Algorithm:    │ Quality:      │ Deep OSM:     │ POI + Final:│
+│ ✓ Waypoint    │ ✓ Safety      │ ✓ Local OSM   │ ✓ Gas       │
+│   selection   │   scoring     │   data        │   stations  │
+│ ✓ Route       │ ✓ Difficulty  │ ✓ GraphHopper │ ✓ Scenic    │
+│   optimization│   calculator  │   / OSRM      │   detection │
+│ ✓ Validation  │ ✓ Elevation   │ ✓ Road        │ ✓ Quality   │
+│ ✓ Smoothing   │   profile     │   quality     │   assurance │
+└─────────────────────────────────────────────────────────────┘
+Milestone: ✅ AI generates NEW routes
+
+
+WEEK 13-15: PHASE 5 - Personalization
+══════════════════════════════════════
+┌─────────────────────────────────────────────────────────────┐
+│ Week 13               │ Week 14               │ Week 15     │
+├─────────────────────────────────────────────────────────────┤
+│ Pattern Learning:     │ Adaptive:             │ Custom:     │
+│ ✓ Behavior tracking   │ ✓ Learning curve      │ ✓ Learning  │
+│ ✓ Preference extract  │   analysis            │   plans     │
+│ ✓ Skill progression   │ ✓ Difficulty adjust   │ ✓ Milestone │
+│ ✓ Time patterns       │ ✓ Recommendation ML   │   tracking  │
+│                       │ ✓ A/B testing         │ ✓ Progress  │
+│                       │                       │   insights  │
+└─────────────────────────────────────────────────────────────┘
+Milestone: ✅ Personalized experience
+
+
+WEEK 16-17: PHASE 6 - Polish & Launch
+══════════════════════════════════════
+┌─────────────────────────────────────────────────────────────┐
+│ Week 16                           │ Week 17                 │
+├─────────────────────────────────────────────────────────────┤
+│ Optimization:                     │ Launch:                 │
+│ ✓ Performance profiling           │ ✓ Swedish translation   │
+│ ✓ Response time <2s               │ ✓ English check         │
+│ ✓ Token optimization              │ ✓ Final QA              │
+│ ✓ Database tuning                 │ ✓ Beta testing (50)     │
+│ ✓ Caching refinement              │ ✓ Gradual rollout       │
+│ ✓ Memory leak fixes               │ ✓ Monitoring setup      │
+│ ✓ Accessibility                   │ ✓ Documentation         │
+│                                   │                         │
+│ 🔍 INTERNAL ALPHA (5 testers)     │ 🚀 FULL LAUNCH          │
+└─────────────────────────────────────────────────────────────┘
+Milestone: ✅ Production release
+
+
+LAUNCH TIMELINE (Week 17)
+═════════════════════════
+Day 1-3: 🧪 Closed Beta (50 users)
+  - Invite-only testing
+  - In-app feedback collection
+  - Monitor error rate & cost
+
+Day 4: 🌍 Open Beta 10%
+Day 5: 🌍 Open Beta 25%
+Day 6: 🌍 Open Beta 50%
+Day 7: 🌍 Open Beta 100%
+
+Day 8: 🚀 FULL LAUNCH
+  - App Store update
+  - Blog post
+  - Social media announcement
+
+
+DEPENDENCIES (Critical Path)
+═════════════════════════════
+Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6
+   ↓         ↓         ↓         ↓         ↓         ↓
+  MVP    Context   Routes   Generation Personal  Launch
+
+CANNOT START UNTIL PREVIOUS PHASE COMPLETE:
+- Phase 2 needs Phase 1 (chat foundation)
+- Phase 3 needs Phase 2 (context system)
+- Phase 4 needs Phase 3 (route data structure)
+- Phase 5 needs user behavior data (≥2 weeks)
+- Phase 6 needs all features complete
+
+
+PARALLEL WORK (Team of 2+)
+═══════════════════════════
+Frontend Developer:
+├─ Week 1-2: Chat UI
+├─ Week 3-5: Context UI, inline buttons
+├─ Week 6-8: Route search UI
+├─ Week 9-12: Route generation UI
+├─ Week 13-15: Personalization UI
+└─ Week 16-17: Polish & testing
+
+Backend Developer:
+├─ Week 1-2: AI API integration
+├─ Week 3-5: Context builder, Edge Functions
+├─ Week 6-8: Database search, OSM basic
+├─ Week 9-12: Route generation engine, OSM deep
+├─ Week 13-15: ML models, tracking
+└─ Week 16-17: Optimization, monitoring
+
+QA Engineer (Part-time):
+├─ Week 2: Test Phase 1
+├─ Week 5: Test Phase 2
+├─ Week 8: Test Phase 3
+├─ Week 12: Test Phase 4
+├─ Week 15: Test Phase 5
+└─ Week 16-17: Final QA, beta support
+
+
+BUFFER TIME
+═══════════
+Built-in: 2 weeks (not shown above)
+Use for:
+  - Unexpected bugs
+  - API provider changes
+  - Team member sick leave
+  - Feature complexity underestimated
+
+
+PROGRESS TRACKING
+═════════════════
+Weekly Standup:
+  - What shipped last week?
+  - Blockers?
+  - On track for milestone?
+
+Bi-weekly Demo:
+  - Show working feature to stakeholders
+  - Collect feedback
+  - Adjust priorities
+
+Monthly Review:
+  - Budget check (on track?)
+  - Scope creep check
+  - Team health check
+
+
+SUCCESS CHECKPOINTS
+═══════════════════
+Week 2:  ✅ Can send message → get AI response
+Week 5:  ✅ AI understands learning context
+Week 8:  ✅ AI finds routes from database
+Week 12: ✅ AI generates NEW routes
+Week 15: ✅ AI personalizes to user
+Week 17: ✅ Production launch 🚀
+
+
+ESTIMATED COMPLETION DATE
+══════════════════════════
+Start: Week 1 of 2026-02
+End:   Week 18 of 2026-06 (mid-June 2026)
+
+Timeline assumes:
+- Small team (2 devs + support)
+- No major blockers
+- Scope doesn't change
+- APIs remain stable
+
+Last updated: 2026-02-14
