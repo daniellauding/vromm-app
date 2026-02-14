@@ -183,6 +183,11 @@ export function DailyStatus({
   // Action sheet state
   const [showActionSheet, setShowActionSheet] = useState(false);
 
+  // Driving log sub-view state
+  const [showDrivingLog, setShowDrivingLog] = useState(false);
+  const [todayDrivingMinutes, setTodayDrivingMinutes] = useState(0);
+  const [todayDrivingDistance, setTodayDrivingDistance] = useState(0);
+
   // Sheet snap points and gesture handling
   const { height: screenHeight } = Dimensions.get('window');
   const snapPoints = useMemo(
@@ -289,6 +294,42 @@ export function DailyStatus({
 
   // Load today's status (alias for backward compatibility)
   const loadTodayStatus = () => loadStatusForDate(today);
+
+  // Load today's driving data from routes
+  const loadTodayDrivingData = useCallback(async () => {
+    if (!effectiveUserId) return;
+
+    const todayString = today.toISOString().split('T')[0];
+    
+    try {
+      const { data: routes } = await supabase
+        .from('routes')
+        .select('recording_stats, created_at')
+        .eq('created_by', effectiveUserId)
+        .gte('created_at', `${todayString}T00:00:00`)
+        .lte('created_at', `${todayString}T23:59:59`)
+        .not('recording_stats', 'is', null);
+
+      if (routes && routes.length > 0) {
+        let totalMinutes = 0;
+        let totalDistance = 0;
+
+        routes.forEach((route: any) => {
+          const stats = route.recording_stats || {};
+          totalMinutes += Math.round((stats.totalDuration || 0) / 60);
+          totalDistance += (stats.totalDistance || 0) / 1000; // Convert m to km
+        });
+
+        setTodayDrivingMinutes(totalMinutes);
+        setTodayDrivingDistance(Math.round(totalDistance * 10) / 10); // Round to 1 decimal
+      } else {
+        setTodayDrivingMinutes(0);
+        setTodayDrivingDistance(0);
+      }
+    } catch (error) {
+      console.error('Error loading today driving data:', error);
+    }
+  }, [effectiveUserId, today]);
 
   // Date navigation functions
   const goToPreviousDay = () => {
@@ -938,7 +979,8 @@ export function DailyStatus({
 
   useEffect(() => {
     loadTodayStatus();
-  }, [effectiveUserId]);
+    loadTodayDrivingData();
+  }, [effectiveUserId, loadTodayDrivingData]);
 
   // Refresh translations on mount to ensure we have the latest
   useEffect(() => {
