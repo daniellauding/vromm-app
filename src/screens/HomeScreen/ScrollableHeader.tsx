@@ -9,6 +9,8 @@ import { useThemePreference } from '../../hooks/useThemeOverride';
 import { NotificationBell } from '../../components/NotificationBell';
 import { useAuth } from '@/src/context/AuthContext';
 import { useStudentSwitch } from '@/src/context/StudentSwitchContext';
+import { useNavigation } from '@react-navigation/native';
+import { NavigationProp } from '../../types/navigation';
 import { supabase } from '../../lib/supabase';
 
 // Progress Circle Component
@@ -67,6 +69,8 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
   const { effectiveTheme } = useThemePreference();
   const isDark = effectiveTheme === 'dark';
   const { profile } = useAuth();
+  const navigation = useNavigation<NavigationProp>();
+  const showDrivingLog = profile?.role === 'student' || profile?.role === 'instructor' || profile?.role === 'teacher';
   const { activeStudentId } = useStudentSwitch();
 
   // State for blur intensity
@@ -218,6 +222,21 @@ export const ScrollableHeader: React.FC<ScrollableHeaderProps> = ({
               }}
             >
               <Feather name="users" size={20} color={iconColor} />
+            </TouchableOpacity>
+          )}
+
+          {showDrivingLog && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('DrivingLogScreen' as any)}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Feather name="book" size={20} color={iconColor} />
             </TouchableOpacity>
           )}
 
