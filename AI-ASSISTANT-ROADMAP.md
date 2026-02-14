@@ -80,15 +80,71 @@ This roadmap outlines the step-by-step implementation of an AI-powered driving a
 - AsyncStorage for local chat persistence
 - Separate UI from business logic (clean architecture)
 
-#### Week 2: AI Integration
+#### Week 2: AI Integration + BYOK (Bring Your Own Key)
 **Tasks:**
 - [ ] Create Supabase Edge Function for AI proxy (`ai-chat`)
 - [ ] Implement multi-provider support (OpenAI, Claude, Gemini)
-- [ ] Add rate limiting (5 messages/minute per user)
+- [ ] Build BYOK system (user API key management)
+- [ ] Create API key storage (encrypted in Supabase)
+- [ ] Add tier detection (Free 10/day, BYOK unlimited, Premium 100/day)
+- [ ] Add rate limiting per tier
 - [ ] Build retry logic with exponential backoff
 - [ ] Store chat history in Supabase (`ai_conversations` table)
 - [ ] Add basic prompt engineering (system prompt)
 - [ ] Implement streaming responses (SSE)
+
+**BYOK Implementation:**
+```typescript
+// User settings for API keys
+interface UserAISettings {
+  tier: 'free' | 'byok' | 'premium';
+  apiKeys?: {
+    openai?: string; // Encrypted at rest
+    anthropic?: string;
+    google?: string;
+  };
+  preferredProvider: 'openai' | 'anthropic' | 'google';
+  dailyUsage: number; // Reset daily
+  monthlyUsage: number; // Reset monthly
+}
+
+// Rate limits by tier
+const RATE_LIMITS = {
+  free: { daily: 10, perMinute: 2 },
+  byok: { daily: Infinity, perMinute: 10 },
+  premium: { daily: 100, perMinute: 5 },
+};
+```
+
+**Settings UI:**
+```typescript
+// Settings → AI Assistant
+<Screen>
+  <Section title="AI Tier">
+    <TierBadge current={userSettings.tier} />
+  </Section>
+  
+  {userSettings.tier === 'free' && (
+    <UpgradePrompt>
+      <Button onPress={upgradeToPremium}>Upgrade ($4.99/mo, 100/day)</Button>
+      <Button onPress={showBYOKSetup}>Or add your API key (unlimited)</Button>
+    </UpgradePrompt>
+  )}
+  
+  {userSettings.tier === 'byok' && (
+    <Section title="API Keys">
+      <Input label="OpenAI API Key" secure value={apiKeys.openai} />
+      <Input label="Anthropic API Key" secure value={apiKeys.anthropic} />
+      <Input label="Google API Key" secure value={apiKeys.google} />
+      <Button onPress={saveKeys}>Save Keys</Button>
+    </Section>
+  )}
+  
+  <Section title="Usage This Month">
+    <Text>{userSettings.monthlyUsage} queries</Text>
+  </Section>
+</Screen>
+```
 
 **Database Schema:**
 ```sql
@@ -190,59 +246,138 @@ interface AIContext {
 
 ---
 
-### Phase 3: Route Discovery
+### Phase 3: Universal Content Discovery
 **Duration:** 3 weeks  
-**Goal:** AI can find and suggest existing routes
+**Goal:** AI helps users find ALL content (routes, learning paths, exercises, schools, events, instructors)
 
-#### Week 6: Database Route Search
+#### Week 6: Multi-Content Search System
 **Tasks:**
-- [ ] Design route search query system
-- [ ] Create full-text search on route descriptions
+- [ ] Design universal search query system (multi-table)
+- [ ] Create full-text search across 6 content types
 - [ ] Build semantic search (embedding-based)
-- [ ] Add filters (difficulty, location, duration)
-- [ ] Implement route ranking algorithm
-- [ ] Cache popular route searches
-- [ ] Create route recommendation engine
+- [ ] Add content-specific filters (difficulty, location, price, etc.)
+- [ ] Implement content ranking algorithm
+- [ ] Cache popular searches
+- [ ] Create cross-content recommendation engine
+
+**Search Scope (6 Content Types):**
+
+1. **Routes** - "Hitta nybörjarrutt med rondeller"
+2. **Learning Paths** - "Visa uppgifter om parkering"
+3. **Exercises** - "Hitta övningar för motorväg"
+4. **Schools** - "Vilka körskolor finns i Lund?"
+5. **Events** - "Visa kommande kurser"
+6. **Instructors** - "Hitta handledare nära mig"
+
+**Preview-First UX Flow:**
+```
+User query → AI parses → Search DB → Return results
+  ↓
+Inline preview cards in chat (compact: image + title + 1-2 details)
+  ↓
+User taps card → Open EXISTING DetailSheet component
+  ↓
+DetailSheet shows full info → User can save/buy/book/contact
+```
+
+**Sheet Reuse Pattern (Zero New UI):**
+- Routes → `RoutePreviewSheet` (new, minimal) → `CreateRouteSheet` (existing)
+- Learning Paths → `LearningPathDetailSheet` (existing, direct)
+- Exercises → `ExerciseDetailSheet` (existing, direct)
+- Schools → `SchoolDetailSheet` (existing, direct)
+- Events → `EventDetailSheet` (existing, direct)
+- Instructors → `InstructorDetailSheet` (existing, direct)
 
 **Search Features:**
-- Natural language queries ("winding roads near Stockholm")
-- Multi-criteria filtering (difficulty + scenery + length)
+- Natural language queries (Swedish/English)
+- Multi-criteria filtering per content type
 - Semantic matching (understand intent, not just keywords)
 - Popularity-based ranking
+- Cross-content recommendations ("Users who liked this route also tried these exercises")
 
 **Database Updates:**
 ```sql
--- Add vector search support
+-- Add vector search support (pgvector extension)
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Add embeddings column for semantic search
+-- Add embeddings columns for semantic search (all content types)
 ALTER TABLE routes ADD COLUMN embedding vector(1536);
+ALTER TABLE learning_paths ADD COLUMN embedding vector(1536);
+ALTER TABLE exercises ADD COLUMN embedding vector(1536);
+ALTER TABLE schools ADD COLUMN embedding vector(1536);
+ALTER TABLE events ADD COLUMN embedding vector(1536);
+ALTER TABLE instructors ADD COLUMN embedding vector(1536);
 
--- Create search index
+-- Create search indexes (one per content type)
 CREATE INDEX idx_routes_embedding ON routes 
 USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX idx_learning_paths_embedding ON learning_paths 
+USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX idx_exercises_embedding ON exercises 
+USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX idx_schools_embedding ON schools 
+USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX idx_events_embedding ON events 
+USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX idx_instructors_embedding ON instructors 
+USING ivfflat (embedding vector_cosine_ops);
 
--- Create AI search log
-CREATE TABLE ai_route_searches (
+-- Create universal AI search log
+CREATE TABLE ai_content_searches (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES auth.users(id),
   query TEXT NOT NULL,
+  content_type TEXT NOT NULL, -- 'route' | 'learning_path' | 'exercise' | 'school' | 'event' | 'instructor'
   filters JSONB,
   results_count INTEGER,
-  selected_route_id UUID REFERENCES routes(id),
+  selected_content_id UUID, -- References any content table
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Index for analytics
+CREATE INDEX idx_ai_searches_content_type ON ai_content_searches(content_type);
+CREATE INDEX idx_ai_searches_created_at ON ai_content_searches(created_at);
 ```
 
-#### Week 7-8: OSM Integration (Basic)
+#### Week 7-8: Preview Components & Content Integration
 **Tasks:**
+- [ ] Create `RoutePreviewSheet` component (NEW, only new UI)
+- [ ] Build inline preview cards for all 6 content types
+- [ ] Implement tap-to-open-sheet logic
+- [ ] Add "Spara rutt" → `CreateRouteSheet` flow
 - [ ] Setup OSM API integration
 - [ ] Implement geocoding (address → coordinates)
 - [ ] Add reverse geocoding (coordinates → address)
 - [ ] Build place search (find landmarks, cities)
-- [ ] Create map-based route filtering
-- [ ] Add route preview with OSM data
-- [ ] Implement route comparison tool
+- [ ] Create map-based content filtering
+- [ ] Implement content comparison tool
+
+**RoutePreviewSheet (NEW Component):**
+```typescript
+// Similar to RouteDetailSheet but with isPreview mode
+interface RoutePreviewSheetProps {
+  route: AIGeneratedRoute; // Temporary, not saved yet
+  onSave: () => void; // Opens CreateRouteSheet
+  onClose: () => void;
+}
+
+// Features:
+// - Full map with waypoints marked
+// - Metadata: distance, duration, difficulty, features
+// - AI-generated description
+// - Two buttons: "Spara rutt" | "Stäng"
+```
+
+**Inline Preview Cards (6 Types):**
+```typescript
+// Compact cards shown in chat after AI search
+<RoutePreviewCard route={result} onTap={openRoutePreviewSheet} />
+<LearningPathCard path={result} onTap={openLearningPathDetailSheet} />
+<ExerciseCard exercise={result} onTap={openExerciseDetailSheet} />
+<SchoolCard school={result} onTap={openSchoolDetailSheet} />
+<EventCard event={result} onTap={openEventDetailSheet} />
+<InstructorCard instructor={result} onTap={openInstructorDetailSheet} />
+```
 
 **OSM Services:**
 - Nominatim for geocoding
@@ -763,7 +898,45 @@ describe('AIContextBuilder', () => {
 
 ---
 
-## Cost Projections
+## Cost Projections & Pricing Model
+
+### Pricing Tiers (Updated 2026-02-14)
+
+**3-Tier Strategy: Free + BYOK + Premium**
+
+#### Tier 1: Free (Limited)
+- **Queries:** 10 AI queries/day (Vromm pays)
+- **Features:** Route search, basic Q&A only
+- **Cost to Vromm:** ~$0.05/user/month max (rate limited)
+- **Purpose:** Let users try AI with zero friction
+
+#### Tier 2: BYOK (Unlimited)
+- **Queries:** Unlimited (user pays with their API key)
+- **Features:** Full access (route generation, personalization, search)
+- **Cost to Vromm:** $0 (user brings OpenAI/Anthropic/Gemini key)
+- **Purpose:** Power users + privacy-conscious users
+
+#### Tier 3: Premium Subscription (Unlimited)
+- **Queries:** 100 AI queries/day included (Vromm pays)
+- **Features:** Full access + priority processing
+- **Cost to Vromm:** ~$0.50/user/month (offset by subscription revenue)
+- **Purpose:** Monetization + seamless UX (no API key setup)
+- **Integration:** Part of existing IAP for learning paths
+
+**Conversion Funnel:**
+```
+Free (try it, 10/day) 
+  → Hit limit 
+    → Upgrade to Premium ($X/mo, 100/day) 
+      OR 
+    → Add BYOK (unlimited, $0 to Vromm)
+```
+
+**UI Flow:**
+- Settings → AI Assistant → API Key (optional field)
+- When limit hit: Modal with 2 CTAs:
+  - "Upgrade to Premium for 100/day" (subscription)
+  - "Add your API key for unlimited" (BYOK setup)
 
 ### Development Costs
 | Item | Hours | Rate | Total |
@@ -778,48 +951,62 @@ describe('AIContextBuilder', () => {
 | Service | Usage | Cost |
 |---------|-------|------|
 | Supabase Pro | 1 project | $25 |
-| AI API (OpenAI) | 1M tokens | $200 |
-| AI API (Claude) | 500k tokens | $100 |
-| AI API (Gemini) | 500k tokens | $50 |
+| AI API (OpenAI) | Free: 100k tokens, Premium: 1M tokens | $50-200 |
+| AI API (Claude) | Fallback, 200k tokens | $40 |
+| AI API (Gemini) | Fallback, 200k tokens | $10 |
 | OSM Routing Server | 1 VPS (8GB) | $40 |
 | Database Storage | 50GB | $15 |
 | Monitoring (Sentry) | 10k events | $26 |
 | Analytics (Mixpanel) | 100k MTU | $0 (free tier) |
-| **Total Monthly** | | **$456** |
+| **Total Monthly** | | **$206-$356** |
 
-### Cost per User (Monthly Active)
-**Assumptions:**
-- 1,000 monthly active users
-- Average 20 messages per user per month
-- Average 300 tokens per message (input + output)
-- 80% OpenAI, 15% Claude, 5% Gemini
+### Cost per User (Monthly Active) - Updated Model
 
-**Calculation:**
-- Total messages: 1,000 × 20 = 20,000
-- Total tokens: 20,000 × 300 = 6M tokens
-- OpenAI cost: 4.8M tokens × $0.10/1M = $0.48
-- Claude cost: 0.9M tokens × $0.20/1M = $0.18
-- Gemini cost: 0.3M tokens × $0.05/1M = $0.015
-- **Total AI cost: $0.675 per 1,000 users = $0.000675 per user**
+**Assumptions (1,000 MAU):**
+- 70% Free tier (10 queries/day max) = 700 users
+- 20% BYOK (unlimited, $0 cost) = 200 users
+- 10% Premium (100 queries/day) = 100 users
+
+**Free Tier Calculation:**
+- 700 users × 10 queries/day × 30 days = 210k queries/month
+- Average 300 tokens/query = 63M tokens/month
+- OpenAI cost: 63M × $0.10/1M = $6.30/month
+- **Cost per free user: $0.009/month**
+
+**Premium Tier Calculation:**
+- 100 users × 100 queries/day × 30 days = 300k queries/month
+- Average 300 tokens/query = 90M tokens/month
+- OpenAI cost: 90M × $0.10/1M = $9.00/month
+- **Cost per premium user: $0.09/month**
+
+**Total AI Cost (1k MAU):**
+- Free: $6.30
+- BYOK: $0
+- Premium: $9.00
+- **Total: $15.30/month**
 
 **With infrastructure:**
-- Infrastructure: $456 / 1,000 users = $0.456 per user
-- **Total cost per user: ~$0.46/month**
+- Infrastructure: $206/month (base tier)
+- AI: $15.30/month
+- **Total: $221.30/month for 1,000 MAU**
+- **Cost per user: $0.22/month**
 
-### Scaling Projections
-| Users | AI Cost | Infrastructure | Total/Month |
-|-------|---------|----------------|-------------|
-| 100 | $67 | $456 | $523 |
-| 1,000 | $675 | $456 | $1,131 |
-| 5,000 | $3,375 | $756 | $4,131 |
-| 10,000 | $6,750 | $1,256 | $8,006 |
+### Scaling Projections (BYOK Model)
+| Users | Free Users | BYOK Users | Premium Users | AI Cost | Infrastructure | Total/Month |
+|-------|------------|------------|---------------|---------|----------------|-------------|
+| 100 | 70 | 20 | 10 | $1.50 | $206 | $207.50 |
+| 1,000 | 700 | 200 | 100 | $15.30 | $206 | $221.30 |
+| 5,000 | 3,500 | 1,000 | 500 | $76.50 | $306 | $382.50 |
+| 10,000 | 7,000 | 2,000 | 1,000 | $153 | $506 | $659 |
 
 **Cost Optimization Strategies:**
-1. Implement aggressive caching (save 30% tokens)
-2. Use Gemini for simple queries (save 50% on those)
-3. Batch requests where possible
-4. Compress context intelligently
-5. Cache route search results (30-day TTL)
+1. Rate limiting prevents free tier abuse (10/day max)
+2. BYOK offloads 20% of users to $0 cost
+3. Premium revenue offsets AI costs (e.g., $4.99/mo × 100 users = $499/mo revenue)
+4. Aggressive caching (save 30% tokens)
+5. Use Gemini for simple queries (save 50% on those)
+6. Batch requests where possible
+7. Cache route search results (30-day TTL)
 
 ---
 
