@@ -118,6 +118,11 @@ export type RootStackParamList = {
   };
   CommunityFeedScreen: undefined;
   StudentManagementScreen: undefined;
+  AdminDashboardScreen: undefined;
+  SchoolDashboardScreen: undefined;
+  InstructorDashboardScreen: undefined;
+  DrivingLogScreen: undefined;
+  QRConnectScreen: undefined;
 };
 
 export type TabParamList = {

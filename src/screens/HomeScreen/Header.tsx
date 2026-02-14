@@ -32,6 +32,8 @@ import { ProfileSheet } from '../../components/ProfileSheet';
 import { UserProfileSheet } from '../../components/UserProfileSheet';
 import { UserListSheet } from '../../components/UserListSheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NavigationProp } from '../../types/navigation';
 
 // Hardcoded fallback translations for header
 const HEADER_FALLBACKS = {
@@ -84,6 +86,7 @@ export const HomeHeader = React.memo(function HomeHeader() {
   const { profile, signOut } = useAuth();
   const { setActiveStudent, activeStudentId } = useStudentSwitch();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NavigationProp>();
 
   // Helper to get translation with fallback
   const getT = (key: string, fallbackKey: keyof typeof HEADER_FALLBACKS['en']): string => {
@@ -494,6 +497,26 @@ export const HomeHeader = React.memo(function HomeHeader() {
             >
               <Feather
                 name="users"
+                size={20}
+                color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
+              />
+            </TouchableOpacity>
+          )}
+
+          {/* Driving Log - student/instructor/teacher */}
+          {(profile?.role === 'student' || profile?.role === 'instructor' || profile?.role === 'teacher') && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('DrivingLogScreen' as any)}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Feather
+                name="book"
                 size={20}
                 color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
               />
