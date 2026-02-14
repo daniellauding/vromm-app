@@ -278,8 +278,7 @@ export function AddReviewSheet({
               dismissSheet();
             }}
           />
-          <GestureDetector gesture={panGesture}>
-            <ReanimatedAnimated.View
+          <ReanimatedAnimated.View
               style={[
                 {
                   position: 'absolute',
@@ -295,23 +294,25 @@ export function AddReviewSheet({
                 animatedStyle,
               ]}
             >
-              {/* Drag Handle */}
-              <View
-                style={{
-                  alignItems: 'center',
-                  paddingVertical: 8,
-                  paddingBottom: 16,
-                }}
-              >
+              {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+              <GestureDetector gesture={panGesture}>
                 <View
                   style={{
-                    width: 40,
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingBottom: 16,
                   }}
-                />
-              </View>
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                    }}
+                  />
+                </View>
+              </GestureDetector>
 
               <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -373,7 +374,6 @@ export function AddReviewSheet({
                 </YStack>
               </KeyboardAvoidingView>
             </ReanimatedAnimated.View>
-          </GestureDetector>
         </View>
       </Animated.View>
       </GestureHandlerRootView>

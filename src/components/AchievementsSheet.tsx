@@ -590,7 +590,6 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
         </Pressable>
 
         {/* Sheet */}
-        <GestureDetector gesture={panGesture}>
           <ReanimatedAnimated.View
             style={[
               {
@@ -611,17 +610,19 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
               sheetStyle,
             ]}
           >
-            {/* Handle */}
-            <View style={{ padding: 12, alignItems: 'center' }}>
-              <View
-                style={{
-                  width: 40,
-                  height: 4,
-                  backgroundColor: borderColor,
-                  borderRadius: 2,
-                }}
-              />
-            </View>
+            {/* Handle - only this area captures pan gesture for sheet resize */}
+            <GestureDetector gesture={panGesture}>
+              <View style={{ padding: 12, alignItems: 'center' }}>
+                <View
+                  style={{
+                    width: 40,
+                    height: 4,
+                    backgroundColor: borderColor,
+                    borderRadius: 2,
+                  }}
+                />
+              </View>
+            </GestureDetector>
 
             {/* Header */}
             <XStack
@@ -875,7 +876,6 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
               </YStack>
             </ScrollView>
           </ReanimatedAnimated.View>
-        </GestureDetector>
       </View>
       </GestureHandlerRootView>
     </Modal>

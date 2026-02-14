@@ -684,7 +684,7 @@ export function RouteDetailSheet({
       >
         <View style={{ flex: 1 }}>
           <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <GestureDetector gesture={combinedGesture}>
+          <GestureDetector gesture={swipeGesture}>
             <ReanimatedAnimated.View
               style={[
                 {
@@ -711,22 +711,25 @@ export function RouteDetailSheet({
               ]}
             >
               <YStack padding="$3" paddingBottom={insets.bottom || 10} gap="$3" flex={1}>
-                <View
-                  style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}
-                >
+                {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                <GestureDetector gesture={panGesture}>
                   <View
                     style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: theme.gray8?.val || '#CCC',
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      paddingBottom: 16,
                     }}
-                  />
-                </View>
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: theme.gray8?.val || '#CCC',
+                      }}
+                    />
+                  </View>
+                </GestureDetector>
 
                 {/* Header - removed route name, will be placed below carousel */}
 

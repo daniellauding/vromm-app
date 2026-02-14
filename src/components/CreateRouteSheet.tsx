@@ -2151,7 +2151,6 @@ export function CreateRouteSheet({
         )}
 
         {/* Sheet */}
-        <GestureDetector gesture={panGesture}>
           <ReanimatedAnimated.View
             style={[
               {
@@ -2173,18 +2172,20 @@ export function CreateRouteSheet({
             ]}
           >
             <Screen edges={[]} padding={false} scroll={false} hideStatusBar bottomInset={120}>
-              {/* Drag Handle */}
-              <View
-                style={{
-                  width: 40,
-                  height: 4,
-                  backgroundColor: colorScheme === 'dark' ? '#333' : '#DDD',
-                  borderRadius: 2,
-                  alignSelf: 'center',
-                  marginTop: 8,
-                  marginBottom: 8,
-                }}
-              />
+              {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+              <GestureDetector gesture={panGesture}>
+                <View
+                  style={{
+                    width: 40,
+                    height: 4,
+                    backgroundColor: colorScheme === 'dark' ? '#333' : '#DDD',
+                    borderRadius: 2,
+                    alignSelf: 'center',
+                    marginTop: 8,
+                    marginBottom: 8,
+                  }}
+                />
+              </GestureDetector>
 
               <ScrollView
                   ref={mainScrollViewRef}
@@ -4877,7 +4878,6 @@ export function CreateRouteSheet({
               </Modal>
             </Screen>
           </ReanimatedAnimated.View>
-        </GestureDetector>
       </View>
       </GestureHandlerRootView>
     </Modal>

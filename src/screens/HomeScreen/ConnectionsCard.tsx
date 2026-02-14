@@ -498,8 +498,7 @@ export const ConnectionsCard = () => {
         >
           <View style={{ flex: 1 }}>
             <Pressable style={{ flex: 1 }} onPress={hideConnectionsSheet} />
-            <GestureDetector gesture={connectionsPanGesture}>
-              <ReanimatedAnimated.View
+            <ReanimatedAnimated.View
                 style={[
                   {
                     position: 'absolute',
@@ -515,23 +514,25 @@ export const ConnectionsCard = () => {
                   connectionsAnimatedStyle,
                 ]}
               >
-                {/* Drag Handle - outside ScrollView */}
-                <View
-                  style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}
-                >
+                {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                <GestureDetector gesture={connectionsPanGesture}>
                   <View
                     style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      paddingBottom: 16,
                     }}
-                  />
-                </View>
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                      }}
+                    />
+                  </View>
+                </GestureDetector>
 
                 <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
                   <YStack gap="$4" paddingBottom="$16">
@@ -840,7 +841,6 @@ export const ConnectionsCard = () => {
                   </YStack>
                 </ScrollView>
               </ReanimatedAnimated.View>
-            </GestureDetector>
           </View>
         </ReanimatedAnimated.View>
         </GestureHandlerRootView>

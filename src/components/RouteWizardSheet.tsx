@@ -1840,8 +1840,7 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
           />
         )}
 
-        <GestureDetector gesture={isMinimized ? Gesture.Pan().activeOffsetY([-10, 10]).failOffsetX([-20, 20]) : combinedGesture}>
-          <Animated.View
+        <Animated.View
             style={[
               styles.bottomSheet,
               {
@@ -1853,6 +1852,7 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
           >
             {/* Minimal header - only show when not recording or minimized */}
             {!isRecording && !isMinimized && (
+              <GestureDetector gesture={combinedGesture}>
               <View style={styles.handleContainer}>
                 <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
                 <XStack
@@ -1895,10 +1895,12 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
                   </TouchableOpacity>
                 </XStack>
               </View>
+              </GestureDetector>
             )}
 
             {/* Recording header - minimal UI */}
             {isRecording && (
+              <GestureDetector gesture={combinedGesture}>
               <View style={styles.handleContainer}>
                 <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
                 <XStack
@@ -1952,10 +1954,12 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
                   </TouchableOpacity>
                 </XStack>
               </View>
+              </GestureDetector>
             )}
 
             {/* Minimized header - even more minimal */}
             {isMinimized && (
+              <GestureDetector gesture={panGesture}>
               <View style={styles.handleContainer}>
                 <View style={[styles.handle, { backgroundColor: DARK_THEME.handleColor }]} />
                 <TouchableOpacity
@@ -1967,6 +1971,7 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
                   </Text>
                 </TouchableOpacity>
               </View>
+              </GestureDetector>
             )}
 
             {/* Step content */}
@@ -2005,7 +2010,6 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
               </View>
             )}
           </Animated.View>
-        </GestureDetector>
 
         {/* Recovery Prompt */}
         {showRecoveryPrompt && (

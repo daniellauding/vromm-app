@@ -325,8 +325,7 @@ export const RoleSelectionCard = () => {
                 hideRoleSheet();
               }}
             />
-            <GestureDetector gesture={rolePanGesture}>
-              <ReanimatedAnimated.View
+            <ReanimatedAnimated.View
                 style={[
                   {
                     position: 'absolute',
@@ -344,22 +343,25 @@ export const RoleSelectionCard = () => {
                   },
                 ]}
               >
-                <View
-                  style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}
-                >
+                {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                <GestureDetector gesture={rolePanGesture}>
                   <View
                     style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      paddingBottom: 16,
                     }}
-                  />
-                </View>
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                      }}
+                    />
+                  </View>
+                </GestureDetector>
 
                 <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
                   {getTranslation(
@@ -392,7 +394,6 @@ export const RoleSelectionCard = () => {
                   ))}
                 </YStack>
               </ReanimatedAnimated.View>
-            </GestureDetector>
           </View>
         </Animated.View>
         </GestureHandlerRootView>

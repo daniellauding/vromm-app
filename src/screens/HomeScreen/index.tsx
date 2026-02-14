@@ -361,12 +361,14 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         keyExtractor={() => 'home-content'}
         contentContainerStyle={{ paddingTop: 100, paddingBottom: 40 + BOTTOM_INSET }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
           useNativeDriver: false,
         })}
         scrollEventThrottle={16}
         renderItem={() => (
-          <YStack f={1}>
+          <View style={{ flex: 1 }}>
             {/* Welcome Text - fades out on scroll */}
             <WelcomeText scrollY={scrollY} />
 
@@ -463,7 +465,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
                 setShowUserProfileSheet={setShowUserProfileSheet}
               />
             )}
-          </YStack>
+          </View>
         )}
       />
 

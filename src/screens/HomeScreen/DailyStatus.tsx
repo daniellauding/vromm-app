@@ -1287,8 +1287,7 @@ export function DailyStatus({
             }}
           >
             <Pressable style={{ flex: 1 }} onPress={() => setShowSheet(false)} />
-            <GestureDetector gesture={panGesture}>
-              <ReanimatedAnimated.View
+            <ReanimatedAnimated.View
                 style={[
                   {
                     position: 'absolute',
@@ -1304,17 +1303,19 @@ export function DailyStatus({
                 ]}
               >
                 <YStack padding="$3" gap="$3" flex={1}>
-                  {/* Drag Handle */}
-                  <View
-                    style={{
-                      width: 40,
-                      height: 4,
-                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
-                      borderRadius: 2,
-                      alignSelf: 'center',
-                      marginVertical: 8,
-                    }}
-                  />
+                  {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                  <GestureDetector gesture={panGesture}>
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                        borderRadius: 2,
+                        alignSelf: 'center',
+                        marginVertical: 8,
+                      }}
+                    />
+                  </GestureDetector>
                   {/* Header */}
                   <XStack justifyContent="space-between" alignItems="center">
                     {/* <YStack>
@@ -1978,7 +1979,6 @@ export function DailyStatus({
                   </View>
                 </YStack>
               </ReanimatedAnimated.View>
-            </GestureDetector>
           </Animated.View>
           </GestureHandlerRootView>
         </Modal>

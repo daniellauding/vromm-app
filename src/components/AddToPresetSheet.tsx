@@ -700,8 +700,7 @@ export function AddToPresetSheet({
         >
           <View style={{ flex: 1 }}>
             <Pressable style={{ flex: 1 }} onPress={dismissSheet} />
-            <GestureDetector gesture={panGesture}>
-              <ReanimatedAnimated.View
+            <ReanimatedAnimated.View
                 style={[
                   {
                     position: 'absolute',
@@ -717,23 +716,25 @@ export function AddToPresetSheet({
                 ]}
               >
                 <YStack padding="$3" paddingBottom={24} gap="$3" flex={1}>
-                  {/* Drag Handle */}
-                  <View
-                    style={{
-                      alignItems: 'center',
-                      paddingVertical: 8,
-                      paddingBottom: 16,
-                    }}
-                  >
+                  {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                  <GestureDetector gesture={panGesture}>
                     <View
                       style={{
-                        width: 40,
-                        height: 4,
-                        borderRadius: 2,
-                        backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC',
+                        alignItems: 'center',
+                        paddingVertical: 8,
+                        paddingBottom: 16,
                       }}
-                    />
-                  </View>
+                    >
+                      <View
+                        style={{
+                          width: 40,
+                          height: 4,
+                          borderRadius: 2,
+                          backgroundColor: colorScheme === 'dark' ? '#666' : '#CCC',
+                        }}
+                      />
+                    </View>
+                  </GestureDetector>
                   {/* Header */}
                   <XStack alignItems="center" justifyContent="space-between" paddingHorizontal="$2">
                     {showCreateForm && (
@@ -1297,7 +1298,6 @@ export function AddToPresetSheet({
                   )}
                 </YStack>
               </ReanimatedAnimated.View>
-            </GestureDetector>
           </View>
         </Animated.View>
         </GestureHandlerRootView>

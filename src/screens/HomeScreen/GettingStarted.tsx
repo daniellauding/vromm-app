@@ -1575,7 +1575,7 @@ export const GettingStarted = () => {
     <YStack marginBottom="$3">
       <SectionHeader title={t('home.gettingStarted.title') || 'Getting Started'} variant="chevron" onAction={() => {}} actionLabel="" />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal nestedScrollEnabled={true} showsHorizontalScrollIndicator={false}>
         <XStack space="$4" paddingHorizontal="$4" marginTop="$4">
           {/* 1. Din körkortsplan */}
           <TouchableOpacity
@@ -2119,8 +2119,7 @@ export const GettingStarted = () => {
                 hideKorkortsplanSheet();
               }}
             />
-            <GestureDetector gesture={licensePlanPanGesture}>
-              <ReanimatedAnimated.View
+            <ReanimatedAnimated.View
                 style={[
                   {
                     position: 'absolute',
@@ -2138,23 +2137,25 @@ export const GettingStarted = () => {
                   },
                 ]}
               >
-                {/* Drag Handle - outside ScrollView with gesture */}
-                <View
-                  style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}
-                >
+                {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                <GestureDetector gesture={licensePlanPanGesture}>
                   <View
                     style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      paddingBottom: 16,
                     }}
-                  />
-                </View>
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                      }}
+                    />
+                  </View>
+                </GestureDetector>
 
                 <KeyboardAvoidingView
                   behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -2509,7 +2510,6 @@ export const GettingStarted = () => {
                   </ScrollView>
                 </KeyboardAvoidingView>
               </ReanimatedAnimated.View>
-            </GestureDetector>
           </View>
         </Animated.View>
         </GestureHandlerRootView>
@@ -2732,8 +2732,7 @@ export const GettingStarted = () => {
                 hideRoleSheet();
               }}
             />
-            <GestureDetector gesture={rolePanGesture}>
-              <ReanimatedAnimated.View
+            <ReanimatedAnimated.View
                 style={[
                   {
                     position: 'absolute',
@@ -2751,23 +2750,25 @@ export const GettingStarted = () => {
                   },
                 ]}
               >
-                {/* Drag Handle */}
-                <View
-                  style={{
-                    alignItems: 'center',
-                    paddingVertical: 8,
-                    paddingBottom: 16,
-                  }}
-                >
+                {/* Drag Handle - only this area captures pan gesture for sheet resize */}
+                <GestureDetector gesture={rolePanGesture}>
                   <View
                     style={{
-                      width: 40,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                      alignItems: 'center',
+                      paddingVertical: 8,
+                      paddingBottom: 16,
                     }}
-                  />
-                </View>
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: colorScheme === 'dark' ? '#CCC' : '#666',
+                      }}
+                    />
+                  </View>
+                </GestureDetector>
 
                 <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
                   Choose Your Role
@@ -2806,7 +2807,6 @@ export const GettingStarted = () => {
                   ))}
                 </YStack>
               </ReanimatedAnimated.View>
-            </GestureDetector>
           </View>
         </Animated.View>
         </GestureHandlerRootView>
