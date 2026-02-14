@@ -503,25 +503,7 @@ export const HomeHeader = React.memo(function HomeHeader() {
             </TouchableOpacity>
           )}
 
-          {/* Driving Log - student/instructor/teacher */}
-          {(profile?.role === 'student' || profile?.role === 'instructor' || profile?.role === 'teacher') && (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('DrivingLogScreen' as any)}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 12,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Feather
-                name="book"
-                size={20}
-                color={colorScheme === 'dark' ? '#ECEDEE' : '#11181C'}
-              />
-            </TouchableOpacity>
-          )}
+          {/* Driving Log button removed - integrated into DailyStatus for students, dashboard for instructors/teachers */}
 
           <NotificationBell onPress={() => setShowNotificationsSheet(true)} />
           {/* <EventsBell onPress={() => setShowEventsSheet(true)} /> */}
