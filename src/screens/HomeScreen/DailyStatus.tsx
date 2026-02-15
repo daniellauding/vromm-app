@@ -42,6 +42,7 @@ import { ActionSheet } from '../../components/ActionSheet';
 import { IconButton } from '../../components/IconButton';
 import { FormField } from '../../components/FormField';
 import { DropdownButton } from '../../components/SelectButton';
+import { DrivingLogView } from '../../components/DrivingLogView';
 
 const BOTTOM_INSET = Platform.OS === 'ios' ? 34 : 16;
 
@@ -183,6 +184,11 @@ export function DailyStatus({
   // Action sheet state
   const [showActionSheet, setShowActionSheet] = useState(false);
 
+  // Driving log sub-view state
+  const [showDrivingLog, setShowDrivingLog] = useState(false);
+  const [todayDrivingMinutes, setTodayDrivingMinutes] = useState(0);
+  const [todayDrivingDistance, setTodayDrivingDistance] = useState(0);
+
   // Sheet snap points and gesture handling
   const { height: screenHeight } = Dimensions.get('window');
   const snapPoints = useMemo(
@@ -289,6 +295,42 @@ export function DailyStatus({
 
   // Load today's status (alias for backward compatibility)
   const loadTodayStatus = () => loadStatusForDate(today);
+
+  // Load today's driving data from routes
+  const loadTodayDrivingData = useCallback(async () => {
+    if (!effectiveUserId) return;
+
+    const todayString = today.toISOString().split('T')[0];
+    
+    try {
+      const { data: routes } = await supabase
+        .from('routes')
+        .select('recording_stats, created_at')
+        .eq('created_by', effectiveUserId)
+        .gte('created_at', `${todayString}T00:00:00`)
+        .lte('created_at', `${todayString}T23:59:59`)
+        .not('recording_stats', 'is', null);
+
+      if (routes && routes.length > 0) {
+        let totalMinutes = 0;
+        let totalDistance = 0;
+
+        routes.forEach((route: any) => {
+          const stats = route.recording_stats || {};
+          totalMinutes += Math.round((stats.totalDuration || 0) / 60);
+          totalDistance += (stats.totalDistance || 0) / 1000; // Convert m to km
+        });
+
+        setTodayDrivingMinutes(totalMinutes);
+        setTodayDrivingDistance(Math.round(totalDistance * 10) / 10); // Round to 1 decimal
+      } else {
+        setTodayDrivingMinutes(0);
+        setTodayDrivingDistance(0);
+      }
+    } catch (error) {
+      console.error('Error loading today driving data:', error);
+    }
+  }, [effectiveUserId, today]);
 
   // Date navigation functions
   const goToPreviousDay = () => {
@@ -938,7 +980,8 @@ export function DailyStatus({
 
   useEffect(() => {
     loadTodayStatus();
-  }, [effectiveUserId]);
+    loadTodayDrivingData();
+  }, [effectiveUserId, loadTodayDrivingData]);
 
   // Refresh translations on mount to ensure we have the latest
   useEffect(() => {
@@ -1316,6 +1359,12 @@ export function DailyStatus({
                       }}
                     />
                   </GestureDetector>
+
+                  {/* Conditional Rendering: DrivingLogView vs Main DailyStatus */}
+                  {showDrivingLog ? (
+                    <DrivingLogView onBack={() => setShowDrivingLog(false)} />
+                  ) : (
+                    <>
                   {/* Header */}
                   <XStack justifyContent="space-between" alignItems="center">
                     {/* <YStack>
@@ -1593,6 +1642,35 @@ export function DailyStatus({
                               size="xl"
                             />
                           </YStack>
+                        )}
+
+                        {/* Today's Driving Summary - Link to full driving log */}
+                        {formData.status && !isFuture && todayDrivingMinutes > 0 && (
+                          <TouchableOpacity
+                            onPress={() => setShowDrivingLog(true)}
+                            style={{
+                              backgroundColor: colorScheme === 'dark' ? '#1A1A1A' : '#F8F8F8',
+                              borderRadius: 12,
+                              padding: 16,
+                              borderWidth: 1,
+                              borderColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                            }}
+                          >
+                            <XStack justifyContent="space-between" alignItems="center">
+                              <YStack gap="$1">
+                                <Text fontSize="$3" fontWeight="600" color={colorScheme === 'dark' ? '#FFF' : '#000'}>
+                                  {language === 'sv' ? 'Dagens körning' : "Today's Driving"}
+                                </Text>
+                                <Text fontSize="$2" color={colorScheme === 'dark' ? '#AAA' : '#666'}>
+                                  {Math.floor(todayDrivingMinutes / 60)}h {todayDrivingMinutes % 60}min • {todayDrivingDistance} km
+                                </Text>
+                              </YStack>
+                              <XStack alignItems="center" gap="$2">
+                                <Feather name="book" size={16} color={colorScheme === 'dark' ? '#0A84FF' : '#007AFF'} />
+                                <Feather name="chevron-right" size={20} color={colorScheme === 'dark' ? '#666' : '#999'} />
+                              </XStack>
+                            </XStack>
+                          </TouchableOpacity>
                         )}
 
                         {/* Driving Details - Show only if drove */}
@@ -1977,6 +2055,9 @@ export function DailyStatus({
                       )}
                     </YStack>
                   </View>
+                  </>
+                  )}
+                  {/* End conditional rendering */}
                 </YStack>
               </ReanimatedAnimated.View>
           </Animated.View>

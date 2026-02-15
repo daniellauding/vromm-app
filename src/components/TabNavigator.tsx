@@ -281,7 +281,7 @@ const HamburgerDrawer = ({
 
   const menuItems = [
     {
-      // icon: 'user',
+      icon: 'user',
       target: 'PublicProfile',
       label: t('drawer.myProfile') || 'My Profile',
       action: () => {
@@ -293,7 +293,7 @@ const HamburgerDrawer = ({
       },
     },
     {
-      // icon: 'settings',
+      icon: 'settings',
       target: 'ProfileScreen',
       label: t('drawer.settings') || 'Settings',
       action: () => {
@@ -304,6 +304,40 @@ const HamburgerDrawer = ({
       badge: pendingInvitationsCount,
       badgeColor: '#FF4444',
     },
+    // Role-conditional Dashboard item
+    ...((profile?.role === 'admin' || profile?.role === 'school' || profile?.role === 'instructor' || profile?.role === 'teacher') ? [{
+      icon: 'layout',
+      target: profile?.role === 'admin' ? 'AdminDashboardScreen' : profile?.role === 'school' ? 'SchoolDashboardScreen' : 'InstructorDashboardScreen',
+      label: t('dashboard.title') || 'Dashboard',
+      action: () => {
+        onBeginNavigate();
+        const screen = profile?.role === 'admin' ? 'AdminDashboardScreen' : profile?.role === 'school' ? 'SchoolDashboardScreen' : 'InstructorDashboardScreen';
+        navigation.navigate(screen as any);
+        onClose();
+      },
+    }] : []),
+    // QR Connect - available to all roles
+    {
+      icon: 'link',
+      target: 'QRConnectScreen',
+      label: t('qrConnect.title') || 'Quick Connect',
+      action: () => {
+        onBeginNavigate();
+        navigation.navigate('QRConnectScreen' as any);
+        onClose();
+      },
+    },
+    // Driving Log - available to students, instructors, teachers
+    ...((profile?.role === 'student' || profile?.role === 'instructor' || profile?.role === 'teacher' || !profile?.role) ? [{
+      icon: 'book',
+      target: 'DrivingLogScreen',
+      label: t('drivingLog.title') || 'Driving Log',
+      action: () => {
+        onBeginNavigate();
+        navigation.navigate('DrivingLogScreen' as any);
+        onClose();
+      },
+    }] : []),
     // {
     //   icon: 'users',
     //   target: 'UsersScreen',
@@ -351,7 +385,7 @@ const HamburgerDrawer = ({
     //   badgeColor: '#EF4444',
     // },
     {
-      // icon: 'globe',
+      icon: 'globe',
       label: t('drawer.betaWebsite') || 'Beta Website',
       action: () => onOpenBetaWebViewLocal(),
     },
@@ -361,7 +395,7 @@ const HamburgerDrawer = ({
     //   action: () => onOpenLanguageLocal(),
     // },
     {
-      // icon: 'coffee',
+      icon: 'coffee',
       label: t('drawer.buyMeCoffee') || 'Buy Me a Coffee',
       action: () => onOpenBuyCoffeeLocal(),
     },
@@ -378,20 +412,20 @@ const HamburgerDrawer = ({
     //   }
     // }, // DISABLED: Tours causing performance issues
     {
-      // icon: 'share',
+      icon: 'share-2',
       label: t('drawer.shareApp') || 'Share App',
       action: () => onShareApp(),
     },
     {
-      // icon: 'info',
+      icon: 'info',
       label: t('drawer.about') || 'About',
       action: () => onOpenAboutLocal(),
     },
     {
-      // icon: 'log-out',
+      icon: 'log-out',
       label: t('drawer.logout') || 'Logout',
       action: () => handleSignOut(),
-      // danger: true,
+      danger: true,
     },
   ];
 
@@ -474,6 +508,7 @@ const HamburgerDrawer = ({
             </Card>
 
             {/* Menu Items */}
+            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
             {menuItems.map((item, index) => (
               <Card
                 key={index}
@@ -557,6 +592,7 @@ const HamburgerDrawer = ({
                 </TouchableOpacity>
               </Card>
             ))}
+            </ScrollView>
           </YStack>
         </SafeAreaView>
       </Animated.View>

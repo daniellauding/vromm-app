@@ -3644,6 +3644,46 @@ export function ProfileScreen() {
                   {t('auth.changePassword')}
                 </Button>
 
+                {/* Dashboard Links - Role-based */}
+                {profile?.role === 'admin' && (
+                  <Button
+                    onPress={() => {
+                      navigation.navigate('AdminDashboardScreen' as any);
+                    }}
+                    variant="outlined"
+                    size="lg"
+                    icon={<Feather name="pie-chart" size={20} color={isDark ? '#fff' : '#000'} />}
+                  >
+                    {language === 'sv' ? 'Admin Dashboard' : 'Admin Dashboard'}
+                  </Button>
+                )}
+
+                {profile?.role === 'school' && (
+                  <Button
+                    onPress={() => {
+                      navigation.navigate('SchoolDashboardScreen' as any);
+                    }}
+                    variant="outlined"
+                    size="lg"
+                    icon={<Feather name="bar-chart-2" size={20} color={isDark ? '#fff' : '#000'} />}
+                  >
+                    {language === 'sv' ? 'Skol Dashboard' : 'School Dashboard'}
+                  </Button>
+                )}
+
+                {profile?.role === 'instructor' && (
+                  <Button
+                    onPress={() => {
+                      navigation.navigate('InstructorDashboardScreen' as any);
+                    }}
+                    variant="outlined"
+                    size="lg"
+                    icon={<Feather name="trending-up" size={20} color={isDark ? '#fff' : '#000'} />}
+                  >
+                    {language === 'sv' ? 'Instruktör Dashboard' : 'Instructor Dashboard'}
+                  </Button>
+                )}
+
                 <Button onPress={handleSignOut} disabled={loading} variant="outlined" size="lg">
                   {t('profile.signOut')}
                 </Button>
