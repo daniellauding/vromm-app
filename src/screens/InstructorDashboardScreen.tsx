@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshControl, Alert, FlatList, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { RefreshControl, FlatList, TouchableOpacity, Modal, TextInput } from 'react-native';
 import { YStack, XStack, ScrollView, Text, Spinner } from 'tamagui';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { RootStackNavigationProp } from '../types/navigation';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useThemePreference } from '../hooks/useThemeOverride';
+import { useToast } from '../contexts/ToastContext';
 import { Button } from '../components/Button';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -51,8 +52,15 @@ export function InstructorDashboardScreen() {
   const { user, profile } = useAuth();
   const navigation = useNavigation<RootStackNavigationProp>();
   const { t, language } = useTranslation();
+  const { showToast } = useToast();
   const { effectiveTheme } = useThemePreference();
   const isDark = effectiveTheme === 'dark';
+
+  const tx = (key: string, en: string, sv?: string): string => {
+    const translated = t(key);
+    if (translated && translated !== key) return translated;
+    return language === 'sv' && sv ? sv : en;
+  };
 
   const [students, setStudents] = useState<StudentWithProgress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,16 +219,17 @@ export function InstructorDashboardScreen() {
         });
       }
 
-      Alert.alert(
-        t('common.success') || 'Success',
-        `${pathTitle} assigned to ${selectedStudentIds.length} student(s)`,
-      );
+      showToast({
+        title: tx('common.success', 'Success', 'Klart'),
+        message: `${pathTitle} → ${selectedStudentIds.length} ${language === 'sv' ? 'elev(er)' : 'student(s)'}`,
+        type: 'success',
+      });
       setShowAssignModal(false);
       setSelectedPathId(null);
       setSelectedStudentIds([]);
     } catch (error) {
       console.error('Error assigning path:', error);
-      Alert.alert(t('common.error') || 'Error', 'Failed to assign learning path');
+      showToast({ title: tx('common.error', 'Error', 'Fel'), message: tx('instructor.assignFailed', 'Failed to assign learning path', 'Kunde inte tilldela övningsväg'), type: 'error' });
     } finally {
       setAssigning(false);
     }
@@ -264,9 +273,9 @@ export function InstructorDashboardScreen() {
   };
 
   const statusLabel = (status: string) => {
-    if (status === 'on_track') return t('instructor.onTrack') || 'On Track';
-    if (status === 'stalling') return t('instructor.stalling') || 'Stalling';
-    return t('instructor.inactive') || 'Inactive';
+    if (status === 'on_track') return tx('instructor.onTrack', 'On Track', 'På rätt spår');
+    if (status === 'stalling') return tx('instructor.stalling', 'Stalling', 'Avstannande');
+    return tx('instructor.inactive', 'Inactive', 'Inaktiv');
   };
 
   const activeCount = students.filter(s => s.status !== 'inactive').length;
@@ -351,7 +360,7 @@ export function InstructorDashboardScreen() {
               ))
             ) : (
               <Text fontSize="$2" color={isDark ? '#666' : '#999'} paddingLeft="$4">
-                {t('instructor.noActivity') || 'No recent activity'}
+                {tx('instructor.noActivity', 'No recent activity', 'Ingen senaste aktivitet')}
               </Text>
             )}
 
@@ -405,7 +414,7 @@ export function InstructorDashboardScreen() {
               >
                 <Feather name="edit-3" size={14} color={isDark ? '#FFF' : '#333'} />
                 <Text fontSize="$2" color={isDark ? '#FFF' : '#333'}>
-                  {student.note ? (t('instructor.editNote') || 'Edit Note') : (t('instructor.addNote') || 'Add Note')}
+                  {student.note ? tx('instructor.editNote', 'Edit Note', 'Redigera anteckning') : tx('instructor.addNote', 'Add Note', 'Lägg till anteckning')}
                 </Text>
               </TouchableOpacity>
             </XStack>
@@ -418,7 +427,7 @@ export function InstructorDashboardScreen() {
   if (loading) {
     return (
       <Screen>
-        <Header title={t('instructor.title') || 'Instructor Dashboard'} showBack />
+        <Header title={tx('instructor.title', 'Instructor Dashboard', 'Handledaröversikt')} showBack />
         <YStack flex={1} justifyContent="center" alignItems="center">
           <Spinner size="large" color="#00E6C3" />
         </YStack>
@@ -427,8 +436,8 @@ export function InstructorDashboardScreen() {
   }
 
   return (
-    <Screen>
-      <Header title={t('instructor.title') || 'Instructor Dashboard'} showBack />
+    <Screen scroll={false}>
+      <Header title={tx('instructor.title', 'Instructor Dashboard', 'Handledaröversikt')} showBack />
       <FlatList
         data={students}
         keyExtractor={item => item.id}
@@ -441,13 +450,13 @@ export function InstructorDashboardScreen() {
             <XStack gap="$3">
               <DashboardStatCard
                 value={students.length}
-                label={t('instructor.totalStudents') || 'Total Students'}
+                label={tx('instructor.totalStudents', 'Total Students', 'Totalt elever')}
                 icon="users"
                 color="#00E6C3"
               />
               <DashboardStatCard
                 value={activeCount}
-                label={t('instructor.activeStudents') || 'Active Students'}
+                label={tx('instructor.activeStudents', 'Active Students', 'Aktiva elever')}
                 icon="activity"
                 color="#0A84FF"
               />
@@ -465,7 +474,7 @@ export function InstructorDashboardScreen() {
               >
                 <Feather name="book-open" size={18} color="#000" />
                 <Text fontSize="$3" fontWeight="600" color="#000">
-                  {t('instructor.assignPath') || 'Assign Path'}
+                  {tx('instructor.assignPath', 'Assign Path', 'Tilldela väg')}
                 </Text>
               </TouchableOpacity>
 
@@ -479,14 +488,14 @@ export function InstructorDashboardScreen() {
               >
                 <Feather name="maximize" size={18} color={isDark ? '#FFF' : '#333'} />
                 <Text fontSize="$3" fontWeight="600" color={isDark ? '#FFF' : '#333'}>
-                  {t('qrConnect.title') || 'QR Connect'}
+                  {tx('qrConnect.title', 'QR Connect', 'QR-koppling')}
                 </Text>
               </TouchableOpacity>
             </XStack>
 
             {/* Section header */}
             <Text fontSize="$5" fontWeight="bold" color={isDark ? '#FFF' : '#000'} marginTop="$2">
-              {t('instructor.progressOverview') || 'Progress Overview'}
+              {tx('instructor.progressOverview', 'Progress Overview', 'Framstegsöversikt')}
             </Text>
           </YStack>
         }
@@ -494,7 +503,7 @@ export function InstructorDashboardScreen() {
           <YStack alignItems="center" padding="$6" gap="$3">
             <Feather name="users" size={48} color={isDark ? '#444' : '#CCC'} />
             <Text fontSize="$4" color={isDark ? '#666' : '#999'} textAlign="center">
-              {t('instructor.noActivity') || 'No students yet'}
+              {tx('instructor.noStudents', 'No students yet', 'Inga elever ännu')}
             </Text>
           </YStack>
         }
@@ -514,12 +523,12 @@ export function InstructorDashboardScreen() {
               padding="$4" maxHeight="80%"
             >
               <Text fontSize="$6" fontWeight="bold" color={isDark ? '#FFF' : '#000'} marginBottom="$3">
-                {t('instructor.assignPath') || 'Assign Learning Path'}
+                {tx('instructor.assignPath', 'Assign Learning Path', 'Tilldela övningsväg')}
               </Text>
 
               {/* Select path */}
               <Text fontSize="$4" fontWeight="600" color={isDark ? '#FFF' : '#000'} marginBottom="$2">
-                {t('instructor.selectPath') || 'Select Learning Path'}
+                {tx('instructor.selectPath', 'Select Learning Path', 'Välj övningsväg')}
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
                 <XStack gap="$2">
@@ -546,7 +555,7 @@ export function InstructorDashboardScreen() {
 
               {/* Select students */}
               <Text fontSize="$4" fontWeight="600" color={isDark ? '#FFF' : '#000'} marginBottom="$2">
-                {t('instructor.selectStudents') || 'Select Students'}
+                {tx('instructor.selectStudents', 'Select Students', 'Välj elever')}
               </Text>
               <ScrollView style={{ maxHeight: 200, marginBottom: 16 }}>
                 {students.map(student => (
@@ -588,7 +597,7 @@ export function InstructorDashboardScreen() {
                 }}
               >
                 <Text fontSize="$4" fontWeight="bold" color="#000">
-                  {assigning ? '...' : `${t('instructor.assignPath') || 'Assign'} (${selectedStudentIds.length})`}
+                  {assigning ? '...' : `${tx('instructor.assign', 'Assign', 'Tilldela')} (${selectedStudentIds.length})`}
                 </Text>
               </TouchableOpacity>
             </YStack>
@@ -609,12 +618,12 @@ export function InstructorDashboardScreen() {
               borderRadius={20} padding="$4"
             >
               <Text fontSize="$5" fontWeight="bold" color={isDark ? '#FFF' : '#000'} marginBottom="$3">
-                {t('instructor.notes') || 'Notes'}
+                {tx('instructor.notes', 'Notes', 'Anteckningar')}
               </Text>
               <TextInput
                 value={noteText}
                 onChangeText={setNoteText}
-                placeholder={t('instructor.notePlaceholder') || 'e.g., Needs more highway practice...'}
+                placeholder={tx('instructor.notePlaceholder', 'e.g., Needs more highway practice...', 't.ex. Behöver mer motorvägsövning...')}
                 placeholderTextColor={isDark ? '#666' : '#AAA'}
                 multiline
                 numberOfLines={4}
@@ -634,7 +643,7 @@ export function InstructorDashboardScreen() {
                     backgroundColor: isDark ? '#333' : '#E5E5E5',
                   }}
                 >
-                  <Text color={isDark ? '#FFF' : '#000'}>{t('common.cancel') || 'Cancel'}</Text>
+                  <Text color={isDark ? '#FFF' : '#000'}>{tx('common.cancel', 'Cancel', 'Avbryt')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={handleSaveNote}
@@ -645,7 +654,7 @@ export function InstructorDashboardScreen() {
                   }}
                 >
                   <Text fontWeight="bold" color="#000">
-                    {savingNote ? '...' : (t('common.save') || 'Save')}
+                    {savingNote ? '...' : tx('common.save', 'Save', 'Spara')}
                   </Text>
                 </TouchableOpacity>
               </XStack>

@@ -117,6 +117,38 @@ export function RoleSelectionScreen() {
         console.error('Error saving role selection with org number:', error);
         Alert.alert('Error', 'Could not update your role. Please try again later.');
       } else {
+        // Auto-provision: create a schools row + school_memberships row
+        try {
+          const { data: newSchool, error: schoolError } = await supabase
+            .from('schools')
+            .insert({
+              name: profile?.full_name || 'My School',
+              organization_number: orgNumber,
+              contact_email: user.email,
+              is_active: false,
+            })
+            .select('id')
+            .single();
+
+          if (schoolError) {
+            console.error('Error creating school:', schoolError);
+          } else if (newSchool) {
+            const { error: membershipError } = await supabase
+              .from('school_memberships')
+              .insert({
+                school_id: newSchool.id,
+                user_id: user.id,
+                role: 'admin',
+              });
+
+            if (membershipError) {
+              console.error('Error creating school membership:', membershipError);
+            }
+          }
+        } catch (provisionErr) {
+          console.error('Error auto-provisioning school:', provisionErr);
+        }
+
         // Refresh the profile to get the updated data
         await refreshProfile();
 

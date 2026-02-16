@@ -14,6 +14,7 @@ interface AvatarModalProps {
   onViewProfile: () => void;
   onMyProgression: () => void;
   onSelectStudent: () => void;
+  onDashboard: () => void;
   onLogout: () => void;
 }
 
@@ -23,6 +24,7 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
   onViewProfile,
   onMyProgression,
   onSelectStudent,
+  onDashboard,
   onLogout,
 }) => {
   const insets = useSafeAreaInsets();
@@ -32,7 +34,11 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
   const { t, language } = useTranslation();
   
   // Check if user is supervisor
-  const isSupervisorRole = ['instructor', 'admin', 'school'].includes((profile as any)?.role || '');
+  const userRole = (profile as any)?.role || '';
+  const isSupervisorRole = ['instructor', 'admin', 'school'].includes(userRole);
+  const isAdmin = userRole === 'admin';
+  const isSchool = userRole === 'school';
+  const isInstructor = userRole === 'instructor';
   
   // Animation refs
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -201,6 +207,42 @@ export const AvatarModal: React.FC<AvatarModalProps> = ({
                         </Text>
                         <Text fontSize={14} color={isDark ? '#999' : '#666'}>
                           {t('profile.switchStudentDescription') || 'View progress as a student'}
+                        </Text>
+                      </YStack>
+                    </XStack>
+                  </TouchableOpacity>
+                )}
+
+                {/* Dashboard (admin/school/instructor) */}
+                {isSupervisorRole && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      onClose();
+                      onDashboard();
+                    }}
+                    style={{
+                      paddingVertical: 16,
+                      paddingHorizontal: 20,
+                      borderBottomWidth: 1,
+                      borderBottomColor: borderColor,
+                    }}
+                  >
+                    <XStack alignItems="center" gap="$3">
+                      <Feather name="bar-chart-2" size={24} color={textColor} />
+                      <YStack flex={1}>
+                        <Text fontWeight="600" fontSize={18} color={textColor}>
+                          {isAdmin
+                            ? (language === 'sv' ? 'Adminpanel' : 'Admin Dashboard')
+                            : isSchool
+                              ? (language === 'sv' ? 'Skolpanel' : 'School Dashboard')
+                              : (language === 'sv' ? 'Instruktörspanel' : 'Instructor Dashboard')}
+                        </Text>
+                        <Text fontSize={14} color={isDark ? '#999' : '#666'}>
+                          {isAdmin
+                            ? (language === 'sv' ? 'Systemöversikt och hantering' : 'System overview and management')
+                            : isSchool
+                              ? (language === 'sv' ? 'Hantera din trafikskola' : 'Manage your driving school')
+                              : (language === 'sv' ? 'Översikt och elevhantering' : 'Overview and student management')}
                         </Text>
                       </YStack>
                     </XStack>

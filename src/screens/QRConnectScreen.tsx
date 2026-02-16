@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, TouchableOpacity, Share, Dimensions } from 'react-native';
+import { TouchableOpacity, Share, Dimensions } from 'react-native';
 import { YStack, XStack, Text, Spinner } from 'tamagui';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useThemePreference } from '../hooks/useThemeOverride';
+import { useToast } from '../contexts/ToastContext';
 
 // expo-camera is optional - scan mode shows fallback if not installed
 let CameraView: any = null;
@@ -61,9 +62,16 @@ type Mode = 'show' | 'scan';
 
 export function QRConnectScreen() {
   const { user, profile } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { effectiveTheme } = useThemePreference();
+  const { showToast } = useToast();
   const isDark = effectiveTheme === 'dark';
+
+  const tx = (key: string, en: string, sv?: string): string => {
+    const translated = t(key);
+    if (translated && translated !== key) return translated;
+    return language === 'sv' && sv ? sv : en;
+  };
 
   const [mode, setMode] = useState<Mode>('show');
   const [processing, setProcessing] = useState(false);
@@ -101,7 +109,7 @@ export function QRConnectScreen() {
       // Parse the connect URL: vromm://connect/{userId}?role={role}
       const match = data.match(/vromm:\/\/connect\/([a-f0-9-]+)\?role=(\w+)/);
       if (!match) {
-        Alert.alert(t('qrConnect.invalidQR') || 'Invalid QR', 'This QR code is not a valid Vromm connect code.');
+        showToast({ title: tx('qrConnect.invalidQR', 'Invalid QR', 'Ogiltig QR'), message: tx('qrConnect.invalidQRMessage', 'This QR code is not a valid Vromm connect code.', 'Denna QR-kod är inte en giltig Vromm-koppling.'), type: 'error' });
         setScanned(false);
         setProcessing(false);
         return;
@@ -110,7 +118,7 @@ export function QRConnectScreen() {
       const [, targetUserId, targetRole] = match;
 
       if (targetUserId === user?.id) {
-        Alert.alert('Oops', "You can't connect with yourself!");
+        showToast({ title: 'Oops', message: tx('qrConnect.selfConnect', "You can't connect with yourself!", 'Du kan inte koppla dig till dig själv!'), type: 'error' });
         setScanned(false);
         setProcessing(false);
         return;
@@ -129,21 +137,20 @@ export function QRConnectScreen() {
 
         if (error) {
           if (error.code === '23505') {
-            Alert.alert(t('qrConnect.connectionSuccess') || 'Already Connected', 'You are already connected!');
+            showToast({ title: tx('qrConnect.alreadyConnected', 'Already Connected', 'Redan kopplad'), message: tx('qrConnect.alreadyConnectedMessage', 'You are already connected!', 'Ni är redan kopplade!'), type: 'info' });
           } else {
             throw error;
           }
         } else {
-          // Send notification to instructor
           await supabase.from('notifications').insert({
             user_id: targetUserId,
             type: 'student_invitation',
             message: `${profile?.full_name || 'A student'} connected with you via QR code`,
             actor_id: user?.id,
           });
-          Alert.alert(t('qrConnect.connectionSuccess') || 'Connected!', 'You are now connected with your instructor.');
+          showToast({ title: tx('qrConnect.connected', 'Connected!', 'Kopplad!'), message: tx('qrConnect.instructorConnected', 'You are now connected with your instructor.', 'Du är nu kopplad till din handledare.'), type: 'success' });
         }
-      } else if (myRole === 'instructor' || myRole === 'teacher') {
+      } else if ((myRole === 'instructor' || myRole === 'teacher') && targetRole === 'student') {
         // Instructor scanning student QR
         const { error } = await supabase.from('student_supervisor_relationships').insert({
           student_id: targetUserId,
@@ -153,7 +160,7 @@ export function QRConnectScreen() {
 
         if (error) {
           if (error.code === '23505') {
-            Alert.alert(t('qrConnect.connectionSuccess') || 'Already Connected', 'Already connected!');
+            showToast({ title: tx('qrConnect.alreadyConnected', 'Already Connected', 'Redan kopplad'), message: tx('qrConnect.alreadyConnectedStudent', 'Already connected!', 'Redan kopplad!'), type: 'info' });
           } else {
             throw error;
           }
@@ -164,10 +171,37 @@ export function QRConnectScreen() {
             message: `${profile?.full_name || 'An instructor'} connected with you via QR code`,
             actor_id: user?.id,
           });
-          Alert.alert(t('qrConnect.connectionSuccess') || 'Connected!', 'Student connected successfully.');
+          showToast({ title: tx('qrConnect.connected', 'Connected!', 'Kopplad!'), message: tx('qrConnect.studentConnected', 'Student connected successfully.', 'Elev kopplad.'), type: 'success' });
+        }
+      } else if (targetRole === 'school' && (myRole === 'instructor' || myRole === 'teacher')) {
+        // Instructor scanning school QR -> join as instructor
+        const { data: school } = await supabase
+          .from('school_memberships')
+          .select('school_id')
+          .eq('user_id', targetUserId)
+          .in('role', ['admin', 'owner'])
+          .limit(1)
+          .single();
+
+        if (school) {
+          const { error } = await supabase.from('school_memberships').insert({
+            school_id: school.school_id,
+            user_id: user?.id,
+            role: 'instructor',
+          });
+
+          if (error) {
+            if (error.code === '23505') {
+              showToast({ title: tx('qrConnect.alreadyMember', 'Already a Member', 'Redan medlem'), message: tx('qrConnect.alreadyMemberMessage', 'You are already a member of this school.', 'Du är redan medlem i denna skola.'), type: 'info' });
+            } else {
+              throw error;
+            }
+          } else {
+            showToast({ title: tx('qrConnect.joined', 'Joined!', 'Ansluten!'), message: tx('qrConnect.joinedSchool', 'You have joined the school as an instructor.', 'Du har gått med i skolan som handledare.'), type: 'success' });
+          }
         }
       } else if (targetRole === 'school') {
-        // Anyone scanning school QR -> enroll via school_memberships
+        // Student (or anyone else) scanning school QR -> enroll as student
         const { data: school } = await supabase
           .from('school_memberships')
           .select('school_id')
@@ -185,20 +219,20 @@ export function QRConnectScreen() {
 
           if (error) {
             if (error.code === '23505') {
-              Alert.alert('Already Enrolled', 'You are already enrolled in this school.');
+              showToast({ title: tx('qrConnect.alreadyEnrolled', 'Already Enrolled', 'Redan inskriven'), message: tx('qrConnect.alreadyEnrolledMessage', 'You are already enrolled in this school.', 'Du är redan inskriven i denna skola.'), type: 'info' });
             } else {
               throw error;
             }
           } else {
-            Alert.alert(t('qrConnect.connectionSuccess') || 'Enrolled!', 'You are now enrolled in the school.');
+            showToast({ title: tx('qrConnect.enrolled', 'Enrolled!', 'Inskriven!'), message: tx('qrConnect.enrolledSchool', 'You are now enrolled in the school.', 'Du är nu inskriven i skolan.'), type: 'success' });
           }
         }
       } else {
-        Alert.alert('Connect', 'Connection request sent!');
+        showToast({ title: tx('qrConnect.connected', 'Connect', 'Koppling'), message: tx('qrConnect.requestSent', 'Connection request sent!', 'Kopplingsförfrågan skickad!'), type: 'success' });
       }
     } catch (error) {
       console.error('QR connect error:', error);
-      Alert.alert(t('qrConnect.connectionError') || 'Error', 'Failed to connect. Please try again.');
+      showToast({ title: tx('qrConnect.error', 'Error', 'Fel'), message: tx('qrConnect.errorMessage', 'Failed to connect. Please try again.', 'Kunde inte koppla. Försök igen.'), type: 'error' });
     } finally {
       setProcessing(false);
       setTimeout(() => setScanned(false), 2000);

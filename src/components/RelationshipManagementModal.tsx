@@ -115,40 +115,24 @@ export function RelationshipManagementModal({
   } | null>(null);
 
   useEffect(() => {
-    setLocalSelectedSupervisorIds(selectedSupervisorIds);
+    const changed =
+      selectedSupervisorIds.length !== localSelectedSupervisorIds.length ||
+      selectedSupervisorIds.some((id, i) => id !== localSelectedSupervisorIds[i]);
+    if (changed) {
+      setLocalSelectedSupervisorIds(selectedSupervisorIds);
+    }
   }, [selectedSupervisorIds]);
 
   useEffect(() => {
     if (visible) {
-      console.log('🚪 RelationshipManagementModal opened with data:');
-      console.log('👤 User Role:', userRole);
-      console.log('🔍 Available Supervisors:', availableSupervisors);
-      console.log('👨‍🎓 Supervised Students:', supervisedStudents);
-      console.log('📑 Active Tab:', activeTab);
-      console.log('🆔 Current User ID:', user?.id);
-      console.log('📧 Current User Email:', user?.email);
-      console.log('👤 Profile ID:', profile?.id);
-    }
-    if (visible) {
-      console.log('🔄 Modal opened, loading data for tab:', activeTab, 'userRole:', userRole);
-
-      // Always load pending invitations (sent by user) for all roles
-      console.log('📋 Loading pending invitations (sent by user)...');
       loadPendingInvitations();
-
-      // Always load incoming invitations (received by user) for all roles
-      console.log('📥 Loading incoming invitations (received by user)...');
       loadIncomingInvitations();
 
-      // Load student progress for instructors/supervisors
       if (supervisedStudents.length > 0) {
-        console.log('📊 Loading student progress...');
         loadStudentProgress();
       }
 
-      // Load role-specific data
       if (activeTab === 'manage' && userRole === 'student' && profile?.id) {
-        console.log('👨‍🎓 Loading current supervisors for student...');
         loadCurrentSupervisors();
       }
     }
@@ -158,7 +142,6 @@ export function RelationshipManagementModal({
   useEffect(() => {
     if (!visible || !profile?.id) return;
 
-    console.log('🔔 Setting up real-time subscription for pending invitations');
     const subscription = supabase
       .channel('pending_invitations_changes')
       .on(
@@ -169,9 +152,7 @@ export function RelationshipManagementModal({
           table: 'pending_invitations',
           filter: `invited_by=eq.${profile.id}`,
         },
-        (payload) => {
-          console.log('🔄 Pending invitation changed:', payload);
-          // Refresh pending invitations when they change
+        () => {
           loadPendingInvitations();
         },
       )
@@ -183,9 +164,7 @@ export function RelationshipManagementModal({
           table: 'pending_invitations',
           filter: `email=eq.${(user?.email || '').toLowerCase()}`,
         },
-        (payload) => {
-          console.log('🔄 Incoming invitation changed:', payload);
-          // Refresh incoming invitations when they change
+        () => {
           loadIncomingInvitations();
         },
       )
@@ -198,18 +177,13 @@ export function RelationshipManagementModal({
           table: 'student_supervisor_relationships',
           filter: `supervisor_id=eq.${profile.id}`,
         },
-        (payload) => {
-          console.log(
-            '🧩 Relationship row changed for supervisor, requesting refresh:',
-            payload?.eventType,
-          );
+        () => {
           onRefresh?.();
         },
       )
       .subscribe();
 
     return () => {
-      console.log('🔕 Unsubscribing from pending invitations changes');
       subscription.unsubscribe();
     };
   }, [visible, profile?.id, user?.email]);
@@ -220,11 +194,8 @@ export function RelationshipManagementModal({
       return;
     }
 
-    console.log('📤 Loading pending invitations for user:', profile.id);
     try {
       const invitations = await getPendingInvitationsV2(profile.id);
-      console.log('📤 Loaded pending invitations:', invitations);
-      console.log('📤 Setting pending invitations state with', invitations.length, 'items');
 
       // Filter out old accepted invitations (older than 24 hours) and clean them up
       const now = new Date();
@@ -246,13 +217,10 @@ export function RelationshipManagementModal({
         }
       }
 
-      // Clean up old accepted invitations
       if (toCleanup.length > 0) {
-        console.log('🧹 Cleaning up', toCleanup.length, 'old accepted invitations');
         await supabase.from('pending_invitations').delete().in('id', toCleanup);
       }
 
-      console.log('📤 Setting pending invitations state:', filteredInvitations);
       setPendingInvitations(filteredInvitations);
     } catch (error) {
       console.error('❌ Error loading pending invitations:', error);
@@ -260,12 +228,7 @@ export function RelationshipManagementModal({
   };
 
   const loadIncomingInvitations = async () => {
-    if (!user?.email) {
-      console.log('❌ No user email for loading incoming invitations');
-      return;
-    }
-
-    console.log('📥 Loading incoming invitations for email:', user.email);
+    if (!user?.email) return;
     try {
       // Use direct query instead of service function for more control
       const { data: invitations, error } = await supabase
@@ -1136,11 +1099,7 @@ export function RelationshipManagementModal({
   const renderViewTab = () => {
     if (userRole === 'student') {
       // Show supervisors to select
-      console.log('Rendering supervisor list for student view:');
-      console.log('Available supervisors count:', availableSupervisors.length);
-      availableSupervisors.forEach((supervisor) => {
-        console.log('Rendering supervisor:', supervisor);
-      });
+      // Supervisor list render (logging removed to prevent console floods)
 
       return (
         <YStack gap="$2" flex={1}>
@@ -1182,13 +1141,10 @@ export function RelationshipManagementModal({
             contentContainerStyle={{ padding: 8 }}
           >
             {availableSupervisors.length === 0 ? (
-              <>
-                {console.log('🚨 No supervisors available to display!')}
-                <Text color="$gray11" textAlign="center" padding="$4">
-                  No supervisors/schools/teachers/admins available. They may need to be invited
-                  first.
-                </Text>
-              </>
+              <Text color="$gray11" textAlign="center" padding="$4">
+                No supervisors/schools/teachers/admins available. They may need to be invited
+                first.
+              </Text>
             ) : (
               availableSupervisors.map((supervisor) => {
                 const isSelected = localSelectedSupervisorIds.includes(supervisor.id);
@@ -1247,10 +1203,6 @@ export function RelationshipManagementModal({
       );
     } else {
       // Show current supervised students for quick selection
-      console.log('Rendering student selection for instructor view:');
-      console.log('User role:', userRole);
-      console.log('Supervised students count:', supervisedStudents.length);
-
       return (
         <YStack gap="$4" flex={1}>
           <Text size="sm" color="$gray11">

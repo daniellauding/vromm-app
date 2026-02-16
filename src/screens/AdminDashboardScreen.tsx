@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   RefreshControl,
-  Alert,
   FlatList,
   TouchableOpacity,
   TextInput,
-  Switch,
+  Modal,
+  Pressable,
+  View,
+  Image,
 } from 'react-native';
-import { YStack, XStack, ScrollView, Text, Spinner } from 'tamagui';
+import { YStack, XStack, ScrollView, Text, Spinner, Switch } from 'tamagui';
 import { Screen } from '../components/Screen';
 import { Header } from '../components/Header';
 import { DashboardStatCard } from '../components/DashboardStatCard';
@@ -16,13 +18,16 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useThemePreference } from '../hooks/useThemeOverride';
+import { UserProfileSheet } from '../components/UserProfileSheet';
+import { RouteDetailSheet } from '../components/RouteDetailSheet';
+import { useToast } from '../contexts/ToastContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type TabKey = 'stats' | 'users' | 'routes' | 'settings';
+type TabKey = 'stats' | 'users' | 'schools' | 'routes' | 'settings';
 
 type AdminStats = {
   totalUsers: number;
@@ -47,9 +52,22 @@ type RouteItem = {
   difficulty: string | null;
   created_at: string;
   creator_name: string;
+  creator_id: string | null;
+};
+
+type SchoolItem = {
+  id: string;
+  name: string;
+  contact_email: string | null;
+  organization_number: string | null;
+  is_active: boolean | null;
+  created_at: string;
+  member_count?: number;
 };
 
 type RoleFilter = 'all' | 'student' | 'instructor' | 'school' | 'admin';
+
+const AVAILABLE_ROLES = ['student', 'instructor', 'school', 'admin'] as const;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -57,8 +75,9 @@ type RoleFilter = 'all' | 'student' | 'instructor' | 'school' | 'admin';
 
 export function AdminDashboardScreen() {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { effectiveTheme } = useThemePreference();
+  const { showToast } = useToast();
   const isDark = effectiveTheme === 'dark';
 
   // Tab state
@@ -83,7 +102,6 @@ export function AdminDashboardScreen() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [usersPage, setUsersPage] = useState(0);
   const [usersHasMore, setUsersHasMore] = useState(true);
-  const [deactivatingUser, setDeactivatingUser] = useState<string | null>(null);
 
   // Routes state
   const [routes, setRoutes] = useState<RouteItem[]>([]);
@@ -91,12 +109,32 @@ export function AdminDashboardScreen() {
   const [routeSearch, setRouteSearch] = useState('');
   const [routesPage, setRoutesPage] = useState(0);
   const [routesHasMore, setRoutesHasMore] = useState(true);
-  const [deletingRoute, setDeletingRoute] = useState<string | null>(null);
+
+  // Schools state
+  const [schools, setSchools] = useState<SchoolItem[]>([]);
+  const [schoolsLoading, setSchoolsLoading] = useState(false);
+  const [togglingSchoolId, setTogglingSchoolId] = useState<string | null>(null);
 
   // Settings state
   const [showSchoolsDefault, setShowSchoolsDefault] = useState(false);
   const [showInstructorsDefault, setShowInstructorsDefault] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // Sheet states (reusing existing components)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [showUserProfileSheet, setShowUserProfileSheet] = useState(false);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [showRouteDetailSheet, setShowRouteDetailSheet] = useState(false);
+
+  // Role change modal
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [roleChangeTarget, setRoleChangeTarget] = useState<UserItem | null>(null);
+  const [changingRole, setChangingRole] = useState(false);
+
+  // User action modal (deactivate/reactivate)
+  const [showUserActionModal, setShowUserActionModal] = useState(false);
+  const [userActionTarget, setUserActionTarget] = useState<UserItem | null>(null);
+  const [processingAction, setProcessingAction] = useState(false);
 
   // ---------------------------------------------------------------------------
   // Shared styles
@@ -110,6 +148,16 @@ export function AdminDashboardScreen() {
   const textSecondary = isDark ? '#AAA' : '#666';
   const textMuted = isDark ? '#666' : '#999';
   const screenBg = isDark ? '#111' : '#F5F5F5';
+
+  // ---------------------------------------------------------------------------
+  // Translation helper
+  // ---------------------------------------------------------------------------
+
+  const tx = (key: string, en: string, sv?: string): string => {
+    const translated = t(key);
+    if (translated && translated !== key) return translated;
+    return language === 'sv' && sv ? sv : en;
+  };
 
   // ---------------------------------------------------------------------------
   // Data loading: Stats
@@ -199,7 +247,70 @@ export function AdminDashboardScreen() {
   );
 
   // ---------------------------------------------------------------------------
-  // Data loading: Routes
+  // Data loading: Schools
+  // ---------------------------------------------------------------------------
+
+  const loadSchools = useCallback(async () => {
+    setSchoolsLoading(true);
+    try {
+      const { data, error: fetchErr } = await supabase
+        .from('schools')
+        .select('id, name, contact_email, organization_number, is_active, created_at')
+        .order('created_at', { ascending: false });
+
+      if (fetchErr) throw fetchErr;
+
+      const items: SchoolItem[] = (data || []).map((s: any) => ({
+        id: s.id,
+        name: s.name || 'Unnamed',
+        contact_email: s.contact_email || null,
+        organization_number: s.organization_number || null,
+        is_active: s.is_active,
+        created_at: s.created_at || '',
+      }));
+
+      setSchools(items);
+    } catch (error) {
+      console.error('Error loading schools:', error);
+    } finally {
+      setSchoolsLoading(false);
+    }
+  }, []);
+
+  const handleToggleSchoolActive = async (schoolId: string, currentActive: boolean) => {
+    setTogglingSchoolId(schoolId);
+    try {
+      const { error: updateErr } = await supabase
+        .from('schools')
+        .update({ is_active: !currentActive })
+        .eq('id', schoolId);
+
+      if (updateErr) throw updateErr;
+
+      setSchools((prev) =>
+        prev.map((s) => (s.id === schoolId ? { ...s, is_active: !currentActive } : s)),
+      );
+      showToast({
+        title: !currentActive
+          ? tx('admin.schoolActivated', 'School activated', 'Skola aktiverad')
+          : tx('admin.schoolDeactivated', 'School deactivated', 'Skola inaktiverad'),
+        message: '',
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('Error toggling school active:', error);
+      showToast({
+        title: tx('common.error', 'Error', 'Fel'),
+        message: tx('admin.schoolToggleFailed', 'Failed to update school', 'Kunde inte uppdatera skola'),
+        type: 'error',
+      });
+    } finally {
+      setTogglingSchoolId(null);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Data loading: Routes (fixed: use creator_id, not created_by)
   // ---------------------------------------------------------------------------
 
   const loadRoutes = useCallback(
@@ -212,9 +323,7 @@ export function AdminDashboardScreen() {
 
         let query = supabase
           .from('routes')
-          .select(
-            'id, name, difficulty, created_at, created_by, profiles:created_by(full_name)',
-          )
+          .select('id, name, difficulty, created_at, creator_id, creator:creator_id(full_name)')
           .order('created_at', { ascending: false })
           .range(from, to);
 
@@ -228,10 +337,11 @@ export function AdminDashboardScreen() {
 
         const items: RouteItem[] = (data || []).map((r: any) => ({
           id: r.id,
-          name: r.name || 'Unnamed Route',
+          name: r.name || (language === 'sv' ? 'Namnlös rutt' : 'Unnamed Route'),
           difficulty: r.difficulty || null,
           created_at: r.created_at || '',
-          creator_name: (r.profiles as any)?.full_name || 'Unknown',
+          creator_name: (r.creator as any)?.full_name || 'Unknown',
+          creator_id: r.creator_id || null,
         }));
 
         if (append) {
@@ -248,7 +358,7 @@ export function AdminDashboardScreen() {
         setRoutesLoading(false);
       }
     },
-    [routeSearch],
+    [routeSearch, language],
   );
 
   // ---------------------------------------------------------------------------
@@ -283,6 +393,9 @@ export function AdminDashboardScreen() {
       setUsersPage(0);
       loadUsers(0, false);
     }
+    if (activeTab === 'schools') {
+      loadSchools();
+    }
     if (activeTab === 'routes') {
       setRoutesPage(0);
       loadRoutes(0, false);
@@ -290,7 +403,7 @@ export function AdminDashboardScreen() {
     if (activeTab === 'settings' && !settingsLoaded) {
       loadSettings();
     }
-  }, [activeTab, loadUsers, loadRoutes, loadSettings, settingsLoaded]);
+  }, [activeTab]);
 
   // Re-fetch users when search or filter changes (debounced)
   useEffect(() => {
@@ -301,7 +414,7 @@ export function AdminDashboardScreen() {
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [userSearch, roleFilter, activeTab, loadUsers]);
+  }, [userSearch, roleFilter]);
 
   // Re-fetch routes when search changes (debounced)
   useEffect(() => {
@@ -312,12 +425,13 @@ export function AdminDashboardScreen() {
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [routeSearch, activeTab, loadRoutes]);
+  }, [routeSearch]);
 
   const onRefresh = () => {
     setRefreshing(true);
     loadStats();
     if (activeTab === 'users') loadUsers(0, false);
+    if (activeTab === 'schools') loadSchools();
     if (activeTab === 'routes') loadRoutes(0, false);
     if (activeTab === 'settings') loadSettings();
   };
@@ -326,82 +440,99 @@ export function AdminDashboardScreen() {
   // Actions
   // ---------------------------------------------------------------------------
 
-  const handleDeactivateUser = (userId: string) => {
-    Alert.alert(
-      t('admin.confirmDelete') || 'Are you sure?',
-      t('admin.deactivateUserConfirm') || 'This will deactivate the user account.',
-      [
-        { text: t('common.cancel') || 'Cancel', style: 'cancel' },
-        {
-          text: t('admin.deactivateUser') || 'Deactivate',
-          style: 'destructive',
-          onPress: async () => {
-            setDeactivatingUser(userId);
-            try {
-              const { error: updateErr } = await supabase
-                .from('profiles')
-                .update({ account_status: 'deleted' })
-                .eq('id', userId);
+  const handleChangeRole = async (newRole: string) => {
+    if (!roleChangeTarget) return;
+    setChangingRole(true);
+    try {
+      const { error: updateErr } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', roleChangeTarget.id);
 
-              if (updateErr) throw updateErr;
+      if (updateErr) throw updateErr;
 
-              setUsers((prev) =>
-                prev.map((u) =>
-                  u.id === userId ? { ...u, account_status: 'deleted' } : u,
-                ),
-              );
-              // Refresh stats after deactivation
-              loadStats();
-            } catch (error) {
-              console.error('Error deactivating user:', error);
-              Alert.alert(
-                t('common.error') || 'Error',
-                t('admin.deactivateFailed') || 'Failed to deactivate user.',
-              );
-            } finally {
-              setDeactivatingUser(null);
-            }
-          },
-        },
-      ],
-    );
+      setUsers((prev) =>
+        prev.map((u) => (u.id === roleChangeTarget.id ? { ...u, role: newRole } : u)),
+      );
+      showToast({
+        title: language === 'sv' ? 'Roll uppdaterad' : 'Role updated',
+        message: `${roleChangeTarget.full_name} → ${newRole}`,
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('Error changing role:', error);
+      showToast({
+        title: language === 'sv' ? 'Fel' : 'Error',
+        message: language === 'sv' ? 'Kunde inte ändra roll' : 'Failed to change role',
+        type: 'error',
+      });
+    } finally {
+      setChangingRole(false);
+      setShowRoleModal(false);
+      setRoleChangeTarget(null);
+    }
   };
 
-  const handleDeleteRoute = (routeId: string) => {
-    Alert.alert(
-      t('admin.confirmDelete') || 'Are you sure?',
-      t('admin.deleteRouteConfirm') || 'This will permanently delete this route.',
-      [
-        { text: t('common.cancel') || 'Cancel', style: 'cancel' },
-        {
-          text: t('admin.deleteRoute') || 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeletingRoute(routeId);
-            try {
-              const { error: deleteErr } = await supabase
-                .from('routes')
-                .delete()
-                .eq('id', routeId);
+  const handleDeactivateUser = async () => {
+    if (!userActionTarget) return;
+    setProcessingAction(true);
+    const isDeactivated = userActionTarget.account_status === 'deleted';
+    const newStatus = isDeactivated ? 'active' : 'deleted';
 
-              if (deleteErr) throw deleteErr;
+    try {
+      const { error: updateErr } = await supabase
+        .from('profiles')
+        .update({ account_status: newStatus })
+        .eq('id', userActionTarget.id);
 
-              setRoutes((prev) => prev.filter((r) => r.id !== routeId));
-              // Refresh stats after deletion
-              loadStats();
-            } catch (error) {
-              console.error('Error deleting route:', error);
-              Alert.alert(
-                t('common.error') || 'Error',
-                t('admin.deleteRouteFailed') || 'Failed to delete route.',
-              );
-            } finally {
-              setDeletingRoute(null);
-            }
-          },
-        },
-      ],
-    );
+      if (updateErr) throw updateErr;
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userActionTarget.id ? { ...u, account_status: newStatus } : u,
+        ),
+      );
+      loadStats();
+      showToast({
+        title: isDeactivated
+          ? (language === 'sv' ? 'Användare återaktiverad' : 'User reactivated')
+          : (language === 'sv' ? 'Användare inaktiverad' : 'User deactivated'),
+        message: userActionTarget.full_name,
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      showToast({
+        title: language === 'sv' ? 'Fel' : 'Error',
+        message: language === 'sv' ? 'Kunde inte uppdatera användare' : 'Failed to update user',
+        type: 'error',
+      });
+    } finally {
+      setProcessingAction(false);
+      setShowUserActionModal(false);
+      setUserActionTarget(null);
+    }
+  };
+
+  const handleDeleteRoute = async (routeId: string) => {
+    try {
+      const { error: deleteErr } = await supabase.from('routes').delete().eq('id', routeId);
+      if (deleteErr) throw deleteErr;
+      setRoutes((prev) => prev.filter((r) => r.id !== routeId));
+      loadStats();
+      showToast({
+        title: language === 'sv' ? 'Rutt borttagen' : 'Route deleted',
+        message: '',
+        type: 'success',
+      });
+    } catch (error) {
+      console.error('Error deleting route:', error);
+      showToast({
+        title: language === 'sv' ? 'Fel' : 'Error',
+        message: language === 'sv' ? 'Kunde inte ta bort rutt' : 'Failed to delete route',
+        type: 'error',
+      });
+    }
   };
 
   const handleToggleSchoolsDefault = async (value: boolean) => {
@@ -430,7 +561,7 @@ export function AdminDashboardScreen() {
     if (!dateString) return '';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString(undefined, {
+      return date.toLocaleDateString(language === 'sv' ? 'sv-SE' : undefined, {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -449,21 +580,29 @@ export function AdminDashboardScreen() {
       case 'school':
         return '#0A84FF';
       default:
-        return isDark ? '#555' : '#CCC';
+        return isDark ? '#888' : '#999';
     }
   };
 
-  const difficultyBadgeColor = (difficulty: string | null) => {
-    switch (difficulty) {
-      case 'easy':
-        return '#00E6C3';
-      case 'medium':
-        return '#FFB800';
-      case 'hard':
-        return '#FF6B6B';
-      default:
-        return isDark ? '#555' : '#CCC';
-    }
+  const roleLabel = (role: string) => {
+    const labels: Record<string, { en: string; sv: string }> = {
+      student: { en: 'Student', sv: 'Elev' },
+      instructor: { en: 'Instructor', sv: 'Handledare' },
+      school: { en: 'School', sv: 'Skola' },
+      admin: { en: 'Admin', sv: 'Admin' },
+    };
+    const l = labels[role];
+    return l ? (language === 'sv' ? l.sv : l.en) : role;
+  };
+
+  const difficultyLabel = (difficulty: string | null) => {
+    if (!difficulty) return null;
+    const labels: Record<string, { en: string; sv: string; color: string }> = {
+      easy: { en: 'Easy', sv: 'Lätt', color: '#00E6C3' },
+      medium: { en: 'Medium', sv: 'Medel', color: '#FFB800' },
+      hard: { en: 'Hard', sv: 'Svår', color: '#FF6B6B' },
+    };
+    return labels[difficulty] || null;
   };
 
   // ---------------------------------------------------------------------------
@@ -471,10 +610,11 @@ export function AdminDashboardScreen() {
   // ---------------------------------------------------------------------------
 
   const tabs: { key: TabKey; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-    { key: 'stats', label: t('admin.stats') || 'Stats', icon: 'bar-chart-2' },
-    { key: 'users', label: t('admin.users') || 'Users', icon: 'users' },
-    { key: 'routes', label: t('admin.routes') || 'Routes', icon: 'map' },
-    { key: 'settings', label: t('admin.settings') || 'Settings', icon: 'settings' },
+    { key: 'stats', label: tx('admin.stats', 'Stats', 'Statistik'), icon: 'bar-chart-2' },
+    { key: 'users', label: tx('admin.users', 'Users', 'Användare'), icon: 'users' },
+    { key: 'schools', label: tx('admin.schools', 'Schools', 'Skolor'), icon: 'home' },
+    { key: 'routes', label: tx('admin.routes', 'Routes', 'Rutter'), icon: 'map' },
+    { key: 'settings', label: tx('admin.settings', 'Settings', 'Inställningar'), icon: 'settings' },
   ];
 
   const renderTabBar = () => (
@@ -523,13 +663,13 @@ export function AdminDashboardScreen() {
       <XStack gap="$3" flexWrap="wrap">
         <DashboardStatCard
           value={stats.totalUsers}
-          label={t('admin.totalUsers') || 'Total Users'}
+          label={tx('admin.totalUsers', 'Total Users', 'Totalt Användare')}
           icon="users"
           color="#00E6C3"
         />
         <DashboardStatCard
           value={stats.totalRoutes}
-          label={t('admin.totalRoutes') || 'Total Routes'}
+          label={tx('admin.totalRoutes', 'Total Routes', 'Totalt Rutter')}
           icon="map"
           color="#0A84FF"
         />
@@ -537,13 +677,13 @@ export function AdminDashboardScreen() {
       <XStack gap="$3" flexWrap="wrap">
         <DashboardStatCard
           value={stats.totalSchools}
-          label={t('admin.totalSchools') || 'Total Schools'}
+          label={tx('admin.totalSchools', 'Total Schools', 'Totalt Skolor')}
           icon="home"
           color="#FFB800"
         />
         <DashboardStatCard
           value={stats.totalSupervisors}
-          label={t('admin.totalSupervisors') || 'Total Supervisors'}
+          label={tx('admin.totalSupervisors', 'Total Supervisors', 'Totalt Handledare')}
           icon="shield"
           color="#FF6B6B"
         />
@@ -556,112 +696,113 @@ export function AdminDashboardScreen() {
   // ---------------------------------------------------------------------------
 
   const roleFilters: { key: RoleFilter; label: string }[] = [
-    { key: 'all', label: t('admin.roleAll') || 'All' },
-    { key: 'student', label: t('admin.roleStudent') || 'Student' },
-    { key: 'instructor', label: t('admin.roleInstructor') || 'Instructor' },
-    { key: 'school', label: t('admin.roleSchool') || 'School' },
-    { key: 'admin', label: t('admin.roleAdmin') || 'Admin' },
+    { key: 'all', label: tx('admin.roleAll', 'All', 'Alla') },
+    { key: 'student', label: tx('admin.roleStudent', 'Student', 'Elev') },
+    { key: 'instructor', label: tx('admin.roleInstructor', 'Instructor', 'Handledare') },
+    { key: 'school', label: tx('admin.roleSchool', 'School', 'Skola') },
+    { key: 'admin', label: tx('admin.roleAdmin', 'Admin', 'Admin') },
   ];
 
   const renderUserItem = ({ item }: { item: UserItem }) => {
     const isDeactivated = item.account_status === 'deleted';
+    const isSelf = item.id === user?.id;
 
     return (
-      <YStack
-        backgroundColor={cardBg}
-        borderRadius={12}
-        padding="$3"
-        marginBottom="$2"
-        borderWidth={1}
-        borderColor={cardBorder}
-        opacity={isDeactivated ? 0.5 : 1}
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => {
+          setSelectedUserId(item.id);
+          setShowUserProfileSheet(true);
+        }}
       >
-        <XStack alignItems="center" gap="$3">
-          {/* Avatar placeholder */}
-          <YStack
-            width={40}
-            height={40}
-            borderRadius={20}
-            backgroundColor={isDark ? '#333' : '#E5E5E5'}
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Feather name="user" size={20} color={textSecondary} />
-          </YStack>
-
-          {/* User info */}
-          <YStack flex={1}>
-            <XStack alignItems="center" gap="$2">
-              <Text
-                fontSize="$4"
-                fontWeight="600"
-                color={textPrimary}
-                numberOfLines={1}
-                flex={1}
-              >
-                {item.full_name}
-              </Text>
-              {/* Role badge */}
-              <YStack
-                paddingHorizontal={8}
-                paddingVertical={2}
-                borderRadius={10}
-                backgroundColor={roleBadgeColor(item.role) + '25'}
-              >
-                <Text
-                  fontSize={11}
-                  fontWeight="600"
-                  color={roleBadgeColor(item.role)}
-                >
-                  {item.role}
-                </Text>
-              </YStack>
-            </XStack>
-            <Text fontSize="$2" color={textSecondary} numberOfLines={1}>
-              {item.email}
-            </Text>
-            <Text fontSize="$1" color={textMuted}>
-              {formatDate(item.created_at)}
-            </Text>
-          </YStack>
-
-          {/* Deactivate button */}
-          {!isDeactivated && item.id !== user?.id && (
-            <TouchableOpacity
-              onPress={() => handleDeactivateUser(item.id)}
-              disabled={deactivatingUser === item.id}
-              style={{
-                paddingHorizontal: 10,
-                paddingVertical: 6,
-                borderRadius: 8,
-                backgroundColor: '#FF444420',
-                opacity: deactivatingUser === item.id ? 0.5 : 1,
-              }}
-            >
-              {deactivatingUser === item.id ? (
-                <Spinner size="small" color="#FF4444" />
-              ) : (
-                <Text fontSize="$2" fontWeight="600" color="#FF4444">
-                  {t('admin.deactivateUser') || 'Deactivate'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
-
-          {isDeactivated && (
+        <YStack
+          backgroundColor={cardBg}
+          borderRadius={12}
+          padding="$3"
+          marginBottom="$2"
+          borderWidth={1}
+          borderColor={cardBorder}
+          opacity={isDeactivated ? 0.5 : 1}
+        >
+          <XStack alignItems="center" gap="$3">
+            {/* Avatar */}
             <YStack
-              paddingHorizontal={10}
-              paddingVertical={6}
-              borderRadius={8}
-              backgroundColor={isDark ? '#333' : '#F0F0F0'}
+              width={40}
+              height={40}
+              borderRadius={20}
+              backgroundColor={isDark ? '#333' : '#E5E5E5'}
+              justifyContent="center"
+              alignItems="center"
+              overflow="hidden"
             >
-              <Text fontSize="$2" fontWeight="600" color={textMuted}>
-                {t('admin.deactivated') || 'Deactivated'}
+              {item.avatar_url ? (
+                <Image
+                  source={{ uri: item.avatar_url }}
+                  style={{ width: 40, height: 40, borderRadius: 20 }}
+                />
+              ) : (
+                <Feather name="user" size={20} color={textSecondary} />
+              )}
+            </YStack>
+
+            {/* User info */}
+            <YStack flex={1}>
+              <XStack alignItems="center" gap="$2">
+                <Text
+                  fontSize="$4"
+                  fontWeight="600"
+                  color={textPrimary}
+                  numberOfLines={1}
+                  flex={1}
+                >
+                  {item.full_name}
+                </Text>
+                {/* Role badge - tappable to change role */}
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    if (!isSelf) {
+                      setRoleChangeTarget(item);
+                      setShowRoleModal(true);
+                    }
+                  }}
+                  disabled={isSelf}
+                  style={{
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 10,
+                    backgroundColor: roleBadgeColor(item.role) + '25',
+                  }}
+                >
+                  <Text fontSize={11} fontWeight="600" color={roleBadgeColor(item.role)}>
+                    {roleLabel(item.role)}
+                  </Text>
+                </TouchableOpacity>
+              </XStack>
+              <Text fontSize="$2" color={textSecondary} numberOfLines={1}>
+                {item.email}
+              </Text>
+              <Text fontSize="$1" color={textMuted}>
+                {formatDate(item.created_at)}
               </Text>
             </YStack>
-          )}
-        </XStack>
-      </YStack>
+
+            {/* Action menu */}
+            {!isSelf && (
+              <TouchableOpacity
+                onPress={() => {
+                  setUserActionTarget(item);
+                  setShowUserActionModal(true);
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ padding: 4 }}
+              >
+                <Feather name="more-vertical" size={18} color={textSecondary} />
+              </TouchableOpacity>
+            )}
+          </XStack>
+        </YStack>
+      </TouchableOpacity>
     );
   };
 
@@ -680,7 +821,7 @@ export function AdminDashboardScreen() {
         <TextInput
           value={userSearch}
           onChangeText={setUserSearch}
-          placeholder={t('admin.searchUsers') || 'Search users...'}
+          placeholder={tx('admin.searchUsers', 'Search users...', 'Sök användare...')}
           placeholderTextColor={placeholderColor}
           style={{
             flex: 1,
@@ -754,7 +895,7 @@ export function AdminDashboardScreen() {
             <YStack alignItems="center" padding="$6" gap="$3">
               <Feather name="users" size={48} color={textMuted} />
               <Text fontSize="$4" color={textMuted} textAlign="center">
-                {t('admin.noUsersFound') || 'No users found'}
+                {tx('admin.noUsersFound', 'No users found', 'Inga användare hittades')}
               </Text>
             </YStack>
           ) : null
@@ -764,80 +905,209 @@ export function AdminDashboardScreen() {
   );
 
   // ---------------------------------------------------------------------------
-  // Renderers: Routes tab
+  // Renderers: Schools tab
   // ---------------------------------------------------------------------------
 
-  const renderRouteItem = ({ item }: { item: RouteItem }) => (
-    <YStack
-      backgroundColor={cardBg}
-      borderRadius={12}
-      padding="$3"
-      marginBottom="$2"
-      borderWidth={1}
-      borderColor={cardBorder}
-    >
-      <XStack alignItems="center" gap="$3">
-        {/* Route icon */}
-        <YStack
-          width={36}
-          height={36}
-          borderRadius={18}
-          backgroundColor="#00E6C320"
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Feather name="map-pin" size={18} color="#00E6C3" />
-        </YStack>
+  const renderSchoolItem = ({ item }: { item: SchoolItem }) => {
+    const isActive = item.is_active === true;
+    const isToggling = togglingSchoolId === item.id;
 
-        {/* Route info */}
-        <YStack flex={1}>
-          <Text fontSize="$4" fontWeight="600" color={textPrimary} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <XStack alignItems="center" gap="$2">
-            <Text fontSize="$2" color={textSecondary} numberOfLines={1}>
-              {item.creator_name}
-            </Text>
-            {item.difficulty && (
+    return (
+      <YStack
+        backgroundColor={cardBg}
+        borderRadius={12}
+        padding="$3"
+        marginBottom="$2"
+        borderWidth={1}
+        borderColor={isActive ? '#00E6C340' : cardBorder}
+      >
+        <XStack alignItems="center" gap="$3">
+          <YStack
+            width={40}
+            height={40}
+            borderRadius={20}
+            backgroundColor={isActive ? '#00E6C320' : '#FFB80020'}
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Feather
+              name="home"
+              size={20}
+              color={isActive ? '#00E6C3' : '#FFB800'}
+            />
+          </YStack>
+
+          <YStack flex={1}>
+            <XStack alignItems="center" gap="$2">
+              <Text fontSize="$4" fontWeight="600" color={textPrimary} numberOfLines={1} flex={1}>
+                {item.name}
+              </Text>
               <YStack
                 paddingHorizontal={8}
                 paddingVertical={2}
                 borderRadius={10}
-                backgroundColor={difficultyBadgeColor(item.difficulty) + '25'}
+                backgroundColor={isActive ? '#00E6C325' : '#FFB80025'}
               >
-                <Text
-                  fontSize={11}
-                  fontWeight="600"
-                  color={difficultyBadgeColor(item.difficulty)}
-                >
-                  {item.difficulty}
+                <Text fontSize={11} fontWeight="600" color={isActive ? '#00E6C3' : '#FFB800'}>
+                  {isActive
+                    ? tx('admin.verified', 'Verified', 'Verifierad')
+                    : tx('admin.pending', 'Pending', 'Väntar')}
                 </Text>
               </YStack>
+            </XStack>
+            {item.contact_email && (
+              <Text fontSize="$2" color={textSecondary} numberOfLines={1}>
+                {item.contact_email}
+              </Text>
             )}
-          </XStack>
-          <Text fontSize="$1" color={textMuted}>
-            {formatDate(item.created_at)}
-          </Text>
-        </YStack>
+            <XStack gap="$2" alignItems="center">
+              {item.organization_number && (
+                <Text fontSize="$1" color={textMuted}>
+                  Org: {item.organization_number}
+                </Text>
+              )}
+              <Text fontSize="$1" color={textMuted}>
+                {formatDate(item.created_at)}
+              </Text>
+            </XStack>
+          </YStack>
 
-        {/* Delete button */}
-        <TouchableOpacity
-          onPress={() => handleDeleteRoute(item.id)}
-          disabled={deletingRoute === item.id}
-          style={{
-            padding: 8,
-            opacity: deletingRoute === item.id ? 0.4 : 1,
-          }}
-        >
-          {deletingRoute === item.id ? (
-            <Spinner size="small" color="#FF4444" />
-          ) : (
-            <Feather name="trash-2" size={18} color="#FF4444" />
-          )}
-        </TouchableOpacity>
-      </XStack>
+          <TouchableOpacity
+            onPress={() => handleToggleSchoolActive(item.id, isActive)}
+            disabled={isToggling}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 8,
+              backgroundColor: isActive ? '#FF6B6B20' : '#00E6C320',
+              opacity: isToggling ? 0.5 : 1,
+            }}
+          >
+            {isToggling ? (
+              <Spinner size="small" color={isActive ? '#FF6B6B' : '#00E6C3'} />
+            ) : (
+              <Text fontSize="$2" fontWeight="600" color={isActive ? '#FF6B6B' : '#00E6C3'}>
+                {isActive
+                  ? tx('admin.deactivate', 'Deactivate', 'Inaktivera')
+                  : tx('admin.activate', 'Activate', 'Aktivera')}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </XStack>
+      </YStack>
+    );
+  };
+
+  const renderSchoolsTab = () => (
+    <YStack gap="$3">
+      {schoolsLoading ? (
+        <YStack padding="$4" alignItems="center">
+          <Spinner size="small" color="#00E6C3" />
+        </YStack>
+      ) : (
+        <FlatList
+          data={schools}
+          keyExtractor={(item) => item.id}
+          renderItem={renderSchoolItem}
+          scrollEnabled={false}
+          ListEmptyComponent={
+            <YStack alignItems="center" padding="$6" gap="$3">
+              <Feather name="home" size={48} color={textMuted} />
+              <Text fontSize="$4" color={textMuted} textAlign="center">
+                {tx('admin.noSchools', 'No schools yet', 'Inga skolor ännu')}
+              </Text>
+            </YStack>
+          }
+        />
+      )}
     </YStack>
   );
+
+  // ---------------------------------------------------------------------------
+  // Renderers: Routes tab
+  // ---------------------------------------------------------------------------
+
+  const renderRouteItem = ({ item }: { item: RouteItem }) => {
+    const diff = difficultyLabel(item.difficulty);
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => {
+          setSelectedRouteId(item.id);
+          setShowRouteDetailSheet(true);
+        }}
+      >
+        <YStack
+          backgroundColor={cardBg}
+          borderRadius={12}
+          padding="$3"
+          marginBottom="$2"
+          borderWidth={1}
+          borderColor={cardBorder}
+        >
+          <XStack alignItems="center" gap="$3">
+            {/* Route icon */}
+            <YStack
+              width={36}
+              height={36}
+              borderRadius={18}
+              backgroundColor="#00E6C320"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Feather name="map-pin" size={18} color="#00E6C3" />
+            </YStack>
+
+            {/* Route info */}
+            <YStack flex={1}>
+              <Text fontSize="$4" fontWeight="600" color={textPrimary} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <XStack alignItems="center" gap="$2">
+                <TouchableOpacity
+                  onPress={() => {
+                    if (item.creator_id) {
+                      setSelectedUserId(item.creator_id);
+                      setShowUserProfileSheet(true);
+                    }
+                  }}
+                >
+                  <Text fontSize="$2" color="#00E6C3" numberOfLines={1}>
+                    {item.creator_name}
+                  </Text>
+                </TouchableOpacity>
+                {diff && (
+                  <YStack
+                    paddingHorizontal={8}
+                    paddingVertical={2}
+                    borderRadius={10}
+                    backgroundColor={diff.color + '25'}
+                  >
+                    <Text fontSize={11} fontWeight="600" color={diff.color}>
+                      {language === 'sv' ? diff.sv : diff.en}
+                    </Text>
+                  </YStack>
+                )}
+              </XStack>
+              <Text fontSize="$1" color={textMuted}>
+                {formatDate(item.created_at)}
+              </Text>
+            </YStack>
+
+            {/* Delete button */}
+            <TouchableOpacity
+              onPress={() => handleDeleteRoute(item.id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ padding: 8 }}
+            >
+              <Feather name="trash-2" size={16} color="#FF6B6B" />
+            </TouchableOpacity>
+          </XStack>
+        </YStack>
+      </TouchableOpacity>
+    );
+  };
 
   const renderRoutesTab = () => (
     <YStack gap="$3">
@@ -854,7 +1124,7 @@ export function AdminDashboardScreen() {
         <TextInput
           value={routeSearch}
           onChangeText={setRouteSearch}
-          placeholder={t('admin.searchRoutes') || 'Search routes...'}
+          placeholder={tx('admin.searchRoutes', 'Search routes...', 'Sök rutter...')}
           placeholderTextColor={placeholderColor}
           style={{
             flex: 1,
@@ -895,7 +1165,7 @@ export function AdminDashboardScreen() {
             <YStack alignItems="center" padding="$6" gap="$3">
               <Feather name="map" size={48} color={textMuted} />
               <Text fontSize="$4" color={textMuted} textAlign="center">
-                {t('admin.noRoutesFound') || 'No routes found'}
+                {tx('admin.noRoutesFound', 'No routes found', 'Inga rutter hittades')}
               </Text>
             </YStack>
           ) : null
@@ -910,7 +1180,6 @@ export function AdminDashboardScreen() {
 
   const renderSettingsTab = () => (
     <YStack gap="$3">
-      {/* Show schools default */}
       <YStack
         backgroundColor={cardBg}
         borderRadius={12}
@@ -921,23 +1190,27 @@ export function AdminDashboardScreen() {
         <XStack alignItems="center" justifyContent="space-between">
           <YStack flex={1} marginRight="$3">
             <Text fontSize="$4" fontWeight="600" color={textPrimary}>
-              {t('admin.showSchoolsDefault') || 'Default show schools on map'}
+              {tx('admin.showSchoolsDefault', 'Default show schools on map', 'Visa skolor på kartan som standard')}
             </Text>
             <Text fontSize="$2" color={textSecondary} marginTop="$1">
-              {t('admin.showSchoolsDescription') ||
-                'When enabled, schools will be shown on the map by default for all users.'}
+              {tx(
+                'admin.showSchoolsDescription',
+                'When enabled, schools will be shown on the map by default for all users.',
+                'När aktiverat visas skolor på kartan som standard för alla användare.',
+              )}
             </Text>
           </YStack>
           <Switch
-            trackColor={{ false: isDark ? '#555' : '#D1D1D6', true: '#00E6C3' }}
-            thumbColor="#FFF"
-            value={showSchoolsDefault}
-            onValueChange={handleToggleSchoolsDefault}
-          />
+            size="$4"
+            checked={showSchoolsDefault}
+            onCheckedChange={handleToggleSchoolsDefault}
+            backgroundColor={showSchoolsDefault ? '$switchActive' : '$switchInactive'}
+          >
+            <Switch.Thumb backgroundColor="$switchThumb" />
+          </Switch>
         </XStack>
       </YStack>
 
-      {/* Show instructors default */}
       <YStack
         backgroundColor={cardBg}
         borderRadius={12}
@@ -948,23 +1221,243 @@ export function AdminDashboardScreen() {
         <XStack alignItems="center" justifyContent="space-between">
           <YStack flex={1} marginRight="$3">
             <Text fontSize="$4" fontWeight="600" color={textPrimary}>
-              {t('admin.showInstructorsDefault') || 'Default show instructors on map'}
+              {tx('admin.showInstructorsDefault', 'Default show instructors on map', 'Visa handledare på kartan som standard')}
             </Text>
             <Text fontSize="$2" color={textSecondary} marginTop="$1">
-              {t('admin.showInstructorsDescription') ||
-                'When enabled, instructors will be shown on the map by default for all users.'}
+              {tx(
+                'admin.showInstructorsDescription',
+                'When enabled, instructors will be shown on the map by default for all users.',
+                'När aktiverat visas handledare på kartan som standard för alla användare.',
+              )}
             </Text>
           </YStack>
           <Switch
-            trackColor={{ false: isDark ? '#555' : '#D1D1D6', true: '#00E6C3' }}
-            thumbColor="#FFF"
-            value={showInstructorsDefault}
-            onValueChange={handleToggleInstructorsDefault}
-          />
+            size="$4"
+            checked={showInstructorsDefault}
+            onCheckedChange={handleToggleInstructorsDefault}
+            backgroundColor={showInstructorsDefault ? '$switchActive' : '$switchInactive'}
+          >
+            <Switch.Thumb backgroundColor="$switchThumb" />
+          </Switch>
         </XStack>
       </YStack>
     </YStack>
   );
+
+  // ---------------------------------------------------------------------------
+  // Role change modal
+  // ---------------------------------------------------------------------------
+
+  const renderRoleModal = () => (
+    <Modal
+      visible={showRoleModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => {
+        setShowRoleModal(false);
+        setRoleChangeTarget(null);
+      }}
+    >
+      <Pressable
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 }}
+        onPress={() => {
+          setShowRoleModal(false);
+          setRoleChangeTarget(null);
+        }}
+      >
+        <Pressable
+          style={{
+            backgroundColor: isDark ? '#1A1A1A' : '#FFF',
+            borderRadius: 16,
+            padding: 20,
+          }}
+        >
+          <Text fontSize="$5" fontWeight="700" color={textPrimary} marginBottom="$2">
+            {language === 'sv' ? 'Ändra roll' : 'Change Role'}
+          </Text>
+          {roleChangeTarget && (
+            <Text fontSize="$3" color={textSecondary} marginBottom="$4">
+              {roleChangeTarget.full_name} ({roleChangeTarget.email})
+            </Text>
+          )}
+
+          <YStack gap="$2">
+            {AVAILABLE_ROLES.map((role) => {
+              const isCurrentRole = roleChangeTarget?.role === role;
+              return (
+                <TouchableOpacity
+                  key={role}
+                  onPress={() => !isCurrentRole && handleChangeRole(role)}
+                  disabled={changingRole || isCurrentRole}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    padding: 14,
+                    borderRadius: 12,
+                    backgroundColor: isCurrentRole
+                      ? (isDark ? '#333' : '#F0F0F0')
+                      : (isDark ? '#222' : '#FAFAFA'),
+                    borderWidth: isCurrentRole ? 2 : 1,
+                    borderColor: isCurrentRole ? '#00E6C3' : cardBorder,
+                    opacity: changingRole ? 0.5 : 1,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: 5,
+                      backgroundColor: roleBadgeColor(role),
+                      marginRight: 12,
+                    }}
+                  />
+                  <Text fontSize="$4" fontWeight="600" color={textPrimary} flex={1}>
+                    {roleLabel(role)}
+                  </Text>
+                  {isCurrentRole && (
+                    <Feather name="check" size={18} color="#00E6C3" />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </YStack>
+
+          {changingRole && (
+            <YStack alignItems="center" marginTop="$3">
+              <Spinner size="small" color="#00E6C3" />
+            </YStack>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
+  // ---------------------------------------------------------------------------
+  // User action modal (deactivate/reactivate)
+  // ---------------------------------------------------------------------------
+
+  const renderUserActionModal = () => {
+    if (!userActionTarget) return null;
+    const isDeactivated = userActionTarget.account_status === 'deleted';
+
+    return (
+      <Modal
+        visible={showUserActionModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setShowUserActionModal(false);
+          setUserActionTarget(null);
+        }}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}
+          onPress={() => {
+            setShowUserActionModal(false);
+            setUserActionTarget(null);
+          }}
+        >
+          <Pressable
+            style={{
+              backgroundColor: isDark ? '#1A1A1A' : '#FFF',
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              padding: 20,
+              paddingBottom: 36,
+            }}
+          >
+            <Text fontSize="$5" fontWeight="700" color={textPrimary} marginBottom="$1">
+              {userActionTarget.full_name}
+            </Text>
+            <Text fontSize="$3" color={textSecondary} marginBottom="$4">
+              {userActionTarget.email}
+            </Text>
+
+            <YStack gap="$2">
+              {/* View profile */}
+              <TouchableOpacity
+                onPress={() => {
+                  setShowUserActionModal(false);
+                  setSelectedUserId(userActionTarget.id);
+                  setShowUserProfileSheet(true);
+                  setUserActionTarget(null);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: 14,
+                  borderRadius: 12,
+                  backgroundColor: isDark ? '#222' : '#FAFAFA',
+                }}
+              >
+                <Feather name="user" size={18} color={textPrimary} style={{ marginRight: 12 }} />
+                <Text fontSize="$4" color={textPrimary}>
+                  {language === 'sv' ? 'Visa profil' : 'View profile'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Change role */}
+              <TouchableOpacity
+                onPress={() => {
+                  setShowUserActionModal(false);
+                  setRoleChangeTarget(userActionTarget);
+                  setShowRoleModal(true);
+                  setUserActionTarget(null);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: 14,
+                  borderRadius: 12,
+                  backgroundColor: isDark ? '#222' : '#FAFAFA',
+                }}
+              >
+                <Feather name="shield" size={18} color={textPrimary} style={{ marginRight: 12 }} />
+                <Text fontSize="$4" color={textPrimary}>
+                  {language === 'sv' ? 'Ändra roll' : 'Change role'}
+                </Text>
+                <Text fontSize="$3" color={textSecondary} marginLeft="auto">
+                  {roleLabel(userActionTarget.role)}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Deactivate/Reactivate */}
+              <TouchableOpacity
+                onPress={handleDeactivateUser}
+                disabled={processingAction}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: 14,
+                  borderRadius: 12,
+                  backgroundColor: isDeactivated ? '#00E6C315' : '#FF6B6B15',
+                  opacity: processingAction ? 0.5 : 1,
+                }}
+              >
+                {processingAction ? (
+                  <Spinner size="small" color={isDeactivated ? '#00E6C3' : '#FF6B6B'} />
+                ) : (
+                  <>
+                    <Feather
+                      name={isDeactivated ? 'user-check' : 'user-x'}
+                      size={18}
+                      color={isDeactivated ? '#00E6C3' : '#FF6B6B'}
+                      style={{ marginRight: 12 }}
+                    />
+                    <Text fontSize="$4" color={isDeactivated ? '#00E6C3' : '#FF6B6B'}>
+                      {isDeactivated
+                        ? (language === 'sv' ? 'Återaktivera' : 'Reactivate')
+                        : (language === 'sv' ? 'Inaktivera' : 'Deactivate')}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </YStack>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    );
+  };
 
   // ---------------------------------------------------------------------------
   // Loading state
@@ -973,7 +1466,7 @@ export function AdminDashboardScreen() {
   if (loading) {
     return (
       <Screen>
-        <Header title={t('admin.title') || 'Admin Dashboard'} showBack />
+        <Header title={tx('admin.title', 'Admin Dashboard', 'Adminpanel')} showBack />
         <YStack flex={1} justifyContent="center" alignItems="center">
           <Spinner size="large" color="#00E6C3" />
         </YStack>
@@ -987,7 +1480,7 @@ export function AdminDashboardScreen() {
 
   return (
     <Screen scroll={false} padding={false}>
-      <Header title={t('admin.title') || 'Admin Dashboard'} showBack />
+      <Header title={tx('admin.title', 'Admin Dashboard', 'Adminpanel')} showBack />
       <FlatList
         data={[{ key: 'content' }]}
         keyExtractor={(item) => item.key}
@@ -998,12 +1491,11 @@ export function AdminDashboardScreen() {
             backgroundColor={screenBg}
             minHeight="100%"
           >
-            {/* Tabs */}
             {renderTabBar()}
 
-            {/* Active tab content */}
             {activeTab === 'stats' && renderStatsTab()}
             {activeTab === 'users' && renderUsersTab()}
+            {activeTab === 'schools' && renderSchoolsTab()}
             {activeTab === 'routes' && renderRoutesTab()}
             {activeTab === 'settings' && renderSettingsTab()}
           </YStack>
@@ -1012,6 +1504,28 @@ export function AdminDashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       />
+
+      {/* Reuse existing sheets */}
+      <UserProfileSheet
+        visible={showUserProfileSheet}
+        onClose={() => setShowUserProfileSheet(false)}
+        userId={selectedUserId}
+      />
+
+      <RouteDetailSheet
+        visible={showRouteDetailSheet}
+        onClose={() => setShowRouteDetailSheet(false)}
+        routeId={selectedRouteId}
+        onNavigateToProfile={(userId) => {
+          setShowRouteDetailSheet(false);
+          setSelectedUserId(userId);
+          setShowUserProfileSheet(true);
+        }}
+      />
+
+      {/* Modals */}
+      {renderRoleModal()}
+      {renderUserActionModal()}
     </Screen>
   );
 }

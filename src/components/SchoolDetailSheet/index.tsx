@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, TouchableOpacity, Dimensions, Linking, Platform } from 'react-native';
+import { Modal, TouchableOpacity, Dimensions, Linking, Platform, Image } from 'react-native';
 import { YStack, XStack, Text, Spinner } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -12,6 +12,8 @@ import Animated, {
 import { supabase } from '../../lib/supabase';
 import { useTranslation } from '../../contexts/TranslationContext';
 import { useThemePreference } from '../../hooks/useThemeOverride';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -30,20 +32,32 @@ interface EntityData {
   location?: string;
   avatar_url?: string;
   logo_url?: string;
+  memberCount?: number;
+  routeCount?: number;
+  schoolId?: string;
 }
 
 const SNAP_POINTS = {
-  medium: SCREEN_HEIGHT * 0.4,
+  medium: SCREEN_HEIGHT * 0.55,
   dismissed: SCREEN_HEIGHT,
 };
 
 export function SchoolDetailSheet({ visible, onClose, entityId, entityType }: SchoolDetailSheetProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { effectiveTheme } = useThemePreference();
+  const { user, profile } = useAuth();
+  const { showToast } = useToast();
   const isDark = effectiveTheme === 'dark';
+
+  const tx = (key: string, en: string, sv?: string): string => {
+    const translated = t(key);
+    if (translated && translated !== key) return translated;
+    return language === 'sv' && sv ? sv : en;
+  };
 
   const [data, setData] = useState<EntityData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState(false);
 
   const translateY = useSharedValue(SNAP_POINTS.dismissed);
 
@@ -62,12 +76,23 @@ export function SchoolDetailSheet({ visible, onClose, entityId, entityType }: Sc
       if (entityType === 'school') {
         // Extract actual school id (remove prefix)
         const actualId = entityId.replace('school-', '');
-        const { data: school } = await supabase
-          .from('schools')
-          .select('id, name, description, contact_email, phone, location, logo_url')
-          .eq('id', actualId)
-          .single();
+        const [schoolRes, memberCountRes, routeCountRes] = await Promise.all([
+          supabase
+            .from('schools')
+            .select('id, name, description, contact_email, phone, location, logo_url')
+            .eq('id', actualId)
+            .single(),
+          supabase
+            .from('school_memberships')
+            .select('id', { count: 'exact', head: true })
+            .eq('school_id', actualId),
+          supabase
+            .from('school_routes')
+            .select('id', { count: 'exact', head: true })
+            .eq('school_id', actualId),
+        ]);
 
+        const school = schoolRes.data;
         if (school) {
           setData({
             name: school.name || 'Unknown School',
@@ -76,23 +101,26 @@ export function SchoolDetailSheet({ visible, onClose, entityId, entityType }: Sc
             phone: school.phone || undefined,
             location: school.location || undefined,
             logo_url: school.logo_url || undefined,
+            memberCount: memberCountRes.count ?? 0,
+            routeCount: routeCountRes.count ?? 0,
+            schoolId: school.id,
           });
         }
       } else {
         const actualId = entityId.replace('instructor-', '');
-        const { data: profile } = await supabase
+        const { data: profileData } = await supabase
           .from('profiles')
           .select('id, full_name, email, phone, location, avatar_url')
           .eq('id', actualId)
           .single();
 
-        if (profile) {
+        if (profileData) {
           setData({
-            name: profile.full_name || 'Unknown Instructor',
-            email: profile.email || undefined,
-            phone: (profile as any).phone || undefined,
-            location: profile.location || undefined,
-            avatar_url: profile.avatar_url || undefined,
+            name: profileData.full_name || 'Unknown Instructor',
+            email: profileData.email || undefined,
+            phone: (profileData as any).phone || undefined,
+            location: profileData.location || undefined,
+            avatar_url: profileData.avatar_url || undefined,
           });
         }
       }
@@ -100,6 +128,39 @@ export function SchoolDetailSheet({ visible, onClose, entityId, entityType }: Sc
       console.error('Error loading entity data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleJoinSchool = async () => {
+    if (!user?.id || !data?.schoolId) return;
+    setJoining(true);
+    try {
+      const myRole = profile?.role || 'student';
+      const memberRole = (myRole === 'instructor' || myRole === 'teacher') ? 'instructor' : 'student';
+
+      const { error } = await supabase.from('school_memberships').insert({
+        school_id: data.schoolId,
+        user_id: user.id,
+        role: memberRole,
+      });
+
+      if (error) {
+        if (error.code === '23505') {
+          showToast({ title: tx('school.alreadyMember', 'Already a member', 'Redan medlem'), message: '', type: 'info' });
+        } else {
+          throw error;
+        }
+      } else {
+        const label = memberRole === 'instructor'
+          ? tx('school.joinedAsInstructor', 'Joined as instructor!', 'Ansluten som handledare!')
+          : tx('school.enrolledAsStudent', 'Enrolled as student!', 'Inskriven som elev!');
+        showToast({ title: label, message: '', type: 'success' });
+      }
+    } catch (err) {
+      console.error('Error joining school:', err);
+      showToast({ title: tx('common.error', 'Error', 'Fel'), message: tx('school.joinFailed', 'Failed to join.', 'Kunde inte gå med.'), type: 'error' });
+    } finally {
+      setJoining(false);
     }
   };
 
@@ -196,20 +257,27 @@ export function SchoolDetailSheet({ visible, onClose, entityId, entityType }: Sc
               <YStack padding="$4" gap="$3">
                 {/* Hero section */}
                 <XStack alignItems="center" gap="$3">
-                  <YStack
-                    width={60}
-                    height={60}
-                    borderRadius={30}
-                    backgroundColor={entityType === 'school' ? '#FF6B0020' : '#0A84FF20'}
-                    justifyContent="center"
-                    alignItems="center"
-                  >
-                    <Feather
-                      name={entityType === 'school' ? 'home' : 'user'}
-                      size={28}
-                      color={entityType === 'school' ? '#FF6B00' : '#0A84FF'}
+                  {entityType === 'school' && data.logo_url ? (
+                    <Image
+                      source={{ uri: data.logo_url }}
+                      style={{ width: 60, height: 60, borderRadius: 30 }}
                     />
-                  </YStack>
+                  ) : (
+                    <YStack
+                      width={60}
+                      height={60}
+                      borderRadius={30}
+                      backgroundColor={entityType === 'school' ? '#FF6B0020' : '#0A84FF20'}
+                      justifyContent="center"
+                      alignItems="center"
+                    >
+                      <Feather
+                        name={entityType === 'school' ? 'home' : 'user'}
+                        size={28}
+                        color={entityType === 'school' ? '#FF6B00' : '#0A84FF'}
+                      />
+                    </YStack>
+                  )}
                   <YStack flex={1}>
                     <Text fontSize="$6" fontWeight="bold" color={isDark ? '#FFF' : '#000'}>
                       {data.name}
@@ -224,6 +292,24 @@ export function SchoolDetailSheet({ visible, onClose, entityId, entityType }: Sc
                     )}
                   </YStack>
                 </XStack>
+
+                {/* Stats row (school only) */}
+                {entityType === 'school' && (data.memberCount !== undefined || data.routeCount !== undefined) && (
+                  <XStack gap="$4" paddingVertical="$2">
+                    <XStack alignItems="center" gap="$1">
+                      <Feather name="users" size={16} color={isDark ? '#AAA' : '#666'} />
+                      <Text fontSize="$3" fontWeight="600" color={isDark ? '#CCC' : '#333'}>
+                        {data.memberCount ?? 0} {tx('school.members', 'Members', 'Medlemmar')}
+                      </Text>
+                    </XStack>
+                    <XStack alignItems="center" gap="$1">
+                      <Feather name="map" size={16} color={isDark ? '#AAA' : '#666'} />
+                      <Text fontSize="$3" fontWeight="600" color={isDark ? '#CCC' : '#333'}>
+                        {data.routeCount ?? 0} {tx('school.routes', 'Routes', 'Rutter')}
+                      </Text>
+                    </XStack>
+                  </XStack>
+                )}
 
                 {/* Description */}
                 {data.description && (
@@ -253,6 +339,38 @@ export function SchoolDetailSheet({ visible, onClose, entityId, entityType }: Sc
 
                 {/* Action buttons */}
                 <XStack gap="$2" marginTop="$2">
+                  {/* Enroll/Join button for schools */}
+                  {entityType === 'school' && data.schoolId && (
+                    <TouchableOpacity
+                      onPress={handleJoinSchool}
+                      disabled={joining}
+                      style={{
+                        flex: 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        paddingVertical: 12,
+                        borderRadius: 12,
+                        backgroundColor: '#00E6C3',
+                        opacity: joining ? 0.6 : 1,
+                      }}
+                    >
+                      {joining ? (
+                        <Spinner size="small" color="#000" />
+                      ) : (
+                        <>
+                          <Feather name="user-plus" size={18} color="#000" />
+                          <Text fontSize="$3" fontWeight="600" color="#000">
+                            {(profile?.role === 'instructor' || profile?.role === 'teacher')
+                              ? tx('school.joinSchool', 'Join', 'Gå med')
+                              : tx('school.enrollSchool', 'Enroll', 'Skriv in dig')}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )}
+
                   {data.email && (
                     <TouchableOpacity
                       onPress={openEmail}
@@ -264,12 +382,12 @@ export function SchoolDetailSheet({ visible, onClose, entityId, entityType }: Sc
                         gap: 8,
                         paddingVertical: 12,
                         borderRadius: 12,
-                        backgroundColor: '#00E6C3',
+                        backgroundColor: entityType === 'school' && data.schoolId ? (isDark ? '#333' : '#E5E5E5') : '#00E6C3',
                       }}
                     >
-                      <Feather name="mail" size={18} color="#000" />
-                      <Text fontSize="$3" fontWeight="600" color="#000">
-                        Contact
+                      <Feather name="mail" size={18} color={entityType === 'school' && data.schoolId ? (isDark ? '#FFF' : '#333') : '#000'} />
+                      <Text fontSize="$3" fontWeight="600" color={entityType === 'school' && data.schoolId ? (isDark ? '#FFF' : '#333') : '#000'}>
+                        {tx('common.contact', 'Contact', 'Kontakt')}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -290,7 +408,7 @@ export function SchoolDetailSheet({ visible, onClose, entityId, entityType }: Sc
                     >
                       <Feather name="navigation" size={18} color={isDark ? '#FFF' : '#333'} />
                       <Text fontSize="$3" fontWeight="600" color={isDark ? '#FFF' : '#333'}>
-                        Directions
+                        {tx('common.directions', 'Directions', 'Vägbeskrivning')}
                       </Text>
                     </TouchableOpacity>
                   )}

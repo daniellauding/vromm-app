@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   RefreshControl,
-  Alert,
   FlatList,
   TouchableOpacity,
   TextInput,
   Image,
   Platform,
+  Modal,
+  Pressable,
+  ScrollView as RNScrollView,
 } from 'react-native';
 import { YStack, XStack, Text, Spinner, Switch } from 'tamagui';
 import { Screen } from '../components/Screen';
@@ -20,6 +22,9 @@ import { RootStackNavigationProp } from '../types/navigation';
 import { useTranslation } from '../contexts/TranslationContext';
 import { useThemePreference } from '../hooks/useThemeOverride';
 import { Button } from '../components/Button';
+import { UserProfileSheet } from '../components/UserProfileSheet';
+import { RouteDetailSheet } from '../components/RouteDetailSheet';
+import { useToast } from '../contexts/ToastContext';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 
@@ -67,9 +72,10 @@ type TabKey = 'info' | 'students' | 'routes';
 // ---------------------------------------------------------------------------
 
 export function SchoolDashboardScreen() {
-  const { user } = useAuth();
+  const { user, profile: authProfile } = useAuth();
   const navigation = useNavigation<RootStackNavigationProp>();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const { showToast } = useToast();
   const { effectiveTheme } = useThemePreference();
   const isDark = effectiveTheme === 'dark';
 
@@ -104,6 +110,35 @@ export function SchoolDashboardScreen() {
   const [addingRoute, setAddingRoute] = useState<string | null>(null);
   const [removingRoute, setRemovingRoute] = useState<string | null>(null);
 
+  // Setup form state (for "Create School" empty state)
+  const [setupName, setSetupName] = useState('');
+  const [setupOrgNumber, setSetupOrgNumber] = useState('');
+  const [setupEmail, setSetupEmail] = useState('');
+  const [creatingSchool, setCreatingSchool] = useState(false);
+
+  // Invite instructor state
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [instructorSearch, setInstructorSearch] = useState('');
+  const [instructorResults, setInstructorResults] = useState<{ id: string; full_name: string; email: string; avatar_url: string | null }[]>([]);
+  const [searchingInstructors, setSearchingInstructors] = useState(false);
+  const [invitingId, setInvitingId] = useState<string | null>(null);
+
+  // Sheet states
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [showUserProfileSheet, setShowUserProfileSheet] = useState(false);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [showRouteDetailSheet, setShowRouteDetailSheet] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // Translation helper
+  // ---------------------------------------------------------------------------
+
+  const tx = (key: string, en: string, sv?: string): string => {
+    const translated = t(key);
+    if (translated && translated !== key) return translated;
+    return language === 'sv' && sv ? sv : en;
+  };
+
   // ---------------------------------------------------------------------------
   // Data loading
   // ---------------------------------------------------------------------------
@@ -121,7 +156,7 @@ export function SchoolDashboardScreen() {
       if (memError) throw memError;
 
       if (!memberships || memberships.length === 0) {
-        setError(t('school.noSchoolFound') || 'No school found for your account.');
+        setError(tx('school.noSchoolFound', 'No school found for your account.', 'Ingen skola hittades för ditt konto.'));
         setLoading(false);
         setRefreshing(false);
         return;
@@ -129,7 +164,7 @@ export function SchoolDashboardScreen() {
 
       const schoolId = memberships[0].school_id;
       if (!schoolId) {
-        setError(t('school.noSchoolFound') || 'No school found for your account.');
+        setError(tx('school.noSchoolFound', 'No school found for your account.', 'Ingen skola hittades för ditt konto.'));
         setLoading(false);
         setRefreshing(false);
         return;
@@ -152,7 +187,7 @@ export function SchoolDashboardScreen() {
       setError(null);
     } catch (err) {
       console.error('Error loading school:', err);
-      setError(t('school.loadError') || 'Failed to load school data.');
+      setError(tx('school.loadError', 'Failed to load school data.', 'Kunde inte ladda skoldata.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -245,6 +280,129 @@ export function SchoolDashboardScreen() {
   };
 
   // ---------------------------------------------------------------------------
+  // Create school (empty state fallback)
+  // ---------------------------------------------------------------------------
+
+  const handleCreateSchool = async () => {
+    if (!user?.id || !setupName.trim()) return;
+    setCreatingSchool(true);
+    try {
+      const { data: newSchool, error: schoolErr } = await supabase
+        .from('schools')
+        .insert({
+          name: setupName.trim(),
+          organization_number: setupOrgNumber.trim() || null,
+          contact_email: setupEmail.trim() || user.email || null,
+          is_active: false,
+        })
+        .select('id')
+        .single();
+
+      if (schoolErr) throw schoolErr;
+
+      if (newSchool) {
+        const { error: memErr } = await supabase
+          .from('school_memberships')
+          .insert({
+            school_id: newSchool.id,
+            user_id: user.id,
+            role: 'admin',
+          });
+
+        if (memErr) throw memErr;
+      }
+
+      setError(null);
+      showToast({ title: tx('common.success', 'Success', 'Klart'), message: tx('school.created', 'School created!', 'Skolan skapad!'), type: 'success' });
+      await loadSchool();
+    } catch (err) {
+      console.error('Error creating school:', err);
+      showToast({ title: tx('common.error', 'Error', 'Fel'), message: tx('school.createFailed', 'Failed to create school.', 'Kunde inte skapa skolan.'), type: 'error' });
+    } finally {
+      setCreatingSchool(false);
+    }
+  };
+
+  // Pre-fill setup form when error state is shown
+  useEffect(() => {
+    if (error && !school) {
+      setSetupName((authProfile as any)?.full_name || '');
+      setSetupOrgNumber((authProfile as any)?.organization_number || '');
+      setSetupEmail(user?.email || '');
+    }
+  }, [error, school, authProfile, user]);
+
+  // ---------------------------------------------------------------------------
+  // Invite instructor
+  // ---------------------------------------------------------------------------
+
+  const handleSearchInstructors = async (query: string) => {
+    setInstructorSearch(query);
+    if (query.trim().length < 2) {
+      setInstructorResults([]);
+      return;
+    }
+    setSearchingInstructors(true);
+    try {
+      const { data, error: searchErr } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, avatar_url')
+        .in('role', ['instructor', 'teacher'])
+        .ilike('full_name', `%${query.trim()}%`)
+        .limit(20);
+
+      if (searchErr) throw searchErr;
+
+      // Filter out users already members of this school
+      const memberIds = new Set(students.map((s) => s.user_id));
+      setInstructorResults((data || []).filter((p: any) => !memberIds.has(p.id)));
+    } catch (err) {
+      console.error('Error searching instructors:', err);
+    } finally {
+      setSearchingInstructors(false);
+    }
+  };
+
+  const handleInviteInstructor = async (instructorId: string) => {
+    if (!school?.id) return;
+    setInvitingId(instructorId);
+    try {
+      const { error: insertErr } = await supabase.from('school_memberships').insert({
+        school_id: school.id,
+        user_id: instructorId,
+        role: 'instructor',
+      });
+
+      if (insertErr) {
+        if (insertErr.code === '23505') {
+          showToast({ title: tx('school.alreadyMember', 'Already a member', 'Redan medlem'), message: '', type: 'info' });
+        } else {
+          throw insertErr;
+        }
+      } else {
+        // Send notification
+        await supabase.from('notifications').insert({
+          user_id: instructorId,
+          type: 'system',
+          message: `You have been invited to ${school.name} as an instructor`,
+          actor_id: user?.id,
+        });
+
+        showToast({ title: tx('common.success', 'Success', 'Klart'), message: tx('school.instructorInvited', 'Instructor invited!', 'Handledare inbjuden!'), type: 'success' });
+        // Remove from search results
+        setInstructorResults((prev) => prev.filter((p) => p.id !== instructorId));
+        // Refresh members
+        await loadStudents();
+      }
+    } catch (err) {
+      console.error('Error inviting instructor:', err);
+      showToast({ title: tx('common.error', 'Error', 'Fel'), message: tx('school.inviteFailed', 'Failed to invite instructor.', 'Kunde inte bjuda in handledare.'), type: 'error' });
+    } finally {
+      setInvitingId(null);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // School info save
   // ---------------------------------------------------------------------------
 
@@ -278,10 +436,10 @@ export function SchoolDashboardScreen() {
           : prev,
       );
 
-      Alert.alert(t('common.success') || 'Success', t('school.infoSaved') || 'School info saved.');
+      showToast({ title: tx('common.success', 'Success', 'Klart'), message: tx('school.infoSaved', 'School info saved.', 'Skolinformation sparad.'), type: 'success' });
     } catch (err) {
       console.error('Error saving school info:', err);
-      Alert.alert(t('common.error') || 'Error', t('school.saveFailed') || 'Failed to save school info.');
+      showToast({ title: tx('common.error', 'Error', 'Fel'), message: tx('school.saveFailed', 'Failed to save school info.', 'Kunde inte spara skolinformation.'), type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -296,10 +454,7 @@ export function SchoolDashboardScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          t('common.error') || 'Error',
-          t('school.permissionNeeded') || 'Media library permission is required.',
-        );
+        showToast({ title: tx('common.error', 'Error', 'Fel'), message: tx('school.permissionNeeded', 'Media library permission is required.', 'Behörighet till bildbiblioteket krävs.'), type: 'error' });
         return;
       }
 
@@ -353,10 +508,10 @@ export function SchoolDashboardScreen() {
       if (updateErr) throw updateErr;
 
       setSchool((prev) => (prev ? { ...prev, logo_url: publicUrl } : prev));
-      Alert.alert(t('common.success') || 'Success', t('school.logoUploaded') || 'Logo uploaded.');
+      showToast({ title: tx('common.success', 'Success', 'Klart'), message: tx('school.logoUploaded', 'Logo uploaded.', 'Logotyp uppladdad.'), type: 'success' });
     } catch (err) {
       console.error('Error uploading logo:', err);
-      Alert.alert(t('common.error') || 'Error', t('school.logoFailed') || 'Failed to upload logo.');
+      showToast({ title: tx('common.error', 'Error', 'Fel'), message: tx('school.logoFailed', 'Failed to upload logo.', 'Kunde inte ladda upp logotyp.'), type: 'error' });
     } finally {
       setUploadingLogo(false);
     }
@@ -378,7 +533,7 @@ export function SchoolDashboardScreen() {
       setSchool((prev) => (prev ? { ...prev, is_active: checked } : prev));
     } catch (err) {
       console.error('Error toggling active:', err);
-      Alert.alert(t('common.error') || 'Error', t('school.toggleFailed') || 'Failed to update visibility.');
+      showToast({ title: tx('common.error', 'Error', 'Fel'), message: tx('school.toggleFailed', 'Failed to update visibility.', 'Kunde inte uppdatera synlighet.'), type: 'error' });
     }
   };
 
@@ -431,7 +586,7 @@ export function SchoolDashboardScreen() {
       setRouteSearchResults((prev) => prev.filter((r) => r.id !== routeId));
     } catch (err) {
       console.error('Error adding route:', err);
-      Alert.alert(t('common.error') || 'Error', t('school.addRouteFailed') || 'Failed to add route.');
+      showToast({ title: tx('common.error', 'Error', 'Fel'), message: tx('school.addRouteFailed', 'Failed to add route.', 'Kunde inte lägga till rutt.'), type: 'error' });
     } finally {
       setAddingRoute(null);
     }
@@ -448,9 +603,10 @@ export function SchoolDashboardScreen() {
       if (delErr) throw delErr;
 
       setSchoolRoutes((prev) => prev.filter((sr) => sr.id !== schoolRouteId));
+      showToast({ title: tx('common.success', 'Success', 'Klart'), message: tx('school.routeRemoved', 'Route removed.', 'Rutt borttagen.'), type: 'success' });
     } catch (err) {
       console.error('Error removing route:', err);
-      Alert.alert(t('common.error') || 'Error', t('school.removeRouteFailed') || 'Failed to remove route.');
+      showToast({ title: tx('common.error', 'Error', 'Fel'), message: tx('school.removeRouteFailed', 'Failed to remove route.', 'Kunde inte ta bort rutt.'), type: 'error' });
     } finally {
       setRemovingRoute(null);
     }
@@ -475,9 +631,9 @@ export function SchoolDashboardScreen() {
   // ---------------------------------------------------------------------------
 
   const tabs: { key: TabKey; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-    { key: 'info', label: t('school.tabInfo') || 'Info', icon: 'info' },
-    { key: 'students', label: t('school.tabStudents') || 'Students', icon: 'users' },
-    { key: 'routes', label: t('school.tabRoutes') || 'Routes', icon: 'map' },
+    { key: 'info', label: tx('school.tabInfo', 'Info', 'Info'), icon: 'info' },
+    { key: 'students', label: tx('school.tabMembers', 'Members', 'Medlemmar'), icon: 'users' },
+    { key: 'routes', label: tx('school.tabRoutes', 'Routes', 'Rutter'), icon: 'map' },
   ];
 
   const renderTabBar = () => (
@@ -572,8 +728,8 @@ export function SchoolDashboardScreen() {
           )}
           <Text fontSize="$3" color={textPrimary}>
             {uploadingLogo
-              ? t('school.uploading') || 'Uploading...'
-              : t('school.uploadLogo') || 'Upload Logo'}
+              ? tx('school.uploading', 'Uploading...', 'Laddar upp...')
+              : tx('school.uploadLogo', 'Upload Logo', 'Ladda upp logotyp')}
           </Text>
         </TouchableOpacity>
       </YStack>
@@ -590,12 +746,12 @@ export function SchoolDashboardScreen() {
         {/* Name */}
         <YStack gap="$1">
           <Text fontSize="$2" fontWeight="600" color={textSecondary}>
-            {t('school.name') || 'School Name'}
+            {tx('school.name', 'School Name', 'Skolans namn')}
           </Text>
           <TextInput
             value={formName}
             onChangeText={setFormName}
-            placeholder={t('school.namePlaceholder') || 'Enter school name'}
+            placeholder={tx('school.namePlaceholder', 'Enter school name', 'Ange skolans namn')}
             placeholderTextColor={placeholderColor}
             style={{
               backgroundColor: inputBg,
@@ -612,12 +768,12 @@ export function SchoolDashboardScreen() {
         {/* Description */}
         <YStack gap="$1">
           <Text fontSize="$2" fontWeight="600" color={textSecondary}>
-            {t('school.description') || 'Description'}
+            {tx('school.description', 'Description', 'Beskrivning')}
           </Text>
           <TextInput
             value={formDescription}
             onChangeText={setFormDescription}
-            placeholder={t('school.descriptionPlaceholder') || 'Describe your school'}
+            placeholder={tx('school.descriptionPlaceholder', 'Describe your school', 'Beskriv din skola')}
             placeholderTextColor={placeholderColor}
             multiline
             numberOfLines={3}
@@ -638,12 +794,12 @@ export function SchoolDashboardScreen() {
         {/* Email */}
         <YStack gap="$1">
           <Text fontSize="$2" fontWeight="600" color={textSecondary}>
-            {t('school.contactEmail') || 'Contact Email'}
+            {tx('school.contactEmail', 'Contact Email', 'Kontakt e-post')}
           </Text>
           <TextInput
             value={formEmail}
             onChangeText={setFormEmail}
-            placeholder={t('school.emailPlaceholder') || 'contact@school.com'}
+            placeholder={tx('school.emailPlaceholder', 'contact@school.com', 'kontakt@skola.se')}
             placeholderTextColor={placeholderColor}
             keyboardType="email-address"
             autoCapitalize="none"
@@ -662,12 +818,12 @@ export function SchoolDashboardScreen() {
         {/* Phone */}
         <YStack gap="$1">
           <Text fontSize="$2" fontWeight="600" color={textSecondary}>
-            {t('school.phone') || 'Phone'}
+            {tx('school.phone', 'Phone', 'Telefon')}
           </Text>
           <TextInput
             value={formPhone}
             onChangeText={setFormPhone}
-            placeholder={t('school.phonePlaceholder') || '+46 70 123 4567'}
+            placeholder={tx('school.phonePlaceholder', '+46 70 123 4567', '+46 70 123 4567')}
             placeholderTextColor={placeholderColor}
             keyboardType="phone-pad"
             style={{
@@ -685,12 +841,12 @@ export function SchoolDashboardScreen() {
         {/* Location */}
         <YStack gap="$1">
           <Text fontSize="$2" fontWeight="600" color={textSecondary}>
-            {t('school.location') || 'Location'}
+            {tx('school.location', 'Location', 'Plats')}
           </Text>
           <TextInput
             value={formLocation}
             onChangeText={setFormLocation}
-            placeholder={t('school.locationPlaceholder') || 'City, Country'}
+            placeholder={tx('school.locationPlaceholder', 'City, Country', 'Stad, Land')}
             placeholderTextColor={placeholderColor}
             style={{
               backgroundColor: inputBg,
@@ -717,7 +873,7 @@ export function SchoolDashboardScreen() {
           }}
         >
           <Text fontSize="$4" fontWeight="bold" color="#000">
-            {saving ? t('common.saving') || 'Saving...' : t('common.save') || 'Save'}
+            {saving ? tx('common.saving', 'Saving...', 'Sparar...') : tx('common.save', 'Save', 'Spara')}
           </Text>
         </TouchableOpacity>
       </YStack>
@@ -733,10 +889,10 @@ export function SchoolDashboardScreen() {
         <XStack alignItems="center" justifyContent="space-between">
           <YStack flex={1} marginRight="$3">
             <Text fontSize="$4" fontWeight="600" color={textPrimary}>
-              {t('school.showOnMap') || 'Show on Map'}
+              {tx('school.showOnMap', 'Show on Map', 'Visa på kartan')}
             </Text>
             <Text fontSize="$2" color={textSecondary}>
-              {t('school.showOnMapDescription') || 'Make your school visible on the public map.'}
+              {tx('school.showOnMapDescription', 'Make your school visible on the public map.', 'Gör din skola synlig på den publika kartan.')}
             </Text>
           </YStack>
           <Switch
@@ -757,85 +913,114 @@ export function SchoolDashboardScreen() {
   // ---------------------------------------------------------------------------
 
   const renderStudentItem = ({ item }: { item: StudentMember }) => (
-    <YStack
-      backgroundColor={cardBg}
-      borderRadius="$4"
-      padding="$3"
-      marginBottom="$2"
-      borderWidth={1}
-      borderColor={cardBorder}
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => {
+        setSelectedUserId(item.user_id);
+        setShowUserProfileSheet(true);
+      }}
     >
-      <XStack alignItems="center" gap="$3">
-        {item.avatar_url ? (
-          <Image
-            source={{ uri: item.avatar_url }}
-            style={{ width: 40, height: 40, borderRadius: 20 }}
-          />
-        ) : (
-          <YStack
-            width={40}
-            height={40}
-            borderRadius={20}
-            backgroundColor={isDark ? '#333' : '#E5E5E5'}
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Text fontSize="$4" fontWeight="bold" color={textSecondary}>
-              {item.full_name.charAt(0).toUpperCase()}
+      <YStack
+        backgroundColor={cardBg}
+        borderRadius="$4"
+        padding="$3"
+        marginBottom="$2"
+        borderWidth={1}
+        borderColor={cardBorder}
+      >
+        <XStack alignItems="center" gap="$3">
+          {item.avatar_url ? (
+            <Image
+              source={{ uri: item.avatar_url }}
+              style={{ width: 40, height: 40, borderRadius: 20 }}
+            />
+          ) : (
+            <YStack
+              width={40}
+              height={40}
+              borderRadius={20}
+              backgroundColor={isDark ? '#333' : '#E5E5E5'}
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Text fontSize="$4" fontWeight="bold" color={textSecondary}>
+                {item.full_name.charAt(0).toUpperCase()}
+              </Text>
+            </YStack>
+          )}
+
+          <YStack flex={1}>
+            <Text fontSize="$4" fontWeight="600" color={textPrimary}>
+              {item.full_name}
+            </Text>
+            <Text fontSize="$2" color={textSecondary} numberOfLines={1}>
+              {item.email}
             </Text>
           </YStack>
-        )}
 
-        <YStack flex={1}>
-          <Text fontSize="$4" fontWeight="600" color={textPrimary}>
-            {item.full_name}
-          </Text>
-          <Text fontSize="$2" color={textSecondary} numberOfLines={1}>
-            {item.email}
-          </Text>
-        </YStack>
-
-        <YStack
-          paddingHorizontal={10}
-          paddingVertical={4}
-          borderRadius={12}
-          backgroundColor={
-            item.role === 'admin' || item.role === 'school'
-              ? '#00E6C320'
-              : isDark
-                ? '#333'
-                : '#F0F0F0'
-          }
-        >
-          <Text
-            fontSize="$1"
-            fontWeight="600"
-            color={
-              item.role === 'admin' || item.role === 'school' ? '#00E6C3' : textSecondary
+          <YStack
+            paddingHorizontal={10}
+            paddingVertical={4}
+            borderRadius={12}
+            backgroundColor={
+              item.role === 'admin' || item.role === 'school'
+                ? '#00E6C320'
+                : isDark
+                  ? '#333'
+                  : '#F0F0F0'
             }
           >
-            {item.role}
-          </Text>
-        </YStack>
-      </XStack>
-    </YStack>
+            <Text
+              fontSize="$1"
+              fontWeight="600"
+              color={
+                item.role === 'admin' || item.role === 'school' ? '#00E6C3' : textSecondary
+              }
+            >
+              {item.role}
+            </Text>
+          </YStack>
+        </XStack>
+      </YStack>
+    </TouchableOpacity>
   );
 
   const renderStudentsTab = () => (
-    <FlatList
-      data={students}
-      keyExtractor={(item) => item.id}
-      renderItem={renderStudentItem}
-      scrollEnabled={false}
-      ListEmptyComponent={
-        <YStack alignItems="center" padding="$6" gap="$3">
-          <Feather name="users" size={48} color={textMuted} />
-          <Text fontSize="$4" color={textMuted} textAlign="center">
-            {t('school.noStudents') || 'No members yet'}
-          </Text>
-        </YStack>
-      }
-    />
+    <YStack gap="$3">
+      {/* Invite Instructor button */}
+      <TouchableOpacity
+        onPress={() => setShowInviteModal(true)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          paddingVertical: 12,
+          borderRadius: 12,
+          backgroundColor: '#00E6C3',
+        }}
+      >
+        <Feather name="user-plus" size={18} color="#000" />
+        <Text fontSize="$3" fontWeight="600" color="#000">
+          {tx('school.inviteInstructor', 'Invite Instructor', 'Bjud in handledare')}
+        </Text>
+      </TouchableOpacity>
+
+      <FlatList
+        data={students}
+        keyExtractor={(item) => item.id}
+        renderItem={renderStudentItem}
+        scrollEnabled={false}
+        ListEmptyComponent={
+          <YStack alignItems="center" padding="$6" gap="$3">
+            <Feather name="users" size={48} color={textMuted} />
+            <Text fontSize="$4" color={textMuted} textAlign="center">
+              {tx('school.noStudents', 'No members yet', 'Inga medlemmar ännu')}
+            </Text>
+          </YStack>
+        }
+      />
+    </YStack>
   );
 
   // ---------------------------------------------------------------------------
@@ -843,63 +1028,61 @@ export function SchoolDashboardScreen() {
   // ---------------------------------------------------------------------------
 
   const renderSchoolRouteItem = ({ item }: { item: SchoolRoute }) => (
-    <YStack
-      backgroundColor={cardBg}
-      borderRadius="$4"
-      padding="$3"
-      marginBottom="$2"
-      borderWidth={1}
-      borderColor={cardBorder}
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() => {
+        setSelectedRouteId(item.route_id);
+        setShowRouteDetailSheet(true);
+      }}
     >
-      <XStack alignItems="center" gap="$3">
-        <YStack
-          width={36}
-          height={36}
-          borderRadius={18}
-          backgroundColor="#00E6C320"
-          justifyContent="center"
-          alignItems="center"
-        >
-          <Feather name="map-pin" size={18} color="#00E6C3" />
-        </YStack>
+      <YStack
+        backgroundColor={cardBg}
+        borderRadius="$4"
+        padding="$3"
+        marginBottom="$2"
+        borderWidth={1}
+        borderColor={cardBorder}
+      >
+        <XStack alignItems="center" gap="$3">
+          <YStack
+            width={36}
+            height={36}
+            borderRadius={18}
+            backgroundColor="#00E6C320"
+            justifyContent="center"
+            alignItems="center"
+          >
+            <Feather name="map-pin" size={18} color="#00E6C3" />
+          </YStack>
 
-        <YStack flex={1}>
-          <Text fontSize="$4" fontWeight="600" color={textPrimary} numberOfLines={1}>
-            {item.route_name}
-          </Text>
-          {item.route_description ? (
-            <Text fontSize="$2" color={textSecondary} numberOfLines={2}>
-              {item.route_description}
+          <YStack flex={1}>
+            <Text fontSize="$4" fontWeight="600" color={textPrimary} numberOfLines={1}>
+              {item.route_name}
             </Text>
-          ) : null}
-        </YStack>
+            {item.route_description ? (
+              <Text fontSize="$2" color={textSecondary} numberOfLines={2}>
+                {item.route_description}
+              </Text>
+            ) : null}
+          </YStack>
 
-        <TouchableOpacity
-          onPress={() =>
-            Alert.alert(
-              t('school.removeRoute') || 'Remove Route',
-              t('school.removeRouteConfirm') || 'Remove this route from the school library?',
-              [
-                { text: t('common.cancel') || 'Cancel', style: 'cancel' },
-                {
-                  text: t('common.remove') || 'Remove',
-                  style: 'destructive',
-                  onPress: () => handleRemoveRoute(item.id),
-                },
-              ],
-            )
-          }
-          disabled={removingRoute === item.id}
-          style={{ padding: 8, opacity: removingRoute === item.id ? 0.4 : 1 }}
-        >
-          {removingRoute === item.id ? (
-            <Spinner size="small" color="#FF4444" />
-          ) : (
-            <Feather name="trash-2" size={18} color="#FF4444" />
-          )}
-        </TouchableOpacity>
-      </XStack>
-    </YStack>
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation?.();
+              handleRemoveRoute(item.id);
+            }}
+            disabled={removingRoute === item.id}
+            style={{ padding: 8, opacity: removingRoute === item.id ? 0.4 : 1 }}
+          >
+            {removingRoute === item.id ? (
+              <Spinner size="small" color="#FF4444" />
+            ) : (
+              <Feather name="trash-2" size={18} color="#FF4444" />
+            )}
+          </TouchableOpacity>
+        </XStack>
+      </YStack>
+    </TouchableOpacity>
   );
 
   const renderSearchResultItem = ({ item }: { item: SearchRouteResult }) => (
@@ -942,7 +1125,7 @@ export function SchoolDashboardScreen() {
           <Feather name="plus" size={16} color="#000" />
         )}
         <Text fontSize="$2" fontWeight="bold" color="#000">
-          {t('common.add') || 'Add'}
+          {tx('common.add', 'Add', 'Lägg till')}
         </Text>
       </TouchableOpacity>
     </XStack>
@@ -960,13 +1143,13 @@ export function SchoolDashboardScreen() {
         gap="$3"
       >
         <Text fontSize="$4" fontWeight="600" color={textPrimary}>
-          {t('school.addRoutes') || 'Add Routes'}
+          {tx('school.addRoutes', 'Add Routes', 'Lägg till rutter')}
         </Text>
         <XStack alignItems="center" gap="$2">
           <TextInput
             value={routeSearchQuery}
             onChangeText={handleRouteSearch}
-            placeholder={t('school.searchRoutes') || 'Search routes by name...'}
+            placeholder={tx('school.searchRoutes', 'Search routes by name...', 'Sök rutter efter namn...')}
             placeholderTextColor={placeholderColor}
             style={{
               flex: 1,
@@ -996,14 +1179,14 @@ export function SchoolDashboardScreen() {
           !searchingRoutes &&
           routeSearchResults.length === 0 && (
             <Text fontSize="$2" color={textMuted} textAlign="center" paddingVertical="$2">
-              {t('school.noRoutesFound') || 'No routes found.'}
+              {tx('school.noRoutesFound', 'No routes found.', 'Inga rutter hittades.')}
             </Text>
           )}
       </YStack>
 
       {/* Linked routes */}
       <Text fontSize="$5" fontWeight="bold" color={textPrimary}>
-        {t('school.linkedRoutes') || 'School Routes'} ({schoolRoutes.length})
+        {tx('school.linkedRoutes', 'School Routes', 'Skolans rutter')} ({schoolRoutes.length})
       </Text>
 
       <FlatList
@@ -1015,7 +1198,7 @@ export function SchoolDashboardScreen() {
           <YStack alignItems="center" padding="$6" gap="$3">
             <Feather name="map" size={48} color={textMuted} />
             <Text fontSize="$4" color={textMuted} textAlign="center">
-              {t('school.noRoutes') || 'No routes linked yet'}
+              {tx('school.noRoutes', 'No routes linked yet', 'Inga rutter länkade ännu')}
             </Text>
           </YStack>
         }
@@ -1030,7 +1213,7 @@ export function SchoolDashboardScreen() {
   if (loading) {
     return (
       <Screen>
-        <Header title={t('school.title') || 'School Dashboard'} showBack />
+        <Header title={tx('school.title', 'School Dashboard', 'Skolpanel')} showBack />
         <YStack flex={1} justifyContent="center" alignItems="center">
           <Spinner size="large" color="#00E6C3" />
         </YStack>
@@ -1041,29 +1224,127 @@ export function SchoolDashboardScreen() {
   if (error || !school) {
     return (
       <Screen>
-        <Header title={t('school.title') || 'School Dashboard'} showBack />
-        <YStack flex={1} justifyContent="center" alignItems="center" padding="$6" gap="$4">
-          <Feather name="alert-circle" size={48} color="#FF4444" />
-          <Text fontSize="$4" color={textMuted} textAlign="center">
-            {error || t('school.noSchoolFound') || 'No school found for your account.'}
-          </Text>
-          <TouchableOpacity
-            onPress={() => {
-              setLoading(true);
-              setError(null);
-              loadSchool();
-            }}
-            style={{
-              paddingHorizontal: 24,
-              paddingVertical: 12,
-              borderRadius: 12,
-              backgroundColor: '#00E6C3',
-            }}
-          >
-            <Text fontSize="$3" fontWeight="bold" color="#000">
-              {t('common.retry') || 'Retry'}
+        <Header title={tx('school.title', 'School Dashboard', 'Skolpanel')} showBack />
+        <YStack flex={1} padding="$4" gap="$4">
+          {/* Friendly empty state */}
+          <YStack alignItems="center" gap="$3" paddingTop="$6">
+            <YStack
+              width={80}
+              height={80}
+              borderRadius={40}
+              backgroundColor="#00E6C320"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Feather name="home" size={40} color="#00E6C3" />
+            </YStack>
+            <Text fontSize="$6" fontWeight="bold" color={textPrimary} textAlign="center">
+              {tx('school.setupTitle', 'Set Up Your School', 'Konfigurera din skola')}
             </Text>
-          </TouchableOpacity>
+            <Text fontSize="$3" color={textSecondary} textAlign="center">
+              {tx('school.setupDescription', 'Fill in the details below to create your school profile.', 'Fyll i uppgifterna nedan för att skapa din skolprofil.')}
+            </Text>
+          </YStack>
+
+          {/* Setup form */}
+          <YStack
+            backgroundColor={cardBg}
+            borderRadius="$4"
+            padding="$4"
+            borderWidth={1}
+            borderColor={cardBorder}
+            gap="$3"
+          >
+            {/* School Name */}
+            <YStack gap="$1">
+              <Text fontSize="$2" fontWeight="600" color={textSecondary}>
+                {tx('school.name', 'School Name', 'Skolans namn')}
+              </Text>
+              <TextInput
+                value={setupName}
+                onChangeText={setSetupName}
+                placeholder={tx('school.namePlaceholder', 'Enter school name', 'Ange skolans namn')}
+                placeholderTextColor={placeholderColor}
+                style={{
+                  backgroundColor: inputBg,
+                  color: inputColor,
+                  borderRadius: 12,
+                  padding: 12,
+                  fontSize: 14,
+                  borderWidth: 1,
+                  borderColor: inputBorder,
+                }}
+              />
+            </YStack>
+
+            {/* Org Number */}
+            <YStack gap="$1">
+              <Text fontSize="$2" fontWeight="600" color={textSecondary}>
+                {tx('school.orgNumber', 'Organization Number', 'Organisationsnummer')}
+              </Text>
+              <TextInput
+                value={setupOrgNumber}
+                onChangeText={setSetupOrgNumber}
+                placeholder={tx('school.orgNumberPlaceholder', 'e.g. 556677-8899', 't.ex. 556677-8899')}
+                placeholderTextColor={placeholderColor}
+                keyboardType="number-pad"
+                style={{
+                  backgroundColor: inputBg,
+                  color: inputColor,
+                  borderRadius: 12,
+                  padding: 12,
+                  fontSize: 14,
+                  borderWidth: 1,
+                  borderColor: inputBorder,
+                }}
+              />
+            </YStack>
+
+            {/* Contact Email */}
+            <YStack gap="$1">
+              <Text fontSize="$2" fontWeight="600" color={textSecondary}>
+                {tx('school.contactEmail', 'Contact Email', 'Kontakt e-post')}
+              </Text>
+              <TextInput
+                value={setupEmail}
+                onChangeText={setSetupEmail}
+                placeholder={tx('school.emailPlaceholder', 'contact@school.com', 'kontakt@skola.se')}
+                placeholderTextColor={placeholderColor}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                style={{
+                  backgroundColor: inputBg,
+                  color: inputColor,
+                  borderRadius: 12,
+                  padding: 12,
+                  fontSize: 14,
+                  borderWidth: 1,
+                  borderColor: inputBorder,
+                }}
+              />
+            </YStack>
+
+            {/* Create School button */}
+            <TouchableOpacity
+              onPress={handleCreateSchool}
+              disabled={creatingSchool || !setupName.trim()}
+              style={{
+                paddingVertical: 14,
+                borderRadius: 12,
+                alignItems: 'center',
+                backgroundColor: '#00E6C3',
+                opacity: creatingSchool || !setupName.trim() ? 0.6 : 1,
+              }}
+            >
+              {creatingSchool ? (
+                <Spinner size="small" color="#000" />
+              ) : (
+                <Text fontSize="$4" fontWeight="bold" color="#000">
+                  {tx('school.createSchool', 'Create School', 'Skapa skola')}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </YStack>
         </YStack>
       </Screen>
     );
@@ -1078,23 +1359,41 @@ export function SchoolDashboardScreen() {
 
   return (
     <Screen scroll={false} padding={false}>
-      <Header title={t('school.title') || 'School Dashboard'} showBack />
+      <Header title={tx('school.title', 'School Dashboard', 'Skolpanel')} showBack />
       <FlatList
         data={[{ key: 'content' }]}
         keyExtractor={(item) => item.key}
         renderItem={() => (
           <YStack padding="$4" gap="$3">
+            {/* Pending verification banner */}
+            {school && !school.is_active && (
+              <XStack
+                backgroundColor="#FFB80020"
+                borderRadius="$3"
+                padding="$3"
+                alignItems="center"
+                gap="$2"
+                borderWidth={1}
+                borderColor="#FFB80040"
+              >
+                <Feather name="clock" size={18} color="#FFB800" />
+                <Text fontSize="$3" color="#FFB800" flex={1}>
+                  {tx('school.pendingVerification', 'Pending verification — your school will appear on the map once approved by an admin.', 'Väntar på verifiering — din skola visas på kartan när en admin godkänner.')}
+                </Text>
+              </XStack>
+            )}
+
             {/* Stat cards */}
             <XStack gap="$3">
               <DashboardStatCard
                 value={studentCount}
-                label={t('school.totalMembers') || 'Members'}
+                label={tx('school.totalMembers', 'Members', 'Medlemmar')}
                 icon="users"
                 color="#00E6C3"
               />
               <DashboardStatCard
                 value={routeCount}
-                label={t('school.totalRoutes') || 'Routes'}
+                label={tx('school.totalRoutes', 'Routes', 'Rutter')}
                 icon="map"
                 color="#0A84FF"
               />
@@ -1111,6 +1410,141 @@ export function SchoolDashboardScreen() {
         )}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       />
+
+      <UserProfileSheet
+        visible={showUserProfileSheet}
+        onClose={() => setShowUserProfileSheet(false)}
+        userId={selectedUserId}
+      />
+
+      <RouteDetailSheet
+        visible={showRouteDetailSheet}
+        onClose={() => setShowRouteDetailSheet(false)}
+        routeId={selectedRouteId}
+        onNavigateToProfile={(userId) => {
+          setShowRouteDetailSheet(false);
+          setSelectedUserId(userId);
+          setShowUserProfileSheet(true);
+        }}
+      />
+
+      {/* Invite Instructor Modal */}
+      <Modal
+        visible={showInviteModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowInviteModal(false)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+          onPress={() => setShowInviteModal(false)}
+        >
+          <Pressable
+            style={{
+              backgroundColor: isDark ? '#1A1A1A' : '#FFF',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              padding: 20,
+              maxHeight: '70%',
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text fontSize="$6" fontWeight="bold" color={textPrimary} marginBottom="$3">
+              {tx('school.inviteInstructor', 'Invite Instructor', 'Bjud in handledare')}
+            </Text>
+
+            <XStack alignItems="center" gap="$2" marginBottom="$3">
+              <TextInput
+                value={instructorSearch}
+                onChangeText={handleSearchInstructors}
+                placeholder={tx('school.searchInstructors', 'Search instructors by name...', 'Sök handledare efter namn...')}
+                placeholderTextColor={placeholderColor}
+                style={{
+                  flex: 1,
+                  backgroundColor: inputBg,
+                  color: inputColor,
+                  borderRadius: 12,
+                  padding: 12,
+                  fontSize: 14,
+                  borderWidth: 1,
+                  borderColor: inputBorder,
+                }}
+              />
+              {searchingInstructors && <Spinner size="small" color="#00E6C3" />}
+            </XStack>
+
+            <RNScrollView style={{ maxHeight: 300 }}>
+              {instructorResults.map((instructor) => (
+                <XStack
+                  key={instructor.id}
+                  alignItems="center"
+                  gap="$3"
+                  paddingVertical="$2"
+                  borderBottomWidth={1}
+                  borderBottomColor={cardBorder}
+                >
+                  {instructor.avatar_url ? (
+                    <Image
+                      source={{ uri: instructor.avatar_url }}
+                      style={{ width: 36, height: 36, borderRadius: 18 }}
+                    />
+                  ) : (
+                    <YStack
+                      width={36}
+                      height={36}
+                      borderRadius={18}
+                      backgroundColor={isDark ? '#333' : '#E5E5E5'}
+                      justifyContent="center"
+                      alignItems="center"
+                    >
+                      <Text fontSize="$3" fontWeight="bold" color={textSecondary}>
+                        {(instructor.full_name || '?').charAt(0).toUpperCase()}
+                      </Text>
+                    </YStack>
+                  )}
+                  <YStack flex={1}>
+                    <Text fontSize="$3" fontWeight="600" color={textPrimary} numberOfLines={1}>
+                      {instructor.full_name || 'Unknown'}
+                    </Text>
+                    <Text fontSize="$2" color={textSecondary} numberOfLines={1}>
+                      {instructor.email}
+                    </Text>
+                  </YStack>
+                  <TouchableOpacity
+                    onPress={() => handleInviteInstructor(instructor.id)}
+                    disabled={invitingId === instructor.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      backgroundColor: '#00E6C3',
+                      opacity: invitingId === instructor.id ? 0.6 : 1,
+                    }}
+                  >
+                    {invitingId === instructor.id ? (
+                      <Spinner size="small" color="#000" />
+                    ) : (
+                      <Feather name="user-plus" size={14} color="#000" />
+                    )}
+                    <Text fontSize="$2" fontWeight="bold" color="#000">
+                      {tx('school.invite', 'Invite', 'Bjud in')}
+                    </Text>
+                  </TouchableOpacity>
+                </XStack>
+              ))}
+
+              {instructorSearch.trim().length >= 2 && !searchingInstructors && instructorResults.length === 0 && (
+                <Text fontSize="$3" color={textMuted} textAlign="center" paddingVertical="$4">
+                  {tx('school.noInstructorsFound', 'No instructors found.', 'Inga handledare hittades.')}
+                </Text>
+              )}
+            </RNScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }

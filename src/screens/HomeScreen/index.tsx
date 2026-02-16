@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Platform,
   Animated,
-  Alert,
   Modal,
   ScrollView,
   View,
@@ -39,6 +38,7 @@ import { NotificationsSheet } from '../../components/NotificationsSheet';
 // import { EventsSheet } from '../../components/EventsSheet';
 import { ProfileSheet } from '../../components/ProfileSheet';
 import { AchievementsSheet } from '../../components/AchievementsSheet';
+import { RelationshipManagementModal } from '../../components/RelationshipManagementModal';
 import { HomeHeader } from './Header';
 import { ScrollableHeader } from './ScrollableHeader';
 import { AvatarModal } from './AvatarModal';
@@ -101,6 +101,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
     Array<{ id: string; full_name: string; email: string; created_at?: string }>
   >([]);
   const [userProgress, setUserProgress] = useState(0);
+  const [showRelationshipModal, setShowRelationshipModal] = useState(false);
 
   // Scroll animation ref
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -603,14 +604,21 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         onSelectStudent={async () => {
           setShowAvatarModal(false);
           try {
-            const list = (await loadSupervisedStudents()) || [];
-            if ((list?.length || 0) > 0) {
-              setShowStudentPicker(true);
-            } else {
-              Alert.alert('No Students', "You don't have any students yet.");
-            }
+            await loadSupervisedStudents();
           } catch {
-            Alert.alert('Error', 'Failed to load students.');
+            // Failed to load, will show empty state
+          }
+          setShowStudentPicker(true);
+        }}
+        onDashboard={() => {
+          setShowAvatarModal(false);
+          const role = (profile as any)?.role || '';
+          if (role === 'admin') {
+            navigation.navigate('AdminDashboardScreen');
+          } else if (role === 'school') {
+            navigation.navigate('SchoolDashboardScreen');
+          } else {
+            navigation.navigate('InstructorDashboardScreen');
           }
         }}
         onLogout={() => {
@@ -652,10 +660,20 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
         >
           <TouchableOpacity
             activeOpacity={1}
-            style={{ backgroundColor: '#1a1a1a', borderRadius: 12, maxHeight: '70%', padding: 16 }}
+            style={{
+              backgroundColor: effectiveTheme === 'dark' ? '#1a1a1a' : '#fff',
+              borderRadius: 12,
+              maxHeight: '70%',
+              padding: 16,
+            }}
           >
-            <Text size="lg" weight="bold" color="#fff" style={{ marginBottom: 12 }}>
-              Select student to view
+            <Text
+              size="lg"
+              weight="bold"
+              color={effectiveTheme === 'dark' ? '#fff' : '#11181C'}
+              style={{ marginBottom: 12 }}
+            >
+              {language === 'sv' ? 'Välj elev att visa' : 'Select student to view'}
             </Text>
             <ScrollView>
               <TouchableOpacity
@@ -663,17 +681,59 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
                   setActiveStudent(null);
                   setShowStudentPicker(false);
                 }}
-                style={{ paddingVertical: 10 }}
+                style={{
+                  paddingVertical: 10,
+                  borderBottomWidth: 1,
+                  borderBottomColor: effectiveTheme === 'dark' ? '#333' : '#E0E0E0',
+                }}
               >
                 <XStack alignItems="center" gap={8}>
-                  <Feather name="user" size={16} color="#888" />
-                  <Text color="#fff">My own profile</Text>
+                  <Feather
+                    name="user"
+                    size={16}
+                    color={effectiveTheme === 'dark' ? '#888' : '#666'}
+                  />
+                  <Text color={effectiveTheme === 'dark' ? '#fff' : '#11181C'}>
+                    {language === 'sv' ? 'Min egen profil' : 'My own profile'}
+                  </Text>
                 </XStack>
               </TouchableOpacity>
               {students.length === 0 ? (
-                <Text color="#ddd" style={{ paddingVertical: 10 }}>
-                  {isSupervisorRole ? 'No students yet' : 'Not available for your role'}
-                </Text>
+                <YStack alignItems="center" paddingVertical={24} gap={12}>
+                  <Feather
+                    name="users"
+                    size={40}
+                    color={effectiveTheme === 'dark' ? '#555' : '#ccc'}
+                  />
+                  <Text
+                    color={effectiveTheme === 'dark' ? '#999' : '#666'}
+                    style={{ textAlign: 'center' }}
+                  >
+                    {language === 'sv'
+                      ? 'Inga elever ännu.\nHitta och bjud in elever att koppla sig till dig.'
+                      : 'No students yet.\nFind and invite students to connect with you.'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowStudentPicker(false);
+                      setShowRelationshipModal(true);
+                    }}
+                    style={{
+                      backgroundColor: '#00E6C3',
+                      paddingVertical: 10,
+                      paddingHorizontal: 20,
+                      borderRadius: 8,
+                      marginTop: 4,
+                    }}
+                  >
+                    <XStack alignItems="center" gap={6}>
+                      <Feather name="user-plus" size={16} color="#000" />
+                      <Text color="#000" weight="semibold">
+                        {language === 'sv' ? 'Hitta & Bjud in' : 'Find & Invite'}
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                </YStack>
               ) : (
                 students.map((s) => (
                   <TouchableOpacity
@@ -690,7 +750,7 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
                           width: 28,
                           height: 28,
                           borderRadius: 14,
-                          backgroundColor: '#333',
+                          backgroundColor: effectiveTheme === 'dark' ? '#333' : '#E0E0E0',
                           alignItems: 'center',
                           justifyContent: 'center',
                           borderWidth: activeStudentId === s.id ? 2 : 0,
@@ -703,14 +763,14 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
                             style={{ width: 28, height: 28, borderRadius: 14 }}
                           />
                         ) : (
-                          <Feather name="user" size={14} color="#fff" />
+                          <Feather name="user" size={14} color={effectiveTheme === 'dark' ? '#fff' : '#666'} />
                         )}
                       </View>
                       <YStack flex={1}>
-                        <Text color="#fff" weight="semibold" size="sm">
+                        <Text color={effectiveTheme === 'dark' ? '#fff' : '#11181C'} weight="semibold" size="sm">
                           {s.full_name || 'Unknown'}
                         </Text>
-                        <Text color="#ccc" size="xs">
+                        <Text color={effectiveTheme === 'dark' ? '#ccc' : '#666'} size="xs">
                           {s.email}
                         </Text>
                       </YStack>
@@ -722,6 +782,25 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
+
+      {/* Relationship Management Modal (for finding/inviting students) */}
+      <RelationshipManagementModal
+        visible={showRelationshipModal}
+        onClose={() => setShowRelationshipModal(false)}
+        userRole={(profile as any)?.role || 'instructor'}
+        supervisedStudents={students}
+        onStudentSelect={(studentId, studentName) => {
+          if (studentId) {
+            setActiveStudent(studentId, studentName || null);
+          } else {
+            setActiveStudent(null);
+          }
+          setShowRelationshipModal(false);
+        }}
+        onRefresh={async () => {
+          await loadSupervisedStudents();
+        }}
+      />
     </Screen>
   );
 });
