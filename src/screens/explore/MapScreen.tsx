@@ -23,7 +23,7 @@ import * as Location from 'expo-location';
 import { Screen } from '../../components/Screen';
 import { useRoutes } from '../../hooks/useRoutes';
 import type { Route as RouteType } from '../../hooks/useRoutes';
-import { RoutesDrawer } from './RoutesDrawer';
+import { RoutesDrawer, RoutesDrawerRef } from './RoutesDrawer';
 import MapView from '../../components/MapView';
 import { AppHeader } from '../../components/AppHeader';
 import { useTranslation } from '../../contexts/TranslationContext';
@@ -109,6 +109,7 @@ export function MapScreen({
   // const { triggerScreenTour } = useScreenTours();
   // const tourContext = useTour();
   const mapRef = useRef<MapView>(null);
+  const routesDrawerRef = useRef<RoutesDrawerRef>(null);
   const [region, setRegion] = useState({
     latitude: 55.7047, // Lund, Sweden
     longitude: 13.191,
@@ -294,6 +295,7 @@ export function MapScreen({
   const handleMapPress = useCallback(() => {
     setSelectedRoute(null);
     setSelectedPin(null);
+    routesDrawerRef.current?.collapse();
   }, []);
 
   const handleRoutePress = useCallback((routeId: string) => {
@@ -1566,6 +1568,7 @@ export function MapScreen({
       {/* Mobile: Routes Drawer at Bottom */}
       {!isTablet && !selectedRoute && (
         <RoutesDrawer
+          ref={routesDrawerRef}
           selectedRoute={selectedRoute}
           filteredRoutes={activeRoutes}
           loadRoutes={loadRoutes}
@@ -1576,7 +1579,6 @@ export function MapScreen({
           hasActiveFilters={filters && Object.keys(filters).length > 0}
           onExpandSearch={handleExpandSearch}
           onRoutePress={handleRoutePress}
-          // ref={routesDrawerRef} // Disabled
         />
       )}
       {selectedRoute && (

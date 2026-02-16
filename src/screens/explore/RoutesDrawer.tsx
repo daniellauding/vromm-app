@@ -1,7 +1,7 @@
 import { RouteList } from '@/src/components/RouteList';
 import { Route } from '@/src/types/route';
 import { Feather } from '@expo/vector-icons';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   NativeScrollEvent,
@@ -146,8 +146,12 @@ const styles = StyleSheet.create({
 
 import React from 'react';
 
+export type RoutesDrawerRef = {
+  collapse: () => void;
+};
+
 export const RoutesDrawer = React.forwardRef<
-  View,
+  RoutesDrawerRef,
   {
     selectedRoute: Route | null;
     filteredRoutes: Route[];
@@ -198,6 +202,23 @@ export const RoutesDrawer = React.forwardRef<
       },
       [currentState],
     );
+
+    // Expose collapse method to parent via ref
+    useImperativeHandle(ref, () => ({
+      collapse: () => {
+        translateY.value = withSpring(snapPoints.collapsed, {
+          damping: 20,
+          mass: 1,
+          stiffness: 100,
+          overshootClamping: true,
+          restDisplacementThreshold: 0.01,
+          restSpeedThreshold: 0.01,
+        });
+        currentState.value = snapPoints.collapsed;
+        setCurrentSnapPoint(snapPoints.collapsed);
+      },
+    }), [snapPoints.collapsed, translateY, currentState]);
+
     // --- New Gesture API ---
     const panGesture = Gesture.Pan()
       .activeOffsetY([-10, 10])
@@ -349,7 +370,6 @@ export const RoutesDrawer = React.forwardRef<
     if (isTabletSidebar) {
       return (
         <View
-          ref={ref}
           style={{
             flex: 1,
             backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF',
@@ -454,7 +474,6 @@ export const RoutesDrawer = React.forwardRef<
     // Mobile Bottom Sheet Mode (Animated)
     return (
       <Animated.View
-          ref={ref}
           style={[
             styles.bottomSheet,
             {
