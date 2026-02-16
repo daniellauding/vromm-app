@@ -3548,8 +3548,11 @@ export function ProfileScreen() {
                     <DropdownButton
                       onPress={showThemeSheet}
                       value={
-                        t('profile.themeSettings') ||
-                        (language === 'sv' ? 'Temainställningar' : 'Theme Settings')
+                        profile?.theme_preference === 'light'
+                          ? (language === 'sv' ? 'Ljust läge' : 'Light Mode')
+                          : profile?.theme_preference === 'system'
+                            ? (language === 'sv' ? 'Systemstandard' : 'System Default')
+                            : (language === 'sv' ? 'Mörkt läge' : 'Dark Mode')
                       }
                       placeholder={language === 'sv' ? 'Temainställningar' : 'Theme Settings'}
                     />
