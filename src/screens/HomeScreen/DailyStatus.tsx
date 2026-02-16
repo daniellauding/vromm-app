@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   TouchableOpacity,
   Alert,
@@ -196,6 +196,7 @@ export function DailyStatus({
   );
 
   const sheetTranslateY = useSharedValue(screenHeight);
+  const currentState = useSharedValue(snapPoints.large);
   const [currentSnapPoint, setCurrentSnapPoint] = useState(snapPoints.large);
 
   // Update internal date when external date changes
@@ -1018,28 +1019,37 @@ export function DailyStatus({
   // Note: DailyStatus doesn't need real-time subscriptions
   // It's a personal tracking component that only needs to refresh when user interacts with it
 
+  // Dismiss callback - must be a named function for runOnJS (anonymous arrows crash)
+  const dismissSheet = useCallback(() => {
+    setShowSheet(false);
+  }, []);
+
   // Pan gesture for drag-to-resize
   const panGesture = Gesture.Pan()
     .activeOffsetY([-10, 10])
     .failOffsetX([-20, 20])
     .onUpdate((event) => {
-      const { translationY } = event;
-      const newPosition = currentSnapPoint + translationY;
+      try {
+        const { translationY } = event;
+        const newPosition = currentState.value + translationY;
 
-      // Constrain to snap points range
-      const minPosition = snapPoints.large;
-      const maxPosition = snapPoints.small + 100;
-      const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
+        // Constrain to snap points range
+        const minPosition = snapPoints.large;
+        const maxPosition = snapPoints.small + 100;
+        const boundedPosition = Math.min(Math.max(newPosition, minPosition), maxPosition);
 
-      sheetTranslateY.value = boundedPosition;
+        sheetTranslateY.value = boundedPosition;
+      } catch (error) {
+        console.log('panGesture error', error);
+      }
     })
     .onEnd((event) => {
       const { translationY, velocityY } = event;
-      const currentPosition = currentSnapPoint + translationY;
+      const currentPosition = currentState.value + translationY;
 
       // Dismiss if dragged down far enough
       if (currentPosition > snapPoints.small + 30 && velocityY > 200) {
-        runOnJS(() => setShowSheet(false))();
+        runOnJS(dismissSheet)();
         return;
       }
 
@@ -1061,6 +1071,7 @@ export function DailyStatus({
         stiffness: 300,
         overshootClamping: true, // Prevents bouncing/overshoot
       });
+      currentState.value = targetSnapPoint;
       runOnJS(setCurrentSnapPoint)(targetSnapPoint);
     });
 
@@ -1087,6 +1098,7 @@ export function DailyStatus({
         stiffness: 300,
         overshootClamping: true, // Prevents bouncing/overshoot
       });
+      currentState.value = snapPoints.large;
       setCurrentSnapPoint(snapPoints.large);
 
       Animated.timing(backdropOpacity, {
