@@ -6821,11 +6821,10 @@ export function ProfileScreen() {
               <YStack
                 backgroundColor="$background"
                 padding="$4"
-                paddingBottom={50}
+                paddingBottom={24}
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
-                gap="$3"
-                maxHeight="90%"
+                gap="$4"
               >
                 <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
                   {getTranslation(
