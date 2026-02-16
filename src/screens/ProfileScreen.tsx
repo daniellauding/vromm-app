@@ -6825,7 +6825,6 @@ export function ProfileScreen() {
                 borderTopLeftRadius="$4"
                 borderTopRightRadius="$4"
                 gap="$3"
-                minHeight="70%"
                 maxHeight="90%"
               >
                 <Text size="xl" weight="bold" color="$color" textAlign="center" marginBottom="$2">
