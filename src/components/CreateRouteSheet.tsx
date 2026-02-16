@@ -737,21 +737,8 @@ export function CreateRouteSheet({
     }, 1000);
   }, []); // Only run once on mount
 
-  // Check for unsaved changes whenever state changes
-  useEffect(() => {
-    if (!initialStateSnapshot) return;
-
-    const currentState = {
-      formData,
-      waypoints,
-      exercises,
-      media,
-      youtubeLink,
-    };
-
-    const hasChanges = JSON.stringify(currentState) !== JSON.stringify(initialStateSnapshot);
-    setHasUnsavedChanges(hasChanges);
-  }, [formData, waypoints, exercises, media, youtubeLink, initialStateSnapshot]);
+  // Unsaved changes detection disabled - was too aggressive and annoying
+  // Users can always re-create routes, and the confirmation dialog interrupted flow
 
   // Location loading animation effect (similar to MapScreen)
   useEffect(() => {
