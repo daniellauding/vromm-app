@@ -45,6 +45,7 @@ import { ExerciseSelector, RouteExercise } from '../components/ExerciseSelector'
 import { AdvancedExerciseCreator } from '../components/AdvancedExerciseCreator';
 import * as mediaUtils from '../utils/mediaUtils';
 import { AddToPresetSheet } from '../components/AddToPresetSheet';
+import { RouteDetailSheet } from '../components/RouteDetailSheet';
 import { randomUUID } from 'expo-crypto';
 
 // Helper function to extract YouTube video ID
@@ -208,7 +209,7 @@ export function CreateRouteSheet({
     return translation;
   };
 
-  const { showModal } = useModal();
+  const { showModal, hideModal } = useModal();
   const { showRouteCreatedToast, showToast } = useToast();
   const createRouteContext = useCreateRoute();
   const isEditing = !!routeId;
@@ -409,7 +410,6 @@ export function CreateRouteSheet({
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const mainScrollViewRef = useRef<ScrollView>(null);
-  const pendingToastRef = useRef<{ id: string; name: string; isEditing: boolean } | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(
     null,
   );
@@ -788,27 +788,7 @@ export function CreateRouteSheet({
     return () => backHandler.remove();
   }, [hasUnsavedChanges]);
 
-  // Show toast when modal is closed and we have pending toast data
-  useEffect(() => {
-    if (!visible && pendingToastRef.current) {
-      const { id, name, isEditing } = pendingToastRef.current;
-      // Use a longer delay to ensure modal is fully unmounted and animations complete
-      const timeoutId = setTimeout(() => {
-        try {
-          showRouteCreatedToast(id, name, isEditing, false, () => {
-            // No-op: prevents auto-navigation to RouteDetailScreen
-          });
-        } catch (error) {
-          console.error('🍞 [CreateRouteSheet] ❌ ERROR calling showRouteCreatedToast:', error);
-        }
-        pendingToastRef.current = null; // Clear the pending toast
-      }, 1200); // Increased from 500ms to 1200ms for smooth animation completion
-
-      return () => {
-        clearTimeout(timeoutId);
-      };
-    }
-  }, [visible, showRouteCreatedToast]);
+  // Toast is now shown directly in handleCreate before onClose()
 
   // ==================== CONTEXT STATE INTEGRATION ====================
 
@@ -1900,13 +1880,19 @@ export function CreateRouteSheet({
       // Set loading to false before closing
       setLoading(false);
 
+      // Show toast before closing - toast lives in ToastContext (above modal),
+      // so it persists after the sheet unmounts
       if (route?.id && route?.name) {
-        pendingToastRef.current = { id: route.id, name: route.name, isEditing };
-      } else {
-        console.error(
-          '🍞 [CreateRouteSheet] ❌ Cannot set pendingToastRef - missing route.id or route.name!',
-          route,
-        );
+        const routeId = route.id;
+        showRouteCreatedToast(route.id, route.name, isEditing, false, () => {
+          showModal(
+            <RouteDetailSheet
+              visible={true}
+              onClose={() => hideModal()}
+              routeId={routeId}
+            />,
+          );
+        });
       }
 
       // Close the create sheet
@@ -1950,6 +1936,9 @@ export function CreateRouteSheet({
     penPath,
     selectedCollectionId,
     showToast,
+    showRouteCreatedToast,
+    showModal,
+    hideModal,
     showValidationError,
     uploadMediaInBackground,
     waypoints,

@@ -34,7 +34,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LoadingScreen } from './components/LoadingScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRecording } from './contexts/RecordingContext';
-import { useModal } from './contexts/ModalContext';
+import { useModal, ModalProvider } from './contexts/ModalContext';
 import { CreateRouteSheet } from './components/CreateRouteSheet';
 import { BetaTestingSheetModal } from './components/BetaTestingSheet';
 import { ActionSheetModal } from './components/ActionSheet';
@@ -1640,17 +1640,19 @@ function AppContent() {
         }}
       >
         <ToastProvider>
-          {!user ? <UnauthenticatedAppContent /> : <AuthenticatedAppContent />}
-          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+          <ModalProvider>
+            {!user ? <UnauthenticatedAppContent /> : <AuthenticatedAppContent />}
+            <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
 
-          {/* Tour overlay - rendered at app level */}
-          <TourOverlay />
+            {/* Tour overlay - rendered at app level */}
+            <TourOverlay />
 
-          {/* Global Recording Widget - rendered at app level */}
-          <GlobalRecordingWidget />
+            {/* Global Recording Widget - rendered at app level */}
+            <GlobalRecordingWidget />
 
-          {/* Global Celebration Modal - rendered at app level */}
-          <GlobalCelebrationModal />
+            {/* Global Celebration Modal - rendered at app level */}
+            <GlobalCelebrationModal />
+          </ModalProvider>
         </ToastProvider>
       </NavigationContainer>
     </>

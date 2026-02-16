@@ -229,7 +229,7 @@ function getClusterExpansionRegion(supercluster: Supercluster, clusterId: number
 }
 
 export function Map({
-  waypoints,
+  waypoints = [],
   region,
   style,
   scrollEnabled = true,

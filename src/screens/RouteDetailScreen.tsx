@@ -945,6 +945,14 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
         penSample: item.penDrawingCoordinates?.slice(0, 2),
       });
 
+      if (!item.waypoints?.length || !item.region) {
+        return (
+          <View style={{ width: windowWidth, height: HERO_HEIGHT, backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center' }}>
+            <Text>Loading map...</Text>
+          </View>
+        );
+      }
+
       return (
         <Map
           waypoints={item.waypoints}

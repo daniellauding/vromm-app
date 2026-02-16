@@ -14,7 +14,7 @@ import { LocationProvider } from './src/context/LocationContext';
 import { StudentSwitchProvider } from './src/context/StudentSwitchContext';
 import { TranslationProvider } from './src/contexts/TranslationContext';
 import { LoadingScreen } from './src/components/LoadingScreen';
-import { ModalProvider } from './src/contexts/ModalContext';
+
 import { CreateRouteProvider } from './src/contexts/CreateRouteContext';
 import { RecordingProvider } from './src/contexts/RecordingContext';
 import { MessagingProvider } from './src/contexts/MessagingContext';
@@ -125,17 +125,15 @@ export default function App() {
                       <LocationProvider>
                         <CreateRouteProvider>
                           <RecordingProvider>
-                            <ModalProvider>
-                              <MessagingProvider>
-                                <UnlockProvider>
-                                  <CelebrationProvider>
-                                    <TourProvider>
-                                      <AppContent />
-                                    </TourProvider>
-                                  </CelebrationProvider>
-                                </UnlockProvider>
-                              </MessagingProvider>
-                            </ModalProvider>
+                            <MessagingProvider>
+                              <UnlockProvider>
+                                <CelebrationProvider>
+                                  <TourProvider>
+                                    <AppContent />
+                                  </TourProvider>
+                                </CelebrationProvider>
+                              </UnlockProvider>
+                            </MessagingProvider>
                           </RecordingProvider>
                         </CreateRouteProvider>
                       </LocationProvider>
