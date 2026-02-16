@@ -150,7 +150,7 @@ export function Header({
   const renderHeaderContent = () => (
     <XStack
       backgroundColor={variant === 'default' ? '$background' : 'transparent'}
-      paddingHorizontal={24}
+      paddingHorizontal={4}
       paddingVertical={12}
       alignItems="center"
       justifyContent="space-between"
