@@ -235,6 +235,24 @@ export function RouteDetailSheet({
     }
   }, [routeId, nearbyRoutes, onRouteChange]);
 
+  // Schedule route change on JS thread after swipe animation completes
+  const scheduleRouteChange = useCallback((goToPrevious: boolean) => {
+    setTimeout(() => {
+      // Reset animation values
+      swipeTranslateX.value = 0;
+      swipeTranslateY.value = 0;
+      swipeRotate.value = 0;
+      swipeOpacity.value = 1;
+
+      // Trigger route change
+      if (goToPrevious) {
+        handleSwipeToPrevious();
+      } else {
+        handleSwipeToNext();
+      }
+    }, 200);
+  }, [handleSwipeToPrevious, handleSwipeToNext, swipeTranslateX, swipeTranslateY, swipeRotate, swipeOpacity]);
+
   // Horizontal swipe gesture for route navigation with Tinder-like animation
   const swipeGesture = Gesture.Pan()
     .activeOffsetX([-20, 20])
@@ -293,23 +311,9 @@ export function RouteDetailSheet({
           stiffness: 200,
         });
 
-        // After animation completes, trigger route change and reset
-        setTimeout(() => {
-          // Reset animation values
-          swipeTranslateX.value = 0;
-          swipeTranslateY.value = 0;
-          swipeRotate.value = 0;
-          swipeOpacity.value = 1;
-
-          // Trigger route change
-          if (translationX > 0 || velocityX > 0) {
-            // Swipe right - go to previous route
-            runOnJS(handleSwipeToPrevious)();
-          } else {
-            // Swipe left - go to next route
-            runOnJS(handleSwipeToNext)();
-          }
-        }, 200);
+        // Schedule route change on JS thread (setTimeout must not run in worklet)
+        const goToPrevious = translationX > 0 || velocityX > 0;
+        runOnJS(scheduleRouteChange)(goToPrevious);
       } else {
         // Snap back to center with spring animation
         swipeTranslateX.value = withSpring(0, {
