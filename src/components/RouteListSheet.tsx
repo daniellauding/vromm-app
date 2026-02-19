@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   TextInput,
   Keyboard,
+  Platform,
 } from 'react-native';
 import { YStack, XStack, Text, useTheme } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -292,7 +293,8 @@ export function RouteListSheet({
               bottom: 0,
               left: 0,
               right: 0,
-              transform: [{ translateY: sheetTranslateY }],
+              transform: Platform.OS === 'web' ? undefined : [{ translateY: sheetTranslateY }],
+              ...(Platform.OS === 'web' ? { top: sheetTranslateY } : {}),
             }}
           >
             <YStack

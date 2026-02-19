@@ -9,6 +9,7 @@ import {
   ScrollView,
   Animated,
   Pressable,
+  Platform,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -322,9 +323,13 @@ export const ExerciseStepsAccordion: React.FC<ExerciseStepsAccordionProps> = Rea
         runOnJS(setCurrentSnapPoint)(boundedTarget);
       });
 
-    const animatedGestureStyle = useAnimatedStyle(() => ({
-      transform: [{ translateY: translateY.value }],
-    }));
+    const animatedGestureStyle = useAnimatedStyle(() => {
+      // On web, use 'top' instead of transform array to avoid CSSStyleDeclaration indexed property error
+      if (Platform.OS === 'web') {
+        return { top: translateY.value };
+      }
+      return { transform: [{ translateY: translateY.value }] };
+    });
 
     // Handle sheet visibility animation
     useEffect(() => {

@@ -8,6 +8,7 @@ import {
   ScrollView,
   RefreshControl,
   Image,
+  Platform,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -196,9 +197,14 @@ export const UserProfileSheet = VisibilityGuard(function UserProfileSheet({
       currentState.value = boundedTarget;
     });
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return {
+      transform: [{ translateY: translateY.value }],
+    };
+  });
 
   // State (exact copy from PublicProfileScreen)
   const [loading, setLoading] = useState(true);

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Modal, Animated, Pressable, Easing, View, Dimensions } from 'react-native';
+import { Modal, Animated, Pressable, Easing, View, Dimensions, Platform } from 'react-native';
 import { YStack, XStack, Text, Spinner, Button } from 'tamagui';
 import { TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -118,7 +118,8 @@ export function EventsSheet({ visible, onClose }: EventsSheetProps) {
               bottom: 0,
               left: 0,
               right: 0,
-              transform: [{ translateY: sheetTranslateY }],
+              transform: Platform.OS === 'web' ? undefined : [{ translateY: sheetTranslateY }],
+              ...(Platform.OS === 'web' ? { top: sheetTranslateY } : {}),
             }}
           >
             <YStack

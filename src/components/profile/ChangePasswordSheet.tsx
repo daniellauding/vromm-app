@@ -359,7 +359,7 @@ export const ChangePasswordSheet: React.FC<ChangePasswordSheetProps> = ({ visibl
         >
           <View style={{ flex: 1, justifyContent: 'flex-end' }}>
             <Pressable style={{ flex: 1 }} onPress={handleClose} />
-            <Animated.View style={{ transform: [{ translateY: sheetTranslateY }] }}>
+            <Animated.View style={{ transform: Platform.OS === 'web' ? undefined : [{ translateY: sheetTranslateY }], ...(Platform.OS === 'web' ? { top: sheetTranslateY } : {}) }}>
               <YStack
                 backgroundColor="$background"
                 padding="$4"

@@ -37,6 +37,7 @@ export const rubikFont = createFont({
   face: {
     400: { normal: 'Rubik-Regular', italic: 'Rubik-Italic' },
     500: { normal: 'Rubik-Medium', italic: 'Rubik-MediumItalic' },
+    600: { normal: 'Rubik-SemiBold', italic: 'Rubik-SemiBoldItalic' },
     700: { normal: 'Rubik-Bold', italic: 'Rubik-BoldItalic' },
     800: { normal: 'Rubik-ExtraBold', italic: 'Rubik-ExtraBoldItalic' },
     900: { normal: 'Rubik-Black', italic: 'Rubik-BlackItalic' },

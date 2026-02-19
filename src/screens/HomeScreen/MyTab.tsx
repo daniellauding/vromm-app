@@ -43,12 +43,18 @@ export default React.memo(function MyTab({
   setSelectedUserId: _setSelectedUserId,
   setShowUserProfileSheet: _setShowUserProfileSheet,
   setShowUserListSheet: _setShowUserListSheet,
+  initialSheet,
+  initialPathId,
+  initialExerciseId,
 }: {
   activeUserId: string | undefined;
   handleRoutePress: (routeId: string) => void;
   setSelectedUserId: (userId: string) => void;
   setShowUserProfileSheet: (show: boolean) => void;
   setShowUserListSheet: (show: boolean) => void;
+  initialSheet?: 'learning-paths' | 'exercises';
+  initialPathId?: string;
+  initialExerciseId?: string;
 }) {
   const { t, language } = useTranslation();
   const { getEffectiveUserId } = useStudentSwitch();
@@ -88,6 +94,36 @@ export default React.memo(function MyTab({
     // If translation is missing, t() returns the key itself - use fallback instead
     return translated && translated !== key ? translated : fallback;
   };
+
+  // Auto-open sheets from URL deep link params
+  React.useEffect(() => {
+    if (!initialSheet) return;
+
+    if (initialSheet === 'learning-paths') {
+      setShowLearningPathsSheet(true);
+    } else if (initialSheet === 'exercises' && initialPathId) {
+      // Fetch learning path info and open ExerciseListSheet
+      (async () => {
+        try {
+          const { supabase } = await import('../../lib/supabase');
+          const { data } = await supabase
+            .from('learning_paths')
+            .select('id, title')
+            .eq('id', initialPathId)
+            .single();
+          if (data) {
+            setSelectedLearningPath({
+              id: data.id,
+              title: data.title as { en: string; sv: string },
+            });
+            setShowExerciseListSheet(true);
+          }
+        } catch (error) {
+          console.error('Error loading learning path from URL:', error);
+        }
+      })();
+    }
+  }, [initialSheet, initialPathId, initialExerciseId]);
 
   const onDateSelected = React.useCallback(
     (date: Date) => {
@@ -357,6 +393,7 @@ export default React.memo(function MyTab({
           title={language === 'sv' ? selectedLearningPath.title.sv : selectedLearningPath.title.en}
           learningPathId={selectedLearningPath.id}
           showAllPaths={false}
+          initialExerciseId={initialExerciseId}
         />
       )}
 

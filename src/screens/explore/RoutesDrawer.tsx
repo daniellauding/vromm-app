@@ -288,9 +288,12 @@ export const RoutesDrawer = React.forwardRef<
       [currentSnapPoint, snapPoints, snapTo],
     );
 
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ translateY: translateY.value }],
-    }));
+    const animatedStyle = useAnimatedStyle(() => {
+      if (Platform.OS === 'web') {
+        return { top: translateY.value };
+      }
+      return { transform: [{ translateY: translateY.value }] };
+    });
 
     // Filter routes based on search query - expanded to include more metadata
     const searchFilteredRoutes = useMemo(() => {

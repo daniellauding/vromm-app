@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { Wifi, WifiOff } from '@tamagui/lucide-icons';
 
@@ -43,7 +43,8 @@ export function NetworkAlert() {
       style={[
         styles.container,
         {
-          transform: [{ translateY: slideAnim }],
+          transform: Platform.OS === 'web' ? undefined : [{ translateY: slideAnim }],
+          ...(Platform.OS === 'web' ? { top: slideAnim } : {}),
         },
       ]}
     >

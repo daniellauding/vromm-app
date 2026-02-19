@@ -88,7 +88,8 @@ const getLocalTranslations = (language: Language): Record<string, string> => {
 };
 
 export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [translations, setTranslations] = useState<Record<string, string>>({});
+  // Initialize with local fallback translations so text renders immediately
+  const [translations, setTranslations] = useState<Record<string, string>>(() => getLocalTranslations('sv'));
   const [language, setLanguageState] = useState<Language>('sv'); // Default to Swedish for Sweden launch
   const [isLoading, setIsLoading] = useState(true);
   const lastFetchTime = useRef(0);
@@ -115,14 +116,19 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         devMode: __DEV__,
         forceFresh: shouldForceFresh,
       });
+      // On web, include all translations (mobile + web + null) since web is used for
+      // Figma Code-to-Canvas and should mirror the native app experience
+      const platformFilter = Platform.OS === 'web'
+        ? `platform.is.null,platform.eq.web,platform.eq.mobile`
+        : `platform.is.null,platform.eq.${currentPlatform}`;
       const { data, error } = await supabase
         .from('translations')
         .select('key, value, platform, updated_at')
         .eq('language', lang)
-        .or(`platform.is.null,platform.eq.${currentPlatform}`);
+        .or(platformFilter);
 
       if (error) {
-        logger.error('Error fetching translations:', error);
+        console.error('[TranslationContext] Supabase fetch error:', error.message, error);
         // Fall back to local translations on error
         const localTranslations = getLocalTranslations(lang);
         setTranslations(localTranslations);

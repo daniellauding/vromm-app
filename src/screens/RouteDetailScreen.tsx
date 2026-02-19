@@ -19,7 +19,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { NavigationProp } from '../types/navigation';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Map } from '../components/Map';
+import { Map as RouteMap } from '../components/Map';
 import { Feather } from '@expo/vector-icons';
 import { Play } from '@tamagui/lucide-icons';
 import Carousel from 'react-native-reanimated-carousel';
@@ -954,7 +954,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
       }
 
       return (
-        <Map
+        <RouteMap
           waypoints={item.waypoints}
           region={item.region}
           style={{ width: windowWidth, height: HERO_HEIGHT }}
@@ -1698,7 +1698,7 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                       }
 
                       return (
-                        <Map
+                        <RouteMap
                           waypoints={validWaypoints}
                           region={mapRegion || defaultRegion}
                           style={{ flex: 1 }}
@@ -1826,8 +1826,9 @@ export function RouteDetailScreen({ route }: RouteDetailProps) {
                                 height: 28,
                                 borderRadius: 14,
                                 backgroundColor: 'white',
-                                transform: [{ translateX: practiceMode ? 24 : 0 }],
-                                transition: 'transform 0.2s',
+                                ...(Platform.OS === 'web'
+                                  ? { transform: `translateX(${practiceMode ? 24 : 0}px)`, transition: 'transform 0.2s' }
+                                  : { transform: [{ translateX: practiceMode ? 24 : 0 }] }),
                               }}
                             />
                           </TouchableOpacity>

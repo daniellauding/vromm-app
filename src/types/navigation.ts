@@ -126,11 +126,16 @@ export type RootStackParamList = {
 };
 
 export type TabParamList = {
-  HomeTab: undefined;
+  HomeTab: {
+    sheet?: 'learning-paths' | 'exercises';
+    pathId?: string;
+    exerciseId?: string;
+  } | undefined;
   ProgressTab: {
     selectedPathId?: string;
     showDetail?: boolean;
     activeUserId?: string; // Add activeUserId for student switching
+    focusExerciseId?: string; // Deep link to a specific exercise
     fromOnboarding?: boolean;
     onboardingStep?: string;
   };

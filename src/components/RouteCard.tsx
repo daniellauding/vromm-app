@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Image, Dimensions } from 'react-native';
+import { View, Image, Dimensions, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -505,6 +505,9 @@ export function RouteCard({
 
   // Animated styles
   const animatedStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { opacity: opacity.value };
+    }
     return {
       transform: [{ scale: scale.value }],
       opacity: opacity.value,

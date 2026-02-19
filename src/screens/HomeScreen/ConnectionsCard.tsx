@@ -9,6 +9,7 @@ import {
   Dimensions,
   ScrollView,
   TextInput as RNTextInput,
+  Platform,
 } from 'react-native';
 import { YStack, XStack, Text, Card, TextArea } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -68,9 +69,14 @@ export const ConnectionsCard = () => {
   const connectionsBackdropOpacityShared = useSharedValue(0);
   const connectionsCurrentState = useSharedValue(connectionsSnapPoints.large);
 
-  const connectionsAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: connectionsTranslateY.value }],
-  }));
+  const connectionsAnimatedStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: connectionsTranslateY.value };
+    }
+    return {
+      transform: [{ translateY: connectionsTranslateY.value }],
+    };
+  });
 
   const connectionsPanGesture = Gesture.Pan()
     .activeOffsetY([-10, 10])
@@ -155,7 +161,7 @@ export const ConnectionsCard = () => {
     });
   };
 
-  const hideConnectionsSheet = () => {
+  function hideConnectionsSheet() {
     connectionsTranslateY.value = withSpring(connectionsSnapPoints.dismissed, {
       damping: 20,
       stiffness: 300,

@@ -7,6 +7,7 @@ import {
   TextInput,
   useColorScheme,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Text, XStack, YStack, Button } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -115,9 +116,14 @@ export function LeaveCollectionModal({
       currentState.value = boundedTarget;
     });
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return {
+      transform: [{ translateY: translateY.value }],
+    };
+  });
 
   // Animation effects
   React.useEffect(() => {

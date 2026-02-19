@@ -8,6 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -410,14 +411,23 @@ export function RouteDetailSheet({
   // Combine gestures - vertical pan for drag-to-dismiss, horizontal pan for route navigation
   const combinedGesture = Gesture.Simultaneous(panGesture, swipeGesture);
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value + swipeTranslateY.value },
-      { translateX: swipeTranslateX.value },
-      { rotate: `${swipeRotate.value}rad` },
-    ],
-    opacity: swipeOpacity.value,
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return {
+        top: translateY.value + swipeTranslateY.value,
+        left: swipeTranslateX.value,
+        opacity: swipeOpacity.value,
+      };
+    }
+    return {
+      transform: [
+        { translateY: translateY.value + swipeTranslateY.value },
+        { translateX: swipeTranslateX.value },
+        { rotate: `${swipeRotate.value}rad` },
+      ],
+      opacity: swipeOpacity.value,
+    };
+  });
 
   // State (exact copy from RouteDetailScreen)
   const [loading, setLoading] = useState(true);

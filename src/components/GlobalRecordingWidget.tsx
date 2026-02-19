@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { View, StyleSheet, Text, Dimensions, Modal, Pressable } from 'react-native';
+import { View, StyleSheet, Text, Dimensions, Modal, Pressable, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRecording } from '../contexts/RecordingContext';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -97,6 +97,9 @@ export const GlobalRecordingWidget = React.memo(() => {
 
   // Animated style for the widget
   const animatedStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { left: translateX.value, top: translateY.value };
+    }
     return {
       transform: [{ translateX: translateX.value }, { translateY: translateY.value }],
     };

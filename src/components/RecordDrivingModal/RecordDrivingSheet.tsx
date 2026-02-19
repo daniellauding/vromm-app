@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, TouchableOpacity, AppState, Dimensions } from 'react-native';
+import { View, TouchableOpacity, AppState, Dimensions, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Text, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -120,9 +120,10 @@ export const RecordDrivingSheet = React.memo((props: RecordDrivingSheetProps) =>
 
   // Animated style for the sheet
   const animatedSheetStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: translateY.value }],
-    };
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
   });
 
   // Cancel recording now uses global context

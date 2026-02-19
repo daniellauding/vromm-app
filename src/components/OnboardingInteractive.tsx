@@ -372,12 +372,18 @@ export function OnboardingInteractive({
 
   // Animated styles
   const cityAnimatedStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: cityTranslateY.value };
+    }
     return {
       transform: [{ translateY: cityTranslateY.value }],
     };
   });
 
   const connectionsAnimatedStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: connectionsTranslateY.value };
+    }
     return {
       transform: [{ translateY: connectionsTranslateY.value }],
     };

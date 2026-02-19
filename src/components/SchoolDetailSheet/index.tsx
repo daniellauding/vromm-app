@@ -124,9 +124,12 @@ export function SchoolDetailSheet({ visible, onClose, entityId, entityType }: Sc
       }
     });
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
+  });
 
   const openEmail = () => {
     if (data?.email) Linking.openURL(`mailto:${data.email}`);

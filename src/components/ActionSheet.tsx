@@ -191,7 +191,8 @@ export function ActionSheet({
           {
             backgroundColor,
             borderColor,
-            transform: [{ translateY }],
+            transform: Platform.OS === 'web' ? undefined : [{ translateY }],
+            ...(Platform.OS === 'web' ? { top: translateY } : {}),
             zIndex: 1501,
             width: screenWidth,
           },

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { Modal, Animated, Pressable, Easing, View, Dimensions } from 'react-native';
+import { Modal, Animated, Pressable, Easing, View, Dimensions, Platform } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
@@ -138,9 +138,12 @@ export function ProfileSheet({ visible, onClose }: ProfileSheetProps) {
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
+  });
 
   // Animation effects
   useEffect(() => {

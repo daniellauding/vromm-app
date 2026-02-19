@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Text, YStack, XStack } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
-import { Animated, TouchableOpacity, View } from 'react-native';
+import { Animated, TouchableOpacity, View, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -270,7 +270,8 @@ export function Header({
           paddingBottom: 10,
           minHeight: 80,
           opacity: headerOpacity,
-          transform: [{ translateY: headerTranslateY }],
+          transform: Platform.OS === 'web' ? undefined : [{ translateY: headerTranslateY }],
+          ...(Platform.OS === 'web' ? { top: headerTranslateY } : {}),
         }}
       >
         {enableBlur ? (

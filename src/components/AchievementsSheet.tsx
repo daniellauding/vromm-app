@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -126,9 +127,14 @@ export function AchievementsSheet({ visible, onClose }: AchievementsSheetProps) 
   }));
 
   // Sheet animated style
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const sheetStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return {
+      transform: [{ translateY: translateY.value }],
+    };
+  });
 
   // Pan gesture
   const panGesture = Gesture.Pan()

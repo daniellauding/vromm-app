@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -199,9 +200,12 @@ export function LearningPathsSheet({
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
+  });
 
   // State
   const [paths, setPaths] = useState<LearningPath[]>([]);
@@ -326,6 +330,35 @@ export function LearningPathsSheet({
     if (!path.paywall_enabled) return false;
     return !hasPathPayment(path.id);
   };
+
+  // Save filter preferences to AsyncStorage - USER-SPECIFIC (matching ProgressScreen)
+  const saveFilterPreferences = useCallback(async (filters: Record<CategoryType, string>) => {
+    try {
+      // Make filter storage user-specific for supervisors viewing different students
+      const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
+      await AsyncStorage.setItem(filterKey, JSON.stringify(filters));
+      console.log('✅ [LearningPathsSheet] Saved filter preferences for user:', effectiveUserId, filters);
+    } catch (error) {
+      console.error('Error saving filter preferences:', error);
+    }
+  }, [effectiveUserId]);
+
+  // Load filter preferences from AsyncStorage - USER-SPECIFIC (matching ProgressScreen)
+  const loadFilterPreferences = useCallback(async (): Promise<Record<CategoryType, string> | null> => {
+    try {
+      // Make filter loading user-specific for supervisors viewing different students
+      const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
+      const saved = await AsyncStorage.getItem(filterKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('✅ [LearningPathsSheet] Loaded saved filter preferences for user:', effectiveUserId, parsed);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading filter preferences:', error);
+    }
+    return null;
+  }, [effectiveUserId]);
 
   // Load categories from database - using same table and logic as ProgressScreen
   const fetchCategories = useCallback(async () => {
@@ -514,35 +547,6 @@ export function LearningPathsSheet({
     
     console.log(`🎛️ [LearningPathsSheet] Filter selected: ${filterType} = ${value}`);
   }, [categoryFilters, saveFilterPreferences]);
-
-  // Load filter preferences from AsyncStorage - USER-SPECIFIC (matching ProgressScreen)
-  const loadFilterPreferences = useCallback(async (): Promise<Record<CategoryType, string> | null> => {
-    try {
-      // Make filter loading user-specific for supervisors viewing different students
-      const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
-      const saved = await AsyncStorage.getItem(filterKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        console.log('✅ [LearningPathsSheet] Loaded saved filter preferences for user:', effectiveUserId, parsed);
-        return parsed;
-      }
-    } catch (error) {
-      console.error('Error loading filter preferences:', error);
-    }
-    return null;
-  }, [effectiveUserId]);
-
-  // Save filter preferences to AsyncStorage - USER-SPECIFIC (matching ProgressScreen)
-  const saveFilterPreferences = useCallback(async (filters: Record<CategoryType, string>) => {
-    try {
-      // Make filter storage user-specific for supervisors viewing different students
-      const filterKey = `vromm_progress_filters_${effectiveUserId || 'default'}`;
-      await AsyncStorage.setItem(filterKey, JSON.stringify(filters));
-      console.log('✅ [LearningPathsSheet] Saved filter preferences for user:', effectiveUserId, filters);
-    } catch (error) {
-      console.error('Error saving filter preferences:', error);
-    }
-  }, [effectiveUserId]);
 
   // Helper function to get user profile preferences (matching ProgressScreen)
   const getProfilePreference = useCallback((key: string, defaultValue: string): string => {

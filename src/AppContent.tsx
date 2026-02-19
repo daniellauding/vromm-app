@@ -131,6 +131,98 @@ import { GlobalRecordingWidget } from './components/GlobalRecordingWidget';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// Web URL routing configuration - only used on web platform
+const webLinking = Platform.OS === 'web' ? {
+  prefixes: [Linking.createURL('/'), typeof window !== 'undefined' ? window.location.origin : ''],
+  config: {
+    screens: {
+      MainTabs: {
+        path: '',
+        screens: {
+          HomeTab: {
+            path: '',
+            parse: {
+              sheet: (sheet: string) => sheet,
+              pathId: (pathId: string) => pathId,
+              exerciseId: (exerciseId: string) => exerciseId,
+            },
+            screens: {
+              HomeScreen: '',
+              RouteDetail: 'routes/:routeId',
+              PublicProfile: 'user/:userId',
+              Conversation: 'messages/:conversationId',
+              EventDetail: 'events/:eventId',
+              CreateEvent: 'events/create',
+              CreateRoute: 'routes/create',
+              RouteList: 'routes/list',
+              SavedRoutes: 'routes/saved',
+              CreatedRoutes: 'routes/created',
+              NearByRoutes: 'routes/nearby',
+              DrivenRoutes: 'routes/driven',
+              CommunityFeedScreen: 'community',
+              ProfileScreen: 'profile',
+            },
+          },
+          ProgressTab: {
+            path: 'progress/:selectedPathId?',
+            parse: {
+              selectedPathId: (id: string) => id,
+              showDetail: () => true,
+            },
+          },
+          CreateRouteTab: 'create',
+          MapTab: {
+            path: 'map',
+            screens: {
+              MapScreen: '',
+              RouteDetail: 'map/routes/:routeId',
+            },
+          },
+          BetaTestingTab: 'beta',
+          MenuTab: {
+            path: 'menu',
+            screens: {
+              MenuRoot: '',
+              ProfileScreen: 'menu/profile',
+              PublicProfile: 'menu/user/:userId',
+            },
+          },
+        },
+      },
+      Login: 'login',
+      Signup: 'signup',
+      ForgotPassword: 'forgot-password',
+      ResetPassword: 'reset-password',
+      RouteDetail: 'route/:routeId',
+      CreateRoute: 'route/edit/:routeId?',
+      PublicProfile: 'users/:userId',
+      ProfileScreen: 'my-profile',
+      Messages: 'messages',
+      Conversation: 'conversation/:conversationId',
+      Notifications: 'notifications',
+      NewMessage: 'messages/new',
+      Events: 'events',
+      EventDetail: 'event/:eventId',
+      CreateEvent: 'event/create',
+      InviteUsers: 'event/:eventId/invite',
+      Search: 'search',
+      AddReview: 'route/:routeId/review',
+      RouteExercise: 'route/:routeId/exercise',
+      RouteList: 'routes/:type',
+      CommunityFeedScreen: 'community-feed',
+      UsersScreen: 'users',
+      StudentManagementScreen: 'students',
+      AdminDashboardScreen: 'admin',
+      SchoolDashboardScreen: 'school-dashboard',
+      InstructorDashboardScreen: 'instructor-dashboard',
+      DrivingLogScreen: 'driving-log',
+      QRConnectScreen: 'qr-connect',
+      LicensePlanScreen: 'license-plan',
+      RoleSelectionScreen: 'role-selection',
+    },
+  },
+} : undefined;
+
 // Track if we've already shown the push notification toast to avoid duplicates
 let hasShownPushNotificationToast = false;
 
@@ -536,6 +628,9 @@ function AppContent() {
   const colorScheme = useColorScheme();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
   const [authKey, setAuthKey] = useState(0);
+
+  // Web: Save deep link URL for redirect after login
+  const pendingDeepLinkRef = useRef<string | null>(null);
   
   // Get contexts - these hooks must be called unconditionally
   const recordingContext = useRecording();
@@ -931,6 +1026,13 @@ function AppContent() {
           // Do not navigate to AuthGate here; let React handle stack switching
         })();
 
+        // Web: Restore deep link URL before NavigationContainer remounts
+        if (Platform.OS === 'web' && typeof window !== 'undefined' && pendingDeepLinkRef.current) {
+          console.log('🔗 Restoring deep link after login:', pendingDeepLinkRef.current);
+          window.history.replaceState(null, '', pendingDeepLinkRef.current);
+          pendingDeepLinkRef.current = null;
+        }
+
         // Force a clean remount of NavigationContainer to avoid any stale stacks
         setAuthKey((k) => k + 1);
       }
@@ -940,6 +1042,19 @@ function AppContent() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Web: Capture deep link URL when unauthenticated user first loads the app
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (!user && initialized) {
+      const path = window.location.pathname + window.location.search;
+      // Only save non-trivial URLs (skip root, auth pages)
+      if (path && path !== '/' && !path.startsWith('/login') && !path.startsWith('/signup') && !path.startsWith('/forgot')) {
+        pendingDeepLinkRef.current = path;
+        console.log('📌 Saved pending deep link for after login:', path);
+      }
+    }
+  }, [initialized]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialize Firebase Analytics session tracking
   useEffect(() => {
@@ -1561,6 +1676,7 @@ function AppContent() {
       <NavigationContainer
         key={`${user ? 'nav-app' : 'nav-auth'}-${authKey}`}
         ref={navigationRef}
+        linking={webLinking}
         onStateChange={async (state) => {
           // Track screen views for analytics - works on both iOS and Android
           if (state) {

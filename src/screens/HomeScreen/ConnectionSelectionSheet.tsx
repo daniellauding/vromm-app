@@ -11,6 +11,7 @@ import {
   TextInput as RNTextInput,
   useColorScheme,
   Alert,
+  Platform,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -154,9 +155,14 @@ export const ConnectionSelectionSheet = ({
       }
     });
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return {
+      transform: [{ translateY: translateY.value }],
+    };
+  });
 
   const backdropAnimatedStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacityShared.value,

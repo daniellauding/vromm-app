@@ -314,9 +314,14 @@ export function RouteWizardSheet({ onCreateRoute, onMaximize }: RouteWizardSheet
     // Combined gestures - enable swipe with proper runOnJS usage
     const combinedGesture = Gesture.Simultaneous(panGesture, swipeGesture);
 
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ translateY: translateY.value }],
-    }));
+    const animatedStyle = useAnimatedStyle(() => {
+      if (Platform.OS === 'web') {
+        return { top: translateY.value };
+      }
+      return {
+        transform: [{ translateY: translateY.value }],
+      };
+    });
 
     // Validation
     const canProceed = useCallback(() => {

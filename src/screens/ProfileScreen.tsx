@@ -1323,7 +1323,8 @@ export function ProfileScreen() {
     }).start();
   };
 
-  const hideLocationSheet = () => {
+  // Using function declaration (not const arrow) so it's hoisted above gesture handlers that reference it
+  function hideLocationSheet() {
     console.log('🗺️ [ProfileScreen] hideLocationSheet - Closing location modal');
     console.log(
       '🗺️ [ProfileScreen] hideLocationSheet - final formData.location:',
@@ -1353,7 +1354,7 @@ export function ProfileScreen() {
     }).start(() => {
       setShowLocationDrawer(false);
     });
-  };
+  }
 
   // Developer options modal show/hide functions
   const showDeveloperSheet = () => {
@@ -4572,7 +4573,7 @@ export function ProfileScreen() {
                 width: '90%',
                 maxWidth: 400,
                 maxHeight: '80%',
-                transform: [{ scale: deleteModalScale }],
+                transform: Platform.OS === 'web' ? undefined : [{ scale: deleteModalScale }],
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.3,
@@ -4739,7 +4740,8 @@ export function ProfileScreen() {
             <Pressable style={{ flex: 1 }} onPress={hideRoleSheet} />
             <Animated.View
               style={{
-                transform: [{ translateY: roleSheetTranslateY }],
+                transform: Platform.OS === 'web' ? undefined : [{ translateY: roleSheetTranslateY }],
+                ...(Platform.OS === 'web' ? { top: roleSheetTranslateY } : {}),
               }}
             >
               <YStack
@@ -5571,9 +5573,14 @@ export function ProfileScreen() {
               height: height,
               backgroundColor: 'transparent',
             },
-            useAnimatedStyle(() => ({
-              transform: [{ translateY: locationTranslateY.value }],
-            })),
+            useAnimatedStyle(() => {
+              if (Platform.OS === 'web') {
+                return { top: locationTranslateY.value };
+              }
+              return {
+                transform: [{ translateY: locationTranslateY.value }],
+              };
+            }),
           ]}
           pointerEvents="box-none"
         >

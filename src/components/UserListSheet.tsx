@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Image,
+  Platform,
 } from 'react-native';
 import { YStack, XStack, Text, Card, Input } from 'tamagui';
 import { Button } from './Button';
@@ -464,7 +465,8 @@ export function UserListSheet({
               bottom: 0,
               left: 0,
               right: 0,
-              transform: [{ translateY: sheetTranslateY }],
+              transform: Platform.OS === 'web' ? undefined : [{ translateY: sheetTranslateY }],
+              ...(Platform.OS === 'web' ? { top: sheetTranslateY } : {}),
             }}
           >
             <YStack

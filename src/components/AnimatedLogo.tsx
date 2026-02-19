@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, Animated, Easing } from 'react-native';
+import { View, StyleSheet, Animated, Easing, Platform } from 'react-native';
 import { YStack } from 'tamagui';
 import { Asset } from 'expo-asset';
 
@@ -164,7 +164,7 @@ export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoPr
 
   return (
     <YStack alignItems="center" justifyContent="center">
-      <View style={[styles.container, { transform: [{ scale }] }]}>
+      <View style={[styles.container, { transform: Platform.OS === 'web' ? undefined : [{ scale }] }]}>
         {/* Symbol */}
         <Animated.Image
           source={symbolImage}
@@ -189,7 +189,7 @@ export function AnimatedLogo({ onAnimationComplete, size = 200 }: AnimatedLogoPr
                 letter === 'm2' ? styles.m2Letter : null,
                 {
                   opacity: letterAnimations[letter].opacity,
-                  transform: [{ scale: letterAnimations[letter].scale }],
+                  transform: Platform.OS === 'web' ? undefined : [{ scale: letterAnimations[letter].scale }],
                   left: LETTER_POSITIONS[letter],
                 },
               ]}
@@ -236,6 +236,6 @@ const styles = StyleSheet.create({
     height: 47,
     bottom: -2,
     marginLeft: 10,
-    transform: [{ scaleX: 1 }], // Ensure exact same width as m1
+    ...(Platform.OS !== 'web' ? { transform: [{ scaleX: 1 }] } : {}), // Ensure exact same width as m1
   },
 });

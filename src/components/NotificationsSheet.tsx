@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { Modal, Animated, Pressable, View, Dimensions } from 'react-native';
+import { Modal, Animated, Pressable, View, Dimensions, Platform } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
@@ -216,9 +216,12 @@ export function NotificationsSheet({ visible, onClose }: NotificationsSheetProps
       currentState.value = boundedTarget;
     });
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
+  });
 
   // Animation effects
   useEffect(() => {

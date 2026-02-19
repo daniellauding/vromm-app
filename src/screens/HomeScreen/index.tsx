@@ -56,6 +56,19 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
   const { isViewingAsStudent, activeStudentName, activeStudentId, setActiveStudent } =
     useStudentSwitch();
   const navigation = useNavigation<NavigationProp>();
+  // Parse URL query params for deep linking on web
+  const urlParams = React.useMemo(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return {};
+    const params = new URLSearchParams(window.location.search);
+    return {
+      sheet: params.get('sheet') as 'learning-paths' | 'exercises' | null,
+      pathId: params.get('pathId'),
+      exerciseId: params.get('exerciseId'),
+    };
+  }, []);
+  const urlSheet = urlParams.sheet || undefined;
+  const urlPathId = urlParams.pathId || undefined;
+  const urlExerciseId = urlParams.exerciseId || undefined;
   const { t, language } = useTranslation();
   const tourContext = useTour();
   const { startDatabaseTour, shouldShowTour } = tourContext;
@@ -328,8 +341,17 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
     }, [navigation]),
   );
 
-  // Disabled to prevent console flooding
-  // console.log('🎯 [HomeScreen] Rendering');
+  // Update browser URL when sheets open/close (web only)
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (showRouteDetailSheet && selectedRouteId) {
+      window.history.pushState(null, '', `/route/${selectedRouteId}`);
+    } else if (showUserProfileSheet && selectedUserId) {
+      window.history.pushState(null, '', `/users/${selectedUserId}`);
+    } else {
+      window.history.replaceState(null, '', '/');
+    }
+  }, [showRouteDetailSheet, selectedRouteId, showUserProfileSheet, selectedUserId]);
 
   return (
     <Screen edges={[]} padding={false} hideStatusBar scroll={false}>
@@ -457,6 +479,9 @@ export const HomeScreen = React.memo(function HomeScreen({ activeUserId }: HomeS
                 setSelectedUserId={setSelectedUserId}
                 setShowUserProfileSheet={setShowUserProfileSheet}
                 setShowUserListSheet={setShowUserListSheet}
+                initialSheet={urlSheet}
+                initialPathId={urlPathId}
+                initialExerciseId={urlExerciseId}
               />
             ) : (
               <CommunityTab

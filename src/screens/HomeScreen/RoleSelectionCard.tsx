@@ -8,6 +8,7 @@ import {
   Animated,
   Pressable,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { YStack, Text, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
@@ -338,9 +339,9 @@ export const RoleSelectionCard = () => {
                     borderTopRightRadius: 20,
                     padding: 20,
                   },
-                  {
-                    transform: [{ translateY: roleTranslateY }],
-                  },
+                  Platform.OS === 'web'
+                    ? { top: roleTranslateY }
+                    : { transform: [{ translateY: roleTranslateY }] },
                 ]}
               >
                 {/* Drag Handle - only this area captures pan gesture for sheet resize */}

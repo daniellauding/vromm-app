@@ -7,6 +7,7 @@ import {
   Modal,
   useColorScheme,
   Image,
+  Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { YStack, XStack, Card, Input, TextArea, Separator } from 'tamagui';
@@ -1190,7 +1191,9 @@ export function AdvancedExerciseCreator({
                       height: 26,
                       borderRadius: 13,
                       backgroundColor: 'white',
-                      transform: [{ translateX: formData.has_quiz ? 22 : 2 }],
+                      ...(Platform.OS === 'web'
+                        ? { transform: `translateX(${formData.has_quiz ? 22 : 2}px)` }
+                        : { transform: [{ translateX: formData.has_quiz ? 22 : 2 }] }),
                     }}
                   />
                 </TouchableOpacity>

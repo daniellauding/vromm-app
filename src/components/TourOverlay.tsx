@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Dimensions, useColorScheme, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Dimensions, useColorScheme, Animated, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTour } from '../contexts/TourContext';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -165,7 +165,7 @@ const TourTooltip: React.FC<TourTooltipProps> = ({
         width: position.tooltipWidth,
         zIndex: 100000, // ✅ Even higher z-index for tooltip
         elevation: 100000, // ✅ Android elevation
-        transform: [
+        transform: Platform.OS === 'web' ? undefined : [
           { scale: animValue },
           {
             translateY: animValue.interpolate({
@@ -332,7 +332,7 @@ const ElementHighlight: React.FC<{
         shadowRadius: 12,
         elevation: 99997, // ✅ Very high elevation for Android
         zIndex: 99997, // ✅ Very high z-index
-        transform: [{ scale: pulseAnim }],
+        transform: Platform.OS === 'web' ? undefined : [{ scale: pulseAnim }],
       }}
     />
   );

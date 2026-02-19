@@ -1016,6 +1016,14 @@ export function DailyStatus({
     }
   }, [selectedDate, effectiveUserId]);
 
+  // Update browser URL when route detail sheet opens/closes (web only)
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (showRouteDetailSheet && selectedRouteId) {
+      window.history.pushState(null, '', `/route/${selectedRouteId}`);
+    }
+  }, [showRouteDetailSheet, selectedRouteId]);
+
   // Note: DailyStatus doesn't need real-time subscriptions
   // It's a personal tracking component that only needs to refresh when user interacts with it
 
@@ -1075,9 +1083,12 @@ export function DailyStatus({
       runOnJS(setCurrentSnapPoint)(targetSnapPoint);
     });
 
-  const animatedSheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: sheetTranslateY.value }],
-  }));
+  const animatedSheetStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: sheetTranslateY.value };
+    }
+    return { transform: [{ translateY: sheetTranslateY.value }] };
+  });
 
   // Animation effects - NO BOUNCING, smooth spring animations
   useEffect(() => {

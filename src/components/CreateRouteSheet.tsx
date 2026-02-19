@@ -366,9 +366,12 @@ export function CreateRouteSheet({
     });
 
   // Animated styles
-  const animatedSheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedSheetStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
+  });
 
   const animatedBackdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,
@@ -3054,7 +3057,9 @@ export function CreateRouteSheet({
                                       position: 'absolute',
                                       top: 16,
                                       left: '50%',
-                                      transform: [{ translateX: -50 }],
+                                      ...(Platform.OS === 'web'
+                                        ? { transform: 'translateX(-50px)' as any }
+                                        : { transform: [{ translateX: -50 }] }),
                                       backgroundColor:
                                         drawingMode === 'pen'
                                           ? 'rgba(56,253,191,0.9)'

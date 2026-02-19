@@ -93,6 +93,7 @@
     "expo-updates": "~0.28.13",
     "expo-web-browser": "~14.2.0",
     "lucide-react-native": "^0.526.0",
+    "mapbox-gl": "^3.18.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.3",

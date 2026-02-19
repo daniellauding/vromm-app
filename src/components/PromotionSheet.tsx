@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Linking,
   Image,
+  Platform,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -136,9 +137,14 @@ export function PromotionSheet({ visible, onClose, promotion, language }: Promot
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return {
+      transform: [{ translateY: translateY.value }],
+    };
+  });
 
   // Animation effects
   useEffect(() => {

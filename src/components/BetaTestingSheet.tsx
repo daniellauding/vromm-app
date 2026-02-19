@@ -515,9 +515,12 @@ export function BetaTestingSheet({
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
+  });
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'checklist' | 'feedback' | 'pricing' | 'video'>(

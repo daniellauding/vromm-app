@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, TouchableOpacity, Animated, Easing, Image } from 'react-native';
+import { Modal, TouchableOpacity, Animated, Easing, Image, Platform } from 'react-native';
 import { YStack, XStack, Text, Button } from 'tamagui';
 import { Lock, X } from '@tamagui/lucide-icons';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -175,7 +175,7 @@ export function LockModal({ visible, onClose, contentType, featureName }: LockMo
           >
             <Animated.View
               style={{
-                transform: [{ scale: modalScale }],
+                transform: Platform.OS === 'web' ? undefined : [{ scale: modalScale }],
               }}
             >
               <YStack

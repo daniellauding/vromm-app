@@ -54,9 +54,76 @@ export default function App() {
           'Rubik-ExtraBoldItalic': require('./assets/fonts/Rubik/static/Rubik-ExtraBoldItalic.ttf'),
           'Rubik-BlackItalic': require('./assets/fonts/Rubik/static/Rubik-BlackItalic.ttf'),
         });
+
+        // On web, also register fonts under the "Rubik" family with proper weights
+        // so Tamagui's CSS font-family: "Rubik" + font-weight works correctly
+        if (Platform.OS === 'web') {
+          const fontFaces = [
+            { name: 'Rubik-Regular', weight: '400', style: 'normal' },
+            { name: 'Rubik-Italic', weight: '400', style: 'italic' },
+            { name: 'Rubik-Medium', weight: '500', style: 'normal' },
+            { name: 'Rubik-MediumItalic', weight: '500', style: 'italic' },
+            { name: 'Rubik-SemiBold', weight: '600', style: 'normal' },
+            { name: 'Rubik-Bold', weight: '700', style: 'normal' },
+            { name: 'Rubik-BoldItalic', weight: '700', style: 'italic' },
+            { name: 'Rubik-ExtraBold', weight: '800', style: 'normal' },
+            { name: 'Rubik-ExtraBoldItalic', weight: '800', style: 'italic' },
+            { name: 'Rubik-Black', weight: '900', style: 'normal' },
+            { name: 'Rubik-BlackItalic', weight: '900', style: 'italic' },
+          ];
+
+          // Get existing @font-face src URLs from the fonts expo-font already loaded
+          const existingStyles = document.querySelectorAll('style[id^="expo-generated-fonts"]');
+          const existingCSS = Array.from(existingStyles).map(s => s.textContent).join('\n');
+
+          let css = '';
+          for (const ff of fontFaces) {
+            // Extract the src URL from expo-font's generated CSS
+            const regex = new RegExp(`font-family:\\s*["']?${ff.name}["']?[^}]*src:\\s*([^;]+)`, 's');
+            const match = existingCSS.match(regex);
+            if (match) {
+              css += `@font-face { font-family: "Rubik"; font-weight: ${ff.weight}; font-style: ${ff.style}; src: ${match[1]}; }\n`;
+            }
+          }
+
+          if (css) {
+            const style = document.createElement('style');
+            style.textContent = css;
+            document.head.appendChild(style);
+          }
+
+          // Global font override: use !important but exclude icon font elements
+          // Icon fonts (Feather, MaterialCommunityIcons, etc.) use inline font-family
+          // which we must not override, so we use a MutationObserver to re-apply selectively
+          const globalStyle = document.createElement('style');
+          globalStyle.textContent = `
+            *, *::before, *::after { font-family: "Rubik", "Rubik-Regular", system-ui, -apple-system, sans-serif !important; }
+          `;
+          document.head.appendChild(globalStyle);
+
+          // Fix icon fonts: observe DOM for icon elements and restore their font-family
+          const iconFontFamilies = ['feather', 'Feather', 'MaterialCommunityIcons', 'material-community', 'Ionicons', 'ionicons', 'FontAwesome', 'fontawesome', 'MaterialIcons', 'material-icons', 'SimpleLineIcons', 'Entypo', 'AntDesign', 'EvilIcons', 'Octicons', 'Zocial', 'Foundation'];
+          const fixIconFonts = () => {
+            const allElements = document.querySelectorAll('*');
+            allElements.forEach((el) => {
+              const inlineFont = (el as HTMLElement).style?.fontFamily;
+              if (inlineFont && iconFontFamilies.some(f => inlineFont.includes(f))) {
+                (el as HTMLElement).style.setProperty('font-family', inlineFont, 'important');
+              }
+            });
+          };
+          // Run once after initial render, then observe for changes
+          setTimeout(fixIconFonts, 500);
+          const observer = new MutationObserver(() => {
+            requestAnimationFrame(fixIconFonts);
+          });
+          observer.observe(document.body, { childList: true, subtree: true });
+        }
+
         setFontsLoaded(true);
       } catch (error) {
         console.error('Error loading fonts:', error);
+        setFontsLoaded(true); // Continue even if fonts fail on web
       }
     }
     loadFonts();

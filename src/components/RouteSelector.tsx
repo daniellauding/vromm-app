@@ -9,6 +9,7 @@ import {
   Dimensions,
   FlatList,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { YStack, XStack, Card, Input, Button } from 'tamagui';
 import { Text } from './Text';
@@ -117,7 +118,9 @@ export function RouteSelector({
         style={{
           marginBottom: 16,
           opacity: isSelected ? 1 : 0.7,
-          transform: [{ scale: isSelected ? 1 : 0.95 }],
+          ...(Platform.OS === 'web'
+            ? { transform: `scale(${isSelected ? 1 : 0.95})` as any }
+            : { transform: [{ scale: isSelected ? 1 : 0.95 }] }),
         }}
       >
         <View style={{ position: 'relative' }}>

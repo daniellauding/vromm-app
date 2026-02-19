@@ -266,6 +266,7 @@ export function Map({
   showStartEndMarkers?: boolean;
   drawingMode?: string;
   penDrawingCoordinates?: Array<{ latitude: number; longitude: number }>;
+  mapStyle?: string;
 }) {
   const mapRef = React.useRef<MapView>(null);
   const currentRegion = React.useRef<Region | null>(null);

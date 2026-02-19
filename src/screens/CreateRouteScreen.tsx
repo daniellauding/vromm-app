@@ -2905,7 +2905,9 @@ export function CreateRouteScreen({ route, isModal, hideHeader }: Props) {
                             position: 'absolute',
                             top: 16,
                             left: '50%',
-                            transform: [{ translateX: -50 }],
+                            ...(Platform.OS === 'web'
+                              ? { transform: 'translateX(-50px)' as any }
+                              : { transform: [{ translateX: -50 }] }),
                             backgroundColor:
                               drawingMode === 'pen' ? 'rgba(255,107,53,0.9)' : 'rgba(0,0,0,0.8)',
                             paddingHorizontal: 12,

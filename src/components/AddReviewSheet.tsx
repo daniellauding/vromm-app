@@ -230,9 +230,10 @@ export function AddReviewSheet({
   ]);
 
   const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: translateY.value }],
-    };
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
   });
 
   // Handle review completion

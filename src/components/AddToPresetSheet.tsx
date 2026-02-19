@@ -8,6 +8,7 @@ import {
   Modal,
   Pressable,
   useColorScheme,
+  Platform,
 } from 'react-native';
 import { Text, XStack, YStack, Input } from 'tamagui';
 import { Button } from './Button';
@@ -265,9 +266,12 @@ export function AddToPresetSheet({
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
+  });
 
   // Load presets and check which ones contain this route
   const loadPresets = useCallback(async () => {

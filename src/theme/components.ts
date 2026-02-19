@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { createTamagui } from 'tamagui';
 import { tokens } from './tokens';
 import {
@@ -39,7 +40,8 @@ export const componentThemes = {
       paddingHorizontal: tokens.space[16],
       pressStyle: {
         backgroundColor: tokens.color.primaryPress,
-        transform: [{ scale: 0.98 }],
+        ...(Platform.OS !== 'web' ? { transform: [{ scale: 0.98 }] } : {}),
+        opacity: 0.9,
       },
       hoverStyle: {
         backgroundColor: tokens.color.primaryHover,
@@ -144,7 +146,8 @@ export const componentThemes = {
       padding: tokens.space[16],
       pressStyle: {
         backgroundColor: tokens.color.backgroundPress,
-        transform: [{ scale: 0.99 }],
+        ...(Platform.OS !== 'web' ? { transform: [{ scale: 0.99 }] } : {}),
+        opacity: 0.9,
       },
       hoverStyle: {
         backgroundColor: tokens.color.backgroundHover,
@@ -318,6 +321,7 @@ export const config = createTamagui({
   defaultTheme: 'light',
   shouldAddPrefersColorThemes: true,
   themeClassNameOnRoot: true,
+  defaultFont: 'body',
   shorthands,
   fonts: {
     heading: rubikFont,

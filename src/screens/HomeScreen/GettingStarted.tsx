@@ -253,9 +253,10 @@ export const GettingStarted = () => {
   const currentConnectionsState = useSharedValue(connectionsSnapPoints.large);
 
   const connectionsAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: connectionsTranslateY.value }],
-    };
+    if (Platform.OS === 'web') {
+      return { top: connectionsTranslateY.value };
+    }
+    return { transform: [{ translateY: connectionsTranslateY.value }] };
   });
 
   const connectionsPanGesture = Gesture.Pan()
@@ -530,7 +531,7 @@ export const GettingStarted = () => {
     }).start();
   };
 
-  const hideKorkortsplanSheet = () => {
+  function hideKorkortsplanSheet() {
     if (!showKorkortsplanModal) return; // Prevent multiple calls
 
     licensePlanIsAnimating.value = false; // Stop any ongoing gestures
@@ -546,7 +547,7 @@ export const GettingStarted = () => {
     setTimeout(() => {
       setShowKorkortsplanModal(false);
     }, 300);
-  };
+  }
 
   // License plan functions (copied from ProfileScreen)
   const handleDateChange = (event: any, selectedDate?: Date) => {
@@ -695,7 +696,7 @@ export const GettingStarted = () => {
     }).start();
   };
 
-  const hideRoleSheet = () => {
+  function hideRoleSheet() {
     if (!showRoleModal) return; // Prevent multiple calls
 
     roleIsAnimating.value = false; // Stop any ongoing gestures
@@ -711,7 +712,7 @@ export const GettingStarted = () => {
     setTimeout(() => {
       setShowRoleModal(false);
     }, 300);
-  };
+  }
 
   // Load pending invitations
   const loadPendingInvitations = async () => {
@@ -804,7 +805,7 @@ export const GettingStarted = () => {
     });
   };
 
-  const hideConnectionsSheet = () => {
+  function hideConnectionsSheet() {
     connectionsTranslateY.value = withSpring(connectionsSnapPoints.dismissed, {
       damping: 20,
       stiffness: 300,
@@ -816,7 +817,7 @@ export const GettingStarted = () => {
     setTimeout(() => {
       setShowConnectionsModal(false);
     }, 300);
-  };
+  }
 
   // Relationship removal modal gesture handler
   const relationshipRemovalPanGesture = Gesture.Pan()
@@ -923,7 +924,7 @@ export const GettingStarted = () => {
     console.log('🔗 [GettingStarted] Starting animation for relationshipRemovalBackdropOpacity');
   };
 
-  const closeRelationshipRemovalModal = () => {
+  function closeRelationshipRemovalModal() {
     if (!showRelationshipRemovalModal) return; // Prevent multiple calls
 
     relationshipRemovalIsAnimating.value = false; // Stop any ongoing gestures
@@ -941,7 +942,7 @@ export const GettingStarted = () => {
       setRelationshipRemovalTarget(null);
       setRelationshipRemovalMessage('');
     }, 300);
-  };
+  }
 
   // Role and connections handlers (copied from OnboardingInteractive)
   const handleRoleSelect = async (roleId: string) => {
@@ -2132,9 +2133,9 @@ export const GettingStarted = () => {
                     borderTopRightRadius: 20,
                     padding: 20,
                   },
-                  {
-                    transform: [{ translateY: licensePlanTranslateY }],
-                  },
+                  Platform.OS === 'web'
+                    ? { top: licensePlanTranslateY }
+                    : { transform: [{ translateY: licensePlanTranslateY }] },
                 ]}
               >
                 {/* Drag Handle - only this area captures pan gesture for sheet resize */}
@@ -2745,9 +2746,9 @@ export const GettingStarted = () => {
                     borderTopRightRadius: 20,
                     padding: 20,
                   },
-                  {
-                    transform: [{ translateY: roleTranslateY }],
-                  },
+                  Platform.OS === 'web'
+                    ? { top: roleTranslateY }
+                    : { transform: [{ translateY: roleTranslateY }] },
                 ]}
               >
                 {/* Drag Handle - only this area captures pan gesture for sheet resize */}

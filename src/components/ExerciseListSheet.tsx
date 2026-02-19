@@ -13,6 +13,7 @@ import {
   TextInput,
   Linking,
   Image,
+  Platform,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -282,9 +283,13 @@ export function ExerciseListSheet({
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    // On web, use 'top' instead of transform array to avoid CSSStyleDeclaration indexed property error
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
+  });
 
   // State (exact copy from ProgressScreen)
   const [detailPath, setDetailPath] = useState<LearningPath | null>(null);

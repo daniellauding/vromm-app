@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, View, Dimensions, ScrollView, Image, TextInput } from 'react-native';
+import { Modal, Pressable, View, Dimensions, ScrollView, Image, TextInput, Platform } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
   useSharedValue,
@@ -458,9 +458,14 @@ export const RelationshipModal = ({
       runOnJS(setCurrentRelationshipSnapPoint)(boundedTarget);
     });
 
-  const relationshipAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: relationshipTranslateY.value }],
-  }));
+  const relationshipAnimatedStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: relationshipTranslateY.value };
+    }
+    return {
+      transform: [{ translateY: relationshipTranslateY.value }],
+    };
+  });
 
   useEffect(() => {
     if (visible) {

@@ -285,8 +285,16 @@
     }
   },
   "auth": {
-    "signIn": "Sign In",
-    "signUp": "Sign Up",
+    "signIn": {
+      "title": "Sign In",
+      "slogan": "Welcome back to Vromm",
+      "signInButton": "Sign In",
+      "loading": "Signing in..."
+    },
+    "signUp": {
+      "signUpButton": "Sign Up",
+      "loading": "Creating account..."
+    },
     "email": "Email",
     "password": "Password",
     "confirmPassword": "Confirm Password",

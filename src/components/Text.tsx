@@ -8,6 +8,7 @@ export type TextIntent = 'default' | 'muted' | 'success' | 'error' | 'warning';
 export const Text = styled(TamaguiText, {
   name: 'Text',
   color: '$color',
+  fontFamily: '$body',
 
   variants: {
     size: {

@@ -268,6 +268,27 @@ export function ProgressScreen() {
   const colorScheme = effectiveTheme || 'light';
   const iconColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
+  // Web: Read exercise ID from URL query params on page reload
+  const webExerciseId = React.useMemo(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return undefined;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('exercise') || undefined;
+  }, []);
+
+  // Combined exercise ID from route params or URL query
+  const effectiveExerciseId = focusExerciseId || webExerciseId;
+
+  // Web URL update helper - keeps URL in sync with current view
+  const updateWebUrl = React.useCallback((pathId?: string, exerciseId?: string) => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    let url = pathId ? `/progress/${pathId}` : '/progress';
+    if (exerciseId) url += `?exercise=${exerciseId}`;
+    window.history.replaceState(null, '', url);
+  }, []);
+
+  // If URL has selectedPathId, infer showDetail=true (for page reload support)
+  const inferredShowDetail = showDetail || !!selectedPathId;
+
   // Helper function to get translation with fallback when t() returns the key itself
   const getTranslation = (key: string, fallback: string): string => {
     const translated = t(key);
@@ -319,36 +340,8 @@ export function ProgressScreen() {
   // Use activeUserId from navigation if provided, otherwise check StudentSwitchContext, then fall back to authUser
   const effectiveUserId = activeUserId || getEffectiveUserId();
 
-  // Load shared unlock data when user changes
-  useEffect(() => {
-    if (effectiveUserId) {
-      loadUserPayments(effectiveUserId);
-      loadUnlockedContent(effectiveUserId);
-      console.log('🔓 [ProgressScreen] Loading shared unlock data for user:', effectiveUserId);
-    }
-  }, [effectiveUserId, loadUserPayments, loadUnlockedContent]);
-
-  // Debug logging for user switching
-  useEffect(() => {
-    console.log(
-      '🔍 [ProgressScreen] ==================== USER SWITCHING DEBUG ====================',
-    );
-    console.log('🔍 [ProgressScreen] User ID Debug:', {
-      activeUserId: activeUserId,
-      authUserId: authUser?.id,
-      activeStudentId: activeStudentId,
-      effectiveUserId: effectiveUserId,
-      isViewingStudent: activeUserId && activeUserId !== authUser?.id,
-      isViewingStudentFromContext: !!activeStudentId,
-      routeParams: route.params,
-      authUserName: authUser?.email,
-      profileRole: profile?.role,
-    });
-    console.log('🔍 [ProgressScreen] ============================================================');
-  }, [activeUserId, authUser?.id, activeStudentId, effectiveUserId]);
-
   const [activePath, setActivePath] = useState<string>(selectedPathId || '');
-  const [showDetailView, setShowDetailView] = useState<boolean>(!!showDetail);
+  const [showDetailView, setShowDetailView] = useState<boolean>(!!inferredShowDetail);
   const [detailPath, setDetailPath] = useState<LearningPath | null>(null);
   const [paths, setPaths] = useState<LearningPath[]>([]);
   const [loading, setLoading] = useState(true);
@@ -369,6 +362,46 @@ export function ProgressScreen() {
     hasPathPayment,
     hasExercisePayment,
   } = useUnlock();
+
+  // Load shared unlock data when user changes
+  useEffect(() => {
+    if (effectiveUserId) {
+      loadUserPayments(effectiveUserId);
+      loadUnlockedContent(effectiveUserId);
+      console.log('🔓 [ProgressScreen] Loading shared unlock data for user:', effectiveUserId);
+    }
+  }, [effectiveUserId, loadUserPayments, loadUnlockedContent]);
+
+  // Web: Auto-update URL when exercise selection changes
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (!showDetailView) return;
+    const pathId = activePath || detailPath?.id;
+    if (selectedExercise) {
+      updateWebUrl(pathId, selectedExercise.id);
+    } else if (pathId) {
+      updateWebUrl(pathId);
+    }
+  }, [selectedExercise, activePath, detailPath?.id, showDetailView, updateWebUrl]);
+
+  // Debug logging for user switching
+  useEffect(() => {
+    console.log(
+      '🔍 [ProgressScreen] ==================== USER SWITCHING DEBUG ====================',
+    );
+    console.log('🔍 [ProgressScreen] User ID Debug:', {
+      activeUserId: activeUserId,
+      authUserId: authUser?.id,
+      activeStudentId: activeStudentId,
+      effectiveUserId: effectiveUserId,
+      isViewingStudent: activeUserId && activeUserId !== authUser?.id,
+      isViewingStudentFromContext: !!activeStudentId,
+      routeParams: route.params,
+      authUserName: authUser?.email,
+      profileRole: profile?.role,
+    });
+    console.log('🔍 [ProgressScreen] ============================================================');
+  }, [activeUserId, authUser?.id, activeStudentId, effectiveUserId]);
 
   // Debug logging for ProgressScreen
   // User and profile tracking without excessive logging
@@ -2393,8 +2426,8 @@ export function ProgressScreen() {
             .order('order_index', { ascending: true });
           if (data) {
             setExercises(data);
-            if (focusExerciseId) {
-              const found = (data as any[]).find((ex) => ex.id === focusExerciseId);
+            if (effectiveExerciseId) {
+              const found = (data as any[]).find((ex) => ex.id === effectiveExerciseId);
               if (found) setSelectedExercise(found as any);
             }
           }
@@ -2439,10 +2472,10 @@ export function ProgressScreen() {
       const path = paths.find((p) => p.id === selectedPathId);
       if (path) {
         setDetailPath(path);
-        setShowDetailView(!!showDetail);
+        setShowDetailView(!!inferredShowDetail);
       }
     }
-  }, [selectedPathId, showDetail, paths]);
+  }, [selectedPathId, inferredShowDetail, paths]);
 
   useEffect(() => {
     if (showDetailView && detailPath) {
@@ -2457,6 +2490,11 @@ export function ProgressScreen() {
           // Just use the exercises as they come from the database
           // Don't create fake repeat exercises - only work with real database entries
           setExercises(data || []);
+          // Auto-select exercise from URL on page reload
+          if (effectiveExerciseId && data) {
+            const found = data.find((ex: any) => ex.id === effectiveExerciseId);
+            if (found) setSelectedExercise(found as any);
+          }
           try {
             const ids = (data || []).map((e: any) => e.id);
             if (ids.length > 0) {
@@ -2651,6 +2689,7 @@ export function ProgressScreen() {
     setActivePath(path.id);
     setDetailPath(path);
     setShowDetailView(true);
+    updateWebUrl(path.id);
   };
 
   // Handle exercise selection with lock checks
@@ -3205,7 +3244,7 @@ export function ProgressScreen() {
           You need to complete the previous learning path before accessing this one.
         </Text>
         <TouchableOpacity
-          onPress={() => setShowDetailView(false)}
+          onPress={() => { setShowDetailView(false); updateWebUrl(); }}
           style={{
             marginTop: 16,
             backgroundColor: '#333',
@@ -4288,7 +4327,7 @@ export function ProgressScreen() {
           variant="smart"
           enableBlur={true}
           leftElement={
-            <TouchableOpacity onPress={() => setShowDetailView(false)}>
+            <TouchableOpacity onPress={() => { setShowDetailView(false); updateWebUrl(); }}>
               <Feather name="arrow-left" size={28} color={iconColor} />
             </TouchableOpacity>
           }
@@ -5843,6 +5882,7 @@ export function ProgressScreen() {
                           setActivePath(passwordPath.id);
                           setDetailPath(passwordPath);
                           setShowDetailView(true);
+                          updateWebUrl(passwordPath.id);
                         } else {
                           Alert.alert(
                             'Incorrect Password',

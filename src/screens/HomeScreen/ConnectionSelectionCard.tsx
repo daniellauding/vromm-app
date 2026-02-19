@@ -9,6 +9,7 @@ import {
   Dimensions,
   ScrollView,
   TextInput,
+  Platform,
 } from 'react-native';
 import { YStack, XStack, Card } from 'tamagui';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -78,6 +79,9 @@ export const ConnectionSelectionCard = ({ selectedRole }: ConnectionSelectionCar
   const currentConnectionsState = useSharedValue(connectionsSnapPoints.large);
 
   const connectionsAnimatedStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: connectionsTranslateY.value };
+    }
     return {
       transform: [{ translateY: connectionsTranslateY.value }],
     };
@@ -261,7 +265,7 @@ export const ConnectionSelectionCard = ({ selectedRole }: ConnectionSelectionCar
     });
   };
 
-  const hideConnectionsSheet = () => {
+  function hideConnectionsSheet() {
     connectionsTranslateY.value = withSpring(connectionsSnapPoints.dismissed, {
       damping: 20,
       stiffness: 300,

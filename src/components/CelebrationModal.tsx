@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Dimensions, Animated, Pressable, Image, TouchableOpacity } from 'react-native';
+import { View, Dimensions, Animated, Pressable, Image, TouchableOpacity, Platform } from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather } from '@expo/vector-icons';
 import { useTranslation } from '../contexts/TranslationContext';
@@ -241,7 +241,7 @@ export function CelebrationModal({
                       Math.floor(Math.random() * 4)
                     ],
                     borderRadius: 5,
-                    transform: [
+                    transform: Platform.OS === 'web' ? undefined : [
                       {
                         translateY: confettiAnim.interpolate({
                           inputRange: [0, 1],
@@ -262,7 +262,7 @@ export function CelebrationModal({
 
             <Animated.View
               style={{
-                transform: [{ scale: scaleAnim }],
+                transform: Platform.OS === 'web' ? undefined : [{ scale: scaleAnim }],
                 width: '100%',
               }}
             >

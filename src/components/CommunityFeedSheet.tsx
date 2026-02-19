@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   FlatList,
+  Platform,
 } from 'react-native';
 import { YStack, XStack, Text, Spinner } from 'tamagui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -1016,7 +1017,8 @@ export function CommunityFeedSheet({
               bottom: 0,
               left: 0,
               right: 0,
-              transform: [{ translateY: sheetTranslateY }],
+              transform: Platform.OS === 'web' ? undefined : [{ translateY: sheetTranslateY }],
+              ...(Platform.OS === 'web' ? { top: sheetTranslateY } : {}),
             }}
           >
             <YStack

@@ -198,6 +198,7 @@ export type FilterOptions = {
   selectedPresetId?: string | null; // NEW: Collection/preset selection
   showSchools?: boolean;
   showInstructors?: boolean;
+  mapStyle?: 'standard' | 'satellite' | 'earth' | '3d' | 'automotive' | 'firstperson';
 };
 
 interface FilterSheetProps {
@@ -643,9 +644,12 @@ export function FilterSheet({
       runOnJS(setCurrentSnapPoint)(boundedTarget);
     });
 
-  const animatedGestureStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedGestureStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { top: translateY.value };
+    }
+    return { transform: [{ translateY: translateY.value }] };
+  });
 
   // Load saved filters when component mounts or effectiveUserId changes
   useEffect(() => {
@@ -1757,6 +1761,51 @@ export function FilterSheet({
                       })()}
                     </View>
                   </YStack>
+
+                  {/* Map Style - Web only */}
+                  {Platform.OS === 'web' && (
+                    <YStack style={styles.filterSection}>
+                      <SizableText fontWeight="600" style={styles.sectionTitle}>
+                        {lang === 'sv' ? 'Kartläge' : 'Map Style'}
+                      </SizableText>
+                      <View style={styles.filterRow}>
+                        {([
+                          { key: 'standard', label: lang === 'sv' ? 'Karta' : 'Map' },
+                          { key: 'satellite', label: lang === 'sv' ? 'Satellit' : 'Satellite' },
+                          { key: 'earth', label: 'Earth' },
+                          { key: '3d', label: '3D' },
+                          { key: 'automotive', label: lang === 'sv' ? 'Kör' : 'Drive' },
+                          { key: 'firstperson', label: lang === 'sv' ? 'Gatunivå' : 'Street' },
+                        ] as const).map(({ key, label }) => (
+                          <TouchableOpacity
+                            key={key}
+                            style={[
+                              styles.filterChip,
+                              {
+                                borderColor,
+                                backgroundColor: filters.mapStyle === key ? '#27febe' : 'transparent',
+                              },
+                            ]}
+                            onPress={() =>
+                              setSingleFilter('mapStyle', filters.mapStyle === key ? undefined : key)
+                            }
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                {
+                                  color: filters.mapStyle === key ? '#000000' : textColor,
+                                  fontWeight: filters.mapStyle === key ? '600' : '500',
+                                },
+                              ]}
+                            >
+                              {label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </YStack>
+                  )}
 
                   {/* Sort Options - WITH ROUTE COUNTS */}
                   <YStack style={styles.filterSection}>

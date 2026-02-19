@@ -277,8 +277,16 @@
     "skip": "Hoppa över"
   },
   "auth": {
-    "signIn": "Logga in",
-    "signUp": "Registrera dig",
+    "signIn": {
+      "title": "Logga in",
+      "slogan": "Välkommen tillbaka till Vromm",
+      "signInButton": "Logga in",
+      "loading": "Loggar in..."
+    },
+    "signUp": {
+      "signUpButton": "Registrera dig",
+      "loading": "Skapar konto..."
+    },
     "email": "E-post",
     "password": "Lösenord",
     "confirmPassword": "Bekräfta lösenord",

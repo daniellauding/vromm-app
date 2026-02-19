@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Animated,
   Easing,
+  Platform,
 } from 'react-native';
 import ReanimatedAnimated, {
   useSharedValue,
@@ -88,9 +89,14 @@ export function MapScreen({
   const drawerTranslateX = useSharedValue(-100); // Start off-screen (hidden)
 
   // Animated drawer style
-  const animatedDrawerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: `${drawerTranslateX.value}%` }],
-  }));
+  const animatedDrawerStyle = useAnimatedStyle(() => {
+    if (Platform.OS === 'web') {
+      return { left: `${drawerTranslateX.value}%` };
+    }
+    return {
+      transform: [{ translateX: `${drawerTranslateX.value}%` }],
+    };
+  });
 
   // Toggle drawer
   const toggleDrawer = useCallback(() => {
@@ -441,18 +447,25 @@ export function MapScreen({
         return;
       }
 
-      // Fallback to GPS location
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const location = await Location.getLastKnownPositionAsync({});
-        if (location) {
-          // Using GPS location as fallback
-          setRegion((prev) => ({
-            ...prev,
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          }));
-        }
+      // Fallback to GPS location (with timeout to prevent hanging on web)
+      try {
+        const locationPromise = (async () => {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === 'granted') {
+            const location = await Location.getLastKnownPositionAsync({});
+            if (location) {
+              setRegion((prev) => ({
+                ...prev,
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+              }));
+            }
+          }
+        })();
+        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 3000));
+        await Promise.race([locationPromise, timeoutPromise]);
+      } catch (error) {
+        console.warn('🗺️ [MapScreen] Location permission failed, using default region:', error);
       }
       setIsMapReady(true);
 
@@ -595,6 +608,18 @@ export function MapScreen({
       }, 1600); // Wait for longer animation to complete
     }
   }, [activeRoutes, mapRef]);
+
+  // Update browser URL when sheets open/close (web only)
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (showRouteDetailSheet && selectedRouteId) {
+      window.history.pushState(null, '', `/route/${selectedRouteId}`);
+    } else if (showUserProfileSheet && selectedUserId) {
+      window.history.pushState(null, '', `/users/${selectedUserId}`);
+    } else {
+      window.history.replaceState(null, '', '/map');
+    }
+  }, [showRouteDetailSheet, selectedRouteId, showUserProfileSheet, selectedUserId]);
 
   // Update focus effect to reset both route and pin selection
   useFocusEffect(
@@ -1339,6 +1364,7 @@ export function MapScreen({
             onMarkerPress={handleMarkerPress}
             ref={mapRef}
             routePathColor={PIN_COLORS.ROUTE_PATH}
+            mapStyle={appliedFilters.mapStyle}
           />
 
           {/* Route Creation Banner */}
@@ -1545,7 +1571,7 @@ export function MapScreen({
               {locationLoading ? (
                 <Animated.View
                   style={{
-                    transform: [
+                    transform: Platform.OS === 'web' ? undefined : [
                       {
                         rotate: spinValue.interpolate({
                           inputRange: [0, 1],

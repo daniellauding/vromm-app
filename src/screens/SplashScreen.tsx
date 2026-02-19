@@ -388,7 +388,7 @@ export function SplashScreen() {
   }, [videoAnimation]);
 
   const videoAnimatedStyle = {
-    transform: [
+    transform: Platform.OS === 'web' ? undefined : [
       {
         scale: videoAnimation.interpolate({
           inputRange: [0, 0.5, 1],
@@ -898,7 +898,7 @@ export function SplashScreen() {
                 alignItems: 'center',
                 marginBottom: 24,
                 minHeight: 300,
-                transform: [{ scale: imageScale }],
+                transform: Platform.OS === 'web' ? undefined : [{ scale: imageScale }],
               }}
             >
               {renderMedia(item)}
@@ -908,7 +908,8 @@ export function SplashScreen() {
               <Animated.View
                 style={{
                   opacity: titleOpacity,
-                  transform: [{ translateY: titleTranslateY }],
+                  transform: Platform.OS === 'web' ? undefined : [{ translateY: titleTranslateY }],
+                  ...(Platform.OS === 'web' ? { top: titleTranslateY } : {}),
                 }}
               >
                 <Text
@@ -926,7 +927,8 @@ export function SplashScreen() {
               <Animated.View
                 style={{
                   opacity: textOpacity,
-                  transform: [{ translateY: textTranslateY }],
+                  transform: Platform.OS === 'web' ? undefined : [{ translateY: textTranslateY }],
+                  ...(Platform.OS === 'web' ? { top: textTranslateY } : {}),
                 }}
               >
                 <Text size="lg" textAlign="center" color={textColor} opacity={0.9}>
@@ -1304,7 +1306,8 @@ export function SplashScreen() {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                transform: [{ translateY: surveySheetTranslateY }],
+                transform: Platform.OS === 'web' ? undefined : [{ translateY: surveySheetTranslateY }],
+                ...(Platform.OS === 'web' ? { top: surveySheetTranslateY } : {}),
               }}
             >
               <YStack
@@ -1398,7 +1401,8 @@ export function SplashScreen() {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                transform: [{ translateY: languageSheetTranslateY }],
+                transform: Platform.OS === 'web' ? undefined : [{ translateY: languageSheetTranslateY }],
+                ...(Platform.OS === 'web' ? { top: languageSheetTranslateY } : {}),
               }}
             >
               <YStack

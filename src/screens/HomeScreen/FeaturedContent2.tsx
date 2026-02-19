@@ -11,6 +11,7 @@ import {
   PanResponder,
   Image,
   Linking,
+  Platform,
 } from 'react-native';
 import { YStack, XStack, Text, Card } from 'tamagui';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import { useTranslation } from '../../contexts/TranslationContext';
 import { useColorScheme } from 'react-native';
 import { SectionHeader } from '../../components/SectionHeader';
 import { ExerciseListSheet } from '../../components/ExerciseListSheet';
+import { LearningPathsSheet } from '../../components/LearningPathsSheet';
 import { useAuth } from '../../context/AuthContext';
 import { useUnlock } from '../../contexts/UnlockContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -95,6 +97,8 @@ export function FeaturedContent2() {
   const [selectedPathId, setSelectedPathId] = useState<string | undefined>();
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | undefined>();
   const [selectedTitle, setSelectedTitle] = useState<string>('');
+  const [showLearningPathsSheet, setShowLearningPathsSheet] = useState(false);
+  const [selectedLearningPath, setSelectedLearningPath] = useState<FeaturedLearningPath | null>(null);
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [paywallPath, setPaywallPath] = useState<FeaturedLearningPath | null>(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -866,7 +870,9 @@ export function FeaturedContent2() {
                   position: 'absolute',
                   width: screenWidth - CARD_MARGIN * 2,
                   height: CARD_HEIGHT,
-                  transform: [{ translateY: stackOffset }, { scale: stackScale }],
+                  ...(Platform.OS === 'web'
+                    ? { transform: `translateY(${stackOffset}px) scale(${stackScale})` as any }
+                    : { transform: [{ translateY: stackOffset }, { scale: stackScale }] }),
                   opacity: stackOpacity,
                   zIndex,
                 }}
@@ -884,18 +890,20 @@ export function FeaturedContent2() {
                 position: 'absolute',
                 width: screenWidth - CARD_MARGIN * 2,
                 height: CARD_HEIGHT,
-                transform: [
-                  { translateX: pan.x },
-                  { translateY: pan.y },
-                  { scale: scale },
-                  {
-                    rotate: rotate.interpolate({
-                      inputRange: [-30, 30],
-                      outputRange: ['-30deg', '30deg'],
-                      extrapolate: 'clamp',
-                    }),
-                  },
-                ],
+                transform: Platform.OS === 'web'
+                  ? [{ scale }]
+                  : [
+                      { translateX: pan.x },
+                      { translateY: pan.y },
+                      { scale: scale },
+                      {
+                        rotate: rotate.interpolate({
+                          inputRange: [-30, 30],
+                          outputRange: ['-30deg', '30deg'],
+                          extrapolate: 'clamp',
+                        }),
+                      },
+                    ],
                 zIndex: 2000,
               }}
               {...panResponder.panHandlers} // REAL SWIPE GESTURES!
@@ -924,6 +932,18 @@ export function FeaturedContent2() {
         title={selectedTitle}
         learningPathId={selectedPathId}
         initialExerciseId={selectedExerciseId}
+      />
+
+      {/* Learning Paths Sheet */}
+      <LearningPathsSheet
+        visible={showLearningPathsSheet}
+        onClose={() => setShowLearningPathsSheet(false)}
+        onPathSelected={(path) => {
+          setShowLearningPathsSheet(false);
+          setSelectedPathId(path.id);
+          setSelectedTitle(path.title[language] || path.title.en);
+          setShowExerciseSheet(true);
+        }}
       />
 
       {/* 🔒 Paywall Modal for Learning Paths (from FeaturedContent.tsx) */}
