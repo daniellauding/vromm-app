@@ -5,10 +5,11 @@
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
-  EXPO_PUBLIC_SUPABASE_URL = "https://wbimxxrbzgynigwolcnk.supabase.co"
-  EXPO_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndiaW14eHJiemd5bmlnd29sY25rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY0MDg1OTYsImV4cCI6MjA1MTk4NDU5Nn0.0kM04sBRE9x0pGMpubUjfkbXgp-c1aRoRdsCAz2cPV0"
-  EXPO_PUBLIC_GIPHY_KEY = "qy7cPb9DNZHFnccpdAtDcm2CrjZUuH4L"
-  EXPO_PUBLIC_GOOGLE_MAPS_API_KEY = "AIzaSyDOtXSGBNx6ZNdQoGpdLuQUjguyRm8bke4"
+  # Set these in Netlify UI: Site settings > Environment variables
+  # EXPO_PUBLIC_SUPABASE_URL
+  # EXPO_PUBLIC_SUPABASE_ANON_KEY
+  # EXPO_PUBLIC_GIPHY_KEY
+  # EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
 
 [[redirects]]
   from = "/*"

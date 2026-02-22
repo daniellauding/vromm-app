@@ -50,7 +50,7 @@
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyDOtXSGBNx6ZNdQoGpdLuQUjguyRm8bke4"
+          "apiKey": "GOOGLE_MAPS_API_KEY_PLACEHOLDER"
         }
       }
     },
