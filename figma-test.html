@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vromm - Test Component</title>
+  <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F5F5F5; display: flex; justify-content: center; padding: 40px; }
+    .phone-frame { width: 390px; height: 844px; background: #FFFFFF; border-radius: 40px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+    .status-bar { height: 54px; padding: 14px 24px 0; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 600; }
+    .header { padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+    .header h1 { font-size: 28px; font-weight: 700; color: #1A1A1A; }
+    .search-bar { margin: 0 24px 16px; background: #F0F0F0; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 8px; color: #999; }
+    .section-title { padding: 8px 24px; font-size: 18px; font-weight: 600; color: #1A1A1A; }
+    .route-card { margin: 8px 24px; background: #FFF; border-radius: 16px; overflow: hidden; border: 1px solid #E8E8E8; }
+    .route-image { height: 140px; background: linear-gradient(135deg, #00FFBC 0%, #00CC96 100%); display: flex; align-items: center; justify-content: center; }
+    .route-image span { font-size: 48px; }
+    .route-info { padding: 16px; }
+    .route-info h3 { font-size: 16px; font-weight: 600; color: #1A1A1A; margin-bottom: 4px; }
+    .route-info p { font-size: 13px; color: #666; margin-bottom: 8px; }
+    .route-meta { display: flex; gap: 12px; }
+    .route-meta span { font-size: 12px; color: #999; background: #F5F5F5; padding: 4px 8px; border-radius: 6px; }
+    .tab-bar { position: absolute; bottom: 0; width: 390px; height: 83px; background: #FFF; border-top: 1px solid #E8E8E8; display: flex; justify-content: space-around; align-items: flex-start; padding-top: 8px; }
+    .tab-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: #999; }
+    .tab-item.active { color: #00FFBC; }
+    .tab-icon { width: 24px; height: 24px; border-radius: 6px; background: currentColor; opacity: 0.3; }
+    .tab-item.active .tab-icon { opacity: 1; }
+    .btn-primary { margin: 16px 24px; background: #00FFBC; color: #1A1A1A; border: none; border-radius: 12px; padding: 16px; font-size: 16px; font-weight: 600; width: calc(100% - 48px); cursor: pointer; text-align: center; }
+    .chip-row { display: flex; gap: 8px; padding: 0 24px 12px; overflow-x: auto; }
+    .chip { padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+    .chip.active { background: #00FFBC; color: #1A1A1A; }
+    .chip.inactive { background: #F0F0F0; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="phone-frame" style="position: relative;">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>●●● WiFi 🔋</span>
+    </div>
+    <div class="header">
+      <h1>Utforska rutter</h1>
+    </div>
+    <div class="search-bar">
+      🔍 <span>Sök rutter, övningar...</span>
+    </div>
+    <div class="chip-row">
+      <div class="chip active">Alla</div>
+      <div class="chip inactive">Nära mig</div>
+      <div class="chip inactive">Populära</div>
+      <div class="chip inactive">Nya</div>
+    </div>
+    <div class="section-title">Rekommenderade</div>
+    <div class="route-card">
+      <div class="route-image"><span>🛣️</span></div>
+      <div class="route-info">
+        <h3>Stadskörning Stockholm</h3>
+        <p>Övningskörning i centrala Stockholm med fokus på rondeller och korsningar</p>
+        <div class="route-meta">
+          <span>⏱ 45 min</span>
+          <span>📍 12 km</span>
+          <span>⭐ 4.8</span>
+          <span>🚗 Medel</span>
+        </div>
+      </div>
+    </div>
+    <button class="btn-primary">Skapa ny rutt</button>
+    <div class="tab-bar">
+      <div class="tab-item"><div class="tab-icon"></div>Karta</div>
+      <div class="tab-item active"><div class="tab-icon"></div>Utforska</div>
+      <div class="tab-item"><div class="tab-icon"></div>Progress</div>
+      <div class="tab-item"><div class="tab-icon"></div>Community</div>
+      <div class="tab-item"><div class="tab-icon"></div>Profil</div>
+    </div>
+  </div>
+</body>
+</html>

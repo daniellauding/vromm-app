@@ -1,0 +1,63 @@
+[     294ms] [WARNING] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect. @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:140176
+[     354ms] [WARNING] [expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality. @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:151909
+[     373ms] [WARNING] "shadow*" style props are deprecated. Use "boxShadow". @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:19691
+[     377ms] [WARNING] Require cycle: src/components/CreateRouteSheet.tsx -> src/components/RouteDetailSheet/index.tsx -> src/components/RouteDetailSheet/RouteActions.tsx -> src/components/CreateRouteSheet.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle. @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:83
+[     911ms] [WARNING] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect. @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:140176
+[     925ms] [WARNING] [expo-av]: Expo AV has been deprecated and will be removed in SDK 54. Use the `expo-audio` and `expo-video` packages to replace the required functionality. @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:151909
+[     931ms] [WARNING] "shadow*" style props are deprecated. Use "boxShadow". @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:19691
+[     932ms] [WARNING] Require cycle: src/components/CreateRouteSheet.tsx -> src/components/RouteDetailSheet/index.tsx -> src/components/RouteDetailSheet/RouteActions.tsx -> src/components/CreateRouteSheet.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle. @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:83
+[     975ms] UnavailabilityError: The method or property Notifications.setNotificationCategoryAsync is not available on web, are you sure you've linked all the native dependencies properly?
+    at Object.setNotificationCategoryAsync (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:148145:13)
+    at Object.setNotificationCategoryAsync (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:148179:56)
+    at setupRecordingNotifications (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:139658:25)
+    at __d.0 (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:149901:50)
+    at loadModuleImplementation (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:263:7)
+    at guardedLoadModule (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:169:14)
+    at metroRequire (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:89:75)
+    at __d.0 (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:178651:34)
+    at loadModuleImplementation (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:263:7)
+    at guardedLoadModule (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:169:14)
+[    1088ms] [WARNING] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23098
+[    1733ms] [WARNING] Image: style.resizeMode is deprecated. Please use props.resizeMode. @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23098
+[    1802ms] [WARNING] ⚠️ [TranslationContext] NO beta.checklist translations found! @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23098
+[   34097ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://wbimxxrbzgynigwolcnk.supabase.co/auth/v1/token?grant_type=password:0
+[  180057ms] [WARNING] props.pointerEvents is deprecated. Use style.pointerEvents @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23098
+[  180091ms] [ERROR] %o
+
+%s
+
+%s
+ ReferenceError: Cannot access 'saveFilterPreferences' before initialization
+    at LearningPathsSheet (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:533398:26)
+    at react-stack-bottom-frame (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13216:20)
+    at renderWithHooks (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:4533:22)
+    at updateFunctionComponent (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:5802:19)
+    at beginWork (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:6420:18)
+    at runWithFiberInDEV (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:1761:16)
+    at performUnitOfWork (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:9005:249)
+    at workLoopSync (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:8899:40)
+    at renderRootSync (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:8883:9)
+    at performWorkOnRoot (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:8644:44) The above error occurred in the <LearningPathsSheet> component. React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:5569
+[  180092ms] [ERROR]  [Memory: 56.2MB] App crashed - Error Boundary caught error {error: Object, errorInfo: Object, platform: web, platformVersion: undefined, timestamp: 2026-02-18T12:18:42.750Z} @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:137133
+[  229078ms] [WARNING] ⚠️ [TranslationContext] NO beta.checklist translations found! @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23098
+[  229162ms] [ERROR] %o
+
+%s
+
+%s
+ ReferenceError: Cannot access 'saveFilterPreferences' before initialization
+    at LearningPathsSheet (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:533398:26)
+    at react-stack-bottom-frame (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:13216:20)
+    at renderWithHooks (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:4533:22)
+    at updateFunctionComponent (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:5802:19)
+    at beginWork (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:6420:18)
+    at runWithFiberInDEV (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:1761:16)
+    at performUnitOfWork (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:9005:249)
+    at workLoopSync (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:8899:40)
+    at renderRootSync (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:8883:9)
+    at performWorkOnRoot (http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:8644:44) The above error occurred in the <LearningPathsSheet> component. React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:5569
+[  229163ms] [ERROR]  [Memory: 54.1MB] App crashed - Error Boundary caught error {error: Object, errorInfo: Object, platform: web, platformVersion: undefined, timestamp: 2026-02-18T12:19:31.821Z} @ http://localhost:8083/index.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:137133

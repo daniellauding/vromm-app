@@ -13,7 +13,10 @@
       "Bash(mv:*)",
       "Bash(yarn start)",
       "Bash(pkill:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_run_code"
     ],
     "deny": [],
     "ask": []
