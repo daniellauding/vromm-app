@@ -12,7 +12,10 @@
     "loading": "Laddar...",
     "yes": "Ja",
     "no": "Nej",
-    "more": "Mer"
+    "more": "Mer",
+    "showMore": "Visa mer",
+    "showLess": "Visa mindre",
+    "report": "Rapportera"
   },
   "routeMeta": {
     "routeType": "Ruttyp",
@@ -32,7 +35,8 @@
     "lastUpdated": "Senast uppdaterad",
     "publicRoute": "Offentlig rutt",
     "verified": "Verifierad",
-    "draft": "Utkast"
+    "draft": "Utkast",
+    "category": "Kategori"
   },
   "home": {
     "savedRoutes": "Sparade rutter",
@@ -74,7 +78,8 @@
     "routeOptions": "Ruttalternativ",
     "openInMaps": "Öppna i kartor",
     "deleteRoute": "Ta bort rutt",
-    "reportRoute": "Rapportera rutt"
+    "reportRoute": "Rapportera rutt",
+    "getDirections": "Vägbeskrivning"
   },
   "review": {
     "title": "Lägg till recension",
@@ -431,6 +436,31 @@
     "mapLayers": "Kartlager",
     "showSchools": "Visa Skolor",
     "showInstructors": "Visa Handledare"
+  },
+  "comments": {
+    "title": "Kommentarer",
+    "beFirstToComment": "Bli först med att kommentera",
+    "writeComment": "Skriv en kommentar…",
+    "replyingTo": "Svarar {{name}}",
+    "reply": "Svara",
+    "edit": "Redigera",
+    "delete": "Ta bort",
+    "deleteConfirmTitle": "Ta bort kommentar",
+    "deleteConfirmMessage": "Är du säker på att du vill ta bort denna kommentar?",
+    "hideReplies": "Dölj svar",
+    "viewReplies": "Visa {{count}} svar",
+    "viewRepliesPlural": "Visa {{count}} svar",
+    "send": "Skicka",
+    "save": "Spara",
+    "cancel": "Avbryt",
+    "report": "Rapportera",
+    "chooseGif": "Välj en GIF",
+    "searchGifs": "Sök GIF:ar",
+    "trending": "Populärt",
+    "random": "Slumpmässig",
+    "search": "Sök",
+    "close": "Stäng",
+    "moreActions": "Fler åtgärder"
   },
   "notifications": {
     "studentCompletedExercise": "slutförde en övning",

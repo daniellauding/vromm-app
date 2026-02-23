@@ -12,7 +12,10 @@
     "loading": "Loading...",
     "yes": "Yes",
     "no": "No",
-    "more": "More"
+    "more": "More",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "report": "Report"
   },
   "routeMeta": {
     "routeType": "Route Type",
@@ -32,7 +35,8 @@
     "lastUpdated": "Last Updated",
     "publicRoute": "Public Route",
     "verified": "Verified",
-    "draft": "Draft"
+    "draft": "Draft",
+    "category": "Category"
   },
   "home": {
     "savedRoutes": "Saved Routes",
@@ -74,7 +78,8 @@
     "routeOptions": "Route Options",
     "openInMaps": "Open in Maps",
     "deleteRoute": "Delete Route",
-    "reportRoute": "Report Route"
+    "reportRoute": "Report Route",
+    "getDirections": "Get Directions"
   },
   "review": {
     "title": "Add Review",
@@ -439,6 +444,31 @@
     "mapLayers": "Map Layers",
     "showSchools": "Show Schools",
     "showInstructors": "Show Instructors"
+  },
+  "comments": {
+    "title": "Comments",
+    "beFirstToComment": "Be the first to comment",
+    "writeComment": "Write a comment…",
+    "replyingTo": "Replying to {{name}}",
+    "reply": "Reply",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirmTitle": "Delete Comment",
+    "deleteConfirmMessage": "Are you sure you want to delete this comment?",
+    "hideReplies": "Hide replies",
+    "viewReplies": "View {{count}} reply",
+    "viewRepliesPlural": "View {{count}} replies",
+    "send": "Send",
+    "save": "Save",
+    "cancel": "Cancel",
+    "report": "Report",
+    "chooseGif": "Choose a GIF",
+    "searchGifs": "Search GIFs",
+    "trending": "Trending",
+    "random": "Random",
+    "search": "Search",
+    "close": "Close",
+    "moreActions": "More Actions"
   },
   "notifications": {
     "studentCompletedExercise": "completed an exercise",
