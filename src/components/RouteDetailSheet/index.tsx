@@ -8,6 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedAnimated, {
@@ -27,7 +28,6 @@ import { NavigationProp } from '../../types/navigation';
 import { supabase } from '../../lib/supabase';
 import { Feather } from '@expo/vector-icons';
 import { Database } from '../../lib/database.types';
-import { ReviewSection } from './../ReviewSection';
 import { Chip } from './../Chip';
 import { Image } from 'react-native';
 import { CommentsSection } from './../CommentsSection';
@@ -43,12 +43,52 @@ import { UserProfileSheet } from './../UserProfileSheet';
 import { useTabletLayout } from '../../hooks/useTabletLayout';
 import { AddReviewSheet } from './../AddReviewSheet';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCarouselItems } from './utils';
 import RouteDetailsCarousel from './RouteDetailsCarousel';
-import RouteActions from './RouteActions';
+// import RouteActions from './RouteActions';
 import RouteDetailsMeta from './RouteDetailsMeta';
+import ReviewsList from './ReviewsList';
+import StickyFooter from './StickyFooter';
+import { useRouteActions } from './useRouteActions';
+import DrivenOptionsModal from './DrivenOptionsModal';
+import RouteOptions from './RouteOptions';
+import { CreateRouteSheet } from '../CreateRouteSheet';
 
 const { height, width } = Dimensions.get('window');
+
+function formatRelativeDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return sameYear
+    ? `${date.getDate()} ${months[date.getMonth()]}`
+    : `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+}
 
 type DifficultyLevel = Database['public']['Enums']['difficulty_level'];
 type RouteRow = Database['public']['Tables']['routes']['Row'];
@@ -63,7 +103,9 @@ type Review = {
   visited_at: string;
   images: { url: string }[];
   user?: {
+    id: string;
     full_name: string;
+    avatar_url?: string;
   };
 };
 
@@ -127,6 +169,7 @@ type RouteData = Omit<RouteRow, 'waypoint_details' | 'media_attachments'> & {
   creator?: {
     id: string;
     full_name: string;
+    avatar_url?: string;
   };
   reviews?: { count: number }[];
   average_rating?: { rating: number }[];
@@ -153,7 +196,7 @@ export function RouteDetailSheet({
 }: RouteDetailSheetProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   // Make navigation optional to handle modal context
   let navigation: any = null;
@@ -176,6 +219,11 @@ export function RouteDetailSheet({
 
   // Animation refs - matching OnboardingInteractive pattern
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
+  const reviewsSectionY = useRef(0);
+  const commentsSectionY = useRef(0);
+  const [canScroll, setCanScroll] = useState(false);
+  const [showDrivenOptionsFromFooter, setShowDrivenOptionsFromFooter] = useState(false);
 
   // Gesture handling for drag-to-dismiss and snap points
   const translateY = useSharedValue(height);
@@ -236,22 +284,32 @@ export function RouteDetailSheet({
   }, [routeId, nearbyRoutes, onRouteChange]);
 
   // Schedule route change on JS thread after swipe animation completes
-  const scheduleRouteChange = useCallback((goToPrevious: boolean) => {
-    setTimeout(() => {
-      // Reset animation values
-      swipeTranslateX.value = 0;
-      swipeTranslateY.value = 0;
-      swipeRotate.value = 0;
-      swipeOpacity.value = 1;
+  const scheduleRouteChange = useCallback(
+    (goToPrevious: boolean) => {
+      setTimeout(() => {
+        // Reset animation values
+        swipeTranslateX.value = 0;
+        swipeTranslateY.value = 0;
+        swipeRotate.value = 0;
+        swipeOpacity.value = 1;
 
-      // Trigger route change
-      if (goToPrevious) {
-        handleSwipeToPrevious();
-      } else {
-        handleSwipeToNext();
-      }
-    }, 200);
-  }, [handleSwipeToPrevious, handleSwipeToNext, swipeTranslateX, swipeTranslateY, swipeRotate, swipeOpacity]);
+        // Trigger route change
+        if (goToPrevious) {
+          handleSwipeToPrevious();
+        } else {
+          handleSwipeToNext();
+        }
+      }, 200);
+    },
+    [
+      handleSwipeToPrevious,
+      handleSwipeToNext,
+      swipeTranslateX,
+      swipeTranslateY,
+      swipeRotate,
+      swipeOpacity,
+    ],
+  );
 
   // Horizontal swipe gesture for route navigation with Tinder-like animation
   const swipeGesture = Gesture.Pan()
@@ -404,8 +462,7 @@ export function RouteDetailSheet({
 
       currentState.value = boundedTarget;
       runOnJS(setCurrentSnapPoint)(boundedTarget);
-    })
-
+    });
 
   // Combine gestures - vertical pan for drag-to-dismiss, horizontal pan for route navigation
   const combinedGesture = Gesture.Simultaneous(panGesture, swipeGesture);
@@ -427,11 +484,13 @@ export function RouteDetailSheet({
   const [routeCollections, setRouteCollections] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [showReviewsDetails, setShowReviewsDetails] = useState(false);
   const [showCommentsDetails, setShowCommentsDetails] = useState(false);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
+  const [showOptionsSheet, setShowOptionsSheet] = useState(false);
+  const [showCreateRouteSheet, setShowCreateRouteSheet] = useState(false);
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
   // Exercise-related state
   const [exerciseStats, setExerciseStats] = useState<{
@@ -518,7 +577,12 @@ export function RouteDetailSheet({
       waypoint_details: waypoints as (WaypointDetail & Json)[],
       media_attachments: media as (MediaAttachment & Json)[],
       exercises: exercises,
-      creator: routeResponse.creator || undefined,
+      creator: routeResponse.creator
+        ? {
+            ...routeResponse.creator,
+            avatar_url: routeResponse.creator.avatar_url || undefined,
+          }
+        : undefined,
       reviews: routeResponse.reviews || [],
       average_rating: routeResponse.average_rating || [],
     };
@@ -534,13 +598,16 @@ export function RouteDetailSheet({
         .select(
           `
           id,
+          user_id,
           rating,
           content,
           difficulty,
           visited_at,
           images,
           user:profiles!user_id(
-            full_name
+            id,
+            full_name,
+            avatar_url
           )
         `,
         )
@@ -563,7 +630,9 @@ export function RouteDetailSheet({
               : [],
             user: review.user
               ? {
+                  id: review.user.id,
                   full_name: review.user.full_name,
+                  avatar_url: review.user.avatar_url,
                 }
               : undefined,
           }) as Review,
@@ -658,6 +727,133 @@ export function RouteDetailSheet({
     }
   }, [visible, backdropOpacity, snapPoints.large, currentState, translateY]);
 
+  // Shared save/driven state for footer and RouteActions
+  const {
+    isSaved: footerIsSaved,
+    isDriven: footerIsDriven,
+    setIsDriven: footerSetIsDriven,
+    handleSaveRoute: footerHandleSave,
+    handleMarkDriven: footerHandleMarkDriven,
+  } = useRouteActions({
+    routeId,
+    onOpenReviewSheet: () => setShowReviewSheet(true),
+    onClose,
+    navigation,
+  });
+
+  const onFooterMarkDriven = useCallback(async () => {
+    const result = await footerHandleMarkDriven();
+    if (result === 'already_driven') {
+      setShowDrivenOptionsFromFooter(true);
+    }
+  }, [footerHandleMarkDriven]);
+
+  // Scroll to reviews section
+  const scrollToReviews = useCallback(() => {
+    scrollViewRef.current?.scrollTo({ y: reviewsSectionY.current, animated: true });
+  }, []);
+
+  const scrollToComments = useCallback(() => {
+    scrollViewRef.current?.scrollTo({ y: commentsSectionY.current, animated: true });
+  }, []);
+
+  // Navigate to map with difficulty filter (saves to AsyncStorage like FilterSheet)
+  const handleDifficultyPress = useCallback(async () => {
+    if (!routeData?.difficulty) return;
+
+    // Save difficulty filter using same key/format as FilterSheet
+    const filterKey = `vromm_map_filters_${user?.id || 'default'}`;
+    try {
+      const existing = await AsyncStorage.getItem(filterKey);
+      const currentFilters = existing ? JSON.parse(existing) : {};
+      const currentDifficulty: string[] = currentFilters.difficulty || [];
+
+      // Toggle: add if not present, remove if already there
+      if (currentDifficulty.includes(routeData.difficulty)) {
+        currentFilters.difficulty = currentDifficulty.filter(
+          (d: string) => d !== routeData.difficulty,
+        );
+      } else {
+        currentFilters.difficulty = [...currentDifficulty, routeData.difficulty];
+      }
+
+      await AsyncStorage.setItem(filterKey, JSON.stringify(currentFilters));
+    } catch (e) {
+      console.warn('Failed to save difficulty filter:', e);
+    }
+
+    onClose();
+    if (navigation) {
+      setTimeout(() => {
+        try {
+          // @ts-ignore
+          navigation.navigate('MainTabs', { screen: 'MapTab' });
+        } catch (e) {
+          // Fallback
+        }
+      }, 300);
+    }
+  }, [navigation, routeData?.difficulty, onClose, user?.id]);
+
+  // Navigate to map centered on route location
+  const handleLocationPress = useCallback(() => {
+    if (!routeData?.waypoint_details?.length) return;
+
+    const firstWp = routeData.waypoint_details[0];
+    onClose();
+    if (navigation) {
+      setTimeout(() => {
+        try {
+          // @ts-ignore - Navigate to nested screen in stack
+          navigation.navigate('MainTabs', {
+            screen: 'MapTab',
+            params: {
+              screen: 'MapScreen',
+              params: {
+                selectedLocation: {
+                  id: routeData.id,
+                  place_name: routeData.full_address || routeData.location || routeData.name,
+                  center: [firstWp.lng, firstWp.lat],
+                  place_type: ['address'],
+                },
+                fromSearch: true,
+                ts: Date.now(),
+              },
+            },
+          });
+        } catch (e) {
+          // Fallback
+        }
+      }, 300);
+    }
+  }, [navigation, routeData, onClose]);
+
+  const handleOpenInMaps = useCallback(() => {
+    if (!routeData?.waypoint_details?.length) {
+      showToast({
+        title: t('common.error') || 'Error',
+        message: t('routeDetail.noWaypointsAvailable') || 'No waypoints available for this route',
+        type: 'error',
+      });
+      return;
+    }
+    const waypoints = routeData.waypoint_details;
+    const origin = `${waypoints[0].lat},${waypoints[0].lng}`;
+    const destination = `${waypoints[waypoints.length - 1].lat},${waypoints[waypoints.length - 1].lng}`;
+    const maxIntermediateWaypoints = 8;
+    const intermediateWaypoints = waypoints.slice(1, -1);
+    let selectedWaypoints = intermediateWaypoints;
+    if (intermediateWaypoints.length > maxIntermediateWaypoints) {
+      const step = Math.floor(intermediateWaypoints.length / maxIntermediateWaypoints);
+      selectedWaypoints = intermediateWaypoints
+        .filter((_: any, index: number) => index % step === 0)
+        .slice(0, maxIntermediateWaypoints);
+    }
+    const waypointsStr = selectedWaypoints.map((wp: any) => `${wp.lat},${wp.lng}`).join('|');
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypointsStr ? `&waypoints=${waypointsStr}` : ''}`;
+    Linking.openURL(googleMapsUrl);
+  }, [routeData, showToast, t]);
+
   // Refresh function
   const handleRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -680,318 +876,652 @@ export function RouteDetailSheet({
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-      <Animated.View
-        style={{
-          flex: 1,
-          backgroundColor: 'transparent',
-        }}
-      >
-        <View style={{ flex: 1 }}>
-          <Pressable style={{ flex: 1 }} onPress={onClose} />
-          <GestureDetector gesture={swipeGesture}>
-            <ReanimatedAnimated.View
-              style={[
-                {
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  width: isTablet ? '90%' : '100%',
-                  maxWidth: isTablet ? 800 : undefined,
-                  alignSelf: isTablet ? 'center' : undefined,
-                  height: height,
-                  backgroundColor: backgroundColor,
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
-                  borderBottomLeftRadius: isTablet ? 16 : 0,
-                  borderBottomRightRadius: isTablet ? 16 : 0,
-                  shadowColor: isTablet ? '#000' : undefined,
-                  shadowOffset: isTablet ? { width: 0, height: 4 } : undefined,
-                  shadowOpacity: isTablet ? 0.3 : undefined,
-                  shadowRadius: isTablet ? 8 : undefined,
-                  elevation: isTablet ? 8 : undefined,
-                },
-                animatedGestureStyle,
-              ]}
-            >
-              <YStack padding="$3" paddingBottom={insets.bottom || 10} gap="$3" flex={1}>
-                {/* Drag Handle - only this area captures pan gesture for sheet resize */}
-                <GestureDetector gesture={panGesture}>
-                  <View
-                    style={{
-                      alignItems: 'center',
-                      paddingVertical: 8,
-                      paddingBottom: 16,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 40,
-                        height: 4,
-                        borderRadius: 2,
-                        backgroundColor: theme.gray8?.val || '#CCC',
-                      }}
-                    />
-                  </View>
-                </GestureDetector>
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            opacity: backdropOpacity,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Pressable style={{ flex: 1 }} onPress={onClose} />
+            <GestureDetector gesture={swipeGesture}>
+              <ReanimatedAnimated.View
+                style={[
+                  {
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    width: isTablet ? '90%' : '100%',
+                    maxWidth: isTablet ? 800 : undefined,
+                    alignSelf: isTablet ? 'center' : undefined,
+                    height: height,
+                    backgroundColor: backgroundColor,
+                    borderTopLeftRadius: 16,
+                    borderTopRightRadius: 16,
+                    overflow: 'hidden',
+                    borderBottomLeftRadius: isTablet ? 16 : 0,
+                    borderBottomRightRadius: isTablet ? 16 : 0,
+                    shadowColor: isTablet ? '#000' : undefined,
+                    shadowOffset: isTablet ? { width: 0, height: 4 } : undefined,
+                    shadowOpacity: isTablet ? 0.3 : undefined,
+                    shadowRadius: isTablet ? 8 : undefined,
+                    elevation: isTablet ? 8 : undefined,
+                  },
+                  animatedGestureStyle,
+                ]}
+              >
+                <View style={{ height: height - currentSnapPoint }}>
+                  {/* Show carousel in mini mode */}
+                  {currentSnapPoint === snapPoints.mini &&
+                    getCarouselItems(routeData).length > 0 && (
+                      <RouteDetailsCarousel routeData={routeData} edgeToEdge />
+                    )}
 
-                {/* Header - removed route name, will be placed below carousel */}
-
-                {/* Show carousel in mini mode */}
-                {currentSnapPoint === snapPoints.mini && getCarouselItems(routeData).length > 0 && (
-                  <RouteDetailsCarousel routeData={routeData} />
-                )}
-
-                {/* Show content only if not in mini mode */}
-                {currentSnapPoint !== snapPoints.mini && (
-                  <View style={{ flex: 1 }}>
-                    {loading ? (
-                      <YStack f={1} jc="center" ai="center">
-                        <Text>{t('routeDetail.loading') || 'Loading route data...'}</Text>
-                      </YStack>
-                    ) : error || !routeData ? (
-                      <YStack f={1} jc="center" ai="center" padding="$4">
-                        <Text color="$red10">
-                          {error || t('routeDetail.routeNotFound') || 'Route not found'}
-                        </Text>
-                        <Button
-                          onPress={onClose}
-                          marginTop="$4"
-                          icon={<Feather name="arrow-left" size={18} color="white" />}
-                          size="$4"
-                        >
-                          {t('common.goBack') || 'Go Back'}
-                        </Button>
-                      </YStack>
-                    ) : (
-                      <ScrollView
-                        style={{ flex: 1 }}
-                        contentContainerStyle={{ paddingBottom: (insets.bottom || 20) + 80 }}
-                        showsVerticalScrollIndicator={true}
-                        refreshControl={
-                          <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={handleRefresh}
-                            tintColor="#00E6C3"
-                            colors={['#00E6C3']}
-                            progressBackgroundColor="#1a1a1a"
-                          />
-                        }
-                      >
-                        <YStack gap="$4">
-                          {/* Hero Carousel */}
-                          <RouteDetailsCarousel routeData={routeData} saveMap={true} />
-
-                          {/* Route Name - placed below carousel */}
-                          <Text
-                            fontSize="$5"
-                            fontWeight="bold"
-                            color="$color"
-                            textAlign="left"
-                            marginTop="$2"
-                          >
-                            {routeData?.name || t('routeDetail.loading') || 'Loading...'}
+                  {/* Show content only if not in mini mode */}
+                  {currentSnapPoint !== snapPoints.mini && (
+                    <View style={{ flex: 1 }}>
+                      {loading ? (
+                        <YStack f={1} jc="center" ai="center">
+                          <Text>{t('routeDetail.loading') || 'Loading route data...'}</Text>
+                        </YStack>
+                      ) : error || !routeData ? (
+                        <YStack f={1} jc="center" ai="center" padding="$4">
+                          <Text color="$red10">
+                            {error || t('routeDetail.routeNotFound') || 'Route not found'}
                           </Text>
-
-                          {/* Action Buttons */}
-                          <RouteActions
-                            routeData={routeData}
-                            routeId={routeId}
-                            onClose={onClose}
-                            handleRefresh={handleRefresh}
-                            onOpenReviewSheet={() => setShowReviewSheet(true)}
-                            refreshKey={refreshKey}
-                          />
-
-                          {/* Basic Info Card */}
-                          <Card
-                            backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
-                            borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
-                            bordered
-                            padding="$4"
+                          <Button
+                            onPress={onClose}
+                            marginTop="$4"
+                            icon={<Feather name="arrow-left" size={18} color="white" />}
+                            size="$4"
                           >
-                            <YStack gap="$3">
-                              {/* Tags using Chip components (non-interactive) */}
-                              <XStack gap="$2" alignItems="center" flexWrap="wrap" pointerEvents="none">
-                                {routeData.difficulty && (
-                                  <Chip
-                                    label={routeData.difficulty.toUpperCase()}
-                                    size="sm"
-                                    variant="tag"
-                                  />
-                                )}
-                                {routeData.spot_type && (
-                                  <Chip
-                                    label={routeData.spot_type}
-                                    size="sm"
-                                    variant="tag"
-                                  />
-                                )}
-                                {routeData.spot_subtype && (
-                                  <Chip
-                                    label={routeData.spot_subtype}
-                                    size="sm"
-                                    variant="tag"
-                                  />
-                                )}
-                                {routeData.category && (
-                                  <Chip
-                                    label={routeData.category}
-                                    size="sm"
-                                    variant="tag"
-                                  />
-                                )}
-                              </XStack>
+                            {t('common.goBack') || 'Go Back'}
+                          </Button>
+                        </YStack>
+                      ) : (
+                        <ScrollView
+                          ref={scrollViewRef}
+                          style={{ flex: 1 }}
+                          contentContainerStyle={{ paddingBottom: 24 }}
+                          showsVerticalScrollIndicator={true}
+                          onContentSizeChange={(w, contentH) => {
+                            // Check if content exceeds visible area (rough estimate)
+                            setCanScroll(contentH > height * 0.6);
+                          }}
+                          refreshControl={
+                            <RefreshControl
+                              refreshing={refreshing}
+                              onRefresh={handleRefresh}
+                              tintColor="#00E6C3"
+                              colors={['#00E6C3']}
+                              progressBackgroundColor="#1a1a1a"
+                            />
+                          }
+                        >
+                          {/* Hero Carousel - edge to edge, flush to top */}
+                          <View>
+                            <RouteDetailsCarousel routeData={routeData} saveMap={true} edgeToEdge />
+                            {/* Options button overlay on carousel top-right */}
+                            <TouchableOpacity
+                              onPress={() => setShowOptionsSheet(true)}
+                              style={{
+                                position: 'absolute',
+                                top: 12,
+                                right: 12,
+                                width: 32,
+                                height: 32,
+                                borderRadius: 16,
+                                backgroundColor: 'rgba(0,0,0,0.5)',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Feather name="more-vertical" size={16} color="#fff" />
+                            </TouchableOpacity>
+                          </View>
 
-                              {/* Creator info with avatar */}
-                              {routeData.creator && (
-                                <TouchableOpacity
-                                  onPress={() =>
-                                    handleNavigateToProfile(routeData.creator?.id || '')
-                                  }
-                                  style={{
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    gap: 10,
-                                  }}
+                          {/* Content area - overlaps carousel with rounded top corners */}
+                          <View
+                            style={{
+                              marginTop: -16,
+                              borderTopLeftRadius: 16,
+                              borderTopRightRadius: 16,
+                              backgroundColor: backgroundColor,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <YStack gap="$4" paddingHorizontal="$3" paddingTop="$3">
+                              <YStack gap="$1">
+                                <Text
+                                  fontSize={20}
+                                  fontWeight="800"
+                                  fontStyle="italic"
+                                  color="$color"
+                                  flex={1}
+                                  flexShrink={1}
+                                  textAlign="left"
                                 >
-                                  {/* Avatar */}
-                                  {routeData.creator.avatar_url ? (
-                                    <Image
-                                      source={{ uri: routeData.creator.avatar_url }}
-                                      style={{
-                                        width: 36,
-                                        height: 36,
-                                        borderRadius: 18,
-                                        backgroundColor: colorScheme === 'dark' ? '#333' : '#E5E5E5',
-                                      }}
-                                    />
-                                  ) : (
-                                    <View
-                                      style={{
-                                        width: 36,
-                                        height: 36,
-                                        borderRadius: 18,
-                                        backgroundColor: '#00E6C3',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                      }}
-                                    >
-                                      <Text
-                                        fontSize={16}
-                                        fontWeight="700"
-                                        color="#000"
-                                      >
-                                        {(routeData.creator.full_name || 'U').charAt(0).toUpperCase()}
-                                      </Text>
-                                    </View>
-                                  )}
-                                  <Text fontSize="$4" color="$color" fontWeight="500">
-                                    {routeData.creator.full_name || 'Unknown Creator'}
-                                  </Text>
-                                </TouchableOpacity>
-                              )}
-
-                              {routeData.description && (
-                                <Text fontSize="$4" color="$gray11" marginTop="$2">
-                                  {routeData.description}
+                                  {routeData?.name || t('routeDetail.loading') || 'Loading...'}
                                 </Text>
-                              )}
-                            </YStack>
-                          </Card>
 
-                          {/* Additional Metadata Section */}
-                          <RouteDetailsMeta routeData={routeData} />
-
-                          {/* Recording Stats Card */}
-                          {isRecordedRoute(routeData) &&
-                            (() => {
-                              const recordingStats = parseRecordingStats(
-                                routeData.description || '',
-                              );
-                              if (!recordingStats) return null;
-
-                              const formattedStats = formatRecordingStatsDisplay(recordingStats);
-
-                              return (
-                                <Card
-                                  backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
-                                  borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
-                                  bordered
-                                  padding="$4"
-                                >
-                                  <YStack gap="$3">
-                                    <XStack alignItems="center" gap="$2">
-                                      <Feather name="activity" size={20} color={iconColor} />
-                                      <Text fontSize="$5" fontWeight="600" color="$color">
-                                        {t('routeDetail.recordingStats') || 'Recording Stats'}
+                                {/* Subtle metadata line */}
+                                <XStack alignItems="center" flexWrap="wrap" gap="$1">
+                                  {routeData.creator && (
+                                    <TouchableOpacity
+                                      onPress={() =>
+                                        handleNavigateToProfile(routeData.creator?.id || '')
+                                      }
+                                      style={{ marginRight: 4 }}
+                                    >
+                                      {routeData.creator.avatar_url ? (
+                                        <Image
+                                          source={{
+                                            uri: routeData.creator.avatar_url,
+                                          }}
+                                          style={{
+                                            width: 20,
+                                            height: 20,
+                                            borderRadius: 10,
+                                            backgroundColor:
+                                              colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                                          }}
+                                        />
+                                      ) : (
+                                        <View
+                                          style={{
+                                            width: 20,
+                                            height: 20,
+                                            borderRadius: 10,
+                                            backgroundColor: '#00E6C3',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                          }}
+                                        >
+                                          <Text fontSize={10} fontWeight="700" color="#000">
+                                            {(routeData.creator.full_name || 'U')
+                                              .charAt(0)
+                                              .toUpperCase()}
+                                          </Text>
+                                        </View>
+                                      )}
+                                    </TouchableOpacity>
+                                  )}
+                                  {routeData.created_at && (
+                                    <Text fontSize={12} color="$gray9">
+                                      {formatRelativeDate(routeData.created_at)}
+                                    </Text>
+                                  )}
+                                  {routeData.difficulty && (
+                                    <>
+                                      <Text fontSize={12} color="$gray8">
+                                        {' '}
+                                        ·{' '}
+                                      </Text>
+                                      <TouchableOpacity onPress={handleDifficultyPress}>
+                                        <Text
+                                          fontSize={12}
+                                          color="$gray9"
+                                          textDecorationLine="underline"
+                                        >
+                                          {routeData.difficulty.charAt(0).toUpperCase() +
+                                            routeData.difficulty.slice(1)}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    </>
+                                  )}
+                                  <Text fontSize={12} color="$gray8">
+                                    {' '}
+                                    ·{' '}
+                                  </Text>
+                                  <TouchableOpacity onPress={scrollToReviews}>
+                                    <XStack alignItems="center" gap={3}>
+                                      <Text fontSize={12} color="#F5A623">
+                                        ★
+                                      </Text>
+                                      <Text
+                                        fontSize={12}
+                                        color="$gray9"
+                                        textDecorationLine="underline"
+                                      >
+                                        {(() => {
+                                          const ratings = routeData.average_rating;
+                                          if (!ratings || ratings.length === 0) return '0';
+                                          const avg =
+                                            ratings.reduce(
+                                              (sum: number, r: any) => sum + (r.rating || 0),
+                                              0,
+                                            ) / ratings.length;
+                                          return `${avg.toFixed(1)} (${ratings.length})`;
+                                        })()}
                                       </Text>
                                     </XStack>
+                                  </TouchableOpacity>
+                                  <Text fontSize={12} color="$gray8">
+                                    {' '}
+                                    ·{' '}
+                                  </Text>
+                                  <TouchableOpacity onPress={scrollToComments}>
+                                    <XStack alignItems="center" gap={3}>
+                                      <Feather name="message-circle" size={11} color={colorScheme === 'dark' ? '#888' : '#999'} />
+                                      <Text fontSize={12} color="$gray9" textDecorationLine="underline">
+                                        {t('routeDetail.comments') || 'Comments'}
+                                      </Text>
+                                    </XStack>
+                                  </TouchableOpacity>
+                                </XStack>
 
-                                    <YStack gap="$2">
-                                      {formattedStats.map((stat, index) => (
-                                        <XStack
-                                          key={index}
-                                          justifyContent="space-between"
-                                          alignItems="center"
+                                {/* Location line - tappable to show on map */}
+                                {(() => {
+                                  const locationParts = [
+                                    routeData.full_address,
+                                    !routeData.full_address && routeData.location,
+                                    routeData.region,
+                                    routeData.country,
+                                  ].filter(Boolean);
+                                  // Fallback: show first waypoint title if no location fields
+                                  if (
+                                    locationParts.length === 0 &&
+                                    routeData.waypoint_details?.length > 0
+                                  ) {
+                                    const firstWp = routeData.waypoint_details[0];
+                                    if (firstWp.title) locationParts.push(firstWp.title);
+                                  }
+                                  return locationParts.length > 0 ? (
+                                    <TouchableOpacity onPress={handleLocationPress}>
+                                      <Text
+                                        fontSize={11}
+                                        color="$gray8"
+                                        numberOfLines={1}
+                                        textDecorationLine="underline"
+                                      >
+                                        {locationParts.join(', ')}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  ) : null;
+                                })()}
+                              </YStack>
+
+                              {/* Quick Stats Grid */}
+                              {(() => {
+                                const valueLabels: Record<string, Record<string, string>> = {
+                                  en: {
+                                    passenger_car: 'Passenger Car',
+                                    rv: 'RV',
+                                    parking: 'Parking',
+                                    urban: 'Urban',
+                                    highway: 'Highway',
+                                    rural: 'Rural',
+                                    incline_start: 'Incline Start',
+                                    roundabout: 'Roundabout',
+                                    straight_driving: 'Straight Driving',
+                                    reversing: 'Reversing',
+                                    highway_entry_exit: 'Highway Entry/Exit',
+                                    automatic: 'Automatic',
+                                    manual: 'Manual',
+                                    both: 'Both',
+                                  },
+                                  sv: {
+                                    passenger_car: 'Personbil',
+                                    rv: 'Husbil',
+                                    parking: 'Parkering',
+                                    urban: 'Urban',
+                                    highway: 'Motorväg',
+                                    rural: 'Landsbygd',
+                                    incline_start: 'Backstart',
+                                    roundabout: 'Rondell',
+                                    straight_driving: 'Rak körning',
+                                    reversing: 'Backning',
+                                    highway_entry_exit: 'Motorvägspåfart',
+                                    automatic: 'Automat',
+                                    manual: 'Manuell',
+                                    both: 'Båda',
+                                  },
+                                };
+                                const lang = language === 'sv' ? 'sv' : 'en';
+                                const fmt = (v: string) =>
+                                  valueLabels[lang]?.[v] || v.replace(/_/g, ' ');
+                                const fmtArr = (arr: string[]) =>
+                                  arr.map(fmt).join(', ');
+
+                                const stats = [
+                                  routeData.vehicle_types?.length > 0 && {
+                                    value: Array.isArray(routeData.vehicle_types)
+                                      ? fmtArr(routeData.vehicle_types)
+                                      : fmt(routeData.vehicle_types),
+                                    label:
+                                      t('routeMeta.vehicleTypes') || 'Vehicle Types',
+                                  },
+                                  routeData.category && {
+                                    value: fmt(routeData.category),
+                                    label: t('routeMeta.category') || 'Category',
+                                  },
+                                  routeData.transmission_type && {
+                                    value: fmt(routeData.transmission_type),
+                                    label:
+                                      t('routeMeta.transmission') || 'Transmission',
+                                  },
+                                ].filter(Boolean) as {
+                                  value: string;
+                                  label: string;
+                                }[];
+
+                                return stats.length > 0 ? (
+                                  <XStack gap="$3" flexWrap="wrap">
+                                    {stats.map((stat, i) => (
+                                      <YStack key={i} flex={1} minWidth={70}>
+                                        <Text
+                                          fontSize={13}
+                                          fontWeight="700"
+                                          color="$color"
+                                          numberOfLines={1}
                                         >
-                                          <XStack alignItems="center" gap="$2">
-                                            <Feather
-                                              name={stat.icon as any}
-                                              size={16}
-                                              color="$gray11"
-                                            />
-                                            <Text fontSize="$4" color="$gray11">
-                                              {stat.label}
-                                            </Text>
-                                          </XStack>
-                                          <Text fontSize="$4" fontWeight="600" color="$color">
-                                            {stat.value}
-                                          </Text>
-                                        </XStack>
-                                      ))}
-                                    </YStack>
+                                          {stat.value}
+                                        </Text>
+                                        <Text
+                                          fontSize={11}
+                                          color="$gray8"
+                                          numberOfLines={1}
+                                        >
+                                          {stat.label}
+                                        </Text>
+                                      </YStack>
+                                    ))}
+                                  </XStack>
+                                ) : null;
+                              })()}
 
-                                    <Text fontSize="$3" color="$gray9" fontStyle="italic">
-                                      {t('routeDetail.recordedWithGPS') ||
-                                        'Recorded with live GPS tracking'}
-                                    </Text>
-                                  </YStack>
-                                </Card>
-                              );
-                            })()}
+                              {/* Description with show more */}
+                              {routeData.description ? (
+                                <YStack>
+                                  <Text
+                                    fontSize={14}
+                                    color="$gray11"
+                                    numberOfLines={showFullDescription ? undefined : 3}
+                                  >
+                                    {routeData.description}
+                                  </Text>
+                                  {routeData.description.length > 120 && (
+                                    <TouchableOpacity onPress={() => setShowFullDescription(!showFullDescription)}>
+                                      <Text fontSize={13} color="$gray8" marginTop="$1">
+                                        {showFullDescription
+                                          ? t('common.showLess') || 'Show less'
+                                          : t('common.showMore') || 'Show more'}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  )}
+                                </YStack>
+                              ) : null}
 
-                          {/* Route Exercises Section */}
-                          {routeData.exercises &&
-                            Array.isArray(routeData.exercises) &&
-                            routeData.exercises.length > 0 && (
+                              {/* Get Directions */}
+                              <Button
+                                variant="tertiary"
+                                size="sm"
+                                onPress={handleOpenInMaps}
+                              >
+                                {t('routeDetail.getDirections') || 'Get Directions'}
+                              </Button>
+
+                              {/* Action Buttons */}
+                              {/* <RouteActions
+                                routeData={routeData}
+                                routeId={routeId}
+                                onClose={onClose}
+                                handleRefresh={handleRefresh}
+                                onOpenReviewSheet={() => setShowReviewSheet(true)}
+                              /> */}
+
+                              {/* Basic Info Card */}
                               <Card
                                 backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
                                 borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
                                 bordered
                                 padding="$4"
                               >
-                                <YStack gap="$4">
-                                  <XStack justifyContent="space-between" alignItems="center">
-                                    <Text fontSize="$5" fontWeight="600" color="$color">
-                                      {t('routeDetail.exercises')}
-                                    </Text>
-                                    <Button
-                                      onPress={() => {
-                                        if (routeData?.exercises) {
-                                          if (navigation) {
-                                            try {
-                                              navigation.navigate('RouteExercise', {
-                                                routeId: routeId!,
-                                                exercises: routeData.exercises,
-                                                routeName: routeData.name,
-                                                startIndex: 0,
-                                              });
-                                              onClose();
-                                            } catch (error) {
+                                <YStack gap="$3">
+                                  {/* Tags using Chip components (non-interactive) */}
+                                  <XStack
+                                    gap="$2"
+                                    alignItems="center"
+                                    flexWrap="wrap"
+                                    pointerEvents="none"
+                                  >
+                                    {routeData.difficulty && (
+                                      <Chip
+                                        label={routeData.difficulty.toUpperCase()}
+                                        size="sm"
+                                        variant="tag"
+                                      />
+                                    )}
+                                    {routeData.spot_type && (
+                                      <Chip label={routeData.spot_type} size="sm" variant="tag" />
+                                    )}
+                                    {routeData.spot_subtype && (
+                                      <Chip
+                                        label={routeData.spot_subtype}
+                                        size="sm"
+                                        variant="tag"
+                                      />
+                                    )}
+                                    {routeData.category && (
+                                      <Chip label={routeData.category} size="sm" variant="tag" />
+                                    )}
+                                  </XStack>
+
+                                  {/* Creator info with avatar */}
+                                  {routeData.creator && (
+                                    <TouchableOpacity
+                                      onPress={() =>
+                                        handleNavigateToProfile(routeData.creator?.id || '')
+                                      }
+                                      style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        gap: 10,
+                                      }}
+                                    >
+                                      {/* Avatar */}
+                                      {routeData.creator.avatar_url ? (
+                                        <Image
+                                          source={{ uri: routeData.creator.avatar_url }}
+                                          style={{
+                                            width: 36,
+                                            height: 36,
+                                            borderRadius: 18,
+                                            backgroundColor:
+                                              colorScheme === 'dark' ? '#333' : '#E5E5E5',
+                                          }}
+                                        />
+                                      ) : (
+                                        <View
+                                          style={{
+                                            width: 36,
+                                            height: 36,
+                                            borderRadius: 18,
+                                            backgroundColor: '#00E6C3',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                          }}
+                                        >
+                                          <Text fontSize={16} fontWeight="700" color="#000">
+                                            {(routeData.creator.full_name || 'U')
+                                              .charAt(0)
+                                              .toUpperCase()}
+                                          </Text>
+                                        </View>
+                                      )}
+                                      <Text fontSize="$4" color="$color" fontWeight="500">
+                                        {routeData.creator.full_name || 'Unknown Creator'}
+                                      </Text>
+                                    </TouchableOpacity>
+                                  )}
+                                </YStack>
+                              </Card>
+
+                              {/* Additional Metadata Section */}
+                              <RouteDetailsMeta routeData={routeData} />
+
+                              {/* Recording Stats Card */}
+                              {isRecordedRoute(routeData) &&
+                                (() => {
+                                  const recordingStats = parseRecordingStats(
+                                    routeData.description || '',
+                                  );
+                                  if (!recordingStats) return null;
+
+                                  const formattedStats =
+                                    formatRecordingStatsDisplay(recordingStats);
+
+                                  return (
+                                    <Card
+                                      backgroundColor={
+                                        colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'
+                                      }
+                                      borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
+                                      bordered
+                                      padding="$4"
+                                    >
+                                      <YStack gap="$3">
+                                        <XStack alignItems="center" gap="$2">
+                                          <Feather name="activity" size={20} color={iconColor} />
+                                          <Text fontSize="$5" fontWeight="600" color="$color">
+                                            {t('routeDetail.recordingStats') || 'Recording Stats'}
+                                          </Text>
+                                        </XStack>
+
+                                        <YStack gap="$2">
+                                          {formattedStats.map((stat, index) => (
+                                            <XStack
+                                              key={index}
+                                              justifyContent="space-between"
+                                              alignItems="center"
+                                            >
+                                              <XStack alignItems="center" gap="$2">
+                                                <Feather
+                                                  name={stat.icon as any}
+                                                  size={16}
+                                                  color="$gray11"
+                                                />
+                                                <Text fontSize="$4" color="$gray11">
+                                                  {stat.label}
+                                                </Text>
+                                              </XStack>
+                                              <Text fontSize="$4" fontWeight="600" color="$color">
+                                                {stat.value}
+                                              </Text>
+                                            </XStack>
+                                          ))}
+                                        </YStack>
+
+                                        <Text fontSize="$3" color="$gray9" fontStyle="italic">
+                                          {t('routeDetail.recordedWithGPS') ||
+                                            'Recorded with live GPS tracking'}
+                                        </Text>
+                                      </YStack>
+                                    </Card>
+                                  );
+                                })()}
+
+                              {/* Route Exercises Section */}
+                              {routeData.exercises &&
+                                Array.isArray(routeData.exercises) &&
+                                routeData.exercises.length > 0 && (
+                                  <Card
+                                    backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
+                                    borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
+                                    bordered
+                                    padding="$4"
+                                  >
+                                    <YStack gap="$4">
+                                      <XStack justifyContent="space-between" alignItems="center">
+                                        <Text fontSize="$5" fontWeight="600" color="$color">
+                                          {t('routeDetail.exercises')}
+                                        </Text>
+                                        <Button
+                                          onPress={() => {
+                                            if (routeData?.exercises) {
+                                              if (navigation) {
+                                                try {
+                                                  navigation.navigate('RouteExercise', {
+                                                    routeId: routeId!,
+                                                    exercises: routeData.exercises,
+                                                    routeName: routeData.name,
+                                                    startIndex: 0,
+                                                  });
+                                                  onClose();
+                                                } catch (error) {
+                                                  console.warn(
+                                                    'Navigation not available in modal context:',
+                                                    error,
+                                                  );
+                                                  showToast({
+                                                    title: t('common.error') || 'Error',
+                                                    message:
+                                                      t('routeDetail.navigationNotAvailable') ||
+                                                      'Navigation not available in this context',
+                                                    type: 'error',
+                                                  });
+                                                }
+                                              } else {
+                                                console.warn(
+                                                  'Navigation not available in modal context',
+                                                );
+                                                showToast({
+                                                  title: t('common.error') || 'Error',
+                                                  message:
+                                                    t('routeDetail.navigationNotAvailable') ||
+                                                    'Navigation not available in this context',
+                                                  type: 'error',
+                                                });
+                                              }
+                                            }
+                                          }}
+                                          backgroundColor="$blue10"
+                                          icon={<Feather name="play" size={16} color="white" />}
+                                          size="sm"
+                                        >
+                                          <Text color="white" fontSize="$3" fontWeight="600">
+                                            {allExercisesCompleted
+                                              ? t('routeDetail.reviewExercises') || 'Review'
+                                              : t('routeDetail.startExercises') || 'Start'}
+                                          </Text>
+                                        </Button>
+                                      </XStack>
+
+                                      {/* Exercise List Preview */}
+                                      <RouteExerciseList
+                                        exercises={routeData.exercises}
+                                        completedIds={completedExerciseIds}
+                                        maxPreview={3}
+                                        onExercisePress={(exercise, index) => {
+                                          if (routeData?.exercises) {
+                                            if (navigation) {
+                                              try {
+                                                navigation.navigate('RouteExercise', {
+                                                  routeId: routeId!,
+                                                  exercises: routeData.exercises,
+                                                  routeName: routeData.name || 'Route',
+                                                  startIndex: index,
+                                                });
+                                                onClose();
+                                              } catch (error) {
+                                                console.warn(
+                                                  'Navigation not available in modal context:',
+                                                  error,
+                                                );
+                                                showToast({
+                                                  title: t('common.error') || 'Error',
+                                                  message:
+                                                    t('routeDetail.navigationNotAvailable') ||
+                                                    'Navigation not available in this context',
+                                                  type: 'error',
+                                                });
+                                              }
+                                            } else {
                                               console.warn(
-                                                'Navigation not available in modal context:',
-                                                error,
+                                                'Navigation not available in modal context',
                                               );
                                               showToast({
                                                 title: t('common.error') || 'Error',
@@ -1001,259 +1531,212 @@ export function RouteDetailSheet({
                                                 type: 'error',
                                               });
                                             }
-                                          } else {
-                                            console.warn(
-                                              'Navigation not available in modal context',
-                                            );
-                                            showToast({
-                                              title: t('common.error') || 'Error',
-                                              message:
-                                                t('routeDetail.navigationNotAvailable') ||
-                                                'Navigation not available in this context',
-                                              type: 'error',
-                                            });
                                           }
-                                        }
-                                      }}
-                                      backgroundColor="$blue10"
-                                      icon={<Feather name="play" size={16} color="white" />}
-                                      size="sm"
-                                    >
-                                      <Text color="white" fontSize="$3" fontWeight="600">
-                                        {allExercisesCompleted
-                                          ? t('routeDetail.reviewExercises') || 'Review'
-                                          : t('routeDetail.startExercises') || 'Start'}
-                                      </Text>
-                                    </Button>
-                                  </XStack>
+                                        }}
+                                      />
 
-                                  {/* Exercise List Preview */}
-                                  <RouteExerciseList
-                                    exercises={routeData.exercises}
-                                    completedIds={completedExerciseIds}
-                                    maxPreview={3}
-                                    onExercisePress={(exercise, index) => {
-                                      if (routeData?.exercises) {
-                                        if (navigation) {
-                                          try {
-                                            navigation.navigate('RouteExercise', {
-                                              routeId: routeId!,
-                                              exercises: routeData.exercises,
-                                              routeName: routeData.name || 'Route',
-                                              startIndex: index,
-                                            });
-                                            onClose();
-                                          } catch (error) {
-                                            console.warn(
-                                              'Navigation not available in modal context:',
-                                              error,
-                                            );
-                                            showToast({
-                                              title: t('common.error') || 'Error',
-                                              message:
-                                                t('routeDetail.navigationNotAvailable') ||
-                                                'Navigation not available in this context',
-                                              type: 'error',
-                                            });
+                                      {/* Exercise Statistics */}
+                                      {exerciseStats && (
+                                        <Card
+                                          bordered
+                                          padding="$3"
+                                          backgroundColor={
+                                            colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'
                                           }
-                                        } else {
-                                          console.warn('Navigation not available in modal context');
-                                          showToast({
-                                            title: t('common.error') || 'Error',
-                                            message:
-                                              t('routeDetail.navigationNotAvailable') ||
-                                              'Navigation not available in this context',
-                                            type: 'error',
-                                          });
-                                        }
-                                      }
-                                    }}
-                                  />
-
-                                  {/* Exercise Statistics */}
-                                  {exerciseStats && (
-                                    <Card
-                                      bordered
-                                      padding="$3"
-                                      backgroundColor={
-                                        colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5'
-                                      }
-                                    >
-                                      <YStack gap="$2">
-                                        <Text fontSize={12} fontWeight="600" color="$gray11">
-                                          {t('routeDetail.yourProgress')}
-                                        </Text>
-                                        <XStack justifyContent="space-between" alignItems="center">
-                                          <Text fontSize={11} color="$gray11">
-                                            {t('routeDetail.completed')}: {exerciseStats.completed}/
-                                            {exerciseStats.total}
-                                          </Text>
-                                          <Text fontSize={11} color="$gray11">
-                                            {Math.round(
-                                              (exerciseStats.completed / exerciseStats.total) * 100,
-                                            )}
-                                            %
-                                          </Text>
-                                        </XStack>
-                                        <Progress
-                                          value={Math.round(
-                                            (exerciseStats.completed / exerciseStats.total) * 100,
-                                          )}
-                                          backgroundColor="$gray6"
-                                          size="$0.5"
                                         >
-                                          <Progress.Indicator backgroundColor="$blue10" />
-                                        </Progress>
-                                      </YStack>
-                                    </Card>
-                                  )}
-                                </YStack>
-                              </Card>
-                            )}
+                                          <YStack gap="$2">
+                                            <Text fontSize={12} fontWeight="600" color="$gray11">
+                                              {t('routeDetail.yourProgress')}
+                                            </Text>
+                                            <XStack
+                                              justifyContent="space-between"
+                                              alignItems="center"
+                                            >
+                                              <Text fontSize={11} color="$gray11">
+                                                {t('routeDetail.completed')}:{' '}
+                                                {exerciseStats.completed}/{exerciseStats.total}
+                                              </Text>
+                                              <Text fontSize={11} color="$gray11">
+                                                {Math.round(
+                                                  (exerciseStats.completed / exerciseStats.total) *
+                                                    100,
+                                                )}
+                                                %
+                                              </Text>
+                                            </XStack>
+                                            <Progress
+                                              value={Math.round(
+                                                (exerciseStats.completed / exerciseStats.total) *
+                                                  100,
+                                              )}
+                                              backgroundColor="$gray6"
+                                              size="$0.5"
+                                            >
+                                              <Progress.Indicator backgroundColor="$blue10" />
+                                            </Progress>
+                                          </YStack>
+                                        </Card>
+                                      )}
+                                    </YStack>
+                                  </Card>
+                                )}
 
-                          {/* Reviews Section */}
-                          <Card
-                            backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
-                            borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
-                            bordered
-                            padding="$4"
-                          >
-                            <YStack gap="$3">
-                              <TouchableOpacity
-                                onPress={() => setShowReviewsDetails(!showReviewsDetails)}
-                                style={{
-                                  flexDirection: 'row',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
+                              {/* Reviews Section */}
+                              <View
+                                onLayout={(e) => {
+                                  reviewsSectionY.current = e.nativeEvent.layout.y;
                                 }}
                               >
-                                <XStack alignItems="center" gap="$2">
-                                  <Feather name="star" size={20} color={iconColor} />
-                                  <Text fontSize="$5" fontWeight="600" color="$color">
-                                    {t('routeDetail.reviews') || 'Reviews'}
-                                  </Text>
-                                  {reviews.length > 0 && (
-                                    <View
-                                      style={{
-                                        backgroundColor: '#00E6C3',
-                                        borderRadius: 12,
-                                        paddingHorizontal: 8,
-                                        paddingVertical: 2,
-                                        minWidth: 20,
-                                        alignItems: 'center',
-                                      }}
-                                    >
-                                      <Text fontSize={12} color="#000" fontWeight="bold">
-                                        {reviews.length}
-                                      </Text>
-                                    </View>
-                                  )}
-                                </XStack>
-                                <Feather
-                                  name={showReviewsDetails ? 'chevron-up' : 'chevron-down'}
-                                  size={20}
-                                  color={iconColor}
+                                <ReviewsList
+                                  reviews={reviews}
+                                  onNavigateToProfile={handleNavigateToProfile}
+                                  onOpenReviewSheet={() => setShowReviewSheet(true)}
                                 />
-                              </TouchableOpacity>
+                              </View>
 
-                              {showReviewsDetails && (
-                                <YStack>
-                                  <ReviewSection
-                                    routeId={routeId!}
-                                    reviews={reviews}
-                                    onReviewAdded={loadReviews}
-                                    onOpenReviewSheet={() => setShowReviewSheet(true)}
-                                  />
-                                </YStack>
-                              )}
-                            </YStack>
-                          </Card>
-
-                          {/* Comments Section - Hidden for now
-                          <Card
-                            backgroundColor={colorScheme === 'dark' ? '#1a1a1a' : '#FFFFFF'}
-                            borderColor={colorScheme === 'dark' ? '#232323' : '#E5E5E5'}
-                            bordered
-                            padding="$4"
-                          >
-                            <YStack gap="$3">
-                              <TouchableOpacity
-                                onPress={() => setShowCommentsDetails(!showCommentsDetails)}
-                                style={{
-                                  flexDirection: 'row',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
+                              {/* Comments Section */}
+                              <View
+                                onLayout={(e) => {
+                                  commentsSectionY.current = e.nativeEvent.layout.y;
                                 }}
                               >
-                                <XStack alignItems="center" gap="$2">
-                                  <Feather name="message-circle" size={20} color={iconColor} />
-                                  <Text fontSize="$5" fontWeight="600" color="$color">
-                                    {t('routeDetail.comments') || 'Comments'}
-                                  </Text>
-                                </XStack>
-                                <Feather
-                                  name={showCommentsDetails ? 'chevron-up' : 'chevron-down'}
-                                  size={20}
-                                  color={iconColor}
-                                />
-                              </TouchableOpacity>
-
-                              {showCommentsDetails && (
-                                <YStack>
-                                  <CommentsSection targetType="route" targetId={routeId!} />
-                                </YStack>
-                              )}
+                                <CommentsSection targetType="route" targetId={routeId!} />
+                              </View>
                             </YStack>
-                          </Card>
-                          */}
-                        </YStack>
-                      </ScrollView>
-                    )}
-                  </View>
-                )}
-              </YStack>
-            </ReanimatedAnimated.View>
-          </GestureDetector>
-        </View>
-      </Animated.View>
+                          </View>
+                        </ScrollView>
+                      )}
+                      {/* Sticky Footer */}
+                      {routeData && !loading && (
+                        <StickyFooter
+                          isSaved={footerIsSaved}
+                          isDriven={footerIsDriven}
+                          onSave={footerHandleSave}
+                          onMarkDriven={onFooterMarkDriven}
+                          showGradient={canScroll}
+                          colorScheme={colorScheme}
+                          bottomInset={insets.bottom}
+                        />
+                      )}
+                      {routeData && (
+                        <DrivenOptionsModal
+                          routeId={routeId}
+                          visible={showDrivenOptionsFromFooter}
+                          onClose={() => setShowDrivenOptionsFromFooter(false)}
+                          onChange={({ isDriven }) => footerSetIsDriven(isDriven)}
+                        />
+                      )}
+                    </View>
+                  )}
 
-      {/* UserProfileSheet Modal - reopens RouteDetailSheet on close */}
-      {showProfileSheet && selectedProfileUserId && (
-        <UserProfileSheet
-          visible={showProfileSheet}
-          onClose={() => {
-            setShowProfileSheet(false);
-            setSelectedProfileUserId(null);
-            // Reopen RouteDetailSheet after ProfileSheet closes
-            if (onReopen) {
-              setTimeout(() => {
-                onReopen();
-              }, 300);
-            }
-          }}
-          userId={selectedProfileUserId}
-        />
-      )}
+                  {/* Drag Handle - absolute, just the notch with a subtle shadow */}
+                  <GestureDetector gesture={panGesture}>
+                    <View
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        alignItems: 'center',
+                        paddingTop: 8,
+                        paddingBottom: 16,
+                        zIndex: 10,
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 40,
+                          height: 4,
+                          borderRadius: 2,
+                          backgroundColor: 'rgba(255,255,255,0.7)',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: 0.5,
+                          shadowRadius: 3,
+                          elevation: 4,
+                        }}
+                      />
+                    </View>
+                  </GestureDetector>
+                </View>
+              </ReanimatedAnimated.View>
+            </GestureDetector>
+          </View>
+        </Animated.View>
 
-      {/* Add Review Sheet */}
-      {routeId && (
-        <AddReviewSheet
-          visible={showReviewSheet}
-          onClose={() => setShowReviewSheet(false)}
-          routeId={routeId}
-          onReviewComplete={() => {
-            setShowReviewSheet(false);
-            // Refresh route data to show updated review
-            handleRefresh();
-            // Reopen RouteDetailSheet after review completes
-            if (onReopen) {
-              setTimeout(() => {
-                onReopen();
-              }, 300);
-            }
-          }}
-        />
-      )}
+        {/* UserProfileSheet Modal - reopens RouteDetailSheet on close */}
+        {showProfileSheet && selectedProfileUserId && (
+          <UserProfileSheet
+            visible={showProfileSheet}
+            onClose={() => {
+              setShowProfileSheet(false);
+              setSelectedProfileUserId(null);
+              // Reopen RouteDetailSheet after ProfileSheet closes
+              if (onReopen) {
+                setTimeout(() => {
+                  onReopen();
+                }, 300);
+              }
+            }}
+            userId={selectedProfileUserId}
+          />
+        )}
+
+        {/* Add Review Sheet */}
+        {routeId && (
+          <AddReviewSheet
+            visible={showReviewSheet}
+            onClose={() => setShowReviewSheet(false)}
+            routeId={routeId}
+            onReviewComplete={() => {
+              setShowReviewSheet(false);
+              // Refresh route data to show updated review
+              handleRefresh();
+              // Reopen RouteDetailSheet after review completes
+              if (onReopen) {
+                setTimeout(() => {
+                  onReopen();
+                }, 300);
+              }
+            }}
+          />
+        )}
+
+        {/* Route Options Sheet (from overlay button) */}
+        {showOptionsSheet && routeData && (
+          <RouteOptions
+            routeData={routeData}
+            onClose={() => setShowOptionsSheet(false)}
+            visible={showOptionsSheet}
+            onRouteDeleted={() => {
+              setShowOptionsSheet(false);
+              onClose();
+            }}
+            onEdit={() => {
+              AppAnalytics.trackButtonPress('edit_route', 'RouteDetailSheet', {
+                route_id: routeData?.id,
+              }).catch(() => {});
+              setShowCreateRouteSheet(true);
+            }}
+          />
+        )}
+
+        {/* Create/Edit Route Sheet (from overlay button) */}
+        {showCreateRouteSheet && routeData && (
+          <CreateRouteSheet
+            visible={showCreateRouteSheet}
+            onClose={() => {
+              setShowCreateRouteSheet(false);
+              handleRefresh();
+            }}
+            routeId={routeData.id}
+            onRouteUpdated={() => {
+              setShowCreateRouteSheet(false);
+              handleRefresh();
+            }}
+            isModal={true}
+          />
+        )}
       </GestureHandlerRootView>
     </Modal>
   );

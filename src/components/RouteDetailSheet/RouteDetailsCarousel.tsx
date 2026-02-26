@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Dimensions } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 
 import { XStack } from 'tamagui';
 
@@ -8,8 +8,6 @@ import Carousel from 'react-native-reanimated-carousel';
 import { getCarouselItems } from './utils';
 import CarouselItem from './CarouselItem';
 import { useAuth } from '@/src/context/AuthContext';
-
-const { height, width } = Dimensions.get('window');
 export interface RouteDetailsCarouselProps {
   routeData: any;
   showMap?: boolean;
@@ -18,6 +16,7 @@ export interface RouteDetailsCarouselProps {
   height?: number;
   enableCarousel?: boolean;
   saveMap?: boolean;
+  edgeToEdge?: boolean;
 }
 
 export default function RouteDetailsCarousel({
@@ -27,7 +26,9 @@ export default function RouteDetailsCarousel({
   showVideo = true,
   height: customHeight,
   enableCarousel = true,
+  edgeToEdge = false,
 }: RouteDetailsCarouselProps) {
+  const { width, height } = useWindowDimensions();
   const { profile } = useAuth();
 
   const saveMap = profile?.id === routeData.creator_id;
@@ -49,19 +50,22 @@ export default function RouteDetailsCarousel({
   if (carouselItems.length === 0) return null;
   // Show single item if only one item OR carousel is disabled
   // Match card border radius (16px = $4 in Tamagui) - only top corners
-  const cardBorderRadius = 16;
+  const cardBorderRadius = edgeToEdge ? 0 : 16;
+  const carouselWidth = edgeToEdge ? width : width - 32;
+  const bottomMargin = edgeToEdge ? 0 : 16;
   if (carouselItems.length === 1 || !enableCarousel) {
     return (
       <View
         style={{
+          width: '100%',
           height: carouselHeight,
           borderTopLeftRadius: cardBorderRadius,
           borderTopRightRadius: cardBorderRadius,
           overflow: 'hidden',
-          marginBottom: 16,
+          marginBottom: bottomMargin,
         }}
       >
-        <CarouselItem routeId={routeData?.id} item={carouselItems[0]} saveMap={saveMap} />
+        <CarouselItem routeId={routeData?.id} item={carouselItems[0]} saveMap={saveMap} style={{ width: carouselWidth, height: carouselHeight }} />
       </View>
     );
   }
@@ -70,16 +74,17 @@ export default function RouteDetailsCarousel({
   return (
     <View
       style={{
+        width: '100%',
         height: carouselHeight,
         borderTopLeftRadius: cardBorderRadius,
         borderTopRightRadius: cardBorderRadius,
         overflow: 'hidden',
-        marginBottom: 16,
+        marginBottom: bottomMargin,
       }}
     >
       <Carousel
         loop
-        width={width - 32}
+        width={carouselWidth}
         height={carouselHeight}
         data={carouselItems}
         renderItem={({ item }) => (
@@ -87,6 +92,7 @@ export default function RouteDetailsCarousel({
             routeId={routeData?.id}
             item={item}
             saveMap={saveMap && !routeData?.preview_image}
+            style={{ width: carouselWidth, height: carouselHeight }}
           />
         )}
         onSnapToItem={setActiveMediaIndex}

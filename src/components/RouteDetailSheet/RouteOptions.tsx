@@ -18,11 +18,13 @@ export default function RouteOptions({
   visible,
   onClose,
   onRouteDeleted,
+  onEdit,
 }: {
   routeData: any;
   visible: boolean;
   onClose: () => void;
   onRouteDeleted?: () => void;
+  onEdit?: () => void;
 }) {
   const { user } = useAuth();
   const { t, language } = useTranslation();
@@ -185,6 +187,28 @@ export default function RouteOptions({
                   {t('routeDetail.openInMaps') || 'Open in Maps'}
                 </Text>
               </TouchableOpacity>
+
+              {user?.id === routeData?.creator_id && onEdit && (
+                <TouchableOpacity
+                  onPress={() => {
+                    onClose();
+                    onEdit();
+                  }}
+                  style={{
+                    paddingVertical: 14,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    borderBottomWidth: 1,
+                    borderBottomColor: colorScheme === 'dark' ? '#333' : '#EEE',
+                  }}
+                >
+                  <Feather name="edit-2" size={20} color={iconColor} />
+                  <Text fontSize={16} color="$color">
+                    {t('routeDetail.addEdit') || 'Edit Route'}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {user?.id === routeData?.creator_id && (
                 <TouchableOpacity

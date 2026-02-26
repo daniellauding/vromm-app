@@ -53,7 +53,7 @@ const getCarouselItems = (routeData: any) => {
     });
   }
 
-  // Add media attachments
+  // Add media attachments - matching web app validation (RouteDetailModal.tsx)
   const uniqueMedia =
     routeData?.media_attachments?.filter(
       (attachment, index, arr) =>
@@ -61,14 +61,22 @@ const getCarouselItems = (routeData: any) => {
     ) || [];
 
   const validMedia = uniqueMedia.filter((attachment) => {
+    if (!attachment?.url) return false;
+
+    // Only allow valid media types (image, video, youtube)
+    if (!attachment.type || !['image', 'video', 'youtube'].includes(attachment.type)) {
+      return false;
+    }
+
+    // Only allow http/https URLs - file:// and content:// can't load on other devices
     const isValidUrl =
-      attachment.url &&
-      (attachment.url.startsWith('http://') ||
-        attachment.url.startsWith('https://') ||
-        attachment.url.startsWith('file://') ||
-        attachment.url.startsWith('data:') ||
-        attachment.url.startsWith('content://'));
-    return isValidUrl;
+      attachment.url.startsWith('http://') || attachment.url.startsWith('https://');
+    if (!isValidUrl) return false;
+
+    // Skip if this is the same as the preview_image (avoid duplication)
+    if (routeData.preview_image && attachment.url === routeData.preview_image) return false;
+
+    return true;
   });
 
   validMedia.forEach((attachment) => {

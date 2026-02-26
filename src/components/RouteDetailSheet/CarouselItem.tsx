@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Buffer } from 'buffer';
-import { View, Dimensions, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
 import { Text } from 'tamagui';
 import { supabase } from '../../lib/supabase';
 
@@ -11,9 +11,6 @@ import { ImageWithFallback } from './../ImageWithFallback';
 
 import { PIN_COLORS } from '../../styles/mapStyles';
 import MapView from 'react-native-maps';
-
-const { height, width } = Dimensions.get('window');
-const HERO_HEIGHT = height * 0.3; // Smaller height for sheet
 
 export default function CarouselItem({
   routeId,
@@ -27,6 +24,8 @@ export default function CarouselItem({
   style: any;
 }): React.JSX.Element {
   const mapRef = useRef<MapView>(null);
+  const itemWidth = style?.width ?? 300;
+  const itemHeight = style?.height ?? itemWidth * 0.75;
 
   const saveMapSnapshot = React.useCallback(async () => {
     if (!saveMap) {
@@ -58,40 +57,42 @@ export default function CarouselItem({
       return (
         <ImageWithFallback
           source={{ uri: item.preview_image }}
-          style={{ width: width - 32, height: HERO_HEIGHT, ...(style ?? {}) }}
+          style={{ width: itemWidth, height: itemHeight }}
           resizeMode="cover"
         />
       );
     }
     return (
-      <Map
-        ref={mapRef}
-        waypoints={item.waypoints}
-        region={item.region}
-        zoomEnabled={false}
-        pitchEnabled={false}
-        rotateEnabled={false}
-        scrollEnabled={false}
-        routePath={item.routePath}
-        pins={item.pins}
-        routePathColor={PIN_COLORS.ROUTE_PATH}
-        showStartEndMarkers={item.showStartEndMarkers}
-        drawingMode={item.waypoints.length > 2 ? 'waypoint' : 'pin'}
-        onMapLoaded={saveMapSnapshot}
-      />
+      <View style={{ width: itemWidth, height: itemHeight }}>
+        <Map
+          ref={mapRef}
+          waypoints={item.waypoints}
+          region={item.region}
+          zoomEnabled={false}
+          pitchEnabled={false}
+          rotateEnabled={false}
+          scrollEnabled={false}
+          routePath={item.routePath}
+          pins={item.pins}
+          routePathColor={PIN_COLORS.ROUTE_PATH}
+          showStartEndMarkers={item.showStartEndMarkers}
+          drawingMode={item.waypoints.length > 2 ? 'waypoint' : 'pin'}
+          onMapLoaded={saveMapSnapshot}
+        />
+      </View>
     );
   } else if (item.type === 'image') {
     return (
       <ImageWithFallback
         source={{ uri: item.url }}
-        style={{ width: width - 32, height: HERO_HEIGHT }}
+        style={{ width: itemWidth, height: itemHeight }}
         resizeMode="cover"
       />
     );
   } else if (item.type === 'video') {
     return (
       <TouchableOpacity
-        style={{ width: width - 32, height: HERO_HEIGHT, position: 'relative' }}
+        style={{ width: itemWidth, height: itemHeight, position: 'relative' }}
         onPress={() => console.log('🎥 Video play requested:', item.url)}
         activeOpacity={0.8}
       >
@@ -127,7 +128,7 @@ export default function CarouselItem({
     return (
       <WebView
         source={{ uri: item.url }}
-        style={{ width: width - 32, height: HERO_HEIGHT }}
+        style={{ width: itemWidth, height: itemHeight }}
         allowsInlineMediaPlaybook={true}
         mediaPlaybackRequiresUserAction={true}
         startInLoadingState={true}
@@ -135,5 +136,5 @@ export default function CarouselItem({
       />
     );
   }
-  return <View style={{ width: width - 32, height: HERO_HEIGHT }} />;
+  return <View style={{ width: itemWidth, height: itemHeight }} />;
 }
