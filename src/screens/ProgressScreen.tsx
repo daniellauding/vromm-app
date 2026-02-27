@@ -248,6 +248,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Tour imports - RE-ENABLED with new optimized system
 import { useTourTarget } from '../components/TourOverlay';
 import { useScreenTour } from '../hooks/useScreenTour';
+import { useTour } from '../contexts/TourContext';
 import { PROGRESS_SCREEN_TOUR } from '../utils/tourConfigs';
 
 // Category types and options are now imported from LearningPathsFilterModal
@@ -308,6 +309,13 @@ export function ProgressScreen() {
   const firstPathRef = useTourTarget('ProgressScreen.FirstPath');
   const filterButtonRef = useTourTarget('ProgressScreen.FilterButton');
 
+  // Tour refs for exercise detail view
+  const exerciseVideoRef = useTourTarget('ExerciseDetail.VideoPlayer');
+  const exerciseStepsRef = useTourTarget('ExerciseDetail.StepsSection');
+  const exerciseCheckboxRef = useTourTarget('ExerciseDetail.Checkbox');
+  const exerciseRepeatRef = useTourTarget('ExerciseDetail.RepeatSection');
+  const firstExerciseRef = useTourTarget('ProgressScreen.FirstExercise');
+
   // Screen tours integration - auto-triggers on first visit
   const {
     isTourActive,
@@ -322,6 +330,9 @@ export function ProgressScreen() {
     onTourStart: () => console.log('🎯 [ProgressScreen] Tour started'),
     onTourEnd: () => console.log('🎯 [ProgressScreen] Tour ended'),
   });
+
+  // Tour press handlers - allows tour to simulate pressing on elements
+  const { registerPressHandler, unregisterPressHandler } = useTour();
 
   // Use activeUserId from navigation if provided, otherwise check StudentSwitchContext, then fall back to authUser
   const effectiveUserId = activeUserId || getEffectiveUserId();
@@ -1459,6 +1470,50 @@ export function ProgressScreen() {
       }
     }
   };
+
+  // Register press handlers for tour automation
+  // This allows the tour to "press" on elements (learning path, exercise, checkbox) automatically
+  useEffect(() => {
+    // Handler for pressing on the first learning path
+    const handleFirstPathPress = async () => {
+      if (paths.length > 0) {
+        console.log('🎯 [TourPress] Auto-pressing first learning path:', paths[0].title.en);
+        // Directly open the first path without paywall/password checks for tour demo
+        setActivePath(paths[0].id);
+        setDetailPath(paths[0]);
+        setShowDetailView(true);
+      }
+    };
+
+    // Handler for pressing on the first exercise
+    const handleFirstExercisePress = async () => {
+      if (exercises.length > 0) {
+        console.log('🎯 [TourPress] Auto-pressing first exercise:', exercises[0].title.en);
+        setSelectedExercise(exercises[0]);
+      }
+    };
+
+    // Handler for toggling the exercise checkbox (simulates clicking the checkbox)
+    const handleCheckboxPress = async () => {
+      if (selectedExercise) {
+        console.log('🎯 [TourPress] Auto-toggling checkbox for exercise:', selectedExercise.title.en);
+        // Toggle the completion state
+        toggleCompletion(selectedExercise.id);
+      }
+    };
+
+    // Register handlers
+    registerPressHandler('ProgressScreen.FirstPath', handleFirstPathPress);
+    registerPressHandler('ProgressScreen.FirstExercise', handleFirstExercisePress);
+    registerPressHandler('ExerciseDetail.Checkbox', handleCheckboxPress);
+
+    // Cleanup on unmount
+    return () => {
+      unregisterPressHandler('ProgressScreen.FirstPath');
+      unregisterPressHandler('ProgressScreen.FirstExercise');
+      unregisterPressHandler('ExerciseDetail.Checkbox');
+    };
+  }, [paths, exercises, selectedExercise, registerPressHandler, unregisterPressHandler]);
 
   // Celebration detection function
   const checkForCelebration = async (
@@ -3890,7 +3945,9 @@ export function ProgressScreen() {
 
           {/* Always show normal exercise content - lock check happens before navigation */}
           {/* Media Rendering Section - Only show if exercise is accessible */}
-          {renderExerciseMedia(selectedExercise)}
+          <View ref={exerciseVideoRef}>
+            {renderExerciseMedia(selectedExercise)}
+          </View>
 
           {/* Repetition Progress (if this is a repeated exercise) */}
           {/* {(selectedExercise.isRepeat ||
@@ -3921,20 +3978,23 @@ export function ProgressScreen() {
 
           {/* Steps Section - Accordion Style */}
           {selectedExercise.steps && selectedExercise.steps.length > 0 && (
-            <YStack marginBottom={24}>
-              <ExerciseStepsAccordion
-                exercise={selectedExercise}
-                language={language}
-                variant="sheet"
-              />
-            </YStack>
+            <View ref={exerciseStepsRef}>
+              <YStack marginBottom={24}>
+                <ExerciseStepsAccordion
+                  exercise={selectedExercise}
+                  language={language}
+                  variant="sheet"
+                />
+              </YStack>
+            </View>
           )}
 
           {/* List of all repeats if viewing the base exercise */}
           {!selectedExercise.isRepeat &&
             selectedExercise.repeat_count &&
             selectedExercise.repeat_count > 1 && (
-              <YStack /* ref={repeatSectionRef} */ marginTop={16} marginBottom={16} gap={12}>
+              <View ref={exerciseRepeatRef}>
+              <YStack marginTop={16} marginBottom={16} gap={12}>
                 {/* <XStack alignItems="center" gap={8} marginBottom={8}>
                   <Feather name="list" size={20} color="#4B6BFF" />
                   <Text fontSize={18} fontWeight="bold" color="#4B6BFF">
@@ -3946,6 +4006,7 @@ export function ProgressScreen() {
                 {/* <RepeatProgressBar exercise={selectedExercise} /> */}
 
                 {/* Show the original exercise first */}
+                <View ref={exerciseCheckboxRef}>
                 <TouchableOpacity
                   style={{
                     paddingVertical: 16,
@@ -3991,6 +4052,7 @@ export function ProgressScreen() {
                     )} */}
                   </XStack>
                 </TouchableOpacity>
+                </View>
 
                 {/* Find and show all repeats */}
                 {(() => {
@@ -4111,6 +4173,7 @@ export function ProgressScreen() {
                   });
                 })()}
               </YStack>
+              </View>
             )}
 
           {/* Toggle done/not done button */}
@@ -4451,6 +4514,7 @@ export function ProgressScreen() {
                     disabled={!mainIsAvailable}
                     locked={mainIsPasswordLocked}
                     showChevron={true}
+                    tourTargetId={exerciseIndex === 0 ? 'ProgressScreen.FirstExercise' : undefined}
                     onPress={() => handleExerciseSelect(main)}
                     onCheckboxPress={async () => {
                       if (mainIsAvailable) {
