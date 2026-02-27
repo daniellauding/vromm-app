@@ -1,4 +1,12 @@
 {
+  "locationDisclosure": {
+    "title": "Background Location",
+    "description": "Vromm needs access to your location in the background to record your driving route while the screen is off or the app is minimized.",
+    "onlyDuringRecording": "Only tracked during active recordings",
+    "userControlled": "You start and stop each recording",
+    "notShared": "Not shared with third parties",
+    "continue": "Continue"
+  },
   "common": {
     "seeAll": "See All",
     "cancel": "Cancel",

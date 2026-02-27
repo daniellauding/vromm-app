@@ -12,7 +12,11 @@ import { EventEmitter } from 'events';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { AppState } from 'react-native';
+import { AppState, Image, Modal, Pressable, View } from 'react-native';
+import { Text, YStack, XStack, useTheme } from 'tamagui';
+import { Button } from '../components/Button';
+import { Feather } from '@expo/vector-icons';
+import { useTranslation } from './TranslationContext';
 import { hideRecordingBanner } from '../utils/notifications';
 
 // Types
@@ -143,9 +147,95 @@ TaskManager.defineTask(LOCATION_TRACKING, async (event) => {
   eventEmitter.emit('location', event);
 });
 
+const LOCATION_DISCLOSURE_IMAGE = require('../../assets/images/invitations/collection-invite.png');
+
+function BackgroundLocationDisclosure({
+  visible,
+  onAccept,
+  onDecline,
+}: {
+  visible: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+}) {
+  const theme = useTheme();
+  const { t } = useTranslation();
+
+  if (!visible) return null;
+
+  const backgroundColor = theme.background?.val || '#fff';
+
+  return (
+    <Modal visible transparent animationType="fade" statusBarTranslucent>
+      <Pressable
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}
+        onPress={onDecline}
+      >
+        <Pressable onPress={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 400 }}>
+          <YStack
+            width="100%"
+            backgroundColor={backgroundColor}
+            borderRadius="$4"
+            overflow="hidden"
+          >
+            <Image
+              source={LOCATION_DISCLOSURE_IMAGE}
+              style={{ width: '100%', height: 200 }}
+              resizeMode="cover"
+            />
+
+            <YStack padding="$4" gap="$4">
+              <Text fontSize="$6" fontWeight="bold" color="$color" textAlign="center">
+                {t('locationDisclosure.title') || 'Background Location'}
+              </Text>
+
+              <Text fontSize="$3" color="$gray11" lineHeight={22} textAlign="center">
+                {t('locationDisclosure.description') ||
+                  'Vromm needs access to your location in the background to record your driving route while the screen is off or the app is minimized.'}
+              </Text>
+
+              <YStack gap="$3" paddingHorizontal="$1">
+                <XStack alignItems="center" gap="$3">
+                  <Feather name="check-circle" size={18} color="#00E6C3" />
+                  <Text fontSize="$4" color="$color" flex={1}>
+                    {t('locationDisclosure.onlyDuringRecording') || 'Only tracked during active recordings'}
+                  </Text>
+                </XStack>
+                <XStack alignItems="center" gap="$3">
+                  <Feather name="check-circle" size={18} color="#00E6C3" />
+                  <Text fontSize="$4" color="$color" flex={1}>
+                    {t('locationDisclosure.userControlled') || 'You start and stop each recording'}
+                  </Text>
+                </XStack>
+                <XStack alignItems="center" gap="$3">
+                  <Feather name="check-circle" size={18} color="#00E6C3" />
+                  <Text fontSize="$4" color="$color" flex={1}>
+                    {t('locationDisclosure.notShared') || 'Not shared with third parties'}
+                  </Text>
+                </XStack>
+              </YStack>
+
+              <YStack gap="$2" marginTop="$2">
+                <Button variant="secondary" size="lg" onPress={onAccept}>
+                  {t('locationDisclosure.continue') || 'Continue'}
+                </Button>
+                <Button variant="link" size="md" onPress={onDecline}>
+                  {t('common.cancel') || 'Cancel'}
+                </Button>
+              </YStack>
+            </YStack>
+          </YStack>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export function RecordingProvider({ children }: { children: ReactNode }) {
   const [recordingState, setRecordingState] = useState<RecordingState>(defaultRecordingState);
   const [isRecordingActive, setIsRecordingActive] = useState(false);
+  const [showLocationDisclosure, setShowLocationDisclosure] = useState(false);
+  const disclosureResolveRef = useRef<((accepted: boolean) => void) | null>(null);
 
   // Refs for data that doesn't need to trigger renders
   const startTimeRef = useRef<number | null>(null);
@@ -219,8 +309,20 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
       }
 
       status = await Location.getBackgroundPermissionsAsync();
+      console.log('📍 Background location status:', status.status, 'granted:', status.granted);
 
       if (!status.granted) {
+        // Google Play requires a prominent disclosure before requesting background location
+        const userAccepted = await new Promise<boolean>((resolve) => {
+          disclosureResolveRef.current = resolve;
+          setShowLocationDisclosure(true);
+        });
+
+        if (!userAccepted) {
+          updateRecordingState({ debugMessage: 'Background location declined by user' });
+          return;
+        }
+
         const { status } = await Location.requestBackgroundPermissionsAsync().catch(() => ({
           status: 'error',
         }));
@@ -714,7 +816,24 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <RecordingContext.Provider value={value}>{children}</RecordingContext.Provider>;
+  return (
+    <RecordingContext.Provider value={value}>
+      {children}
+      <BackgroundLocationDisclosure
+        visible={showLocationDisclosure}
+        onAccept={() => {
+          setShowLocationDisclosure(false);
+          disclosureResolveRef.current?.(true);
+          disclosureResolveRef.current = null;
+        }}
+        onDecline={() => {
+          setShowLocationDisclosure(false);
+          disclosureResolveRef.current?.(false);
+          disclosureResolveRef.current = null;
+        }}
+      />
+    </RecordingContext.Provider>
+  );
 }
 
 export function useRecording() {

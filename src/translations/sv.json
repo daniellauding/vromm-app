@@ -1,4 +1,12 @@
 {
+  "locationDisclosure": {
+    "title": "Platsåtkomst i bakgrunden",
+    "description": "Vromm behöver åtkomst till din plats i bakgrunden för att spela in din körrutt medan skärmen är avstängd eller appen är minimerad.",
+    "onlyDuringRecording": "Spåras bara under aktiva inspelningar",
+    "userControlled": "Du startar och stoppar varje inspelning",
+    "notShared": "Delas inte med tredjeparter",
+    "continue": "Fortsätt"
+  },
   "common": {
     "seeAll": "Se alla",
     "cancel": "Avbryt",
